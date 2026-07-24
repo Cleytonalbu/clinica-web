@@ -1,120 +1,182 @@
-import { Mail, Lock, Eye, Shield } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  ShieldCheck,
+} from "lucide-react";
+
+import {
+  loginSchema,
+  type LoginFormData,
+} from "../../schemas/loginSchema";
 
 import { Button } from "../ui/Button";
-import { Checkbox } from "../ui/Checkbox";
 import { Input } from "../ui/Input";
-import { Card } from "../ui/Card";
 
 export function LoginForm() {
+  const [showPassword, setShowPassword] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  });
+
+  async function onSubmit(data: LoginFormData) {
+    console.log(data);
+
+    // Aqui entraremos com a API futuramente
+  }
+
   return (
-    <div className="w-full max-w-xl space-y-6">
-      <Card>
-        <h2 className="text-5xl font-bold text-[#1A2468]">
-          Bem-vindo de volta!
-        </h2>
+    <div className="w-full max-w-lg">
+      <h1 className="text-5xl font-bold text-[#172B6A]">
+        Bem-vindo de volta!
+      </h1>
 
-        <p className="mt-4 text-lg text-slate-500">
-          Acesse sua conta para continuar
-        </p>
+      <p className="mt-3 text-lg text-slate-500">
+        Acesse sua conta para continuar
+      </p>
 
-        <div className="mt-10 space-y-6">
-          <div className="relative">
-            <Mail
-              size={20}
-              className="absolute left-4 top-13 text-slate-400"
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="mt-10 space-y-6"
+      >
+        <div>
+          <Input
+            label="E-mail"
+            type="email"
+            placeholder="seu@email.com"
+            leftIcon={<Mail size={20} />}
+            {...register("email")}
+          />
+
+          {errors.email && (
+            <p className="mt-2 text-sm text-red-500">
+              {errors.email.message}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <Input
+            label="Senha"
+            type={showPassword ? "text" : "password"}
+            placeholder="Digite sua senha"
+            leftIcon={<Lock size={20} />}
+            rightIcon={
+              <button
+                type="button"
+                onClick={() =>
+                  setShowPassword(!showPassword)
+                }
+                className="text-slate-400 hover:text-violet-600 transition"
+              >
+                {showPassword ? (
+                  <EyeOff size={20} />
+                ) : (
+                  <Eye size={20} />
+                )}
+              </button>
+            }
+            {...register("password")}
+          />
+
+          {errors.password && (
+            <p className="mt-2 text-sm text-red-500">
+              {errors.password.message}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between">
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 accent-violet-600"
             />
 
-            <Input
-              label="E-mail"
-              placeholder="seu@email.com"
-            />
-          </div>
-
-          <div className="relative">
-            <Lock
-              size={20}
-              className="absolute left-4 top-13 text-slate-400"
-            />
-
-            <Eye
-              size={20}
-              className="absolute right-4 top-13 cursor-pointer text-slate-400"
-            />
-
-            <Input
-              label="Senha"
-              type="password"
-              placeholder="Digite sua senha"
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Checkbox label="Lembrar-me" />
-
-            <button
-              type="button"
-              className="text-sm font-medium text-violet-600 hover:underline"
-            >
-              Esqueci minha senha
-            </button>
-          </div>
-
-          <Button>
-            Entrar
-          </Button>
-
-          <div className="flex items-center gap-4">
-            <div className="h-px flex-1 bg-slate-200"></div>
-
-            <span className="text-slate-400">
-              ou
-            </span>
-
-            <div className="h-px flex-1 bg-slate-200"></div>
-          </div>
+            Lembrar-me
+          </label>
 
           <button
             type="button"
-            className="
-              flex
-              h-14
-              w-full
-              items-center
-              justify-center
-              gap-3
-              rounded-xl
-              border
-              border-slate-300
-              bg-white
-              font-medium
-              transition
-              hover:bg-slate-50
-            "
+            className="text-sm font-medium text-violet-600 hover:text-violet-700"
           >
-            <img
-              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-              alt="Google"
-              className="h-5 w-5"
-            />
-
-            Entrar com Google
+            Esqueci minha senha
           </button>
         </div>
-      </Card>
 
-      <div className="flex items-center gap-4 rounded-2xl bg-violet-50 p-6">
-        <Shield
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Entrando..." : "Entrar"}
+        </Button>
+
+        <div className="flex items-center gap-4">
+          <div className="h-px flex-1 bg-slate-200" />
+
+          <span className="text-sm text-slate-400">
+            ou
+          </span>
+
+          <div className="h-px flex-1 bg-slate-200" />
+        </div>
+
+        <button
+          type="button"
+          className="
+            flex
+            h-14
+            w-full
+            items-center
+            justify-center
+            gap-3
+            rounded-xl
+            border
+            border-slate-300
+            bg-white
+            font-semibold
+            transition
+            hover:border-violet-400
+            hover:bg-violet-50
+          "
+        >
+          <img
+            src="https://www.svgrepo.com/show/475656/google-color.svg"
+            alt="Google"
+            className="h-6 w-6"
+          />
+
+          Entrar com Google
+        </button>
+
+        <p className="pt-6 text-center text-sm text-slate-500">
+          © 2026 Clínica Integrada Entre Afetos.
+          Todos os direitos reservados.
+        </p>
+      </form>
+
+      <div className="mt-8 flex items-center gap-4 rounded-2xl bg-violet-50 p-5">
+        <ShieldCheck
           size={24}
           className="text-violet-600"
         />
 
         <div>
-          <h4 className="font-semibold text-[#1A2468]">
-            Ambiente seguro
-          </h4>
+          <h3 className="font-semibold text-[#172B6A]">
+            Acesso restrito para profissionais e gestores.
+          </h3>
 
           <p className="text-sm text-slate-500">
-            Acesso restrito para profissionais e gestores.
+            Ambiente seguro e confidencial.
           </p>
         </div>
       </div>

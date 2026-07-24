@@ -10,13 +10,15 @@ export function AuthLayout({
   right,
 }: AuthLayoutProps) {
   return (
-    <main className="min-h-screen bg-[#F7F8FC]">
-      <div className="mx-auto grid min-h-screen max-w-[1600px] grid-cols-1 lg:grid-cols-2">
-        <section className="hidden lg:flex items-center justify-center p-16">
+    <main className="h-screen overflow-hidden bg-[#F7F8FC]">
+      <div className="flex h-full">
+        {/* Painel esquerdo */}
+        <section className="hidden lg:block lg:w-[55%] xl:w-[56%]">
           {left}
         </section>
 
-        <section className="flex items-center justify-center p-8 lg:p-16">
+        {/* Painel direito */}
+        <section className="flex h-full w-full items-center justify-center bg-white lg:w-[45%] xl:w-[44%]">
           {right}
         </section>
       </div>
