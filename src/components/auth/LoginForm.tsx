@@ -73,10 +73,8 @@ export function LoginForm() {
             rightIcon={
               <button
                 type="button"
-                onClick={() =>
-                  setShowPassword(!showPassword)
-                }
-                className="text-slate-400 hover:text-violet-600 transition"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-slate-400 transition hover:text-violet-600"
               >
                 {showPassword ? (
                   <EyeOff size={20} />
@@ -120,47 +118,11 @@ export function LoginForm() {
           {isSubmitting ? "Entrando..." : "Entrar"}
         </Button>
 
-        <div className="flex items-center gap-4">
-          <div className="h-px flex-1 bg-slate-200" />
-
-          <span className="text-sm text-slate-400">
-            ou
+        <p className="pt-4 text-center text-sm text-slate-500">
+          Desenvolvido por{" "}
+          <span className="font-semibold text-[#172B6A]">
+            AC SOFTWARE
           </span>
-
-          <div className="h-px flex-1 bg-slate-200" />
-        </div>
-
-        <button
-          type="button"
-          className="
-            flex
-            h-14
-            w-full
-            items-center
-            justify-center
-            gap-3
-            rounded-xl
-            border
-            border-slate-300
-            bg-white
-            font-semibold
-            transition
-            hover:border-violet-400
-            hover:bg-violet-50
-          "
-        >
-          <img
-            src="https://www.svgrepo.com/show/475656/google-color.svg"
-            alt="Google"
-            className="h-6 w-6"
-          />
-
-          Entrar com Google
-        </button>
-
-        <p className="pt-6 text-center text-sm text-slate-500">
-          © 2026 Clínica Integrada Entre Afetos.
-          Todos os direitos reservados.
         </p>
       </form>
 
