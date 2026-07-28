@@ -15,14 +15,14 @@ import {
   type LoginFormData,
 } from "../../schemas/loginSchema";
 
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../hooks/useAuth";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 
 export function LoginForm() {
   const navigate = useNavigate();
 
-  const { signIn } = useAuth();
+  const { login } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
 
@@ -36,7 +36,10 @@ export function LoginForm() {
 
   async function onSubmit(data: LoginFormData) {
     try {
-      await signIn(data.email, data.password);
+      await login({
+        email: data.email,
+        senha: data.password,
+      });
 
       navigate("/dashboard");
     } catch (error) {
@@ -84,9 +87,7 @@ export function LoginForm() {
             rightIcon={
               <button
                 type="button"
-                onClick={() =>
-                  setShowPassword(!showPassword)
-                }
+                onClick={() => setShowPassword(!showPassword)}
                 className="text-slate-400 transition hover:text-violet-600"
               >
                 {showPassword ? (

@@ -1,38 +1,60 @@
-import type { ButtonHTMLAttributes } from "react";
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement>;
+import { cn } from "../../../lib/utils";
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center rounded-xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        primary:
+          "bg-blue-600 text-white hover:bg-blue-700",
+
+        secondary:
+          "bg-slate-100 text-slate-800 hover:bg-slate-200",
+
+        outline:
+          "border border-slate-300 bg-white hover:bg-slate-50",
+
+        danger:
+          "bg-red-600 text-white hover:bg-red-700",
+      },
+
+      size: {
+        sm: "h-9 px-3",
+        md: "h-10 px-4",
+        lg: "h-12 px-6",
+      },
+    },
+
+    defaultVariants: {
+      variant: "primary",
+      size: "md",
+    },
+  }
+);
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {}
 
 export function Button({
-  children,
-  className = "",
+  className,
+  variant,
+  size,
   ...props
 }: ButtonProps) {
   return (
     <button
+      className={cn(
+        buttonVariants({
+          variant,
+          size,
+        }),
+        className
+      )}
       {...props}
-      className={`
-        flex
-        h-14
-        w-full
-        items-center
-        justify-center
-        rounded-xl
-        bg-gradient-to-r
-        from-violet-600
-        to-indigo-700
-        font-semibold
-        text-white
-        shadow-lg
-        transition-all
-        duration-300
-        hover:-translate-y-0.5
-        hover:shadow-xl
-        disabled:cursor-not-allowed
-        disabled:opacity-60
-        ${className}
-      `}
-    >
-      {children}
-    </button>
+    />
   );
 }
