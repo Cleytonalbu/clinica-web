@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -14,10 +15,15 @@ import {
   type LoginFormData,
 } from "../../schemas/loginSchema";
 
+import { useAuth } from "../../contexts/AuthContext";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 
 export function LoginForm() {
+  const navigate = useNavigate();
+
+  const { signIn } = useAuth();
+
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -29,9 +35,14 @@ export function LoginForm() {
   });
 
   async function onSubmit(data: LoginFormData) {
-    console.log(data);
+    try {
+      await signIn(data.email, data.password);
 
-    // Aqui entraremos com a API futuramente
+      navigate("/dashboard");
+    } catch (error) {
+      console.error(error);
+      alert("E-mail ou senha inválidos.");
+    }
   }
 
   return (
@@ -73,7 +84,9 @@ export function LoginForm() {
             rightIcon={
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() =>
+                  setShowPassword(!showPassword)
+                }
                 className="text-slate-400 transition hover:text-violet-600"
               >
                 {showPassword ? (

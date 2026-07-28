@@ -1,65 +1,101 @@
 import {
   createContext,
-  useContext,
+  useCallback,
+  useEffect,
   useState,
-  type ReactNode,
 } from "react";
 
-type User = {
-  id: string;
-  name: string;
+import type { ReactNode } from "react";
+import type { User } from "../services/auth";
+
+import {
+  login as loginService,
+  me,
+  salvarToken,
+  removerToken,
+  obterToken,
+} from "../services/auth";
+
+interface LoginData {
   email: string;
-};
+  senha: string;
+}
 
-type AuthContextData = {
-  user: User | null;
-  signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => void;
-};
+interface AuthContextData {
+  usuario: User | null;
+  isAuthenticated: boolean;
+  loading: boolean;
 
-const AuthContext = createContext({} as AuthContextData);
+  login(data: LoginData): Promise<void>;
+  logout(): void;
+  refreshUser(): Promise<void>;
+}
 
-type AuthProviderProps = {
+interface AuthProviderProps {
   children: ReactNode;
-};
+}
+
+export const AuthContext = createContext({} as AuthContextData);
 
 export function AuthProvider({
   children,
 }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null);
+  const [usuario, setUsuario] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  async function signIn(
-    email: string,
-    password: string
-  ) {
-    console.log(email, password);
+  const refreshUser = useCallback(async () => {
+    try {
+      const usuario = await me();
 
-    // Aqui entraremos com a API futuramente.
+      setUsuario(usuario);
+    } catch {
+      removerToken();
+      setUsuario(null);
+    }
+  }, []);
 
-    setUser({
-      id: "1",
-      name: "Luiz",
-      email,
-    });
+  useEffect(() => {
+    async function carregarUsuario() {
+      const token = obterToken();
+
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      await refreshUser();
+
+      setLoading(false);
+    }
+
+    carregarUsuario();
+  }, [refreshUser]);
+
+  async function login(data: LoginData) {
+    const response = await loginService(data);
+
+    salvarToken(response.token);
+
+    setUsuario(response.usuario);
   }
 
-  function signOut() {
-    setUser(null);
+  function logout() {
+    removerToken();
+    setUsuario(null);
   }
 
   return (
     <AuthContext.Provider
       value={{
-        user,
-        signIn,
-        signOut,
+        usuario,
+        isAuthenticated: !!usuario,
+        loading,
+        login,
+        logout,
+        refreshUser,
       }}
     >
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }
