@@ -16,8 +16,7 @@ import {
 } from "../../schemas/loginSchema";
 
 import { useAuth } from "../../hooks/useAuth";
-import { Button } from "../ui/Button";
-import { Input } from "../ui/Input";
+import { Button, Input } from "@/components/ui";
 
 export function LoginForm() {
   const navigate = useNavigate();
@@ -113,7 +112,6 @@ export function LoginForm() {
               type="checkbox"
               className="h-4 w-4 rounded border-slate-300 accent-violet-600"
             />
-
             Lembrar-me
           </label>
 
