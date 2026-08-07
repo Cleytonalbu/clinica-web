@@ -7,6 +7,8 @@ import {
   UserRound,
 } from "lucide-react";
 
+import { useNavigate, useParams } from "react-router-dom";
+
 import type { Evolution } from "./types";
 
 interface EvolutionCardProps {
@@ -16,6 +18,15 @@ interface EvolutionCardProps {
 export function EvolutionCard({
   evolution,
 }: EvolutionCardProps) {
+  const navigate = useNavigate();
+  const { id } = useParams();
+
+  function handleViewDetails() {
+    navigate(
+      `/pacientes/${id}/evolucoes/${evolution.id}`
+    );
+  }
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -30,9 +41,7 @@ export function EvolutionCard({
                 {evolution.specialty}
               </h3>
 
-              <StatusBadge
-                status={evolution.status}
-              />
+              <StatusBadge status={evolution.status} />
             </div>
 
             <p className="mt-1 text-sm text-slate-500">
@@ -45,9 +54,7 @@ export function EvolutionCard({
                 {evolution.sessionDate}
               </span>
 
-              <span>
-                {evolution.createdAt}
-              </span>
+              <span>{evolution.createdAt}</span>
             </div>
           </div>
         </div>
@@ -89,6 +96,7 @@ export function EvolutionCard({
 
         <button
           type="button"
+          onClick={handleViewDetails}
           className="text-sm font-semibold text-indigo-600 transition hover:text-indigo-700"
         >
           Ver detalhes

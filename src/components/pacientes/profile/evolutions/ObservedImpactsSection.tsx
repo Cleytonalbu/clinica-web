@@ -1,6 +1,9 @@
-import { useState } from "react";
-
 import { PageCard } from "@/components/ui";
+
+interface ObservedImpactsSectionProps {
+  value: string[];
+  onChange: (value: string[]) => void;
+}
 
 const impacts = [
   "Comunicação",
@@ -13,21 +16,22 @@ const impacts = [
   "Outros",
 ];
 
-export function ObservedImpactsSection() {
-  const [selected, setSelected] = useState<string[]>([
-    "Comunicação",
-    "Interação social",
-    "Atenção",
-    "Autonomia",
-    "Regulação emocional",
-  ]);
-
+export function ObservedImpactsSection({
+  value,
+  onChange,
+}: ObservedImpactsSectionProps) {
   function toggleImpact(impact: string) {
-    setSelected((current) =>
-      current.includes(impact)
-        ? current.filter((item) => item !== impact)
-        : [...current, impact]
-    );
+    if (value.includes(impact)) {
+      onChange(
+        value.filter(
+          (item) => item !== impact
+        )
+      );
+
+      return;
+    }
+
+    onChange([...value, impact]);
   }
 
   return (
@@ -37,13 +41,15 @@ export function ObservedImpactsSection() {
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {impacts.map((impact) => {
-          const active = selected.includes(impact);
+          const active = value.includes(impact);
 
           return (
             <button
               key={impact}
               type="button"
-              onClick={() => toggleImpact(impact)}
+              onClick={() =>
+                toggleImpact(impact)
+              }
               className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left text-sm font-medium transition ${
                 active
                   ? "border-indigo-200 bg-indigo-50 text-indigo-700"

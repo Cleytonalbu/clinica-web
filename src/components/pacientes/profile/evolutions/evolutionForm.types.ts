@@ -22,6 +22,12 @@ export interface EvolutionObjectiveFormData {
   performance: number;
 }
 
+export interface TherapeuticPlanObjective {
+  id: number;
+  name: string;
+  specialty: string;
+}
+
 export interface EvolutionFormData {
   patientId: string;
 
@@ -51,6 +57,8 @@ export interface EvolutionFormData {
 
   sessionResult: SessionResult;
   sessionResultObservation: string;
+
+  attachments: File[];
 
   professional: string;
 

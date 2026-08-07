@@ -4,7 +4,9 @@ import { useParams } from "react-router-dom";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 
 import { PatientAgenda } from "@/components/pacientes/profile/PatientAgenda";
+import { PatientDocuments } from "@/components/pacientes/profile/PatientDocuments";
 import { PatientEvolutions } from "@/components/pacientes/profile/PatientEvolutions";
+import { PatientFinance } from "@/components/pacientes/profile/PatientFinance";
 import { PatientObjectives } from "@/components/pacientes/profile/PatientObjectives";
 import { PatientOverview } from "@/components/pacientes/profile/PatientOverview";
 import { PatientProfileHeader } from "@/components/pacientes/profile/PatientProfileHeader";
@@ -18,7 +20,9 @@ export default function PerfilPaciente() {
   const { id } = useParams();
 
   const [activeTab, setActiveTab] =
-    useState<PatientProfileTab>("resumo");
+    useState<PatientProfileTab>(
+      "resumo"
+    );
 
   return (
     <DashboardLayout>
@@ -35,33 +39,56 @@ export default function PerfilPaciente() {
           onChange={setActiveTab}
         />
 
-        {activeTab === "resumo" && (
+        {activeTab ===
+          "resumo" && (
           <PatientOverview />
         )}
 
-        {activeTab === "agenda" && (
+        {activeTab ===
+          "agenda" && (
           <PatientAgenda />
         )}
 
-        {activeTab === "objetivos" && (
+        {activeTab ===
+          "objetivos" && (
           <PatientObjectives />
         )}
 
-        {activeTab === "evolucoes" && (
+        {activeTab ===
+          "evolucoes" && (
           <PatientEvolutions />
         )}
 
-        {activeTab !== "resumo" &&
+        {activeTab ===
+          "documentos" && (
+          <PatientDocuments />
+        )}
+
+        {activeTab ===
+          "financeiro" && (
+          <PatientFinance />
+        )}
+
+        {activeTab !==
+          "resumo" &&
           activeTab !== "agenda" &&
-          activeTab !== "objetivos" &&
-          activeTab !== "evolucoes" && (
+          activeTab !==
+            "objetivos" &&
+          activeTab !==
+            "evolucoes" &&
+          activeTab !==
+            "documentos" &&
+          activeTab !==
+            "financeiro" && (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
               <p className="text-lg font-semibold text-slate-700">
-                Módulo em desenvolvimento
+                Módulo em
+                desenvolvimento
               </p>
 
               <p className="mt-2 text-sm text-slate-500">
-                Paciente #{id} • seção: {activeTab}
+                Paciente #{id} •
+                seção: {activeTab}
               </p>
             </div>
           )}

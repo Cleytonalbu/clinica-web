@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Bold,
   Italic,
@@ -8,13 +7,21 @@ import {
   Underline,
 } from "lucide-react";
 
+import type { ReactNode } from "react";
+
 import { PageCard } from "@/components/ui";
+
+interface EvolutionWrittenSectionProps {
+  value: string;
+  onChange: (value: string) => void;
+}
 
 const MAX_LENGTH = 2000;
 
-export function EvolutionWrittenSection() {
-  const [text, setText] = useState("");
-
+export function EvolutionWrittenSection({
+  value,
+  onChange,
+}: EvolutionWrittenSectionProps) {
   return (
     <PageCard
       title="3. Evolução Escrita"
@@ -67,18 +74,18 @@ export function EvolutionWrittenSection() {
         </div>
 
         <textarea
-          value={text}
+          value={value}
           maxLength={MAX_LENGTH}
           onChange={(event) =>
-            setText(event.target.value)
+            onChange(event.target.value)
           }
           placeholder="Descreva como foi a sessão, atividades realizadas, comportamento observado, respostas aos estímulos e demais informações clínicas..."
           className="min-h-56 w-full resize-none border-0 bg-white p-4 text-sm leading-7 text-slate-700 outline-none"
         />
 
-        <div className="flex items-center justify-end border-t border-slate-100 px-4 py-2">
+        <div className="flex justify-end border-t border-slate-100 px-4 py-2">
           <span className="text-xs text-slate-400">
-            {text.length}/{MAX_LENGTH}
+            {value.length}/{MAX_LENGTH}
           </span>
         </div>
       </div>
@@ -87,7 +94,7 @@ export function EvolutionWrittenSection() {
 }
 
 interface ToolbarButtonProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 function ToolbarButton({

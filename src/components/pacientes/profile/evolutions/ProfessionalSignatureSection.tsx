@@ -9,7 +9,18 @@ import {
   Select,
 } from "@/components/ui";
 
-export function ProfessionalSignatureSection() {
+interface ProfessionalSignatureSectionProps {
+  professional: string;
+
+  onChange: (
+    professional: string
+  ) => void;
+}
+
+export function ProfessionalSignatureSection({
+  professional,
+  onChange,
+}: ProfessionalSignatureSectionProps) {
   return (
     <PageCard
       title="8. Assinatura do Profissional"
@@ -20,7 +31,12 @@ export function ProfessionalSignatureSection() {
           label="Profissional"
           required
         >
-          <Select defaultValue="Dra. Juliana Santos">
+          <Select
+            value={professional}
+            onChange={(event) =>
+              onChange(event.target.value)
+            }
+          >
             <option value="Dra. Juliana Santos">
               Dra. Juliana Santos — Psicóloga
             </option>
@@ -48,7 +64,7 @@ export function ProfessionalSignatureSection() {
               </p>
 
               <p className="mt-1 text-xs text-emerald-700">
-                O registro será assinado eletronicamente pelo profissional selecionado.
+                A evolução será assinada eletronicamente pelo profissional.
               </p>
             </div>
           </div>
@@ -60,7 +76,7 @@ export function ProfessionalSignatureSection() {
           </p>
 
           <p className="mt-2 text-sm font-semibold text-slate-800">
-            07/08/2026 • 10:24
+            Gerada automaticamente ao finalizar
           </p>
         </div>
 
@@ -73,7 +89,7 @@ export function ProfessionalSignatureSection() {
             <PenLine size={20} />
 
             <span className="ml-2 font-medium italic">
-              Juliana Santos
+              {professional}
             </span>
           </div>
         </div>

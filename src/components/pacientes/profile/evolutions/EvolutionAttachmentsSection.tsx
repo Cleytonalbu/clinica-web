@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   File,
   Image,
@@ -9,35 +8,34 @@ import {
 
 import { PageCard } from "@/components/ui";
 
-interface Attachment {
-  id: number;
-  name: string;
-  type: "image" | "video" | "file";
-  size: string;
+interface EvolutionAttachmentsSectionProps {
+  files: File[];
+  onChange: (files: File[]) => void;
 }
 
-const initialAttachments: Attachment[] = [
-  {
-    id: 1,
-    name: "Atividade - Comunicação.jpg",
-    type: "image",
-    size: "2.4 MB",
-  },
-  {
-    id: 2,
-    name: "Exercício em grupo.mp4",
-    type: "video",
-    size: "15.6 MB",
-  },
-];
+export function EvolutionAttachmentsSection({
+  files,
+  onChange,
+}: EvolutionAttachmentsSectionProps) {
+  function handleFiles(
+    selectedFiles: FileList | null
+  ) {
+    if (!selectedFiles) {
+      return;
+    }
 
-export function EvolutionAttachmentsSection() {
-  const [attachments, setAttachments] =
-    useState(initialAttachments);
+    onChange([
+      ...files,
+      ...Array.from(selectedFiles),
+    ]);
+  }
 
-  function handleDelete(id: number) {
-    setAttachments((current) =>
-      current.filter((item) => item.id !== id)
+  function handleDelete(index: number) {
+    onChange(
+      files.filter(
+        (_, fileIndex) =>
+          fileIndex !== index
+      )
     );
   }
 
@@ -54,33 +52,39 @@ export function EvolutionAttachmentsSection() {
           />
 
           <span className="mt-3 text-sm font-semibold text-slate-700">
-            Arraste arquivos aqui ou clique para selecionar
+            Clique para selecionar arquivos
           </span>
 
           <span className="mt-1 text-xs text-slate-500">
-            JPG, PNG, PDF, MP4, MOV
+            JPG, PNG, PDF, MP4 ou MOV
           </span>
 
           <input
             type="file"
             multiple
+            accept=".jpg,.jpeg,.png,.pdf,.mp4,.mov"
             className="hidden"
+            onChange={(event) =>
+              handleFiles(
+                event.target.files
+              )
+            }
           />
         </label>
 
         <div className="space-y-3">
-          {attachments.map((attachment) => (
+          {files.map((file, index) => (
             <AttachmentItem
-              key={attachment.id}
-              attachment={attachment}
+              key={`${file.name}-${index}`}
+              file={file}
               onDelete={() =>
-                handleDelete(attachment.id)
+                handleDelete(index)
               }
             />
           ))}
 
-          {attachments.length === 0 && (
-            <div className="flex min-h-44 items-center justify-center rounded-xl border border-dashed border-slate-200 text-sm text-slate-400">
+          {files.length === 0 && (
+            <div className="flex min-h-44 items-center justify-center rounded-xl border border-dashed border-slate-200 p-4 text-center text-sm text-slate-400">
               Nenhum anexo adicionado.
             </div>
           )}
@@ -91,22 +95,15 @@ export function EvolutionAttachmentsSection() {
 }
 
 interface AttachmentItemProps {
-  attachment: Attachment;
+  file: File;
   onDelete: () => void;
 }
 
 function AttachmentItem({
-  attachment,
+  file,
   onDelete,
 }: AttachmentItemProps) {
-  const icon =
-    attachment.type === "image" ? (
-      <Image size={20} />
-    ) : attachment.type === "video" ? (
-      <Video size={20} />
-    ) : (
-      <File size={20} />
-    );
+  const icon = getFileIcon(file);
 
   return (
     <div className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
@@ -116,11 +113,11 @@ function AttachmentItem({
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-slate-800">
-          {attachment.name}
+          {file.name}
         </p>
 
         <p className="mt-1 text-xs text-slate-400">
-          {attachment.size}
+          {formatFileSize(file.size)}
         </p>
       </div>
 
@@ -133,4 +130,31 @@ function AttachmentItem({
       </button>
     </div>
   );
+}
+
+function getFileIcon(file: File) {
+  if (file.type.startsWith("image/")) {
+    return <Image size={20} />;
+  }
+
+  if (file.type.startsWith("video/")) {
+    return <Video size={20} />;
+  }
+
+  return <File size={20} />;
+}
+
+function formatFileSize(
+  size: number
+) {
+  if (size < 1024 * 1024) {
+    return `${(
+      size / 1024
+    ).toFixed(1)} KB`;
+  }
+
+  return `${(
+    size /
+    (1024 * 1024)
+  ).toFixed(1)} MB`;
 }

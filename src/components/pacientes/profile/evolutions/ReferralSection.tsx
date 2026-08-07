@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import {
   FormField,
   Input,
@@ -7,31 +5,32 @@ import {
   Select,
 } from "@/components/ui";
 
-const MAX_REASON = 300;
-const MAX_OBSERVATION = 300;
+import type {
+  EvolutionFormData,
+  ReferralPriority,
+} from "./evolutionForm.types";
 
-type Priority =
-  | "Baixa"
-  | "Média"
-  | "Alta"
-  | "Urgente";
+interface ReferralSectionProps {
+  formData: EvolutionFormData;
 
-export function ReferralSection() {
-  const [reason, setReason] = useState("");
-  const [observation, setObservation] =
-    useState("");
+  updateField: <
+    K extends keyof EvolutionFormData
+  >(
+    field: K,
+    value: EvolutionFormData[K]
+  ) => void;
+}
 
-  const [priority, setPriority] =
-    useState<Priority>("Alta");
-
-  const [internalNotification, setInternalNotification] =
-    useState(true);
-
-  const [addToAgenda, setAddToAgenda] =
-    useState(true);
-
-  const [notifyManager, setNotifyManager] =
-    useState(false);
+export function ReferralSection({
+  formData,
+  updateField,
+}: ReferralSectionProps) {
+  const priorities: ReferralPriority[] = [
+    "Baixa",
+    "Média",
+    "Alta",
+    "Urgente",
+  ];
 
   return (
     <PageCard
@@ -41,7 +40,15 @@ export function ReferralSection() {
       <div className="space-y-5">
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
           <FormField label="Encaminhar para">
-            <Select defaultValue="Fonoaudiologia">
+            <Select
+              value={formData.referralSpecialty}
+              onChange={(event) =>
+                updateField(
+                  "referralSpecialty",
+                  event.target.value
+                )
+              }
+            >
               <option value="">
                 Nenhum encaminhamento
               </option>
@@ -73,7 +80,17 @@ export function ReferralSection() {
           </FormField>
 
           <FormField label="Profissional de destino">
-            <Select defaultValue="Dra. Camila Soares">
+            <Select
+              value={
+                formData.referralProfessional
+              }
+              onChange={(event) =>
+                updateField(
+                  "referralProfessional",
+                  event.target.value
+                )
+              }
+            >
               <option value="">
                 Selecione o profissional
               </option>
@@ -94,23 +111,23 @@ export function ReferralSection() {
         </div>
 
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_260px]">
-          <FormField
-            label="Motivo do encaminhamento"
-            required
-          >
+          <FormField label="Motivo do encaminhamento">
             <div className="relative">
               <Input
-                value={reason}
-                maxLength={MAX_REASON}
+                value={formData.referralReason}
+                maxLength={300}
                 onChange={(event) =>
-                  setReason(event.target.value)
+                  updateField(
+                    "referralReason",
+                    event.target.value
+                  )
                 }
                 placeholder="Descreva o motivo do encaminhamento..."
                 className="pr-16"
               />
 
-              <span className="absolute bottom-2 right-3 text-[11px] text-slate-400">
-                {reason.length}/{MAX_REASON}
+              <span className="absolute bottom-2 right-3 text-xs text-slate-400">
+                {formData.referralReason.length}/300
               </span>
             </div>
           </FormField>
@@ -120,30 +137,29 @@ export function ReferralSection() {
               Prioridade
             </p>
 
-            <div className="flex h-11 items-center justify-between gap-2 rounded-xl border border-slate-200 px-3">
-              {(
-                [
-                  "Baixa",
-                  "Média",
-                  "Alta",
-                  "Urgente",
-                ] as Priority[]
-              ).map((item) => (
+            <div className="flex min-h-11 flex-wrap items-center gap-3 rounded-xl border border-slate-200 px-3">
+              {priorities.map((priority) => (
                 <label
-                  key={item}
+                  key={priority}
                   className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600"
                 >
                   <input
                     type="radio"
                     name="priority"
-                    checked={priority === item}
+                    checked={
+                      formData.referralPriority ===
+                      priority
+                    }
                     onChange={() =>
-                      setPriority(item)
+                      updateField(
+                        "referralPriority",
+                        priority
+                      )
                     }
                     className="accent-indigo-600"
                   />
 
-                  {item}
+                  {priority}
                 </label>
               ))}
             </div>
@@ -153,46 +169,71 @@ export function ReferralSection() {
         <FormField label="Observações ao profissional">
           <div className="relative">
             <textarea
-              value={observation}
-              maxLength={MAX_OBSERVATION}
+              value={
+                formData.referralObservation
+              }
+              maxLength={300}
               onChange={(event) =>
-                setObservation(
+                updateField(
+                  "referralObservation",
                   event.target.value
                 )
               }
-              placeholder="Registre informações importantes para o profissional que receberá o encaminhamento..."
-              className="min-h-[90px] w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-16 text-sm text-slate-700 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+              placeholder="Registre informações importantes para o profissional..."
+              className="min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-16 text-sm text-slate-700 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
             />
 
-            <span className="absolute bottom-3 right-3 text-[11px] text-slate-400">
-              {observation.length}/
-              {MAX_OBSERVATION}
+            <span className="absolute bottom-3 right-3 text-xs text-slate-400">
+              {
+                formData.referralObservation
+                  .length
+              }
+              /300
             </span>
           </div>
         </FormField>
 
         <div>
           <p className="mb-3 text-sm font-medium text-slate-700">
-            Notificar profissional
+            Notificações
           </p>
 
           <div className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-3">
             <CheckOption
               label="Enviar notificação interna"
-              checked={internalNotification}
-              onChange={setInternalNotification}
+              checked={
+                formData.notifyProfessional
+              }
+              onChange={(value) =>
+                updateField(
+                  "notifyProfessional",
+                  value
+                )
+              }
             />
 
             <CheckOption
-              label="Adicionar à agenda do profissional"
-              checked={addToAgenda}
-              onChange={setAddToAgenda}
+              label="Adicionar à agenda"
+              checked={
+                formData.addProfessionalAgenda
+              }
+              onChange={(value) =>
+                updateField(
+                  "addProfessionalAgenda",
+                  value
+                )
+              }
             />
 
             <CheckOption
-              label="Informar gestor da clínica"
-              checked={notifyManager}
-              onChange={setNotifyManager}
+              label="Informar gestor"
+              checked={formData.notifyManager}
+              onChange={(value) =>
+                updateField(
+                  "notifyManager",
+                  value
+                )
+              }
             />
           </div>
         </div>

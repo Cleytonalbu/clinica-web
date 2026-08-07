@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Frown,
   Meh,
@@ -7,42 +6,52 @@ import {
 
 import { PageCard } from "@/components/ui";
 
-type SessionResult =
-  | "Abaixo do esperado"
-  | "Dentro do esperado"
-  | "Acima do esperado";
+import type { SessionResult } from "./evolutionForm.types";
+
+interface SessionResultSectionProps {
+  value: SessionResult;
+  observation: string;
+
+  onChange: (
+    value: SessionResult
+  ) => void;
+
+  onObservationChange: (
+    value: string
+  ) => void;
+}
 
 const results: Array<{
   value: SessionResult;
   icon: typeof Smile;
-  className: string;
+  activeClass: string;
 }> = [
   {
     value: "Abaixo do esperado",
     icon: Frown,
-    className:
-      "border-slate-200 bg-slate-50 text-slate-600",
+    activeClass:
+      "border-red-300 bg-red-50 text-red-700",
   },
   {
     value: "Dentro do esperado",
     icon: Meh,
-    className:
+    activeClass:
       "border-violet-300 bg-violet-50 text-violet-700",
   },
   {
     value: "Acima do esperado",
     icon: Smile,
-    className:
+    activeClass:
       "border-emerald-300 bg-emerald-50 text-emerald-700",
   },
 ];
 
-export function SessionResultSection() {
-  const [result, setResult] =
-    useState<SessionResult>("Dentro do esperado");
-
-  const [notes, setNotes] = useState("");
-
+export function SessionResultSection({
+  value,
+  observation,
+  onChange,
+  onObservationChange,
+}: SessionResultSectionProps) {
   return (
     <PageCard
       title="6. Resultado geral da sessão"
@@ -51,16 +60,19 @@ export function SessionResultSection() {
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {results.map((item) => {
           const Icon = item.icon;
-          const active = result === item.value;
+          const active =
+            value === item.value;
 
           return (
             <button
               key={item.value}
               type="button"
-              onClick={() => setResult(item.value)}
+              onClick={() =>
+                onChange(item.value)
+              }
               className={`rounded-xl border p-4 text-center transition ${
                 active
-                  ? item.className
+                  ? item.activeClass
                   : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
               }`}
             >
@@ -84,17 +96,19 @@ export function SessionResultSection() {
 
         <div className="relative">
           <textarea
-            value={notes}
+            value={observation}
             maxLength={300}
             onChange={(event) =>
-              setNotes(event.target.value)
+              onObservationChange(
+                event.target.value
+              )
             }
             placeholder="Descreva observações adicionais sobre o resultado da sessão..."
             className="min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-16 text-sm text-slate-700 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
           />
 
           <span className="absolute bottom-3 right-3 text-xs text-slate-400">
-            {notes.length}/300
+            {observation.length}/300
           </span>
         </div>
       </div>

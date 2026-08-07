@@ -9,6 +9,7 @@ import Pacientes from "@/pages/Pacientes";
 import NovoPaciente from "@/pages/Pacientes/NovoPaciente";
 import PerfilPaciente from "@/pages/Pacientes/PerfilPaciente";
 import NovaEvolucao from "@/pages/Pacientes/NovaEvolucao";
+import DetalheEvolucao from "@/pages/Pacientes/DetalheEvolucao";
 
 export function AppRoutes() {
   return (
@@ -46,6 +47,11 @@ export function AppRoutes() {
       <Route
         path="/pacientes/:id/evolucoes/nova"
         element={<NovaEvolucao />}
+      />
+
+      <Route
+        path="/pacientes/:id/evolucoes/:evolutionId"
+        element={<DetalheEvolucao />}
       />
 
       <Route

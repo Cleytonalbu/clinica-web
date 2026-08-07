@@ -70,6 +70,8 @@ export function createEvolutionDefaultValues(
     sessionResult: "Dentro do esperado",
     sessionResultObservation: "",
 
+    attachments: [],
+
     professional: "Dra. Juliana Santos",
 
     status: "RASCUNHO",
