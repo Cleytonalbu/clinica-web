@@ -10,6 +10,7 @@ import { PatientFinance } from "@/components/pacientes/profile/PatientFinance";
 import { PatientObjectives } from "@/components/pacientes/profile/PatientObjectives";
 import { PatientOverview } from "@/components/pacientes/profile/PatientOverview";
 import { PatientProfileHeader } from "@/components/pacientes/profile/PatientProfileHeader";
+import { PatientReports } from "@/components/pacientes/profile/PatientReports";
 
 import {
   PatientProfileNav,
@@ -20,9 +21,7 @@ export default function PerfilPaciente() {
   const { id } = useParams();
 
   const [activeTab, setActiveTab] =
-    useState<PatientProfileTab>(
-      "resumo"
-    );
+    useState<PatientProfileTab>("resumo");
 
   return (
     <DashboardLayout>
@@ -39,59 +38,53 @@ export default function PerfilPaciente() {
           onChange={setActiveTab}
         />
 
-        {activeTab ===
-          "resumo" && (
+        {activeTab === "resumo" && (
           <PatientOverview />
         )}
 
-        {activeTab ===
-          "agenda" && (
+        {activeTab === "agenda" && (
           <PatientAgenda />
         )}
 
-        {activeTab ===
-          "objetivos" && (
+        {activeTab === "objetivos" && (
           <PatientObjectives />
         )}
 
-        {activeTab ===
-          "evolucoes" && (
+        {activeTab === "evolucoes" && (
           <PatientEvolutions />
         )}
 
-        {activeTab ===
-          "documentos" && (
+        {activeTab === "documentos" && (
           <PatientDocuments />
         )}
 
-        {activeTab ===
-          "financeiro" && (
+        {activeTab === "financeiro" && (
           <PatientFinance />
         )}
 
-        {activeTab !==
-          "resumo" &&
-          activeTab !== "agenda" &&
-          activeTab !==
-            "objetivos" &&
-          activeTab !==
-            "evolucoes" &&
-          activeTab !==
-            "documentos" &&
-          activeTab !==
-            "financeiro" && (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
-              <p className="text-lg font-semibold text-slate-700">
-                Módulo em
-                desenvolvimento
-              </p>
+        {activeTab === "relatorios" && (
+          <PatientReports />
+        )}
 
-              <p className="mt-2 text-sm text-slate-500">
-                Paciente #{id} •
-                seção: {activeTab}
-              </p>
-            </div>
-          )}
+        {![
+          "resumo",
+          "agenda",
+          "objetivos",
+          "evolucoes",
+          "documentos",
+          "financeiro",
+          "relatorios",
+        ].includes(activeTab) && (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
+            <p className="text-lg font-semibold text-slate-700">
+              Módulo em desenvolvimento
+            </p>
+
+            <p className="mt-2 text-sm text-slate-500">
+              Paciente #{id} • seção: {activeTab}
+            </p>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
