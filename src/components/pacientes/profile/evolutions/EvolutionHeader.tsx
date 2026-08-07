@@ -1,8 +1,16 @@
 import { Plus } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui";
 
 export function EvolutionHeader() {
+  const navigate = useNavigate();
+  const { id } = useParams();
+
+  function handleNewEvolution() {
+    navigate(`/pacientes/${id}/evolucoes/nova`);
+  }
+
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div>
@@ -15,9 +23,11 @@ export function EvolutionHeader() {
         </p>
       </div>
 
-      <Button type="button">
+      <Button
+        type="button"
+        onClick={handleNewEvolution}
+      >
         <Plus size={18} />
-
         Nova Evolução
       </Button>
     </div>

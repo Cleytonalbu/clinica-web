@@ -8,6 +8,7 @@ import Dashboard from "@/pages/Dashboard";
 import Pacientes from "@/pages/Pacientes";
 import NovoPaciente from "@/pages/Pacientes/NovoPaciente";
 import PerfilPaciente from "@/pages/Pacientes/PerfilPaciente";
+import NovaEvolucao from "@/pages/Pacientes/NovaEvolucao";
 
 export function AppRoutes() {
   return (
@@ -40,6 +41,11 @@ export function AppRoutes() {
       <Route
         path="/pacientes/:id"
         element={<PerfilPaciente />}
+      />
+
+      <Route
+        path="/pacientes/:id/evolucoes/nova"
+        element={<NovaEvolucao />}
       />
 
       <Route
