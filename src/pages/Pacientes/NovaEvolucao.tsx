@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import {
   ArrowLeft,
   CalendarDays,
@@ -28,12 +30,123 @@ import { SessionResultSection } from "@/components/pacientes/profile/evolutions/
 import { EvolutionAttachmentsSection } from "@/components/pacientes/profile/evolutions/EvolutionAttachmentsSection";
 import { ProfessionalSignatureSection } from "@/components/pacientes/profile/evolutions/ProfessionalSignatureSection";
 
+import { createEvolutionDefaultValues } from "@/components/pacientes/profile/evolutions/evolutionForm.defaults";
+
+import type {
+  EvolutionFormData,
+  EvolutionObjectiveStatus,
+} from "@/components/pacientes/profile/evolutions/evolutionForm.types";
+
 export default function NovaEvolucao() {
   const navigate = useNavigate();
   const { id } = useParams();
 
+  const patientId = id ?? "";
+
+  const [formData, setFormData] =
+    useState<EvolutionFormData>(() =>
+      createEvolutionDefaultValues(patientId)
+    );
+
+  const [saving, setSaving] = useState(false);
+
+  const [feedback, setFeedback] =
+    useState<string | null>(null);
+
   function handleCancel() {
-    navigate(`/pacientes/${id}`);
+    navigate(`/pacientes/${patientId}`);
+  }
+
+  function updateField<K extends keyof EvolutionFormData>(
+    field: K,
+    value: EvolutionFormData[K]
+  ) {
+    setFormData((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  function updateObjective(
+    objectiveId: number,
+    field: "status" | "performance",
+    value: EvolutionObjectiveStatus | number
+  ) {
+    setFormData((current) => ({
+      ...current,
+
+      objectives: current.objectives.map(
+        (objective) =>
+          objective.id === objectiveId
+            ? {
+                ...objective,
+                [field]: value,
+              }
+            : objective
+      ),
+    }));
+  }
+
+  async function handleSaveDraft() {
+    setSaving(true);
+    setFeedback(null);
+
+    try {
+      const draft: EvolutionFormData = {
+        ...formData,
+        status: "RASCUNHO",
+      };
+
+      console.log(
+        "Rascunho da evolução:",
+        draft
+      );
+
+      // Integração futura:
+      // await evolutionService.createDraft(draft);
+
+      setFormData(draft);
+
+      setFeedback(
+        "Rascunho salvo com sucesso."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleFinalize() {
+    setSaving(true);
+    setFeedback(null);
+
+    try {
+      const evolution: EvolutionFormData = {
+        ...formData,
+        status: "FINALIZADA",
+      };
+
+      console.log(
+        "Evolução finalizada:",
+        evolution
+      );
+
+      // Integração futura:
+      // await evolutionService.finalize(evolution);
+
+      setFormData(evolution);
+
+      setFeedback(
+        "Evolução finalizada com sucesso."
+      );
+
+      setTimeout(() => {
+        navigate(
+          `/pacientes/${patientId}`
+        );
+      }, 800);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -54,7 +167,9 @@ export default function NovaEvolucao() {
           </h1>
 
           <p className="mt-2 text-sm text-slate-500">
-            Registre os detalhes da sessão e os indicadores utilizados no acompanhamento do paciente.
+            Registre os detalhes da sessão e os
+            indicadores utilizados no acompanhamento
+            do paciente.
           </p>
         </div>
 
@@ -83,7 +198,9 @@ export default function NovaEvolucao() {
             </div>
 
             <PatientInfo
-              icon={<ClipboardList size={20} />}
+              icon={
+                <ClipboardList size={20} />
+              }
               label="Diagnóstico"
               value="TEA - Nível 1 de Suporte"
             />
@@ -95,7 +212,9 @@ export default function NovaEvolucao() {
             />
 
             <PatientInfo
-              icon={<CalendarDays size={20} />}
+              icon={
+                <CalendarDays size={20} />
+              }
               label="Última evolução"
               value="05/08/2026"
             />
@@ -103,51 +222,103 @@ export default function NovaEvolucao() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
-          <SessionDataSection />
-          <SessionObjectivesSection />
+          <SessionDataSection
+            formData={formData}
+            updateField={updateField}
+          />
+
+          <SessionObjectivesSection
+            formData={formData}
+            updateObjective={updateObjective}
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
           <EvolutionWrittenSection />
+
           <ReferralSection />
         </div>
 
         <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
           <ObservedImpactsSection />
+
           <SessionResultSection />
         </div>
 
         <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
           <EvolutionAttachmentsSection />
+
           <ProfessionalSignatureSection />
         </div>
 
-        <div className="sticky bottom-0 z-20 flex flex-col gap-3 rounded-t-2xl border border-slate-200 bg-white/95 px-5 py-4 shadow-lg backdrop-blur sm:flex-row sm:justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleCancel}
-          >
-            Cancelar
-          </Button>
+        <div className="sticky bottom-0 z-20 rounded-t-2xl border border-slate-200 bg-white/95 px-5 py-4 shadow-lg backdrop-blur">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              {feedback ? (
+                <p className="text-sm font-medium text-emerald-600">
+                  {feedback}
+                </p>
+              ) : (
+                <p className="text-sm text-slate-500">
+                  Você pode salvar como rascunho e
+                  continuar depois.
+                </p>
+              )}
+            </div>
 
-          <Button
-            type="button"
-            variant="secondary"
-          >
-            Salvar rascunho
-          </Button>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancel}
+                disabled={saving}
+              >
+                Cancelar
+              </Button>
 
-          <Button type="button">
-            Salvar e Finalizar Evolução
-          </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleSaveDraft}
+                disabled={saving}
+              >
+                {saving
+                  ? "Salvando..."
+                  : "Salvar rascunho"}
+              </Button>
+
+              <Button
+                type="button"
+                onClick={handleFinalize}
+                disabled={saving}
+              >
+                {saving
+                  ? "Finalizando..."
+                  : "Salvar e Finalizar Evolução"}
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </DashboardLayout>
   );
 }
 
-function SessionDataSection() {
+interface SessionDataSectionProps {
+  formData: EvolutionFormData;
+
+  updateField: <
+    K extends keyof EvolutionFormData
+  >(
+    field: K,
+    value: EvolutionFormData[K]
+  ) => void;
+}
+
+function SessionDataSection({
+  formData,
+  updateField,
+}: SessionDataSectionProps) {
   return (
     <PageCard
       title="1. Dados da Sessão"
@@ -158,25 +329,60 @@ function SessionDataSection() {
           label="Data do atendimento"
           required
         >
-          <Input type="date" />
+          <Input
+            type="date"
+            value={formData.sessionDate}
+            onChange={(event) =>
+              updateField(
+                "sessionDate",
+                event.target.value
+              )
+            }
+          />
         </FormField>
 
         <FormField
           label="Hora início"
           required
         >
-          <Input type="time" />
+          <Input
+            type="time"
+            value={formData.startTime}
+            onChange={(event) =>
+              updateField(
+                "startTime",
+                event.target.value
+              )
+            }
+          />
         </FormField>
 
         <FormField label="Hora fim">
-          <Input type="time" />
+          <Input
+            type="time"
+            value={formData.endTime}
+            onChange={(event) =>
+              updateField(
+                "endTime",
+                event.target.value
+              )
+            }
+          />
         </FormField>
 
         <FormField
           label="Especialidade"
           required
         >
-          <Select defaultValue="Psicologia">
+          <Select
+            value={formData.specialty}
+            onChange={(event) =>
+              updateField(
+                "specialty",
+                event.target.value
+              )
+            }
+          >
             <option value="Psicologia">
               Psicologia
             </option>
@@ -192,6 +398,14 @@ function SessionDataSection() {
             <option value="Fisioterapia">
               Fisioterapia
             </option>
+
+            <option value="Psicopedagogia">
+              Psicopedagogia
+            </option>
+
+            <option value="Nutrição">
+              Nutrição
+            </option>
           </Select>
         </FormField>
 
@@ -199,7 +413,17 @@ function SessionDataSection() {
           label="Tipo de atendimento"
           required
         >
-          <Select defaultValue="Individual">
+          <Select
+            value={
+              formData.appointmentType
+            }
+            onChange={(event) =>
+              updateField(
+                "appointmentType",
+                event.target.value
+              )
+            }
+          >
             <option value="Individual">
               Individual
             </option>
@@ -215,7 +439,17 @@ function SessionDataSection() {
         </FormField>
 
         <FormField label="Local do atendimento">
-          <Select defaultValue="Clinica">
+          <Select
+            value={
+              formData.appointmentLocation
+            }
+            onChange={(event) =>
+              updateField(
+                "appointmentLocation",
+                event.target.value
+              )
+            }
+          >
             <option value="Clinica">
               Clínica
             </option>
@@ -234,40 +468,20 @@ function SessionDataSection() {
   );
 }
 
-function SessionObjectivesSection() {
-  const objectives = [
-    {
-      id: 1,
-      name: "Comunicação funcional",
-      status: "Em evolução",
-      performance: 4,
-    },
-    {
-      id: 2,
-      name: "Interação social",
-      status: "Em evolução",
-      performance: 3,
-    },
-    {
-      id: 3,
-      name: "Autorregulação emocional",
-      status: "Alcançado",
-      performance: 5,
-    },
-    {
-      id: 4,
-      name: "Autonomia nas atividades",
-      status: "Parcialmente alcançado",
-      performance: 3,
-    },
-    {
-      id: 5,
-      name: "Atenção e concentração",
-      status: "Em evolução",
-      performance: 4,
-    },
-  ];
+interface SessionObjectivesSectionProps {
+  formData: EvolutionFormData;
 
+  updateObjective: (
+    objectiveId: number,
+    field: "status" | "performance",
+    value: EvolutionObjectiveStatus | number
+  ) => void;
+}
+
+function SessionObjectivesSection({
+  formData,
+  updateObjective,
+}: SessionObjectivesSectionProps) {
   return (
     <PageCard
       title="2. Indicadores da Sessão"
@@ -276,63 +490,93 @@ function SessionObjectivesSection() {
       <div className="space-y-3">
         <div className="hidden grid-cols-[1fr_190px_150px] gap-4 px-2 text-xs font-semibold uppercase tracking-wide text-slate-400 md:grid">
           <span>Objetivo</span>
+
           <span>Status na sessão</span>
+
           <span>Desempenho</span>
         </div>
 
-        {objectives.map((objective) => (
-          <div
-            key={objective.id}
-            className="grid grid-cols-1 gap-3 rounded-xl border border-slate-100 p-3 md:grid-cols-[1fr_190px_150px] md:items-center"
-          >
-            <div className="flex items-center gap-3">
-              <div className="h-3 w-3 rounded-full bg-indigo-500" />
+        {formData.objectives.map(
+          (objective) => (
+            <div
+              key={objective.id}
+              className="grid grid-cols-1 gap-3 rounded-xl border border-slate-100 p-3 md:grid-cols-[1fr_190px_150px] md:items-center"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-3 w-3 rounded-full bg-indigo-500" />
 
-              <span className="text-sm font-medium text-slate-800">
-                {objective.name}
-              </span>
-            </div>
-
-            <Select defaultValue={objective.status}>
-              <option value="Em evolução">
-                Em evolução
-              </option>
-
-              <option value="Alcançado">
-                Alcançado
-              </option>
-
-              <option value="Parcialmente alcançado">
-                Parcialmente alcançado
-              </option>
-
-              <option value="Regressão">
-                Regressão
-              </option>
-            </Select>
-
-            <div className="flex items-center gap-2">
-              <span className="whitespace-nowrap text-amber-500">
-                {"★".repeat(objective.performance)}
-
-                <span className="text-slate-200">
-                  {"★".repeat(5 - objective.performance)}
+                <span className="text-sm font-medium text-slate-800">
+                  {objective.name}
                 </span>
-              </span>
+              </div>
 
               <Select
-                defaultValue={String(objective.performance)}
-                className="w-16"
+                value={objective.status}
+                onChange={(event) =>
+                  updateObjective(
+                    objective.id,
+                    "status",
+                    event.target
+                      .value as EvolutionObjectiveStatus
+                  )
+                }
               >
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
+                <option value="Em evolução">
+                  Em evolução
+                </option>
+
+                <option value="Alcançado">
+                  Alcançado
+                </option>
+
+                <option value="Parcialmente alcançado">
+                  Parcialmente alcançado
+                </option>
+
+                <option value="Regressão">
+                  Regressão
+                </option>
               </Select>
+
+              <div className="flex items-center gap-2">
+                <span className="whitespace-nowrap text-amber-500">
+                  {"★".repeat(
+                    objective.performance
+                  )}
+
+                  <span className="text-slate-200">
+                    {"★".repeat(
+                      5 -
+                        objective.performance
+                    )}
+                  </span>
+                </span>
+
+                <Select
+                  value={String(
+                    objective.performance
+                  )}
+                  onChange={(event) =>
+                    updateObjective(
+                      objective.id,
+                      "performance",
+                      Number(
+                        event.target.value
+                      )
+                    )
+                  }
+                  className="w-16"
+                >
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                </Select>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        )}
 
         <button
           type="button"
