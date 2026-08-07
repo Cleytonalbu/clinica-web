@@ -3,12 +3,16 @@ import { useParams } from "react-router-dom";
 
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 
+import { PatientAgenda } from "@/components/pacientes/profile/PatientAgenda";
+import { PatientEvolutions } from "@/components/pacientes/profile/PatientEvolutions";
+import { PatientObjectives } from "@/components/pacientes/profile/PatientObjectives";
+import { PatientOverview } from "@/components/pacientes/profile/PatientOverview";
 import { PatientProfileHeader } from "@/components/pacientes/profile/PatientProfileHeader";
+
 import {
   PatientProfileNav,
   type PatientProfileTab,
 } from "@/components/pacientes/profile/PatientProfileNav";
-import { PatientOverview } from "@/components/pacientes/profile/PatientOverview";
 
 export default function PerfilPaciente() {
   const { id } = useParams();
@@ -35,17 +39,32 @@ export default function PerfilPaciente() {
           <PatientOverview />
         )}
 
-        {activeTab !== "resumo" && (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
-            <p className="text-lg font-semibold text-slate-700">
-              Módulo em desenvolvimento
-            </p>
-
-            <p className="mt-2 text-sm text-slate-500">
-              Paciente #{id} • seção: {activeTab}
-            </p>
-          </div>
+        {activeTab === "agenda" && (
+          <PatientAgenda />
         )}
+
+        {activeTab === "objetivos" && (
+          <PatientObjectives />
+        )}
+
+        {activeTab === "evolucoes" && (
+          <PatientEvolutions />
+        )}
+
+        {activeTab !== "resumo" &&
+          activeTab !== "agenda" &&
+          activeTab !== "objetivos" &&
+          activeTab !== "evolucoes" && (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
+              <p className="text-lg font-semibold text-slate-700">
+                Módulo em desenvolvimento
+              </p>
+
+              <p className="mt-2 text-sm text-slate-500">
+                Paciente #{id} • seção: {activeTab}
+              </p>
+            </div>
+          )}
       </div>
     </DashboardLayout>
   );

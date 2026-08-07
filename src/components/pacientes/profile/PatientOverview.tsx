@@ -9,6 +9,10 @@ import {
 
 import { PageCard } from "@/components/ui";
 
+import { PatientSummaryCards } from "./PatientSummaryCards";
+import { PatientTimeline } from "./PatientTimeline";
+import { PatientActiveGoals } from "./PatientActiveGoals";
+
 const dadosPaciente = {
   cpf: "123.456.789-10",
   nascimento: "15/04/2018",
@@ -23,135 +27,116 @@ const dadosPaciente = {
 
 export function PatientOverview() {
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-      <div className="space-y-6 xl:col-span-2">
-        <PageCard
-          title="Dados Pessoais"
-          description="Informações cadastrais do paciente."
-        >
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <InfoItem
-              icon={<UserRound size={18} />}
-              label="CPF"
-              value={dadosPaciente.cpf}
-            />
+    <div className="space-y-6">
+      <PatientSummaryCards />
 
-            <InfoItem
-              icon={<CalendarCheck2 size={18} />}
-              label="Data de nascimento"
-              value={dadosPaciente.nascimento}
-            />
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="space-y-6 xl:col-span-2">
+          <PageCard
+            title="Dados Pessoais"
+            description="Informações cadastrais do paciente."
+          >
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <InfoItem
+                icon={<UserRound size={18} />}
+                label="CPF"
+                value={dadosPaciente.cpf}
+              />
 
-            <InfoItem
-              icon={<UserRound size={18} />}
-              label="Sexo"
-              value={dadosPaciente.sexo}
-            />
+              <InfoItem
+                icon={<CalendarCheck2 size={18} />}
+                label="Data de nascimento"
+                value={dadosPaciente.nascimento}
+              />
 
-            <InfoItem
-              icon={<Phone size={18} />}
-              label="Telefone"
-              value={dadosPaciente.telefone}
-            />
+              <InfoItem
+                icon={<UserRound size={18} />}
+                label="Sexo"
+                value={dadosPaciente.sexo}
+              />
 
-            <InfoItem
-              icon={<MapPin size={18} />}
-              label="Endereço"
-              value={dadosPaciente.endereco}
-            />
+              <InfoItem
+                icon={<Phone size={18} />}
+                label="Telefone"
+                value={dadosPaciente.telefone}
+              />
 
-            <InfoItem
-              icon={<ShieldCheck size={18} />}
-              label="Convênio"
-              value={dadosPaciente.convenio}
-            />
-          </div>
-        </PageCard>
+              <InfoItem
+                icon={<MapPin size={18} />}
+                label="Endereço"
+                value={dadosPaciente.endereco}
+              />
 
-        <PageCard
-          title="Responsável"
-          description="Responsável legal vinculado ao paciente."
-        >
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <InfoItem
-              icon={<UserRound size={18} />}
-              label="Nome"
-              value={dadosPaciente.responsavel}
-            />
-
-            <InfoItem
-              icon={<HeartPulse size={18} />}
-              label="Parentesco"
-              value={dadosPaciente.parentesco}
-            />
-
-            <InfoItem
-              icon={<Phone size={18} />}
-              label="Contato"
-              value={dadosPaciente.telefone}
-            />
-
-            <InfoItem
-              icon={<UserRound size={18} />}
-              label="E-mail"
-              value={dadosPaciente.email}
-            />
-          </div>
-        </PageCard>
-      </div>
-
-      <div className="space-y-6">
-        <PageCard
-          title="Próxima Sessão"
-          description="Próximo atendimento agendado."
-        >
-          <div className="rounded-xl bg-indigo-50 p-5">
-            <p className="text-sm font-medium text-indigo-600">
-              Segunda-feira
-            </p>
-
-            <p className="mt-2 text-2xl font-bold text-slate-900">
-              10:30
-            </p>
-
-            <div className="mt-4 border-t border-indigo-100 pt-4">
-              <p className="font-semibold text-slate-800">
-                Psicologia
-              </p>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Dra. Ana Paula
-              </p>
+              <InfoItem
+                icon={<ShieldCheck size={18} />}
+                label="Convênio"
+                value={dadosPaciente.convenio}
+              />
             </div>
-          </div>
-        </PageCard>
+          </PageCard>
 
-        <PageCard
-          title="Resumo"
-          description="Informações rápidas do acompanhamento."
-        >
-          <div className="space-y-4">
-            <SummaryItem
-              label="Atendimentos"
-              value="24"
-            />
+          <PatientTimeline />
+        </div>
 
-            <SummaryItem
-              label="Objetivos ativos"
-              value="6"
-            />
+        <div className="space-y-6">
+          <PageCard
+            title="Próxima Sessão"
+            description="Próximo atendimento agendado."
+          >
+            <div className="rounded-xl bg-indigo-50 p-5">
+              <p className="text-sm font-medium text-indigo-600">
+                Segunda-feira
+              </p>
 
-            <SummaryItem
-              label="Evoluções"
-              value="18"
-            />
+              <p className="mt-2 text-2xl font-bold text-slate-900">
+                10:30
+              </p>
 
-            <SummaryItem
-              label="Documentos"
-              value="7"
-            />
-          </div>
-        </PageCard>
+              <div className="mt-4 border-t border-indigo-100 pt-4">
+                <p className="font-semibold text-slate-800">
+                  Psicologia
+                </p>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Dra. Ana Paula
+                </p>
+              </div>
+            </div>
+          </PageCard>
+
+          <PatientActiveGoals />
+
+          <PageCard
+            title="Responsável"
+            description="Responsável legal vinculado."
+          >
+            <div className="space-y-5">
+              <InfoItem
+                icon={<UserRound size={18} />}
+                label="Nome"
+                value={dadosPaciente.responsavel}
+              />
+
+              <InfoItem
+                icon={<HeartPulse size={18} />}
+                label="Parentesco"
+                value={dadosPaciente.parentesco}
+              />
+
+              <InfoItem
+                icon={<Phone size={18} />}
+                label="Contato"
+                value={dadosPaciente.telefone}
+              />
+
+              <InfoItem
+                icon={<UserRound size={18} />}
+                label="E-mail"
+                value={dadosPaciente.email}
+              />
+            </div>
+          </PageCard>
+        </div>
       </div>
     </div>
   );
@@ -183,28 +168,6 @@ function InfoItem({
           {value}
         </p>
       </div>
-    </div>
-  );
-}
-
-interface SummaryItemProps {
-  label: string;
-  value: string;
-}
-
-function SummaryItem({
-  label,
-  value,
-}: SummaryItemProps) {
-  return (
-    <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-      <span className="text-sm text-slate-600">
-        {label}
-      </span>
-
-      <span className="font-bold text-slate-900">
-        {value}
-      </span>
     </div>
   );
 }
