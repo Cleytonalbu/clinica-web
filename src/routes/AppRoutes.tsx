@@ -1,5 +1,56 @@
-import Dashboard from "../pages/Dashboard";
+import {
+  Navigate,
+  Route,
+  Routes,
+} from "react-router-dom";
+
+import Dashboard from "@/pages/Dashboard";
+import Pacientes from "@/pages/Pacientes";
+import NovoPaciente from "@/pages/Pacientes/NovoPaciente";
+import PerfilPaciente from "@/pages/Pacientes/PerfilPaciente";
 
 export function AppRoutes() {
-  return <Dashboard />;
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <Navigate
+            to="/dashboard"
+            replace
+          />
+        }
+      />
+
+      <Route
+        path="/dashboard"
+        element={<Dashboard />}
+      />
+
+      <Route
+        path="/pacientes"
+        element={<Pacientes />}
+      />
+
+      <Route
+        path="/pacientes/novo"
+        element={<NovoPaciente />}
+      />
+
+      <Route
+        path="/pacientes/:id"
+        element={<PerfilPaciente />}
+      />
+
+      <Route
+        path="*"
+        element={
+          <Navigate
+            to="/dashboard"
+            replace
+          />
+        }
+      />
+    </Routes>
+  );
 }
