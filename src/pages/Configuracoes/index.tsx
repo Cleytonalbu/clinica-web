@@ -60,6 +60,8 @@ import ResponsibleAppSettingsContainer from "./ResponsibleAppSettingsContainer";
 
 import PermissionsSettingsContainer from "./PermissionsSettingsContainer";
 
+import FinancialSettingsContainer from "./FinancialSettingsContainer";
+
 type SettingsSection =
   | "clinic"
   | "specialties"
@@ -593,9 +595,7 @@ export default function Configuracoes() {
         specialtyValue
       );
 
-    if (
-      !name
-    ) {
+    if (!name) {
       showFeedback(
         "Informe o nome da especialidade."
       );
@@ -1923,9 +1923,18 @@ export default function Configuracoes() {
 
             {activeSection ===
               "finance" && (
-              <PlaceholderSection
-                title="Financeiro"
-                description="Configure regras financeiras, vencimentos e recebimentos."
+              <FinancialSettingsContainer
+                settings={
+                  systemSettings
+                }
+
+                onSettingsChange={
+                  setSystemSettings
+                }
+
+                onFeedback={
+                  showFeedback
+                }
               />
             )}
 
@@ -1980,9 +1989,7 @@ function ClinicSettingsSection({
       >
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.3fr_0.9fr]">
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <FormField
-              label="Nome da clínica"
-            >
+            <FormField label="Nome da clínica">
               <Input
                 value={
                   settings.clinicName
@@ -1998,9 +2005,7 @@ function ClinicSettingsSection({
               />
             </FormField>
 
-            <FormField
-              label="CNPJ"
-            >
+            <FormField label="CNPJ">
               <Input
                 value={
                   settings.cnpj
@@ -2016,9 +2021,7 @@ function ClinicSettingsSection({
               />
             </FormField>
 
-            <FormField
-              label="E-mail"
-            >
+            <FormField label="E-mail">
               <Input
                 type="email"
                 value={
@@ -2035,9 +2038,7 @@ function ClinicSettingsSection({
               />
             </FormField>
 
-            <FormField
-              label="Telefone"
-            >
+            <FormField label="Telefone">
               <Input
                 value={
                   settings.phone
@@ -2053,9 +2054,7 @@ function ClinicSettingsSection({
               />
             </FormField>
 
-            <FormField
-              label="Endereço"
-            >
+            <FormField label="Endereço">
               <Input
                 value={
                   settings.address
@@ -2071,9 +2070,7 @@ function ClinicSettingsSection({
               />
             </FormField>
 
-            <FormField
-              label="Cidade"
-            >
+            <FormField label="Cidade">
               <Input
                 value={
                   settings.city
@@ -2089,9 +2086,7 @@ function ClinicSettingsSection({
               />
             </FormField>
 
-            <FormField
-              label="Estado"
-            >
+            <FormField label="Estado">
               <Select
                 value={
                   settings.state
@@ -2105,39 +2100,17 @@ function ClinicSettingsSection({
                   )
                 }
               >
-                <option value="PB">
-                  PB
-                </option>
-
-                <option value="PE">
-                  PE
-                </option>
-
-                <option value="RN">
-                  RN
-                </option>
-
-                <option value="CE">
-                  CE
-                </option>
-
-                <option value="SP">
-                  SP
-                </option>
-
-                <option value="RJ">
-                  RJ
-                </option>
-
-                <option value="MG">
-                  MG
-                </option>
+                <option value="PB">PB</option>
+                <option value="PE">PE</option>
+                <option value="RN">RN</option>
+                <option value="CE">CE</option>
+                <option value="SP">SP</option>
+                <option value="RJ">RJ</option>
+                <option value="MG">MG</option>
               </Select>
             </FormField>
 
-            <FormField
-              label="CEP"
-            >
+            <FormField label="CEP">
               <Input
                 value={
                   settings.zipCode
@@ -2162,11 +2135,9 @@ function ClinicSettingsSection({
             <div className="mt-5 space-y-4">
               <SimpleBooleanSetting
                 label="Ativar lembretes de consulta"
-
                 checked={
                   settings.consultationReminders
                 }
-
                 onChange={(
                   value
                 ) =>
@@ -2179,11 +2150,9 @@ function ClinicSettingsSection({
 
               <SimpleBooleanSetting
                 label="Permitir reagendamento pelo responsável"
-
                 checked={
                   settings.allowResponsibleReschedule
                 }
-
                 onChange={(
                   value
                 ) =>
@@ -2196,11 +2165,9 @@ function ClinicSettingsSection({
 
               <SimpleBooleanSetting
                 label="Exigir justificativa para faltas"
-
                 checked={
                   settings.requireAbsenceReason
                 }
-
                 onChange={(
                   value
                 ) =>
@@ -2213,11 +2180,9 @@ function ClinicSettingsSection({
 
               <SimpleBooleanSetting
                 label="Bloquear prontuário após encerramento"
-
                 checked={
                   settings.lockMedicalRecordAfterClose
                 }
-
                 onChange={(
                   value
                 ) =>
@@ -2230,11 +2195,9 @@ function ClinicSettingsSection({
 
               <SimpleBooleanSetting
                 label="Exibir dados financeiros para profissionais"
-
                 checked={
                   settings.showFinancialDataToProfessionals
                 }
-
                 onChange={(
                   value
                 ) =>
@@ -2247,9 +2210,7 @@ function ClinicSettingsSection({
             </div>
 
             <div className="mt-7 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <FormField
-                label="Fuso horário"
-              >
+              <FormField label="Fuso horário">
                 <Select
                   value={
                     settings.timezone
@@ -2277,9 +2238,7 @@ function ClinicSettingsSection({
                 </Select>
               </FormField>
 
-              <FormField
-                label="Formato de data"
-              >
+              <FormField label="Formato de data">
                 <Select
                   value={
                     settings.dateFormat
@@ -2314,7 +2273,6 @@ function ClinicSettingsSection({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <SummaryCard
           title="Especialidades ativas"
-
           value={String(
             systemSettings.specialties.filter(
               (
@@ -2327,7 +2285,6 @@ function ClinicSettingsSection({
 
         <SummaryCard
           title="Profissionais ativos"
-
           value={String(
             systemSettings.professionals.filter(
               (
@@ -2340,7 +2297,6 @@ function ClinicSettingsSection({
 
         <SummaryCard
           title="Salas ativas"
-
           value={String(
             systemSettings.rooms.filter(
               (
@@ -2439,7 +2395,6 @@ function SpecialtiesSettingsSection({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <SummaryCard
           title="Especialidades"
-
           value={String(
             settings.specialties.length
           )}
@@ -2447,7 +2402,6 @@ function SpecialtiesSettingsSection({
 
         <SummaryCard
           title="Ativas"
-
           value={String(
             activeCount
           )}
@@ -2455,7 +2409,6 @@ function SpecialtiesSettingsSection({
 
         <SummaryCard
           title="Valor médio"
-
           value={
             formatCurrency(
               averageValue
@@ -2480,9 +2433,7 @@ function SpecialtiesSettingsSection({
                 className="rounded-2xl border border-slate-200 bg-white p-5"
               >
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_220px_160px_auto]">
-                  <FormField
-                    label="Especialidade"
-                  >
+                  <FormField label="Especialidade">
                     <Input
                       value={
                         specialty.name
@@ -2501,9 +2452,7 @@ function SpecialtiesSettingsSection({
                     />
                   </FormField>
 
-                  <FormField
-                    label="Valor padrão"
-                  >
+                  <FormField label="Valor padrão">
                     <Input
                       type="number"
                       min="0"
@@ -2738,9 +2687,7 @@ function ProfessionalsSettingsSection({
                 className="rounded-2xl border border-slate-200 bg-white p-5"
               >
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_1fr_1fr_180px_140px_auto]">
-                  <FormField
-                    label="Nome"
-                  >
+                  <FormField label="Nome">
                     <Input
                       value={
                         professional.name
@@ -2759,9 +2706,7 @@ function ProfessionalsSettingsSection({
                     />
                   </FormField>
 
-                  <FormField
-                    label="Especialidade"
-                  >
+                  <FormField label="Especialidade">
                     <Select
                       value={
                         professional.specialty
@@ -2799,9 +2744,7 @@ function ProfessionalsSettingsSection({
                     </Select>
                   </FormField>
 
-                  <FormField
-                    label="Registro"
-                  >
+                  <FormField label="Registro">
                     <Input
                       value={
                         professional.registration
@@ -2820,9 +2763,7 @@ function ProfessionalsSettingsSection({
                     />
                   </FormField>
 
-                  <FormField
-                    label="Valor próprio"
-                  >
+                  <FormField label="Valor próprio">
                     <Input
                       type="number"
                       min="0"
@@ -2959,9 +2900,7 @@ function ProfessionalsSettingsSection({
             </Select>
           </FormField>
 
-          <FormField
-            label="Registro"
-          >
+          <FormField label="Registro">
             <Input
               value={
                 professionalRegistration
@@ -2976,9 +2915,7 @@ function ProfessionalsSettingsSection({
             />
           </FormField>
 
-          <FormField
-            label="Valor próprio"
-          >
+          <FormField label="Valor próprio">
             <Input
               type="number"
               min="0"
@@ -3103,9 +3040,7 @@ function ConveniosSettingsSection({
                 className="rounded-2xl border border-slate-200 bg-white p-5"
               >
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_220px_140px_auto]">
-                  <FormField
-                    label="Convênio"
-                  >
+                  <FormField label="Convênio">
                     <Input
                       value={
                         convenio.name
@@ -3124,9 +3059,7 @@ function ConveniosSettingsSection({
                     />
                   </FormField>
 
-                  <FormField
-                    label="Desconto (%)"
-                  >
+                  <FormField label="Desconto (%)">
                     <Input
                       type="number"
                       value={
@@ -3255,9 +3188,7 @@ function ConveniosSettingsSection({
             />
           </FormField>
 
-          <FormField
-            label="Desconto padrão (%)"
-          >
+          <FormField label="Desconto padrão (%)">
             <Input
               type="number"
               value={
@@ -3363,9 +3294,7 @@ function RoomsSettingsSection({
                   </div>
 
                   <div className="flex-1">
-                    <FormField
-                      label="Nome da sala"
-                    >
+                    <FormField label="Nome da sala">
                       <Input
                         value={
                           room.name

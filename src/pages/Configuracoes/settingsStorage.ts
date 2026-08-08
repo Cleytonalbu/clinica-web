@@ -259,6 +259,89 @@ export interface PermissionsSettings {
   allowReceptionToEditPatientData: boolean;
 }
 
+export type PaymentMethodKey =
+  | "pix"
+  | "cash"
+  | "creditCard"
+  | "debitCard"
+  | "bankTransfer"
+  | "boleto"
+  | "digitalWallet";
+
+export interface PaymentMethodSetting {
+  id: number;
+
+  key: PaymentMethodKey;
+
+  name: string;
+
+  active: boolean;
+
+  allowInstallments: boolean;
+
+  maxInstallments: number;
+
+  feePercent: number;
+}
+
+export interface FinancialSettings {
+  paymentMethods: PaymentMethodSetting[];
+
+  defaultDueDay: number;
+
+  generateChargeAutomatically: boolean;
+
+  chargeOnAppointmentCreation: boolean;
+
+  chargeAfterAppointment: boolean;
+
+  allowPartialPayment: boolean;
+
+  allowOverpayment: boolean;
+
+  applyLateFee: boolean;
+
+  lateFeePercent: number;
+
+  applyInterest: boolean;
+
+  monthlyInterestPercent: number;
+
+  allowDiscount: boolean;
+
+  maximumDiscountPercent: number;
+
+  generateReceiptAutomatically: boolean;
+
+  showClinicDataOnReceipt: boolean;
+
+  showProfessionalOnReceipt: boolean;
+
+  showPatientOnReceipt: boolean;
+
+  requirePaymentMethodOnConfirmation: boolean;
+
+  digitalWalletEnabled: boolean;
+
+  allowResponsibleWalletDeposit: boolean;
+
+  minimumWalletDeposit: number;
+
+  walletLowBalanceWarning: boolean;
+
+  walletLowBalanceAmount: number;
+
+  useWalletAutomatically: boolean;
+
+  notifyBeforeDueDate: boolean;
+
+  daysBeforeDueDate: number;
+
+  notifyAfterDueDate: boolean;
+
+  daysAfterDueDate: number;
+}
+
 export interface SystemSettings {
   specialties: SpecialtySetting[];
 
@@ -279,6 +362,8 @@ export interface SystemSettings {
   responsibleApp: ResponsibleAppSettings;
 
   permissions: PermissionsSettings;
+
+  financial: FinancialSettings;
 }
 
 const STORAGE_KEY =
@@ -490,7 +575,9 @@ const defaultEvolutionModels: EvolutionModelSetting[] = [
 
     fields: {
       ...defaultEvolutionFields,
+
       guidanceToFamily: true,
+
       nextSessionPlan: true,
     },
   },
@@ -509,7 +596,9 @@ const defaultEvolutionModels: EvolutionModelSetting[] = [
 
     fields: {
       ...defaultEvolutionFields,
+
       guidanceToFamily: true,
+
       nextSessionPlan: true,
     },
   },
@@ -528,7 +617,9 @@ const defaultEvolutionModels: EvolutionModelSetting[] = [
 
     fields: {
       ...defaultEvolutionFields,
+
       guidanceToFamily: true,
+
       nextSessionPlan: true,
     },
   },
@@ -982,6 +1073,176 @@ const defaultPermissionsSettings: PermissionsSettings = {
   ],
 };
 
+const defaultFinancialSettings: FinancialSettings = {
+  paymentMethods: [
+    {
+      id: 1,
+
+      key: "pix",
+
+      name: "PIX",
+
+      active: true,
+
+      allowInstallments: false,
+
+      maxInstallments: 1,
+
+      feePercent: 0,
+    },
+
+    {
+      id: 2,
+
+      key: "cash",
+
+      name: "Dinheiro",
+
+      active: true,
+
+      allowInstallments: false,
+
+      maxInstallments: 1,
+
+      feePercent: 0,
+    },
+
+    {
+      id: 3,
+
+      key: "creditCard",
+
+      name: "Cartão de crédito",
+
+      active: true,
+
+      allowInstallments: true,
+
+      maxInstallments: 12,
+
+      feePercent: 3.49,
+    },
+
+    {
+      id: 4,
+
+      key: "debitCard",
+
+      name: "Cartão de débito",
+
+      active: true,
+
+      allowInstallments: false,
+
+      maxInstallments: 1,
+
+      feePercent: 1.99,
+    },
+
+    {
+      id: 5,
+
+      key: "bankTransfer",
+
+      name: "Transferência bancária",
+
+      active: true,
+
+      allowInstallments: false,
+
+      maxInstallments: 1,
+
+      feePercent: 0,
+    },
+
+    {
+      id: 6,
+
+      key: "boleto",
+
+      name: "Boleto",
+
+      active: false,
+
+      allowInstallments: false,
+
+      maxInstallments: 1,
+
+      feePercent: 0,
+    },
+
+    {
+      id: 7,
+
+      key: "digitalWallet",
+
+      name: "Carteira digital",
+
+      active: true,
+
+      allowInstallments: false,
+
+      maxInstallments: 1,
+
+      feePercent: 0,
+    },
+  ],
+
+  defaultDueDay: 10,
+
+  generateChargeAutomatically: true,
+
+  chargeOnAppointmentCreation: false,
+
+  chargeAfterAppointment: true,
+
+  allowPartialPayment: true,
+
+  allowOverpayment: false,
+
+  applyLateFee: true,
+
+  lateFeePercent: 2,
+
+  applyInterest: true,
+
+  monthlyInterestPercent: 1,
+
+  allowDiscount: true,
+
+  maximumDiscountPercent: 20,
+
+  generateReceiptAutomatically: true,
+
+  showClinicDataOnReceipt: true,
+
+  showProfessionalOnReceipt: true,
+
+  showPatientOnReceipt: true,
+
+  requirePaymentMethodOnConfirmation: true,
+
+  digitalWalletEnabled: true,
+
+  allowResponsibleWalletDeposit: true,
+
+  minimumWalletDeposit: 20,
+
+  walletLowBalanceWarning: true,
+
+  walletLowBalanceAmount: 50,
+
+  useWalletAutomatically: false,
+
+  notifyBeforeDueDate: true,
+
+  daysBeforeDueDate: 3,
+
+  notifyAfterDueDate: true,
+
+  daysAfterDueDate: 1,
+};
+
 const defaultSettings: SystemSettings = {
   specialties: [
     {
@@ -1146,6 +1407,9 @@ const defaultSettings: SystemSettings = {
 
   permissions:
     defaultPermissionsSettings,
+
+  financial:
+    defaultFinancialSettings,
 };
 
 export function getSystemSettings(): SystemSettings {
@@ -1221,6 +1485,16 @@ export function getSystemSettings(): SystemSettings {
         defaultPermissionsSettings.profiles,
     };
 
+    const normalizedFinancial: FinancialSettings = {
+      ...defaultFinancialSettings,
+
+      ...(parsed.financial ?? {}),
+
+      paymentMethods:
+        parsed.financial?.paymentMethods ??
+        defaultFinancialSettings.paymentMethods,
+    };
+
     const normalized: SystemSettings = {
       specialties:
         parsed.specialties ??
@@ -1257,6 +1531,9 @@ export function getSystemSettings(): SystemSettings {
 
       permissions:
         normalizedPermissions,
+
+      financial:
+        normalizedFinancial,
     };
 
     localStorage.setItem(
@@ -1438,6 +1715,19 @@ export function canProfileAccessModule(
     profile.modules[
       module
     ].view
+  );
+}
+
+export function getFinancialSettings() {
+  return getSystemSettings().financial;
+}
+
+export function getActivePaymentMethods() {
+  return getSystemSettings().financial.paymentMethods.filter(
+    (
+      method
+    ) =>
+      method.active
   );
 }
 
