@@ -62,6 +62,10 @@ import PermissionsSettingsContainer from "./PermissionsSettingsContainer";
 
 import FinancialSettingsContainer from "./FinancialSettingsContainer";
 
+import ReportsSettingsContainer from "./ReportsSettingsContainer";
+
+import GeneralSettingsContainer from "./GeneralSettingsContainer";
+
 type SettingsSection =
   | "clinic"
   | "specialties"
@@ -213,12 +217,8 @@ const menuItems: {
     ReactNode;
 }[] = [
   {
-    id:
-      "clinic",
-
-    label:
-      "Dados da Clínica",
-
+    id: "clinic",
+    label: "Dados da Clínica",
     icon:
       <Building2
         size={18}
@@ -226,12 +226,8 @@ const menuItems: {
   },
 
   {
-    id:
-      "specialties",
-
-    label:
-      "Especialidades",
-
+    id: "specialties",
+    label: "Especialidades",
     icon:
       <Stethoscope
         size={18}
@@ -239,12 +235,8 @@ const menuItems: {
   },
 
   {
-    id:
-      "professionals",
-
-    label:
-      "Profissionais",
-
+    id: "professionals",
+    label: "Profissionais",
     icon:
       <UserCog
         size={18}
@@ -252,12 +244,8 @@ const menuItems: {
   },
 
   {
-    id:
-      "convenios",
-
-    label:
-      "Convênios",
-
+    id: "convenios",
+    label: "Convênios",
     icon:
       <UsersRound
         size={18}
@@ -265,12 +253,8 @@ const menuItems: {
   },
 
   {
-    id:
-      "rooms",
-
-    label:
-      "Salas",
-
+    id: "rooms",
+    label: "Salas",
     icon:
       <LayoutList
         size={18}
@@ -278,12 +262,8 @@ const menuItems: {
   },
 
   {
-    id:
-      "agenda",
-
-    label:
-      "Agenda",
-
+    id: "agenda",
+    label: "Agenda",
     icon:
       <CalendarDays
         size={18}
@@ -291,12 +271,8 @@ const menuItems: {
   },
 
   {
-    id:
-      "objectives",
-
-    label:
-      "Objetivos Terapêuticos",
-
+    id: "objectives",
+    label: "Objetivos Terapêuticos",
     icon:
       <Target
         size={18}
@@ -304,12 +280,8 @@ const menuItems: {
   },
 
   {
-    id:
-      "evolution",
-
-    label:
-      "Modelos de Evolução",
-
+    id: "evolution",
+    label: "Modelos de Evolução",
     icon:
       <ClipboardList
         size={18}
@@ -317,12 +289,8 @@ const menuItems: {
   },
 
   {
-    id:
-      "notifications",
-
-    label:
-      "Notificações",
-
+    id: "notifications",
+    label: "Notificações",
     icon:
       <Bell
         size={18}
@@ -330,12 +298,8 @@ const menuItems: {
   },
 
   {
-    id:
-      "app",
-
-    label:
-      "Aplicativo dos Responsáveis",
-
+    id: "app",
+    label: "Aplicativo dos Responsáveis",
     icon:
       <Smartphone
         size={18}
@@ -343,12 +307,8 @@ const menuItems: {
   },
 
   {
-    id:
-      "permissions",
-
-    label:
-      "Perfis e Permissões",
-
+    id: "permissions",
+    label: "Perfis e Permissões",
     icon:
       <ShieldCheck
         size={18}
@@ -356,12 +316,8 @@ const menuItems: {
   },
 
   {
-    id:
-      "finance",
-
-    label:
-      "Financeiro",
-
+    id: "finance",
+    label: "Financeiro",
     icon:
       <CircleDollarSign
         size={18}
@@ -369,12 +325,8 @@ const menuItems: {
   },
 
   {
-    id:
-      "reports",
-
-    label:
-      "Relatórios",
-
+    id: "reports",
+    label: "Relatórios",
     icon:
       <FileBarChart
         size={18}
@@ -382,12 +334,8 @@ const menuItems: {
   },
 
   {
-    id:
-      "general",
-
-    label:
-      "Configurações Gerais",
-
+    id: "general",
+    label: "Configurações Gerais",
     icon:
       <Settings
         size={18}
@@ -777,45 +725,7 @@ export default function Configuracoes() {
       linkedProfessional
     ) {
       showFeedback(
-        "Essa especialidade está vinculada a um profissional. Altere o profissional ou desative a especialidade."
-      );
-
-      return;
-    }
-
-    const linkedObjective =
-      systemSettings.objectives.some(
-        (
-          objective
-        ) =>
-          objective.specialty ===
-          specialty.name
-      );
-
-    if (
-      linkedObjective
-    ) {
-      showFeedback(
-        "Essa especialidade possui objetivos terapêuticos vinculados. Desative a especialidade em vez de excluí-la."
-      );
-
-      return;
-    }
-
-    const linkedEvolutionModel =
-      systemSettings.evolutionModels.some(
-        (
-          model
-        ) =>
-          model.specialty ===
-          specialty.name
-      );
-
-    if (
-      linkedEvolutionModel
-    ) {
-      showFeedback(
-        "Essa especialidade possui modelos de evolução vinculados. Desative a especialidade em vez de excluí-la."
+        "Essa especialidade está vinculada a um profissional."
       );
 
       return;
@@ -877,45 +787,6 @@ export default function Configuracoes() {
     ) {
       showFeedback(
         "Selecione a especialidade."
-      );
-
-      return;
-    }
-
-    if (
-      customValue !==
-        undefined &&
-      (
-        Number.isNaN(
-          customValue
-        ) ||
-        customValue <=
-          0
-      )
-    ) {
-      showFeedback(
-        "Informe um valor próprio válido ou deixe o campo vazio."
-      );
-
-      return;
-    }
-
-    const alreadyExists =
-      systemSettings.professionals.some(
-        (
-          professional
-        ) =>
-          professional.name
-            .trim()
-            .toLowerCase() ===
-          name.toLowerCase()
-      );
-
-    if (
-      alreadyExists
-    ) {
-      showFeedback(
-        "Já existe um profissional com esse nome."
       );
 
       return;
@@ -1093,43 +964,6 @@ export default function Configuracoes() {
       return;
     }
 
-    if (
-      Number.isNaN(
-        discount
-      ) ||
-      discount <
-        0 ||
-      discount >
-        100
-    ) {
-      showFeedback(
-        "Informe um desconto entre 0% e 100%."
-      );
-
-      return;
-    }
-
-    const alreadyExists =
-      systemSettings.convenios.some(
-        (
-          convenio
-        ) =>
-          convenio.name
-            .trim()
-            .toLowerCase() ===
-          name.toLowerCase()
-      );
-
-    if (
-      alreadyExists
-    ) {
-      showFeedback(
-        "Já existe um convênio com esse nome."
-      );
-
-      return;
-    }
-
     const newConvenio:
       ConvenioSetting = {
       id:
@@ -1141,7 +975,14 @@ export default function Configuracoes() {
         true,
 
       discountPercent:
-        discount,
+        Math.min(
+          Math.max(
+            discount ||
+              0,
+            0
+          ),
+          100
+        ),
 
       specialtyValues:
         {},
@@ -1282,9 +1123,6 @@ export default function Configuracoes() {
 
               if (
                 !value ||
-                Number.isNaN(
-                  numericValue
-                ) ||
                 numericValue <=
                   0
               ) {
@@ -1350,27 +1188,6 @@ export default function Configuracoes() {
     ) {
       showFeedback(
         "Informe o nome da sala."
-      );
-
-      return;
-    }
-
-    const alreadyExists =
-      systemSettings.rooms.some(
-        (
-          room
-        ) =>
-          room.name
-            .trim()
-            .toLowerCase() ===
-          name.toLowerCase()
-      );
-
-    if (
-      alreadyExists
-    ) {
-      showFeedback(
-        "Já existe uma sala com esse nome."
       );
 
       return;
@@ -1940,17 +1757,35 @@ export default function Configuracoes() {
 
             {activeSection ===
               "reports" && (
-              <PlaceholderSection
-                title="Relatórios"
-                description="Configure preferências para geração dos relatórios."
+              <ReportsSettingsContainer
+                settings={
+                  systemSettings
+                }
+
+                onSettingsChange={
+                  setSystemSettings
+                }
+
+                onFeedback={
+                  showFeedback
+                }
               />
             )}
 
             {activeSection ===
               "general" && (
-              <PlaceholderSection
-                title="Configurações Gerais"
-                description="Defina as preferências gerais de funcionamento da plataforma."
+              <GeneralSettingsContainer
+                settings={
+                  systemSettings
+                }
+
+                onSettingsChange={
+                  setSystemSettings
+                }
+
+                onFeedback={
+                  showFeedback
+                }
               />
             )}
           </main>
@@ -2100,13 +1935,33 @@ function ClinicSettingsSection({
                   )
                 }
               >
-                <option value="PB">PB</option>
-                <option value="PE">PE</option>
-                <option value="RN">RN</option>
-                <option value="CE">CE</option>
-                <option value="SP">SP</option>
-                <option value="RJ">RJ</option>
-                <option value="MG">MG</option>
+                <option value="PB">
+                  PB
+                </option>
+
+                <option value="PE">
+                  PE
+                </option>
+
+                <option value="RN">
+                  RN
+                </option>
+
+                <option value="CE">
+                  CE
+                </option>
+
+                <option value="SP">
+                  SP
+                </option>
+
+                <option value="RJ">
+                  RJ
+                </option>
+
+                <option value="MG">
+                  MG
+                </option>
               </Select>
             </FormField>
 
@@ -2207,64 +2062,6 @@ function ClinicSettingsSection({
                   )
                 }
               />
-            </div>
-
-            <div className="mt-7 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <FormField label="Fuso horário">
-                <Select
-                  value={
-                    settings.timezone
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    onChange(
-                      "timezone",
-                      event.target.value
-                    )
-                  }
-                >
-                  <option value="America/Sao_Paulo">
-                    (UTC-03:00) Brasília
-                  </option>
-
-                  <option value="America/Manaus">
-                    (UTC-04:00) Manaus
-                  </option>
-
-                  <option value="America/Rio_Branco">
-                    (UTC-05:00) Acre
-                  </option>
-                </Select>
-              </FormField>
-
-              <FormField label="Formato de data">
-                <Select
-                  value={
-                    settings.dateFormat
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    onChange(
-                      "dateFormat",
-                      event.target.value
-                    )
-                  }
-                >
-                  <option value="DD/MM/AAAA">
-                    DD/MM/AAAA
-                  </option>
-
-                  <option value="MM/DD/AAAA">
-                    MM/DD/AAAA
-                  </option>
-
-                  <option value="AAAA-MM-DD">
-                    AAAA-MM-DD
-                  </option>
-                </Select>
-              </FormField>
             </div>
           </div>
         </div>
@@ -2375,24 +2172,9 @@ function SpecialtiesSettingsSection({
         item.active
     ).length;
 
-  const averageValue =
-    settings.specialties.length >
-      0
-      ? settings.specialties.reduce(
-          (
-            total,
-            specialty
-          ) =>
-            total +
-            specialty.value,
-          0
-        ) /
-        settings.specialties.length
-      : 0;
-
   return (
     <>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <SummaryCard
           title="Especialidades"
           value={String(
@@ -2405,15 +2187,6 @@ function SpecialtiesSettingsSection({
           value={String(
             activeCount
           )}
-        />
-
-        <SummaryCard
-          title="Valor médio"
-          value={
-            formatCurrency(
-              averageValue
-            )
-          }
         />
       </div>
 
@@ -2455,8 +2228,6 @@ function SpecialtiesSettingsSection({
                   <FormField label="Valor padrão">
                     <Input
                       type="number"
-                      min="0"
-                      step="0.01"
                       value={
                         specialty.value
                       }
@@ -2528,10 +2299,7 @@ function SpecialtiesSettingsSection({
         description="Cadastre uma nova área de atendimento."
       >
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_220px_auto]">
-          <FormField
-            label="Nome"
-            required
-          >
+          <FormField label="Nome">
             <Input
               value={
                 specialtyName
@@ -2546,14 +2314,9 @@ function SpecialtiesSettingsSection({
             />
           </FormField>
 
-          <FormField
-            label="Valor padrão"
-            required
-          >
+          <FormField label="Valor">
             <Input
               type="number"
-              min="0"
-              step="0.01"
               value={
                 specialtyValue
               }
@@ -2766,8 +2529,6 @@ function ProfessionalsSettingsSection({
                   <FormField label="Valor próprio">
                     <Input
                       type="number"
-                      min="0"
-                      step="0.01"
                       value={
                         professional.customValue ??
                         ""
@@ -2841,10 +2602,7 @@ function ProfessionalsSettingsSection({
         description="Cadastre um novo profissional."
       >
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-[1.2fr_1fr_1fr_180px_auto]">
-          <FormField
-            label="Nome"
-            required
-          >
+          <FormField label="Nome">
             <Input
               value={
                 professionalName
@@ -2859,10 +2617,7 @@ function ProfessionalsSettingsSection({
             />
           </FormField>
 
-          <FormField
-            label="Especialidade"
-            required
-          >
+          <FormField label="Especialidade">
             <Select
               value={
                 professionalSpecialty
@@ -2918,8 +2673,6 @@ function ProfessionalsSettingsSection({
           <FormField label="Valor próprio">
             <Input
               type="number"
-              min="0"
-              step="0.01"
               value={
                 professionalValue
               }
@@ -3026,7 +2779,7 @@ function ConveniosSettingsSection({
     <>
       <PageCard
         title="Convênios"
-        description="Defina os convênios aceitos e suas regras de cobrança."
+        description="Defina os convênios aceitos e suas regras."
       >
         <div className="space-y-5">
           {settings.convenios.map(
@@ -3170,10 +2923,7 @@ function ConveniosSettingsSection({
         description="Cadastre um novo convênio."
       >
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_220px_auto]">
-          <FormField
-            label="Nome"
-            required
-          >
+          <FormField label="Nome">
             <Input
               value={
                 convenioName
@@ -3188,7 +2938,7 @@ function ConveniosSettingsSection({
             />
           </FormField>
 
-          <FormField label="Desconto padrão (%)">
+          <FormField label="Desconto padrão">
             <Input
               type="number"
               value={
@@ -3273,7 +3023,7 @@ function RoomsSettingsSection({
     <>
       <PageCard
         title="Salas de Atendimento"
-        description="Gerencie os ambientes disponíveis para os agendamentos."
+        description="Gerencie os ambientes disponíveis."
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {settings.rooms.map(
@@ -3356,13 +3106,10 @@ function RoomsSettingsSection({
 
       <PageCard
         title="Nova Sala"
-        description="Cadastre um novo ambiente de atendimento."
+        description="Cadastre um novo ambiente."
       >
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_auto]">
-          <FormField
-            label="Nome da sala"
-            required
-          >
+          <FormField label="Nome da sala">
             <Input
               value={
                 roomName
@@ -3440,45 +3187,6 @@ function SimpleBooleanSetting({
   );
 }
 
-function PlaceholderSection({
-  title,
-  description,
-}: {
-  title:
-    string;
-
-  description:
-    string;
-}) {
-  return (
-    <PageCard
-      title={
-        title
-      }
-      description={
-        description
-      }
-    >
-      <div className="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/40 p-10 text-center">
-        <Settings
-          size={34}
-          className="mx-auto text-indigo-400"
-        />
-
-        <p className="mt-4 font-bold text-slate-800">
-          {
-            title
-          }
-        </p>
-
-        <p className="mx-auto mt-2 max-w-lg text-sm text-slate-500">
-          Esta área será implementada nas próximas etapas.
-        </p>
-      </div>
-    </PageCard>
-  );
-}
-
 function SummaryCard({
   title,
   value,
@@ -3503,23 +3211,5 @@ function SummaryCard({
         }
       </p>
     </div>
-  );
-}
-
-function formatCurrency(
-  value:
-    number
-) {
-  return new Intl.NumberFormat(
-    "pt-BR",
-    {
-      style:
-        "currency",
-
-      currency:
-        "BRL",
-    }
-  ).format(
-    value
   );
 }

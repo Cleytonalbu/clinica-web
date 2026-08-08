@@ -342,6 +342,221 @@ export interface FinancialSettings {
   daysAfterDueDate: number;
 }
 
+export type ReportTypeKey =
+  | "clinical"
+  | "financial"
+  | "appointments"
+  | "patients"
+  | "professionals"
+  | "attendance"
+  | "evolution"
+  | "wallet";
+
+export interface ReportTypeSetting {
+  id: number;
+
+  key: ReportTypeKey;
+
+  name: string;
+
+  description: string;
+
+  active: boolean;
+
+  allowPdf: boolean;
+
+  allowExcel: boolean;
+
+  allowPrint: boolean;
+
+  includeCharts: boolean;
+}
+
+export type ReportOrientation =
+  | "portrait"
+  | "landscape";
+
+export type ReportPaperSize =
+  | "A4"
+  | "Letter";
+
+export interface ReportsSettings {
+  reportTypes: ReportTypeSetting[];
+
+  showClinicLogo: boolean;
+
+  showClinicName: boolean;
+
+  showClinicDocument: boolean;
+
+  showClinicAddress: boolean;
+
+  showClinicPhone: boolean;
+
+  showClinicEmail: boolean;
+
+  showGenerationDate: boolean;
+
+  showGeneratedBy: boolean;
+
+  showPatientDocument: boolean;
+
+  showProfessionalRegistration: boolean;
+
+  showPageNumbers: boolean;
+
+  includeHeader: boolean;
+
+  includeFooter: boolean;
+
+  headerText: string;
+
+  footerText: string;
+
+  includeProfessionalSignature: boolean;
+
+  includeTechnicalResponsibleSignature: boolean;
+
+  technicalResponsibleName: string;
+
+  technicalResponsibleRegistration: string;
+
+  defaultOrientation: ReportOrientation;
+
+  paperSize: ReportPaperSize;
+
+  defaultIncludeCharts: boolean;
+
+  defaultIncludeInactiveRecords: boolean;
+
+  defaultIncludeFinancialValues: boolean;
+
+  allowSensitiveClinicalData: boolean;
+
+  anonymizePatientData: boolean;
+
+  requireReasonForSensitiveReport: boolean;
+
+  keepGenerationHistory: boolean;
+
+  generationHistoryDays: number;
+
+  allowPdfExport: boolean;
+
+  allowExcelExport: boolean;
+
+  allowPrinting: boolean;
+}
+
+export type SystemLanguage =
+  | "pt-BR"
+  | "en-US"
+  | "es";
+
+export type SystemTheme =
+  | "light"
+  | "dark"
+  | "system";
+
+export type SystemDateFormat =
+  | "DD/MM/YYYY"
+  | "MM/DD/YYYY"
+  | "YYYY-MM-DD";
+
+export type SystemTimeFormat =
+  | "24h"
+  | "12h";
+
+export interface GeneralSettings {
+  language: SystemLanguage;
+
+  theme: SystemTheme;
+
+  dateFormat: SystemDateFormat;
+
+  timeFormat: SystemTimeFormat;
+
+  timezone: string;
+
+  compactSidebar: boolean;
+
+  rememberLastPage: boolean;
+
+  showBreadcrumbs: boolean;
+
+  showQuickActions: boolean;
+
+  showWelcomeMessage: boolean;
+
+  confirmBeforeDelete: boolean;
+
+  confirmBeforeLogout: boolean;
+
+  autosaveForms: boolean;
+
+  autosaveIntervalSeconds: number;
+
+  enableSessionTimeout: boolean;
+
+  sessionTimeoutMinutes: number;
+
+  warnBeforeSessionTimeout: boolean;
+
+  sessionTimeoutWarningMinutes: number;
+
+  forcePasswordChange: boolean;
+
+  passwordExpirationDays: number;
+
+  minimumPasswordLength: number;
+
+  requireUppercasePassword: boolean;
+
+  requireNumberPassword: boolean;
+
+  requireSpecialCharacterPassword: boolean;
+
+  enableTwoFactorAuthentication: boolean;
+
+  logFailedLoginAttempts: boolean;
+
+  maxFailedLoginAttempts: number;
+
+  enableAuditLog: boolean;
+
+  auditLoginEvents: boolean;
+
+  auditDataChanges: boolean;
+
+  auditDeletes: boolean;
+
+  auditExports: boolean;
+
+  auditConfigurationChanges: boolean;
+
+  auditRetentionDays: number;
+
+  enableAutomaticBackup: boolean;
+
+  backupFrequency: "daily" | "weekly" | "monthly";
+
+  backupRetentionDays: number;
+
+  maintenanceMode: boolean;
+
+  maintenanceMessage: string;
+
+  allowAdministratorAccessDuringMaintenance: boolean;
+
+  checkForUpdatesAutomatically: boolean;
+
+  showSystemVersion: boolean;
+
+  enableInternalNotifications: boolean;
+
+  enableSoundNotifications: boolean;
+}
+
 export interface SystemSettings {
   specialties: SpecialtySetting[];
 
@@ -364,6 +579,10 @@ export interface SystemSettings {
   permissions: PermissionsSettings;
 
   financial: FinancialSettings;
+
+  reports: ReportsSettings;
+
+  general: GeneralSettings;
 }
 
 const STORAGE_KEY =
@@ -401,36 +620,42 @@ const defaultAgendaSettings: AgendaSettings = {
       startTime: "08:00",
       endTime: "18:00",
     },
+
     {
       day: "Terça",
       active: true,
       startTime: "08:00",
       endTime: "18:00",
     },
+
     {
       day: "Quarta",
       active: true,
       startTime: "08:00",
       endTime: "18:00",
     },
+
     {
       day: "Quinta",
       active: true,
       startTime: "08:00",
       endTime: "18:00",
     },
+
     {
       day: "Sexta",
       active: true,
       startTime: "08:00",
       endTime: "18:00",
     },
+
     {
       day: "Sábado",
       active: true,
       startTime: "08:00",
       endTime: "12:00",
     },
+
     {
       day: "Domingo",
       active: false,
@@ -795,11 +1020,9 @@ const defaultResponsibleAppSettings: ResponsibleAppSettings = {
   supportEmail:
     "contato@entreafetos.com.br",
 
-  showClinicLogo:
-    true,
+  showClinicLogo: true,
 
-  showPatientPhoto:
-    true,
+  showPatientPhoto: true,
 
   modules: {
     agenda: true,
@@ -847,43 +1070,31 @@ const defaultResponsibleAppSettings: ResponsibleAppSettings = {
     viewTherapeuticProgress: true,
   },
 
-  allowBiometricLogin:
-    true,
+  allowBiometricLogin: true,
 
-  allowPasswordRecovery:
-    true,
+  allowPasswordRecovery: true,
 
-  sessionTimeoutMinutes:
-    60,
+  sessionTimeoutMinutes: 60,
 
-  showFinancialValuesOnHome:
-    false,
+  showFinancialValuesOnHome: false,
 
-  showNextAppointmentOnHome:
-    true,
+  showNextAppointmentOnHome: true,
 
-  showUnreadNotificationsOnHome:
-    true,
+  showUnreadNotificationsOnHome: true,
 };
 
 const defaultPermissionsSettings: PermissionsSettings = {
-  restrictProfessionalsToOwnPatients:
-    true,
+  restrictProfessionalsToOwnPatients: true,
 
-  restrictProfessionalsToOwnAgenda:
-    true,
+  restrictProfessionalsToOwnAgenda: true,
 
-  restrictProfessionalsToOwnEvolutions:
-    true,
+  restrictProfessionalsToOwnEvolutions: true,
 
-  hideFinancialValuesFromProfessionals:
-    true,
+  hideFinancialValuesFromProfessionals: true,
 
-  allowReceptionToViewClinicalData:
-    false,
+  allowReceptionToViewClinicalData: false,
 
-  allowReceptionToEditPatientData:
-    true,
+  allowReceptionToEditPatientData: true,
 
   profiles: [
     {
@@ -1077,113 +1288,71 @@ const defaultFinancialSettings: FinancialSettings = {
   paymentMethods: [
     {
       id: 1,
-
       key: "pix",
-
       name: "PIX",
-
       active: true,
-
       allowInstallments: false,
-
       maxInstallments: 1,
-
       feePercent: 0,
     },
 
     {
       id: 2,
-
       key: "cash",
-
       name: "Dinheiro",
-
       active: true,
-
       allowInstallments: false,
-
       maxInstallments: 1,
-
       feePercent: 0,
     },
 
     {
       id: 3,
-
       key: "creditCard",
-
       name: "Cartão de crédito",
-
       active: true,
-
       allowInstallments: true,
-
       maxInstallments: 12,
-
       feePercent: 3.49,
     },
 
     {
       id: 4,
-
       key: "debitCard",
-
       name: "Cartão de débito",
-
       active: true,
-
       allowInstallments: false,
-
       maxInstallments: 1,
-
       feePercent: 1.99,
     },
 
     {
       id: 5,
-
       key: "bankTransfer",
-
       name: "Transferência bancária",
-
       active: true,
-
       allowInstallments: false,
-
       maxInstallments: 1,
-
       feePercent: 0,
     },
 
     {
       id: 6,
-
       key: "boleto",
-
       name: "Boleto",
-
       active: false,
-
       allowInstallments: false,
-
       maxInstallments: 1,
-
       feePercent: 0,
     },
 
     {
       id: 7,
-
       key: "digitalWallet",
-
       name: "Carteira digital",
-
       active: true,
-
       allowInstallments: false,
-
       maxInstallments: 1,
-
       feePercent: 0,
     },
   ],
@@ -1241,6 +1410,272 @@ const defaultFinancialSettings: FinancialSettings = {
   notifyAfterDueDate: true,
 
   daysAfterDueDate: 1,
+};
+
+const defaultReportsSettings: ReportsSettings = {
+  reportTypes: [
+    {
+      id: 1,
+      key: "clinical",
+      name: "Relatório Clínico",
+      description:
+        "Relatório com informações clínicas e acompanhamento terapêutico.",
+      active: true,
+      allowPdf: true,
+      allowExcel: false,
+      allowPrint: true,
+      includeCharts: false,
+    },
+
+    {
+      id: 2,
+      key: "financial",
+      name: "Relatório Financeiro",
+      description:
+        "Receitas, pagamentos, pendências e movimentações financeiras.",
+      active: true,
+      allowPdf: true,
+      allowExcel: true,
+      allowPrint: true,
+      includeCharts: true,
+    },
+
+    {
+      id: 3,
+      key: "appointments",
+      name: "Relatório de Agenda",
+      description:
+        "Atendimentos agendados, realizados, cancelados e faltas.",
+      active: true,
+      allowPdf: true,
+      allowExcel: true,
+      allowPrint: true,
+      includeCharts: true,
+    },
+
+    {
+      id: 4,
+      key: "patients",
+      name: "Relatório de Pacientes",
+      description:
+        "Informações cadastrais e administrativas dos pacientes.",
+      active: true,
+      allowPdf: true,
+      allowExcel: true,
+      allowPrint: true,
+      includeCharts: false,
+    },
+
+    {
+      id: 5,
+      key: "professionals",
+      name: "Relatório de Profissionais",
+      description:
+        "Atendimentos, produtividade e informações dos profissionais.",
+      active: true,
+      allowPdf: true,
+      allowExcel: true,
+      allowPrint: true,
+      includeCharts: true,
+    },
+
+    {
+      id: 6,
+      key: "attendance",
+      name: "Relatório de Frequência",
+      description:
+        "Presenças, faltas e cancelamentos dos pacientes.",
+      active: true,
+      allowPdf: true,
+      allowExcel: true,
+      allowPrint: true,
+      includeCharts: true,
+    },
+
+    {
+      id: 7,
+      key: "evolution",
+      name: "Relatório de Evoluções",
+      description:
+        "Histórico de evoluções e registros clínicos.",
+      active: true,
+      allowPdf: true,
+      allowExcel: false,
+      allowPrint: true,
+      includeCharts: false,
+    },
+
+    {
+      id: 8,
+      key: "wallet",
+      name: "Relatório da Carteira Digital",
+      description:
+        "Saldo, depósitos, débitos e movimentações das carteiras.",
+      active: true,
+      allowPdf: true,
+      allowExcel: true,
+      allowPrint: true,
+      includeCharts: true,
+    },
+  ],
+
+  showClinicLogo: true,
+
+  showClinicName: true,
+
+  showClinicDocument: true,
+
+  showClinicAddress: true,
+
+  showClinicPhone: true,
+
+  showClinicEmail: true,
+
+  showGenerationDate: true,
+
+  showGeneratedBy: true,
+
+  showPatientDocument: false,
+
+  showProfessionalRegistration: true,
+
+  showPageNumbers: true,
+
+  includeHeader: true,
+
+  includeFooter: true,
+
+  headerText:
+    "Clínica Integrada Entre Afetos",
+
+  footerText:
+    "Documento gerado pelo sistema Entre Afetos.",
+
+  includeProfessionalSignature: true,
+
+  includeTechnicalResponsibleSignature: false,
+
+  technicalResponsibleName: "",
+
+  technicalResponsibleRegistration: "",
+
+  defaultOrientation: "portrait",
+
+  paperSize: "A4",
+
+  defaultIncludeCharts: true,
+
+  defaultIncludeInactiveRecords: false,
+
+  defaultIncludeFinancialValues: true,
+
+  allowSensitiveClinicalData: true,
+
+  anonymizePatientData: false,
+
+  requireReasonForSensitiveReport: true,
+
+  keepGenerationHistory: true,
+
+  generationHistoryDays: 365,
+
+  allowPdfExport: true,
+
+  allowExcelExport: true,
+
+  allowPrinting: true,
+};
+
+const defaultGeneralSettings: GeneralSettings = {
+  language: "pt-BR",
+
+  theme: "light",
+
+  dateFormat: "DD/MM/YYYY",
+
+  timeFormat: "24h",
+
+  timezone: "America/Sao_Paulo",
+
+  compactSidebar: false,
+
+  rememberLastPage: true,
+
+  showBreadcrumbs: true,
+
+  showQuickActions: true,
+
+  showWelcomeMessage: true,
+
+  confirmBeforeDelete: true,
+
+  confirmBeforeLogout: false,
+
+  autosaveForms: true,
+
+  autosaveIntervalSeconds: 30,
+
+  enableSessionTimeout: true,
+
+  sessionTimeoutMinutes: 120,
+
+  warnBeforeSessionTimeout: true,
+
+  sessionTimeoutWarningMinutes: 5,
+
+  forcePasswordChange: false,
+
+  passwordExpirationDays: 90,
+
+  minimumPasswordLength: 8,
+
+  requireUppercasePassword: true,
+
+  requireNumberPassword: true,
+
+  requireSpecialCharacterPassword: false,
+
+  enableTwoFactorAuthentication: false,
+
+  logFailedLoginAttempts: true,
+
+  maxFailedLoginAttempts: 5,
+
+  enableAuditLog: true,
+
+  auditLoginEvents: true,
+
+  auditDataChanges: true,
+
+  auditDeletes: true,
+
+  auditExports: true,
+
+  auditConfigurationChanges: true,
+
+  auditRetentionDays: 365,
+
+  enableAutomaticBackup: true,
+
+  backupFrequency: "daily",
+
+  backupRetentionDays: 30,
+
+  maintenanceMode: false,
+
+  maintenanceMessage:
+    "Sistema temporariamente indisponível para manutenção.",
+
+  allowAdministratorAccessDuringMaintenance:
+    true,
+
+  checkForUpdatesAutomatically: true,
+
+  showSystemVersion: true,
+
+  enableInternalNotifications: true,
+
+  enableSoundNotifications: false,
 };
 
 const defaultSettings: SystemSettings = {
@@ -1410,6 +1845,12 @@ const defaultSettings: SystemSettings = {
 
   financial:
     defaultFinancialSettings,
+
+  reports:
+    defaultReportsSettings,
+
+  general:
+    defaultGeneralSettings,
 };
 
 export function getSystemSettings(): SystemSettings {
@@ -1495,6 +1936,22 @@ export function getSystemSettings(): SystemSettings {
         defaultFinancialSettings.paymentMethods,
     };
 
+    const normalizedReports: ReportsSettings = {
+      ...defaultReportsSettings,
+
+      ...(parsed.reports ?? {}),
+
+      reportTypes:
+        parsed.reports?.reportTypes ??
+        defaultReportsSettings.reportTypes,
+    };
+
+    const normalizedGeneral: GeneralSettings = {
+      ...defaultGeneralSettings,
+
+      ...(parsed.general ?? {}),
+    };
+
     const normalized: SystemSettings = {
       specialties:
         parsed.specialties ??
@@ -1534,6 +1991,12 @@ export function getSystemSettings(): SystemSettings {
 
       financial:
         normalizedFinancial,
+
+      reports:
+        normalizedReports,
+
+      general:
+        normalizedGeneral,
     };
 
     localStorage.setItem(
@@ -1729,6 +2192,23 @@ export function getActivePaymentMethods() {
     ) =>
       method.active
   );
+}
+
+export function getReportsSettings() {
+  return getSystemSettings().reports;
+}
+
+export function getActiveReportTypes() {
+  return getSystemSettings().reports.reportTypes.filter(
+    (
+      report
+    ) =>
+      report.active
+  );
+}
+
+export function getGeneralSettings() {
+  return getSystemSettings().general;
 }
 
 export function getProfessionalByName(
