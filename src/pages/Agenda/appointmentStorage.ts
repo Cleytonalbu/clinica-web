@@ -1,8 +1,14 @@
+import type {
+  BillingType,
+  PaymentMethod,
+} from "@/pages/Financeiro/financeRules";
+
 export type StoredAppointmentStatus =
   | "Confirmado"
   | "Agendado"
   | "Realizado"
-  | "Cancelado";
+  | "Cancelado"
+  | "Faltou";
 
 export interface StoredAppointment {
   id: number;
@@ -24,6 +30,14 @@ export interface StoredAppointment {
   status: StoredAppointmentStatus;
 
   observations?: string;
+
+  billingType?: BillingType;
+
+  convenio?: string;
+
+  paymentMethod?: PaymentMethod;
+
+  serviceValue?: number;
 }
 
 const STORAGE_KEY =

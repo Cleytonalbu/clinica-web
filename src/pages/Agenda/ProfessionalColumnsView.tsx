@@ -5,32 +5,23 @@ import {
   Users,
 } from "lucide-react";
 
-import type { ScheduleBlock } from "./ScheduleBlocksView";
+import type {
+  ScheduleBlock,
+} from "./ScheduleBlocksView";
 
-type AppointmentStatus =
-  | "Confirmado"
-  | "Agendado"
-  | "Realizado"
-  | "Cancelado";
-
-export interface AgendaAppointment {
-  id: number;
-  patientId: number;
-  date: string;
-  time: string;
-  endTime: string;
-  patient: string;
-  professional: string;
-  specialty: string;
-  room: string;
-  type: string;
-  status: AppointmentStatus;
-}
+import type {
+  StoredAppointment,
+} from "./appointmentStorage";
 
 interface ProfessionalColumnsViewProps {
-  appointments: AgendaAppointment[];
-  blocks: ScheduleBlock[];
-  selectedDate: string;
+  appointments:
+    StoredAppointment[];
+
+  blocks:
+    ScheduleBlock[];
+
+  selectedDate:
+    string;
 
   onPatient: (
     patientId: number
@@ -43,20 +34,35 @@ interface ProfessionalColumnsViewProps {
 
 const professionals = [
   {
-    name: "Dra. Ana Paula",
-    specialty: "Psicologia",
+    name:
+      "Dra. Ana Paula",
+
+    specialty:
+      "Psicologia",
   },
+
   {
-    name: "Dra. Camila Soares",
-    specialty: "Fonoaudiologia",
+    name:
+      "Dra. Camila Soares",
+
+    specialty:
+      "Fonoaudiologia",
   },
+
   {
-    name: "Dra. Larissa Lima",
-    specialty: "Terapia Ocupacional",
+    name:
+      "Dra. Larissa Lima",
+
+    specialty:
+      "Terapia Ocupacional",
   },
+
   {
-    name: "Dr. Rafael Costa",
-    specialty: "Fisioterapia",
+    name:
+      "Dr. Rafael Costa",
+
+    specialty:
+      "Fisioterapia",
   },
 ];
 
@@ -83,13 +89,15 @@ export function ProfessionalColumnsView({
   const dayAppointments =
     appointments.filter(
       (appointment) =>
-        appointment.date === selectedDate
+        appointment.date ===
+        selectedDate
     );
 
   const dayBlocks =
     blocks.filter(
       (block) =>
-        block.date === selectedDate
+        block.date ===
+        selectedDate
     );
 
   return (
@@ -99,98 +107,127 @@ export function ProfessionalColumnsView({
           <div className="border-r border-slate-200 p-4" />
 
           {professionals.map(
-            (professional) => (
+            (
+              professional
+            ) => (
               <div
-                key={professional.name}
+                key={
+                  professional.name
+                }
                 className="border-r border-slate-200 p-4 last:border-r-0"
               >
                 <p className="font-semibold text-slate-900">
-                  {professional.name}
+                  {
+                    professional.name
+                  }
                 </p>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  {professional.specialty}
+                  {
+                    professional.specialty
+                  }
                 </p>
               </div>
             )
           )}
         </div>
 
-        {timeSlots.map((time) => (
-          <div
-            key={time}
-            className="grid grid-cols-[90px_repeat(4,minmax(220px,1fr))] border-b border-slate-100 last:border-b-0"
-          >
-            <div className="border-r border-slate-200 bg-slate-50/60 p-4 text-center text-sm font-semibold text-slate-500">
-              {time}
-            </div>
-
-            {professionals.map(
-              (professional) => {
-                const appointment =
-                  dayAppointments.find(
-                    (item) =>
-                      item.professional ===
-                        professional.name &&
-                      item.time ===
-                        time
-                  );
-
-                const block =
-                  dayBlocks.find(
-                    (item) =>
-                      item.professional ===
-                        professional.name &&
-                      isTimeInsideBlock(
-                        time,
-                        item.startTime,
-                        item.endTime
-                      )
-                  );
-
-                return (
-                  <div
-                    key={`${professional.name}-${time}`}
-                    className="min-h-28 border-r border-slate-100 p-2 last:border-r-0"
-                  >
-                    {appointment ? (
-                      <AppointmentBlock
-                        appointment={appointment}
-                        onPatient={() =>
-                          onPatient(
-                            appointment.patientId
-                          )
-                        }
-                        onDetails={() =>
-                          onDetails(
-                            appointment.id
-                          )
-                        }
-                      />
-                    ) : block ? (
-                      <ScheduleBlockCard
-                        block={block}
-                      />
-                    ) : (
-                      <div className="flex h-full min-h-24 items-center justify-center rounded-xl border border-dashed border-slate-100 text-xs text-slate-300">
-                        Livre
-                      </div>
-                    )}
-                  </div>
-                );
+        {timeSlots.map(
+          (time) => (
+            <div
+              key={
+                time
               }
-            )}
-          </div>
-        ))}
+              className="grid grid-cols-[90px_repeat(4,minmax(220px,1fr))] border-b border-slate-100 last:border-b-0"
+            >
+              <div className="border-r border-slate-200 bg-slate-50/60 p-4 text-center text-sm font-semibold text-slate-500">
+                {
+                  time
+                }
+              </div>
+
+              {professionals.map(
+                (
+                  professional
+                ) => {
+                  const appointment =
+                    dayAppointments.find(
+                      (
+                        item
+                      ) =>
+                        item.professional ===
+                          professional.name &&
+                        item.time ===
+                          time
+                    );
+
+                  const block =
+                    dayBlocks.find(
+                      (
+                        item
+                      ) =>
+                        item.professional ===
+                          professional.name &&
+                        isTimeInsideBlock(
+                          time,
+                          item.startTime,
+                          item.endTime
+                        )
+                    );
+
+                  return (
+                    <div
+                      key={`${professional.name}-${time}`}
+                      className="min-h-28 border-r border-slate-100 p-2 last:border-r-0"
+                    >
+                      {appointment ? (
+                        <AppointmentBlock
+                          appointment={
+                            appointment
+                          }
+                          onPatient={() =>
+                            onPatient(
+                              appointment.patientId
+                            )
+                          }
+                          onDetails={() =>
+                            onDetails(
+                              appointment.id
+                            )
+                          }
+                        />
+                      ) : block ? (
+                        <ScheduleBlockCard
+                          block={
+                            block
+                          }
+                        />
+                      ) : (
+                        <div className="flex h-full min-h-24 items-center justify-center rounded-xl border border-dashed border-slate-100 text-xs text-slate-300">
+                          Livre
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+              )}
+            </div>
+          )
+        )}
       </div>
     </div>
   );
 }
 
 interface AppointmentBlockProps {
-  appointment: AgendaAppointment;
-  onPatient: () => void;
-  onDetails: () => void;
+  appointment:
+    StoredAppointment;
+
+  onPatient:
+    () => void;
+
+  onDetails:
+    () => void;
 }
 
 function AppointmentBlock({
@@ -206,29 +243,45 @@ function AppointmentBlock({
     >
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-bold">
-          {appointment.time}
+          {
+            appointment.time
+          }
         </p>
 
         <span className="text-[10px] font-semibold uppercase tracking-wide">
-          {appointment.status}
+          {
+            appointment.status
+          }
         </span>
       </div>
 
       <button
         type="button"
-        onClick={onPatient}
+        onClick={
+          onPatient
+        }
         className="mt-2 block w-full text-left text-sm font-semibold transition hover:underline"
       >
-        {appointment.patient}
+        {
+          appointment.patient
+        }
       </button>
 
       <p className="mt-1 text-xs opacity-80">
-        {appointment.room} • {appointment.type}
+        {
+          appointment.room
+        }{" "}
+        •{" "}
+        {
+          appointment.type
+        }
       </p>
 
       <button
         type="button"
-        onClick={onDetails}
+        onClick={
+          onDetails
+        }
         className="mt-3 text-xs font-semibold underline-offset-2 hover:underline"
       >
         Ver detalhes
@@ -240,64 +293,89 @@ function AppointmentBlock({
 function ScheduleBlockCard({
   block,
 }: {
-  block: ScheduleBlock;
+  block:
+    ScheduleBlock;
 }) {
   const config =
-    getBlockConfig(block.type);
+    getBlockConfig(
+      block.type
+    );
 
-  const Icon = config.icon;
+  const Icon =
+    config.icon;
 
   return (
     <div
       className={`h-full rounded-xl border p-3 ${config.className}`}
     >
       <div className="flex items-center gap-2">
-        <Icon size={16} />
+        <Icon
+          size={16}
+        />
 
         <span className="text-xs font-bold uppercase tracking-wide">
-          {block.type}
+          {
+            block.type
+          }
         </span>
       </div>
 
       <p className="mt-2 text-sm font-semibold">
-        {block.startTime} às {block.endTime}
+        {
+          block.startTime
+        }{" "}
+        às{" "}
+        {
+          block.endTime
+        }
       </p>
 
       <p className="mt-1 text-xs opacity-80">
-        {block.reason}
+        {
+          block.reason
+        }
       </p>
     </div>
   );
 }
 
 function getBlockConfig(
-  type: ScheduleBlock["type"]
+  type:
+    ScheduleBlock["type"]
 ) {
   switch (type) {
     case "Almoço":
       return {
-        icon: Coffee,
+        icon:
+          Coffee,
+
         className:
           "border-amber-200 bg-amber-50 text-amber-800",
       };
 
     case "Reunião":
       return {
-        icon: Users,
+        icon:
+          Users,
+
         className:
           "border-blue-200 bg-blue-50 text-blue-800",
       };
 
     case "Férias":
       return {
-        icon: Palmtree,
+        icon:
+          Palmtree,
+
         className:
           "border-emerald-200 bg-emerald-50 text-emerald-800",
       };
 
     default:
       return {
-        icon: Lock,
+        icon:
+          Lock,
+
         className:
           "border-slate-200 bg-slate-100 text-slate-700",
       };
@@ -310,27 +388,37 @@ function isTimeInsideBlock(
   endTime: string
 ) {
   const current =
-    toMinutes(time);
+    toMinutes(
+      time
+    );
 
   const start =
-    toMinutes(startTime);
+    toMinutes(
+      startTime
+    );
 
   const end =
-    toMinutes(endTime);
+    toMinutes(
+      endTime
+    );
 
   return (
-    current >= start &&
-    current < end
+    current >=
+      start &&
+    current <
+      end
   );
 }
 
 function toMinutes(
   value: string
 ) {
-  const [hours, minutes] =
-    value
-      .split(":")
-      .map(Number);
+  const [
+    hours,
+    minutes,
+  ] = value
+    .split(":")
+    .map(Number);
 
   return (
     hours * 60 +
@@ -339,10 +427,11 @@ function toMinutes(
 }
 
 function getStatusStyle(
-  status: AppointmentStatus
+  status:
+    StoredAppointment["status"]
 ) {
   const styles: Record<
-    AppointmentStatus,
+    StoredAppointment["status"],
     string
   > = {
     Confirmado:
@@ -356,7 +445,12 @@ function getStatusStyle(
 
     Cancelado:
       "border-red-200 bg-red-50 text-red-700",
+
+    Faltou:
+      "border-orange-200 bg-orange-50 text-orange-700",
   };
 
-  return styles[status];
+  return styles[
+    status
+  ];
 }

@@ -409,6 +409,8 @@ export function checkScheduleConflict({
           date &&
         appointment.status !==
           "Cancelado" &&
+        appointment.status !==
+          "Faltou" &&
         periodsOverlap(
           startTime,
           endTime,

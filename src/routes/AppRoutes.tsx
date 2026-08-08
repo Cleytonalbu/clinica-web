@@ -22,6 +22,12 @@ import DetalheAgendamento from "@/pages/Agenda/DetalheAgendamento";
 import RemarcarAgendamento from "@/pages/Agenda/RemarcarAgendamento";
 import NovoBloqueio from "@/pages/Agenda/NovoBloqueio";
 
+import Financeiro from "@/pages/Financeiro";
+import HistoricoPaciente from "@/pages/Financeiro/HistoricoPaciente";
+import ReceberCobranca from "@/pages/Financeiro/ReceberCobranca";
+import NovaDespesa from "@/pages/Financeiro/NovaDespesa";
+import PagarDespesa from "@/pages/Financeiro/PagarDespesa";
+
 export function AppRoutes() {
   return (
     <Routes>
@@ -130,6 +136,41 @@ export function AppRoutes() {
         path="/agenda/:appointmentId/remarcar"
         element={
           <RemarcarAgendamento />
+        }
+      />
+
+      <Route
+        path="/financeiro"
+        element={
+          <Financeiro />
+        }
+      />
+
+      <Route
+        path="/financeiro/paciente/:patientId"
+        element={
+          <HistoricoPaciente />
+        }
+      />
+
+      <Route
+        path="/financeiro/receber/:chargeId"
+        element={
+          <ReceberCobranca />
+        }
+      />
+
+      <Route
+        path="/financeiro/despesas/nova"
+        element={
+          <NovaDespesa />
+        }
+      />
+
+      <Route
+        path="/financeiro/despesas/:expenseId/pagar"
+        element={
+          <PagarDespesa />
         }
       />
 

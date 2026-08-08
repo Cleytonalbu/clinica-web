@@ -64,345 +64,170 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 1,
     patientId: 1,
-
-    patient:
-      "Maria Oliveira",
-
-    professional:
-      "Dra. Ana Paula",
-
-    specialty:
-      "Psicologia",
-
-    date:
-      "2026-08-07",
-
-    time:
-      "08:00",
-
-    endTime:
-      "08:50",
-
-    room:
-      "Sala 01",
-
-    type:
-      "Individual",
-
-    status:
-      "Realizado",
+    patient: "Maria Oliveira",
+    professional: "Dra. Ana Paula",
+    specialty: "Psicologia",
+    date: "2026-08-07",
+    time: "08:00",
+    endTime: "08:50",
+    room: "Sala 01",
+    type: "Individual",
+    status: "Realizado",
   },
-
   {
     id: 2,
     patientId: 2,
-
-    patient:
-      "João Miguel Silva",
-
-    professional:
-      "Dra. Camila Soares",
-
-    specialty:
-      "Fonoaudiologia",
-
-    date:
-      "2026-08-07",
-
-    time:
-      "08:00",
-
-    endTime:
-      "08:50",
-
-    room:
-      "Sala 02",
-
-    type:
-      "Individual",
-
-    status:
-      "Confirmado",
+    patient: "João Miguel Silva",
+    professional: "Dra. Camila Soares",
+    specialty: "Fonoaudiologia",
+    date: "2026-08-07",
+    time: "08:00",
+    endTime: "08:50",
+    room: "Sala 02",
+    type: "Individual",
+    status: "Confirmado",
   },
-
   {
     id: 3,
     patientId: 3,
-
-    patient:
-      "Lucas Gabriel",
-
-    professional:
-      "Dra. Ana Paula",
-
-    specialty:
-      "Psicologia",
-
-    date:
-      "2026-08-07",
-
-    time:
-      "09:00",
-
-    endTime:
-      "09:50",
-
-    room:
-      "Sala 01",
-
-    type:
-      "Individual",
-
-    status:
-      "Confirmado",
+    patient: "Lucas Gabriel",
+    professional: "Dra. Ana Paula",
+    specialty: "Psicologia",
+    date: "2026-08-07",
+    time: "09:00",
+    endTime: "09:50",
+    room: "Sala 01",
+    type: "Individual",
+    status: "Confirmado",
   },
-
   {
     id: 4,
     patientId: 4,
-
-    patient:
-      "Ana Clara Rodrigues",
-
-    professional:
-      "Dra. Larissa Lima",
-
-    specialty:
-      "Terapia Ocupacional",
-
-    date:
-      "2026-08-07",
-
-    time:
-      "10:00",
-
-    endTime:
-      "10:50",
-
-    room:
-      "Sala 03",
-
-    type:
-      "Individual",
-
-    status:
-      "Agendado",
+    patient: "Ana Clara Rodrigues",
+    professional: "Dra. Larissa Lima",
+    specialty: "Terapia Ocupacional",
+    date: "2026-08-07",
+    time: "10:00",
+    endTime: "10:50",
+    room: "Sala 03",
+    type: "Individual",
+    status: "Agendado",
   },
-
   {
     id: 5,
     patientId: 5,
-
-    patient:
-      "Pedro Henrique",
-
-    professional:
-      "Dr. Rafael Costa",
-
-    specialty:
-      "Fisioterapia",
-
-    date:
-      "2026-08-07",
-
-    time:
-      "11:00",
-
-    endTime:
-      "11:50",
-
-    room:
-      "Sala 04",
-
-    type:
-      "Avaliação",
-
-    status:
-      "Cancelado",
+    patient: "Pedro Henrique",
+    professional: "Dr. Rafael Costa",
+    specialty: "Fisioterapia",
+    date: "2026-08-07",
+    time: "11:00",
+    endTime: "11:50",
+    room: "Sala 04",
+    type: "Avaliação",
+    status: "Cancelado",
   },
-
   {
     id: 6,
     patientId: 1,
-
-    patient:
-      "Maria Oliveira",
-
-    professional:
-      "Dra. Camila Soares",
-
-    specialty:
-      "Fonoaudiologia",
-
-    date:
-      "2026-08-07",
-
-    time:
-      "14:00",
-
-    endTime:
-      "14:50",
-
-    room:
-      "Sala 02",
-
-    type:
-      "Individual",
-
-    status:
-      "Agendado",
+    patient: "Maria Oliveira",
+    professional: "Dra. Camila Soares",
+    specialty: "Fonoaudiologia",
+    date: "2026-08-07",
+    time: "14:00",
+    endTime: "14:50",
+    room: "Sala 02",
+    type: "Individual",
+    status: "Agendado",
   },
-
   {
     id: 7,
     patientId: 3,
-
-    patient:
-      "Lucas Gabriel",
-
-    professional:
-      "Dra. Ana Paula",
-
-    specialty:
-      "Psicologia",
-
-    date:
-      "2026-08-08",
-
-    time:
-      "09:00",
-
-    endTime:
-      "09:50",
-
-    room:
-      "Sala 01",
-
-    type:
-      "Individual",
-
-    status:
-      "Agendado",
+    patient: "Lucas Gabriel",
+    professional: "Dra. Ana Paula",
+    specialty: "Psicologia",
+    date: "2026-08-08",
+    time: "09:00",
+    endTime: "09:50",
+    room: "Sala 01",
+    type: "Individual",
+    status: "Agendado",
   },
-
   {
     id: 8,
     patientId: 1,
-
-    patient:
-      "Maria Oliveira",
-
-    professional:
-      "Dra. Ana Paula",
-
-    specialty:
-      "Psicologia",
-
-    date:
-      "2026-08-10",
-
-    time:
-      "10:30",
-
-    endTime:
-      "11:20",
-
-    room:
-      "Sala 01",
-
-    type:
-      "Individual",
-
-    status:
-      "Confirmado",
+    patient: "Maria Oliveira",
+    professional: "Dra. Ana Paula",
+    specialty: "Psicologia",
+    date: "2026-08-10",
+    time: "10:30",
+    endTime: "11:20",
+    room: "Sala 01",
+    type: "Individual",
+    status: "Confirmado",
   },
 ];
 
 const defaultScheduleBlocks: ScheduleBlock[] = [
   {
     id: 1,
-
     professional:
       "Dra. Ana Paula",
-
     date:
       "2026-08-07",
-
     startTime:
       "12:00",
-
     endTime:
       "13:00",
-
     type:
       "Almoço",
-
     reason:
       "Intervalo de almoço",
   },
 
   {
     id: 2,
-
     professional:
       "Dra. Camila Soares",
-
     date:
       "2026-08-07",
-
     startTime:
       "11:00",
-
     endTime:
       "12:00",
-
     type:
       "Reunião",
-
     reason:
       "Reunião da equipe clínica",
   },
 
   {
     id: 3,
-
     professional:
       "Dra. Larissa Lima",
-
     date:
       "2026-08-07",
-
     startTime:
       "14:00",
-
     endTime:
       "17:00",
-
     type:
       "Indisponível",
-
     reason:
       "Atividade externa",
   },
 
   {
     id: 4,
-
     professional:
       "Dr. Rafael Costa",
-
     date:
       "2026-08-08",
-
     startTime:
       "08:00",
-
     endTime:
       "17:00",
-
     type:
       "Férias",
-
     reason:
       "Período de férias",
   },
@@ -497,7 +322,9 @@ export default function Agenda() {
   const filteredAppointments =
     useMemo(() => {
       return appointments.filter(
-        (appointment) => {
+        (
+          appointment
+        ) => {
           const searchValue =
             search.toLowerCase();
 
@@ -548,18 +375,20 @@ export default function Agenda() {
     ]);
 
   const filteredBlocks =
-    useMemo(() => {
-      return scheduleBlocks.filter(
-        (block) =>
-          professional ===
-            "Todos" ||
-          block.professional ===
-            professional
-      );
-    }, [
-      professional,
-      scheduleBlocks,
-    ]);
+    useMemo(
+      () =>
+        scheduleBlocks.filter(
+          (block) =>
+            professional ===
+              "Todos" ||
+            block.professional ===
+              professional
+        ),
+      [
+        professional,
+        scheduleBlocks,
+      ]
+    );
 
   const dayAppointments =
     filteredAppointments.filter(
@@ -587,6 +416,13 @@ export default function Agenda() {
       (item) =>
         item.status ===
         "Realizado"
+    ).length;
+
+  const absentCount =
+    dayStats.filter(
+      (item) =>
+        item.status ===
+        "Faltou"
     ).length;
 
   const cancelledCount =
@@ -748,13 +584,13 @@ export default function Agenda() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
           <MetricCard
             title="Atendimentos"
             value={String(
               dayStats.length
             )}
-            description="Na data selecionada"
+            description="Na data"
           />
 
           <MetricCard
@@ -771,6 +607,14 @@ export default function Agenda() {
               realizedCount
             )}
             description="Concluídos"
+          />
+
+          <MetricCard
+            title="Faltas"
+            value={String(
+              absentCount
+            )}
+            description="Não compareceu"
           />
 
           <MetricCard
@@ -941,7 +785,9 @@ export default function Agenda() {
               }
             >
               {professionals.map(
-                (item) => (
+                (
+                  item
+                ) => (
                   <option
                     key={
                       item
@@ -973,7 +819,9 @@ export default function Agenda() {
               }
             >
               {specialties.map(
-                (item) => (
+                (
+                  item
+                ) => (
                   <option
                     key={
                       item
@@ -1018,6 +866,10 @@ export default function Agenda() {
 
               <option value="Realizado">
                 Realizados
+              </option>
+
+              <option value="Faltou">
+                Faltas
               </option>
 
               <option value="Cancelado">
@@ -1236,7 +1088,9 @@ function WeekView({
           (day) => {
             const dayItems =
               appointments.filter(
-                (item) =>
+                (
+                  item
+                ) =>
                   item.date ===
                   day.date
               );
@@ -1348,7 +1202,10 @@ function MonthView({
         length:
           daysInMonth,
       },
-      (_, index) =>
+      (
+        _,
+        index
+      ) =>
         index + 1
     );
 
@@ -1374,7 +1231,9 @@ function MonthView({
               "Sex",
               "Sáb",
             ].map(
-              (day) => (
+              (
+                day
+              ) => (
                 <div
                   key={
                     day
@@ -1404,7 +1263,9 @@ function MonthView({
             )}
 
             {days.map(
-              (day) => {
+              (
+                day
+              ) => {
                 const date = `${year}-${String(
                   month + 1
                 ).padStart(
@@ -1598,6 +1459,14 @@ function AppointmentRow({
             type="button"
             variant="secondary"
             size="sm"
+            disabled={
+              appointment.status ===
+                "Realizado" ||
+              appointment.status ===
+                "Cancelado" ||
+              appointment.status ===
+                "Faltou"
+            }
             onClick={
               onReschedule
             }
@@ -1643,15 +1512,21 @@ function MetricCard({
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <p className="text-sm font-medium text-slate-500">
-        {title}
+        {
+          title
+        }
       </p>
 
       <p className="mt-2 text-3xl font-bold text-slate-900">
-        {value}
+        {
+          value
+        }
       </p>
 
       <p className="mt-1 text-xs text-slate-400">
-        {description}
+        {
+          description
+        }
       </p>
     </div>
   );
@@ -1685,7 +1560,9 @@ function ViewButton({
           : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
       }`}
     >
-      {children}
+      {
+        children
+      }
     </button>
   );
 }
@@ -1732,13 +1609,18 @@ function StatusBadge({
 
     Cancelado:
       "bg-red-100 text-red-700",
+
+    Faltou:
+      "bg-orange-100 text-orange-700",
   };
 
   return (
     <span
       className={`rounded-full px-2.5 py-1 text-xs font-semibold ${styles[status]}`}
     >
-      {status}
+      {
+        status
+      }
     </span>
   );
 }

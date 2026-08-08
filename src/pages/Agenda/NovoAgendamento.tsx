@@ -9,6 +9,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
+  CreditCard,
   Save,
   Stethoscope,
 } from "lucide-react";
@@ -39,14 +40,25 @@ import {
   type StoredAppointment,
 } from "./appointmentStorage";
 
+import {
+  calculateChargeAmount,
+  formatCurrency,
+  getDefaultPaymentMethod,
+  type BillingType,
+  type PaymentMethod,
+} from "@/pages/Financeiro/financeRules";
+
 interface AppointmentFormData {
   patient: string;
+
   professional: string;
+
   specialty: string;
 
   date: string;
 
   startTime: string;
+
   endTime: string;
 
   room: string;
@@ -62,16 +74,27 @@ interface AppointmentFormData {
     | "Confirmado";
 
   observations: string;
+
+  billingType:
+    BillingType;
+
+  convenio: string;
+
+  paymentMethod:
+    PaymentMethod;
 }
 
 const initialValues: AppointmentFormData = {
   patient: "",
+
   professional: "",
+
   specialty: "",
 
   date: "",
 
   startTime: "",
+
   endTime: "",
 
   room: "",
@@ -83,6 +106,14 @@ const initialValues: AppointmentFormData = {
     "Agendado",
 
   observations: "",
+
+  billingType:
+    "Particular",
+
+  convenio: "",
+
+  paymentMethod:
+    "Pix",
 };
 
 const patients = [
@@ -166,6 +197,15 @@ const rooms = [
   "Sala 04",
 ];
 
+const convenios = [
+  "Unimed",
+  "Bradesco Saúde",
+  "SulAmérica",
+  "Hapvida",
+  "Amil",
+  "Outro",
+];
+
 export default function NovoAgendamento() {
   const navigate =
     useNavigate();
@@ -215,6 +255,22 @@ export default function NovoAgendamento() {
       ]
     );
 
+  const serviceValue =
+    useMemo(
+      () =>
+        calculateChargeAmount({
+          specialty:
+            formData.specialty,
+
+          billingType:
+            formData.billingType,
+        }),
+      [
+        formData.specialty,
+        formData.billingType,
+      ]
+    );
+
   const scheduleConflict =
     useMemo(() => {
       if (
@@ -261,6 +317,10 @@ export default function NovoAgendamento() {
       })
     );
 
+    clearFeedback();
+  }
+
+  function clearFeedback() {
     setFeedback(null);
     setFeedbackType(null);
   }
@@ -288,8 +348,7 @@ export default function NovoAgendamento() {
       })
     );
 
-    setFeedback(null);
-    setFeedbackType(null);
+    clearFeedback();
   }
 
   function handleStartTimeChange(
@@ -311,8 +370,32 @@ export default function NovoAgendamento() {
       })
     );
 
-    setFeedback(null);
-    setFeedbackType(null);
+    clearFeedback();
+  }
+
+  function handleBillingTypeChange(
+    billingType: BillingType
+  ) {
+    setFormData(
+      (current) => ({
+        ...current,
+
+        billingType,
+
+        convenio:
+          billingType ===
+          "Particular"
+            ? ""
+            : current.convenio,
+
+        paymentMethod:
+          getDefaultPaymentMethod(
+            billingType
+          ),
+      })
+    );
+
+    clearFeedback();
   }
 
   function handleCancel() {
@@ -385,6 +468,18 @@ export default function NovoAgendamento() {
     }
 
     if (
+      formData.billingType ===
+        "Convênio" &&
+      !formData.convenio
+    ) {
+      showError(
+        "Selecione o convênio."
+      );
+
+      return false;
+    }
+
+    if (
       scheduleConflict
     ) {
       showError(
@@ -449,14 +544,23 @@ export default function NovoAgendamento() {
 
         observations:
           formData.observations,
+
+        billingType:
+          formData.billingType,
+
+        convenio:
+          formData.billingType ===
+          "Convênio"
+            ? formData.convenio
+            : undefined,
+
+        paymentMethod:
+          formData.paymentMethod,
+
+        serviceValue,
       };
 
       saveAppointment(
-        appointment
-      );
-
-      console.log(
-        "Novo agendamento:",
         appointment
       );
 
@@ -468,11 +572,14 @@ export default function NovoAgendamento() {
         "success"
       );
 
-      setTimeout(() => {
-        navigate(
-          "/agenda"
-        );
-      }, 700);
+      setTimeout(
+        () => {
+          navigate(
+            "/agenda"
+          );
+        },
+        700
+      );
     } catch {
       showError(
         "Não foi possível criar o agendamento."
@@ -517,7 +624,7 @@ export default function NovoAgendamento() {
           </h1>
 
           <p className="mt-2 text-sm text-slate-500">
-            Cadastre um atendimento respeitando a disponibilidade do profissional.
+            Cadastre o atendimento, forma de pagamento e dados financeiros.
           </p>
         </div>
 
@@ -552,8 +659,7 @@ export default function NovoAgendamento() {
                 ) =>
                   updateField(
                     "patient",
-                    event.target
-                      .value
+                    event.target.value
                   )
                 }
               >
@@ -592,8 +698,7 @@ export default function NovoAgendamento() {
                   event
                 ) =>
                   handleProfessionalChange(
-                    event.target
-                      .value
+                    event.target.value
                   )
                 }
               >
@@ -602,7 +707,9 @@ export default function NovoAgendamento() {
                 </option>
 
                 {professionals.map(
-                  (professional) => (
+                  (
+                    professional
+                  ) => (
                     <option
                       key={
                         professional.id
@@ -628,7 +735,6 @@ export default function NovoAgendamento() {
                   formData.specialty
                 }
                 readOnly
-                placeholder="Preenchida automaticamente"
               />
             </FormField>
 
@@ -642,7 +748,7 @@ export default function NovoAgendamento() {
 
                   <div>
                     <p className="text-sm font-semibold text-indigo-800">
-                      Especialidade selecionada
+                      Especialidade
                     </p>
 
                     <p className="mt-1 text-sm text-indigo-700">
@@ -658,7 +764,7 @@ export default function NovoAgendamento() {
 
         <PageCard
           title="Data e Horário"
-          description="O sistema verifica automaticamente conflitos de agenda."
+          description="O sistema verifica automaticamente conflitos."
         >
           <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
             <FormField
@@ -675,8 +781,7 @@ export default function NovoAgendamento() {
                 ) =>
                   updateField(
                     "date",
-                    event.target
-                      .value
+                    event.target.value
                   )
                 }
               />
@@ -695,8 +800,7 @@ export default function NovoAgendamento() {
                   event
                 ) =>
                   handleStartTimeChange(
-                    event.target
-                      .value
+                    event.target.value
                   )
                 }
               />
@@ -716,8 +820,7 @@ export default function NovoAgendamento() {
                 ) =>
                   updateField(
                     "endTime",
-                    event.target
-                      .value
+                    event.target.value
                   )
                 }
               />
@@ -732,7 +835,7 @@ export default function NovoAgendamento() {
               <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <Clock3
                   size={19}
-                  className="mt-0.5 shrink-0 text-slate-400"
+                  className="mt-0.5 text-slate-400"
                 />
 
                 <div>
@@ -741,7 +844,7 @@ export default function NovoAgendamento() {
                   </p>
 
                   <p className="mt-1 text-sm text-slate-500">
-                    Selecione profissional, data e horário para verificar a disponibilidade.
+                    Informe profissional, data e horário.
                   </p>
                 </div>
               </div>
@@ -749,17 +852,17 @@ export default function NovoAgendamento() {
               <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
                 <AlertTriangle
                   size={20}
-                  className="mt-0.5 shrink-0 text-red-600"
+                  className="mt-0.5 text-red-600"
                 />
 
                 <div>
-                  <p className="text-sm font-semibold text-red-800">
+                  <p className="font-semibold text-red-800">
                     {
                       scheduleConflict.title
                     }
                   </p>
 
-                  <p className="mt-1 text-sm leading-6 text-red-700">
+                  <p className="mt-1 text-sm text-red-700">
                     {
                       scheduleConflict.description
                     }
@@ -770,16 +873,16 @@ export default function NovoAgendamento() {
               <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                 <CheckCircle2
                   size={20}
-                  className="mt-0.5 shrink-0 text-emerald-600"
+                  className="mt-0.5 text-emerald-600"
                 />
 
                 <div>
-                  <p className="text-sm font-semibold text-emerald-800">
+                  <p className="font-semibold text-emerald-800">
                     Horário disponível
                   </p>
 
                   <p className="mt-1 text-sm text-emerald-700">
-                    Nenhum atendimento ou bloqueio foi encontrado neste período.
+                    Nenhum conflito encontrado.
                   </p>
                 </div>
               </div>
@@ -789,7 +892,7 @@ export default function NovoAgendamento() {
 
         <PageCard
           title="Detalhes do Atendimento"
-          description="Configure sala, tipo e situação do agendamento."
+          description="Sala, tipo e situação."
         >
           <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
             <FormField
@@ -805,13 +908,12 @@ export default function NovoAgendamento() {
                 ) =>
                   updateField(
                     "room",
-                    event.target
-                      .value
+                    event.target.value
                   )
                 }
               >
                 <option value="">
-                  Selecione a sala
+                  Selecione
                 </option>
 
                 {rooms.map(
@@ -832,7 +934,7 @@ export default function NovoAgendamento() {
             </FormField>
 
             <FormField
-              label="Tipo de atendimento"
+              label="Tipo"
             >
               <Select
                 value={
@@ -843,8 +945,7 @@ export default function NovoAgendamento() {
                 ) =>
                   updateField(
                     "appointmentType",
-                    event.target
-                      .value as AppointmentFormData["appointmentType"]
+                    event.target.value as AppointmentFormData["appointmentType"]
                   )
                 }
               >
@@ -878,8 +979,7 @@ export default function NovoAgendamento() {
                 ) =>
                   updateField(
                     "status",
-                    event.target
-                      .value as AppointmentFormData["status"]
+                    event.target.value as AppointmentFormData["status"]
                   )
                 }
               >
@@ -896,8 +996,158 @@ export default function NovoAgendamento() {
         </PageCard>
 
         <PageCard
+          title="Financeiro"
+          description="Defina como este atendimento será cobrado."
+        >
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+            <FormField
+              label="Tipo de atendimento"
+              required
+            >
+              <Select
+                value={
+                  formData.billingType
+                }
+                onChange={(
+                  event
+                ) =>
+                  handleBillingTypeChange(
+                    event.target.value as BillingType
+                  )
+                }
+              >
+                <option value="Particular">
+                  Particular
+                </option>
+
+                <option value="Convênio">
+                  Convênio
+                </option>
+              </Select>
+            </FormField>
+
+            {formData.billingType ===
+              "Convênio" && (
+              <FormField
+                label="Convênio"
+                required
+              >
+                <Select
+                  value={
+                    formData.convenio
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    updateField(
+                      "convenio",
+                      event.target.value
+                    )
+                  }
+                >
+                  <option value="">
+                    Selecione
+                  </option>
+
+                  {convenios.map(
+                    (
+                      convenio
+                    ) => (
+                      <option
+                        key={
+                          convenio
+                        }
+                        value={
+                          convenio
+                        }
+                      >
+                        {
+                          convenio
+                        }
+                      </option>
+                    )
+                  )}
+                </Select>
+              </FormField>
+            )}
+
+            <FormField
+              label="Forma de pagamento"
+            >
+              <Select
+                value={
+                  formData.paymentMethod
+                }
+                disabled={
+                  formData.billingType ===
+                  "Convênio"
+                }
+                onChange={(
+                  event
+                ) =>
+                  updateField(
+                    "paymentMethod",
+                    event.target.value as PaymentMethod
+                  )
+                }
+              >
+                <option value="Pix">
+                  Pix
+                </option>
+
+                <option value="Dinheiro">
+                  Dinheiro
+                </option>
+
+                <option value="Cartão de débito">
+                  Cartão de débito
+                </option>
+
+                <option value="Cartão de crédito">
+                  Cartão de crédito
+                </option>
+
+                <option value="Transferência">
+                  Transferência
+                </option>
+
+                <option value="Convênio">
+                  Convênio
+                </option>
+              </Select>
+            </FormField>
+
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+              <div className="flex items-center gap-2 text-indigo-700">
+                <CreditCard
+                  size={18}
+                />
+
+                <span className="text-sm font-semibold">
+                  Valor previsto
+                </span>
+              </div>
+
+              <p className="mt-3 text-2xl font-bold text-indigo-900">
+                {
+                  formatCurrency(
+                    serviceValue
+                  )
+                }
+              </p>
+
+              <p className="mt-1 text-xs text-indigo-600">
+                {
+                  formData.billingType
+                }
+              </p>
+            </div>
+          </div>
+        </PageCard>
+
+        <PageCard
           title="Observações"
-          description="Informações adicionais sobre o atendimento."
+          description="Informações adicionais."
         >
           <textarea
             value={
@@ -908,22 +1158,13 @@ export default function NovoAgendamento() {
             ) =>
               updateField(
                 "observations",
-                event.target
-                  .value
+                event.target.value
               )
             }
             maxLength={500}
-            placeholder="Ex.: responsável solicitou primeiro horário, paciente levará laudo atualizado..."
+            placeholder="Observações sobre o atendimento..."
             className="min-h-32 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
           />
-
-          <div className="mt-2 text-right text-xs text-slate-400">
-            {
-              formData.observations
-                .length
-            }
-            /500
-          </div>
         </PageCard>
 
         <div className="sticky bottom-0 z-20 rounded-t-2xl border border-slate-200 bg-white/95 px-5 py-4 shadow-lg backdrop-blur">
@@ -934,18 +1175,15 @@ export default function NovoAgendamento() {
                 className="text-indigo-500"
               />
 
-              O sistema bloqueia horários com conflito.
+              A cobrança será gerada somente quando o atendimento for realizado.
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex gap-3">
               <Button
                 type="button"
                 variant="outline"
                 onClick={
                   handleCancel
-                }
-                disabled={
-                  saving
                 }
               >
                 Cancelar
