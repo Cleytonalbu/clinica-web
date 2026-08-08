@@ -1,3 +1,8 @@
+import {
+  getConvenioServiceValue,
+  getProfessionalServiceValue,
+} from "@/pages/Configuracoes/settingsStorage";
+
 export type BillingType =
   | "Particular"
   | "Convênio";
@@ -10,77 +15,44 @@ export type PaymentMethod =
   | "Transferência"
   | "Convênio";
 
-interface SpecialtyPrice {
-  specialty: string;
-  amount: number;
-}
-
-const specialtyPrices: SpecialtyPrice[] = [
-  {
-    specialty: "Psicologia",
-    amount: 150,
-  },
-  {
-    specialty: "Fonoaudiologia",
-    amount: 140,
-  },
-  {
-    specialty: "Terapia Ocupacional",
-    amount: 160,
-  },
-  {
-    specialty: "Fisioterapia",
-    amount: 130,
-  },
-  {
-    specialty: "Psicopedagogia",
-    amount: 140,
-  },
-  {
-    specialty: "Nutrição",
-    amount: 150,
-  },
-];
-
-export function getSpecialtyPrice(
-  specialty: string
-) {
-  const item =
-    specialtyPrices.find(
-      (price) =>
-        price.specialty ===
-        specialty
-    );
-
-  return item?.amount ?? 150;
-}
-
 export function calculateChargeAmount({
+  professional,
   specialty,
   billingType,
+  convenio,
 }: {
+  professional: string;
+
   specialty: string;
+
   billingType: BillingType;
+
+  convenio?: string;
 }) {
-  const baseValue =
-    getSpecialtyPrice(
+  if (
+    billingType ===
+      "Convênio" &&
+    convenio
+  ) {
+    return getConvenioServiceValue(
+      convenio,
+      professional,
       specialty
     );
-
-  if (
-    billingType === "Convênio"
-  ) {
-    return baseValue * 0.8;
   }
 
-  return baseValue;
+  return getProfessionalServiceValue(
+    professional,
+    specialty
+  );
 }
 
 export function getDefaultPaymentMethod(
   billingType: BillingType
 ): PaymentMethod {
   if (
-    billingType === "Convênio"
+    billingType ===
+    "Convênio"
   ) {
     return "Convênio";
   }
@@ -97,5 +69,7 @@ export function formatCurrency(
       style: "currency",
       currency: "BRL",
     }
-  ).format(value);
+  ).format(
+    value
+  );
 }

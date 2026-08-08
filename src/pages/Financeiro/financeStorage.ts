@@ -82,8 +82,11 @@ export function getFinancialChargeById(
   chargeId: number
 ) {
   return getFinancialCharges().find(
-    (charge) =>
-      charge.id === chargeId
+    (
+      charge
+    ) =>
+      charge.id ===
+      chargeId
   );
 }
 
@@ -95,12 +98,16 @@ export function saveFinancialCharge(
 
   const alreadyExists =
     current.some(
-      (item) =>
+      (
+        item
+      ) =>
         item.appointmentId ===
         charge.appointmentId
     );
 
-  if (alreadyExists) {
+  if (
+    alreadyExists
+  ) {
     return;
   }
 
@@ -111,7 +118,9 @@ export function saveFinancialCharge(
 
   localStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify(next)
+    JSON.stringify(
+      next
+    )
   );
 }
 
@@ -140,12 +149,16 @@ export function createChargeFromAppointment(
 ) {
   const existing =
     getFinancialCharges().find(
-      (item) =>
+      (
+        item
+      ) =>
         item.appointmentId ===
         data.appointmentId
     );
 
-  if (existing) {
+  if (
+    existing
+  ) {
     return existing;
   }
 
@@ -154,8 +167,10 @@ export function createChargeFromAppointment(
     "Particular";
 
   const originalAmount =
-    data.amount ??
     calculateChargeAmount({
+      professional:
+        data.professional,
+
       specialty:
         data.specialty,
 
@@ -163,14 +178,36 @@ export function createChargeFromAppointment(
         "Particular",
     });
 
-  const finalAmount =
-    data.amount ??
+  const calculatedAmount =
     calculateChargeAmount({
+      professional:
+        data.professional,
+
       specialty:
         data.specialty,
 
       billingType,
+
+      convenio:
+        data.convenio,
     });
+
+  /*
+    Se o agendamento já possui um valor
+    calculado e salvo, usamos exatamente
+    aquele valor.
+
+    Isso evita que uma alteração futura
+    nas configurações mude retroativamente
+    o preço do atendimento.
+  */
+  const finalAmount =
+    data.amount !==
+      undefined &&
+    data.amount >=
+      0
+      ? data.amount
+      : calculatedAmount;
 
   const discount =
     Math.max(
@@ -180,7 +217,8 @@ export function createChargeFromAppointment(
     );
 
   const charge: FinancialCharge = {
-    id: Date.now(),
+    id:
+      Date.now(),
 
     appointmentId:
       data.appointmentId,
@@ -197,7 +235,8 @@ export function createChargeFromAppointment(
     specialty:
       data.specialty,
 
-    description: `Atendimento - ${data.specialty}`,
+    description:
+      `Atendimento - ${data.specialty}`,
 
     date:
       data.date,
@@ -249,7 +288,9 @@ export function updateFinancialCharge(
 
   const next =
     current.map(
-      (charge) =>
+      (
+        charge
+      ) =>
         charge.id ===
         chargeId
           ? {
@@ -261,7 +302,9 @@ export function updateFinancialCharge(
 
   localStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify(next)
+    JSON.stringify(
+      next
+    )
   );
 }
 
@@ -357,10 +400,12 @@ export function markChargeAsPaid(
         charge.amount,
 
       discount:
-        charge.discount ?? 0,
+        charge.discount ??
+        0,
 
       surcharge:
-        charge.surcharge ?? 0,
+        charge.surcharge ??
+        0,
 
       paymentDate:
         new Date()
@@ -393,12 +438,17 @@ export function getPatientFinancialHistory(
 ) {
   return getFinancialCharges()
     .filter(
-      (charge) =>
+      (
+        charge
+      ) =>
         charge.patientId ===
         patientId
     )
     .sort(
-      (a, b) =>
+      (
+        a,
+        b
+      ) =>
         new Date(
           b.createdAt
         ).getTime() -

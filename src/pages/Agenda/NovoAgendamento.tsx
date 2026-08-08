@@ -48,6 +48,13 @@ import {
   type PaymentMethod,
 } from "@/pages/Financeiro/financeRules";
 
+import {
+  getActiveConvenios,
+  getActiveProfessionals,
+  getActiveRooms,
+  getActiveSpecialties,
+} from "@/pages/Configuracoes/settingsStorage";
+
 interface AppointmentFormData {
   patient: string;
 
@@ -86,32 +93,20 @@ interface AppointmentFormData {
 
 const initialValues: AppointmentFormData = {
   patient: "",
-
   professional: "",
-
   specialty: "",
-
   date: "",
-
   startTime: "",
-
   endTime: "",
-
   room: "",
-
   appointmentType:
     "Individual",
-
   status:
     "Agendado",
-
   observations: "",
-
   billingType:
     "Particular",
-
   convenio: "",
-
   paymentMethod:
     "Pix",
 };
@@ -119,96 +114,57 @@ const initialValues: AppointmentFormData = {
 const patients = [
   {
     id: 1,
-    name:
-      "Maria Oliveira",
+    name: "Maria Oliveira",
   },
-
   {
     id: 2,
-    name:
-      "João Miguel Silva",
+    name: "João Miguel Silva",
   },
-
   {
     id: 3,
-    name:
-      "Lucas Gabriel",
+    name: "Lucas Gabriel",
   },
-
   {
     id: 4,
-    name:
-      "Ana Clara Rodrigues",
+    name: "Ana Clara Rodrigues",
   },
-
   {
     id: 5,
-    name:
-      "Pedro Henrique",
+    name: "Pedro Henrique",
   },
-];
-
-const professionals = [
-  {
-    id: 1,
-
-    name:
-      "Dra. Ana Paula",
-
-    specialty:
-      "Psicologia",
-  },
-
-  {
-    id: 2,
-
-    name:
-      "Dra. Camila Soares",
-
-    specialty:
-      "Fonoaudiologia",
-  },
-
-  {
-    id: 3,
-
-    name:
-      "Dra. Larissa Lima",
-
-    specialty:
-      "Terapia Ocupacional",
-  },
-
-  {
-    id: 4,
-
-    name:
-      "Dr. Rafael Costa",
-
-    specialty:
-      "Fisioterapia",
-  },
-];
-
-const rooms = [
-  "Sala 01",
-  "Sala 02",
-  "Sala 03",
-  "Sala 04",
-];
-
-const convenios = [
-  "Unimed",
-  "Bradesco Saúde",
-  "SulAmérica",
-  "Hapvida",
-  "Amil",
-  "Outro",
 ];
 
 export default function NovoAgendamento() {
   const navigate =
     useNavigate();
+
+  const activeRooms =
+    useMemo(
+      () =>
+        getActiveRooms(),
+      []
+    );
+
+  const activeSpecialties =
+    useMemo(
+      () =>
+        getActiveSpecialties(),
+      []
+    );
+
+  const activeProfessionals =
+    useMemo(
+      () =>
+        getActiveProfessionals(),
+      []
+    );
+
+  const activeConvenios =
+    useMemo(
+      () =>
+        getActiveConvenios(),
+      []
+    );
 
   const [
     formData,
@@ -245,31 +201,72 @@ export default function NovoAgendamento() {
   const selectedProfessional =
     useMemo(
       () =>
-        professionals.find(
-          (item) =>
+        activeProfessionals.find(
+          (
+            item
+          ) =>
             item.name ===
             formData.professional
         ),
       [
+        activeProfessionals,
         formData.professional,
       ]
     );
 
-  const serviceValue =
+  const selectedConvenio =
     useMemo(
       () =>
-        calculateChargeAmount({
-          specialty:
-            formData.specialty,
-
-          billingType:
-            formData.billingType,
-        }),
+        activeConvenios.find(
+          (
+            item
+          ) =>
+            item.name ===
+            formData.convenio
+        ),
       [
-        formData.specialty,
-        formData.billingType,
+        activeConvenios,
+        formData.convenio,
       ]
     );
+
+  const serviceValue =
+    useMemo(() => {
+      if (
+        !formData.professional ||
+        !formData.specialty
+      ) {
+        return 0;
+      }
+
+      if (
+        formData.billingType ===
+          "Convênio" &&
+        !formData.convenio
+      ) {
+        return 0;
+      }
+
+      return calculateChargeAmount({
+        professional:
+          formData.professional,
+
+        specialty:
+          formData.specialty,
+
+        billingType:
+          formData.billingType,
+
+        convenio:
+          formData.convenio ||
+          undefined,
+      });
+    }, [
+      formData.professional,
+      formData.specialty,
+      formData.billingType,
+      formData.convenio,
+    ]);
 
   const scheduleConflict =
     useMemo(() => {
@@ -282,21 +279,19 @@ export default function NovoAgendamento() {
         return null;
       }
 
-      return checkScheduleConflict(
-        {
-          professional:
-            formData.professional,
+      return checkScheduleConflict({
+        professional:
+          formData.professional,
 
-          date:
-            formData.date,
+        date:
+          formData.date,
 
-          startTime:
-            formData.startTime,
+        startTime:
+          formData.startTime,
 
-          endTime:
-            formData.endTime,
-        }
-      );
+        endTime:
+          formData.endTime,
+      });
     }, [
       formData.professional,
       formData.date,
@@ -311,9 +306,12 @@ export default function NovoAgendamento() {
     value: AppointmentFormData[K]
   ) {
     setFormData(
-      (current) => ({
+      (
+        current
+      ) => ({
         ...current,
-        [field]: value,
+        [field]:
+          value,
       })
     );
 
@@ -321,32 +319,78 @@ export default function NovoAgendamento() {
   }
 
   function clearFeedback() {
-    setFeedback(null);
-    setFeedbackType(null);
+    setFeedback(
+      null
+    );
+
+    setFeedbackType(
+      null
+    );
+  }
+
+  function showError(
+    message: string
+  ) {
+    setFeedback(
+      message
+    );
+
+    setFeedbackType(
+      "error"
+    );
   }
 
   function handleProfessionalChange(
     professionalName: string
   ) {
     const selected =
-      professionals.find(
-        (item) =>
-          item.name ===
+      activeProfessionals.find(
+        (
+          professional
+        ) =>
+          professional.name ===
           professionalName
       );
 
+    const specialty =
+      selected?.specialty ??
+      "";
+
+    const specialtyAvailable =
+      activeSpecialties.some(
+        (
+          item
+        ) =>
+          item.name ===
+          specialty
+      );
+
     setFormData(
-      (current) => ({
+      (
+        current
+      ) => ({
         ...current,
 
         professional:
           professionalName,
 
         specialty:
-          selected?.specialty ??
-          "",
+          specialtyAvailable
+            ? specialty
+            : "",
       })
     );
+
+    if (
+      selected &&
+      !specialtyAvailable
+    ) {
+      showError(
+        `A especialidade ${specialty} está inativa.`
+      );
+
+      return;
+    }
 
     clearFeedback();
   }
@@ -355,7 +399,9 @@ export default function NovoAgendamento() {
     startTime: string
   ) {
     setFormData(
-      (current) => ({
+      (
+        current
+      ) => ({
         ...current,
 
         startTime,
@@ -374,19 +420,18 @@ export default function NovoAgendamento() {
   }
 
   function handleBillingTypeChange(
-    billingType: BillingType
+    billingType:
+      BillingType
   ) {
     setFormData(
-      (current) => ({
+      (
+        current
+      ) => ({
         ...current,
 
         billingType,
 
-        convenio:
-          billingType ===
-          "Particular"
-            ? ""
-            : current.convenio,
+        convenio: "",
 
         paymentMethod:
           getDefaultPaymentMethod(
@@ -396,12 +441,6 @@ export default function NovoAgendamento() {
     );
 
     clearFeedback();
-  }
-
-  function handleCancel() {
-    navigate(
-      "/agenda"
-    );
   }
 
   function validate() {
@@ -420,6 +459,16 @@ export default function NovoAgendamento() {
     ) {
       showError(
         "Selecione o profissional."
+      );
+
+      return false;
+    }
+
+    if (
+      !formData.specialty
+    ) {
+      showError(
+        "Selecione uma especialidade válida."
       );
 
       return false;
@@ -493,21 +542,28 @@ export default function NovoAgendamento() {
   }
 
   async function handleSave() {
-    if (!validate()) {
+    if (
+      !validate()
+    ) {
       return;
     }
 
-    setSaving(true);
+    setSaving(
+      true
+    );
 
     try {
       const selectedPatient =
         patients.find(
-          (patient) =>
+          (
+            patient
+          ) =>
             patient.name ===
             formData.patient
         );
 
-      const appointment: StoredAppointment = {
+      const appointment:
+        StoredAppointment = {
         id:
           Date.now(),
 
@@ -585,20 +641,10 @@ export default function NovoAgendamento() {
         "Não foi possível criar o agendamento."
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false
+      );
     }
-  }
-
-  function showError(
-    message: string
-  ) {
-    setFeedback(
-      message
-    );
-
-    setFeedbackType(
-      "error"
-    );
   }
 
   return (
@@ -607,8 +653,10 @@ export default function NovoAgendamento() {
         <div>
           <button
             type="button"
-            onClick={
-              handleCancel
+            onClick={() =>
+              navigate(
+                "/agenda"
+              )
             }
             className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-indigo-600"
           >
@@ -624,7 +672,7 @@ export default function NovoAgendamento() {
           </h1>
 
           <p className="mt-2 text-sm text-slate-500">
-            Cadastre o atendimento, forma de pagamento e dados financeiros.
+            Cadastre o atendimento, horário e informações financeiras.
           </p>
         </div>
 
@@ -668,7 +716,9 @@ export default function NovoAgendamento() {
                 </option>
 
                 {patients.map(
-                  (patient) => (
+                  (
+                    patient
+                  ) => (
                     <option
                       key={
                         patient.id
@@ -706,7 +756,7 @@ export default function NovoAgendamento() {
                   Selecione o profissional
                 </option>
 
-                {professionals.map(
+                {activeProfessionals.map(
                   (
                     professional
                   ) => (
@@ -720,6 +770,10 @@ export default function NovoAgendamento() {
                     >
                       {
                         professional.name
+                      }{" "}
+                      -{" "}
+                      {
+                        professional.specialty
                       }
                     </option>
                   )
@@ -727,9 +781,7 @@ export default function NovoAgendamento() {
               </Select>
             </FormField>
 
-            <FormField
-              label="Especialidade"
-            >
+            <FormField label="Especialidade">
               <Input
                 value={
                   formData.specialty
@@ -748,13 +800,31 @@ export default function NovoAgendamento() {
 
                   <div>
                     <p className="text-sm font-semibold text-indigo-800">
-                      Especialidade
+                      Profissional selecionado
                     </p>
 
-                    <p className="mt-1 text-sm text-indigo-700">
-                      {selectedProfessional?.specialty ??
+                    <p className="mt-1 text-sm font-medium text-indigo-700">
+                      {selectedProfessional?.name ??
                         "Selecione um profissional"}
                     </p>
+
+                    {selectedProfessional && (
+                      <>
+                        <p className="mt-1 text-xs text-indigo-600">
+                          {
+                            selectedProfessional.specialty
+                          }
+                        </p>
+
+                        {selectedProfessional.registration && (
+                          <p className="mt-1 text-xs text-indigo-600">
+                            {
+                              selectedProfessional.registration
+                            }
+                          </p>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -913,29 +983,31 @@ export default function NovoAgendamento() {
                 }
               >
                 <option value="">
-                  Selecione
+                  Selecione a sala
                 </option>
 
-                {rooms.map(
-                  (room) => (
+                {activeRooms.map(
+                  (
+                    room
+                  ) => (
                     <option
                       key={
-                        room
+                        room.id
                       }
                       value={
-                        room
+                        room.name
                       }
                     >
-                      {room}
+                      {
+                        room.name
+                      }
                     </option>
                   )
                 )}
               </Select>
             </FormField>
 
-            <FormField
-              label="Tipo"
-            >
+            <FormField label="Tipo">
               <Select
                 value={
                   formData.appointmentType
@@ -967,9 +1039,7 @@ export default function NovoAgendamento() {
               </Select>
             </FormField>
 
-            <FormField
-              label="Status"
-            >
+            <FormField label="Status">
               <Select
                 value={
                   formData.status
@@ -1046,34 +1116,39 @@ export default function NovoAgendamento() {
                   }
                 >
                   <option value="">
-                    Selecione
+                    Selecione o convênio
                   </option>
 
-                  {convenios.map(
+                  {activeConvenios.map(
                     (
                       convenio
                     ) => (
                       <option
                         key={
-                          convenio
+                          convenio.id
                         }
                         value={
-                          convenio
+                          convenio.name
                         }
                       >
                         {
-                          convenio
+                          convenio.name
                         }
                       </option>
                     )
                   )}
                 </Select>
+
+                {activeConvenios.length ===
+                  0 && (
+                  <p className="mt-2 text-xs font-medium text-red-600">
+                    Nenhum convênio ativo nas Configurações.
+                  </p>
+                )}
               </FormField>
             )}
 
-            <FormField
-              label="Forma de pagamento"
-            >
+            <FormField label="Forma de pagamento">
               <Select
                 value={
                   formData.paymentMethod
@@ -1136,11 +1211,27 @@ export default function NovoAgendamento() {
                 }
               </p>
 
-              <p className="mt-1 text-xs text-indigo-600">
-                {
-                  formData.billingType
-                }
-              </p>
+              {formData.billingType ===
+              "Particular" ? (
+                <p className="mt-1 text-xs text-indigo-600">
+                  {selectedProfessional?.customValue
+                    ? "Valor específico do profissional"
+                    : "Valor padrão da especialidade"}
+                </p>
+              ) : selectedConvenio ? (
+                <p className="mt-1 text-xs text-indigo-600">
+                  {selectedConvenio
+                    .specialtyValues[
+                    formData.specialty
+                  ]
+                    ? "Valor específico do convênio"
+                    : `Regra padrão: ${selectedConvenio.discountPercent}% de desconto`}
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-indigo-600">
+                  Selecione o convênio
+                </p>
+              )}
             </div>
           </div>
         </PageCard>
@@ -1175,15 +1266,17 @@ export default function NovoAgendamento() {
                 className="text-indigo-500"
               />
 
-              A cobrança será gerada somente quando o atendimento for realizado.
+              Valores e convênios são carregados das Configurações.
             </div>
 
             <div className="flex gap-3">
               <Button
                 type="button"
                 variant="outline"
-                onClick={
-                  handleCancel
+                onClick={() =>
+                  navigate(
+                    "/agenda"
+                  )
                 }
               >
                 Cancelar
@@ -1198,6 +1291,16 @@ export default function NovoAgendamento() {
                   saving ||
                   Boolean(
                     scheduleConflict
+                  ) ||
+                  activeProfessionals.length ===
+                    0 ||
+                  activeRooms.length ===
+                    0 ||
+                  (
+                    formData.billingType ===
+                      "Convênio" &&
+                    activeConvenios.length ===
+                      0
                   )
                 }
               >

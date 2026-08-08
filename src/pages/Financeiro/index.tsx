@@ -7,6 +7,7 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   Banknote,
+  BarChart3,
   CircleDollarSign,
   Plus,
   Search,
@@ -211,7 +212,9 @@ export default function Financeiro() {
 
   const validCharges =
     charges.filter(
-      (charge) =>
+      (
+        charge
+      ) =>
         charge.status !==
         "Cancelado"
     );
@@ -230,7 +233,9 @@ export default function Financeiro() {
   const pendingRevenue =
     charges
       .filter(
-        (charge) =>
+        (
+          charge
+        ) =>
           charge.status ===
           "Pendente"
       )
@@ -247,7 +252,9 @@ export default function Financeiro() {
   const receivedRevenue =
     charges
       .filter(
-        (charge) =>
+        (
+          charge
+        ) =>
           charge.status ===
           "Pago"
       )
@@ -266,7 +273,9 @@ export default function Financeiro() {
 
   const validExpenses =
     expenses.filter(
-      (expense) =>
+      (
+        expense
+      ) =>
         expense.status !==
         "Cancelado"
     );
@@ -285,7 +294,9 @@ export default function Financeiro() {
   const pendingExpenses =
     expenses
       .filter(
-        (expense) =>
+        (
+          expense
+        ) =>
           expense.status ===
           "Pendente"
       )
@@ -302,7 +313,9 @@ export default function Financeiro() {
   const paidExpenses =
     expenses
       .filter(
-        (expense) =>
+        (
+          expense
+        ) =>
           expense.status ===
           "Pago"
       )
@@ -324,7 +337,8 @@ export default function Financeiro() {
     paidExpenses;
 
   function handleViewChange(
-    nextView: FinanceView
+    nextView:
+      FinanceView
   ) {
     setView(
       nextView
@@ -357,20 +371,38 @@ export default function Financeiro() {
             </p>
           </div>
 
-          <Button
-            type="button"
-            onClick={() =>
-              navigate(
-                "/financeiro/despesas/nova"
-              )
-            }
-          >
-            <Plus
-              size={18}
-            />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                navigate(
+                  "/financeiro/dashboard"
+                )
+              }
+            >
+              <BarChart3
+                size={18}
+              />
 
-            Nova despesa
-          </Button>
+              Dashboard financeiro
+            </Button>
+
+            <Button
+              type="button"
+              onClick={() =>
+                navigate(
+                  "/financeiro/despesas/nova"
+                )
+              }
+            >
+              <Plus
+                size={18}
+              />
+
+              Nova despesa
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -843,14 +875,6 @@ export default function Financeiro() {
                                 expense.description
                               }
                             </p>
-
-                            {expense.observation && (
-                              <p className="mt-1 max-w-60 truncate text-xs text-slate-400">
-                                {
-                                  expense.observation
-                                }
-                              </p>
-                            )}
                           </TableCell>
 
                           <TableCell>
@@ -883,20 +907,6 @@ export default function Financeiro() {
                                 )
                               }
                             </p>
-
-                            {expense.status ===
-                              "Pago" &&
-                              expense.paidAmount !==
-                                undefined && (
-                                <p className="mt-1 text-xs text-emerald-600">
-                                  Pago{" "}
-                                  {
-                                    formatCurrency(
-                                      expense.paidAmount
-                                    )
-                                  }
-                                </p>
-                              )}
                           </TableCell>
 
                           <TableCell>
@@ -919,9 +929,7 @@ export default function Financeiro() {
                                 </p>
                               </div>
                             ) : (
-                              <span className="text-slate-400">
-                                -
-                              </span>
+                              "-"
                             )}
                           </TableCell>
 
@@ -947,14 +955,11 @@ export default function Financeiro() {
                               >
                                 Pagar
                               </Button>
-                            ) : expense.status ===
-                              "Pago" ? (
-                              <span className="text-sm font-medium text-emerald-600">
-                                Pago
-                              </span>
                             ) : (
                               <span className="text-sm text-slate-400">
-                                Sem ações
+                                {
+                                  expense.status
+                                }
                               </span>
                             )}
                           </TableCell>
@@ -1021,7 +1026,9 @@ function BillingBadge({
           : "bg-cyan-100 text-cyan-700"
       }`}
     >
-      {type}
+      {
+        type
+      }
     </span>
   );
 }
@@ -1050,7 +1057,9 @@ function ChargeStatusBadge({
     <span
       className={`rounded-full px-2.5 py-1 text-xs font-semibold ${styles[status]}`}
     >
-      {status}
+      {
+        status
+      }
     </span>
   );
 }
@@ -1079,7 +1088,9 @@ function ExpenseStatusBadge({
     <span
       className={`rounded-full px-2.5 py-1 text-xs font-semibold ${styles[status]}`}
     >
-      {status}
+      {
+        status
+      }
     </span>
   );
 }
@@ -1109,20 +1120,28 @@ function MetricCard({
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-slate-500">
-            {title}
+            {
+              title
+            }
           </p>
 
           <p className="mt-2 text-2xl font-bold text-slate-900">
-            {value}
+            {
+              value
+            }
           </p>
 
           <p className="mt-1 text-xs text-slate-400">
-            {description}
+            {
+              description
+            }
           </p>
         </div>
 
         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-          {icon}
+          {
+            icon
+          }
         </div>
       </div>
     </div>
@@ -1155,7 +1174,9 @@ function ViewButton({
           : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
       }`}
     >
-      {children}
+      {
+        children
+      }
     </button>
   );
 }
@@ -1168,7 +1189,9 @@ function TableHeader({
 }) {
   return (
     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-      {children}
+      {
+        children
+      }
     </th>
   );
 }
@@ -1181,7 +1204,9 @@ function TableCell({
 }) {
   return (
     <td className="px-4 py-4 text-sm text-slate-600">
-      {children}
+      {
+        children
+      }
     </td>
   );
 }
@@ -1204,11 +1229,15 @@ function EmptyState({
       />
 
       <p className="mt-4 font-semibold text-slate-700">
-        {title}
+        {
+          title
+        }
       </p>
 
       <p className="mt-1 text-sm text-slate-500">
-        {description}
+        {
+          description
+        }
       </p>
     </div>
   );
@@ -1227,18 +1256,23 @@ function SmallSummary({
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4">
       <p className="text-sm text-slate-500">
-        {title}
+        {
+          title
+        }
       </p>
 
       <p className="mt-1 text-lg font-bold text-slate-900">
-        {value}
+        {
+          value
+        }
       </p>
     </div>
   );
 }
 
 function formatDate(
-  value: string
+  value:
+    string
 ) {
   const [
     year,

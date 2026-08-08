@@ -23,10 +23,19 @@ import RemarcarAgendamento from "@/pages/Agenda/RemarcarAgendamento";
 import NovoBloqueio from "@/pages/Agenda/NovoBloqueio";
 
 import Financeiro from "@/pages/Financeiro";
+import DashboardFinanceiro from "@/pages/Financeiro/DashboardFinanceiro";
 import HistoricoPaciente from "@/pages/Financeiro/HistoricoPaciente";
 import ReceberCobranca from "@/pages/Financeiro/ReceberCobranca";
 import NovaDespesa from "@/pages/Financeiro/NovaDespesa";
 import PagarDespesa from "@/pages/Financeiro/PagarDespesa";
+
+import Relatorios from "@/pages/Relatorios";
+import RelatorioAtendimentos from "@/pages/Relatorios/RelatorioAtendimentos";
+import RelatorioFinanceiro from "@/pages/Relatorios/RelatorioFinanceiro";
+import RelatorioPacientes from "@/pages/Relatorios/RelatorioPacientes";
+import RelatorioProfissionais from "@/pages/Relatorios/RelatorioProfissionais";
+
+import Configuracoes from "@/pages/Configuracoes";
 
 export function AppRoutes() {
   return (
@@ -147,6 +156,13 @@ export function AppRoutes() {
       />
 
       <Route
+        path="/financeiro/dashboard"
+        element={
+          <DashboardFinanceiro />
+        }
+      />
+
+      <Route
         path="/financeiro/paciente/:patientId"
         element={
           <HistoricoPaciente />
@@ -171,6 +187,48 @@ export function AppRoutes() {
         path="/financeiro/despesas/:expenseId/pagar"
         element={
           <PagarDespesa />
+        }
+      />
+
+      <Route
+        path="/relatorios"
+        element={
+          <Relatorios />
+        }
+      />
+
+      <Route
+        path="/relatorios/atendimentos"
+        element={
+          <RelatorioAtendimentos />
+        }
+      />
+
+      <Route
+        path="/relatorios/financeiro"
+        element={
+          <RelatorioFinanceiro />
+        }
+      />
+
+      <Route
+        path="/relatorios/pacientes"
+        element={
+          <RelatorioPacientes />
+        }
+      />
+
+      <Route
+        path="/relatorios/profissionais"
+        element={
+          <RelatorioProfissionais />
+        }
+      />
+
+      <Route
+        path="/configuracoes"
+        element={
+          <Configuracoes />
         }
       />
 
