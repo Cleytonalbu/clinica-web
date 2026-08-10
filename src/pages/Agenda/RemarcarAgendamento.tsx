@@ -16,7 +16,9 @@ import {
   useParams,
 } from "react-router-dom";
 
-import { DashboardLayout } from "@/layouts/DashboardLayout";
+import {
+  DashboardLayout,
+} from "@/layouts/DashboardLayout";
 
 import {
   Button,
@@ -36,139 +38,285 @@ import {
   checkScheduleConflict,
 } from "./scheduleValidation";
 
+import {
+  getActiveProfessionals,
+  getActiveRooms,
+  getActiveSpecialties,
+} from "@/pages/Configuracoes/settingsStorage";
+
+/* =========================================
+   ATENDIMENTOS DE DEMONSTRAÇÃO
+========================================= */
+
 const defaultAppointments: StoredAppointment[] = [
   {
     id: 1,
+
     patientId: 1,
-    patient: "Maria Oliveira",
-    professional: "Dra. Ana Paula",
-    specialty: "Psicologia",
-    date: "2026-08-07",
-    time: "08:00",
-    endTime: "08:50",
-    room: "Sala 01",
-    type: "Individual",
-    status: "Realizado",
+
+    patient:
+      "Maria Oliveira",
+
+    professional:
+      "Dra. Ana Paula",
+
+    specialty:
+      "Psicologia",
+
+    date:
+      "2026-08-07",
+
+    time:
+      "08:00",
+
+    endTime:
+      "08:50",
+
+    room:
+      "Sala 01",
+
+    type:
+      "Individual",
+
+    status:
+      "Realizado",
   },
+
   {
     id: 2,
+
     patientId: 2,
-    patient: "João Miguel Silva",
-    professional: "Dra. Camila Soares",
-    specialty: "Fonoaudiologia",
-    date: "2026-08-07",
-    time: "08:00",
-    endTime: "08:50",
-    room: "Sala 02",
-    type: "Individual",
-    status: "Confirmado",
+
+    patient:
+      "João Miguel Silva",
+
+    professional:
+      "Dra. Camila Soares",
+
+    specialty:
+      "Fonoaudiologia",
+
+    date:
+      "2026-08-07",
+
+    time:
+      "08:00",
+
+    endTime:
+      "08:50",
+
+    room:
+      "Sala 02",
+
+    type:
+      "Individual",
+
+    status:
+      "Confirmado",
   },
+
   {
     id: 3,
+
     patientId: 3,
-    patient: "Lucas Gabriel",
-    professional: "Dra. Ana Paula",
-    specialty: "Psicologia",
-    date: "2026-08-07",
-    time: "09:00",
-    endTime: "09:50",
-    room: "Sala 01",
-    type: "Individual",
-    status: "Confirmado",
+
+    patient:
+      "Lucas Gabriel",
+
+    professional:
+      "Dra. Ana Paula",
+
+    specialty:
+      "Psicologia",
+
+    date:
+      "2026-08-07",
+
+    time:
+      "09:00",
+
+    endTime:
+      "09:50",
+
+    room:
+      "Sala 01",
+
+    type:
+      "Individual",
+
+    status:
+      "Confirmado",
   },
+
   {
     id: 4,
-    patientId: 4,
-    patient: "Ana Clara Rodrigues",
-    professional: "Dra. Larissa Lima",
-    specialty: "Terapia Ocupacional",
-    date: "2026-08-07",
-    time: "10:00",
-    endTime: "10:50",
-    room: "Sala 03",
-    type: "Individual",
-    status: "Agendado",
-  },
-  {
-    id: 5,
-    patientId: 5,
-    patient: "Pedro Henrique",
-    professional: "Dr. Rafael Costa",
-    specialty: "Fisioterapia",
-    date: "2026-08-07",
-    time: "11:00",
-    endTime: "11:50",
-    room: "Sala 04",
-    type: "Avaliação",
-    status: "Cancelado",
-  },
-  {
-    id: 6,
-    patientId: 1,
-    patient: "Maria Oliveira",
-    professional: "Dra. Camila Soares",
-    specialty: "Fonoaudiologia",
-    date: "2026-08-07",
-    time: "14:00",
-    endTime: "14:50",
-    room: "Sala 02",
-    type: "Individual",
-    status: "Agendado",
-  },
-  {
-    id: 7,
-    patientId: 3,
-    patient: "Lucas Gabriel",
-    professional: "Dra. Ana Paula",
-    specialty: "Psicologia",
-    date: "2026-08-08",
-    time: "09:00",
-    endTime: "09:50",
-    room: "Sala 01",
-    type: "Individual",
-    status: "Agendado",
-  },
-  {
-    id: 8,
-    patientId: 1,
-    patient: "Maria Oliveira",
-    professional: "Dra. Ana Paula",
-    specialty: "Psicologia",
-    date: "2026-08-10",
-    time: "10:30",
-    endTime: "11:20",
-    room: "Sala 01",
-    type: "Individual",
-    status: "Confirmado",
-  },
-];
 
-const professionals = [
-  {
-    name: "Dra. Ana Paula",
-    specialty: "Psicologia",
-  },
-  {
-    name: "Dra. Camila Soares",
-    specialty: "Fonoaudiologia",
-  },
-  {
-    name: "Dra. Larissa Lima",
+    patientId: 4,
+
+    patient:
+      "Ana Clara Rodrigues",
+
+    professional:
+      "Dra. Larissa Lima",
+
     specialty:
       "Terapia Ocupacional",
+
+    date:
+      "2026-08-07",
+
+    time:
+      "10:00",
+
+    endTime:
+      "10:50",
+
+    room:
+      "Sala 03",
+
+    type:
+      "Individual",
+
+    status:
+      "Agendado",
   },
+
   {
-    name: "Dr. Rafael Costa",
-    specialty: "Fisioterapia",
+    id: 5,
+
+    patientId: 5,
+
+    patient:
+      "Pedro Henrique",
+
+    professional:
+      "Dr. Rafael Costa",
+
+    specialty:
+      "Fisioterapia",
+
+    date:
+      "2026-08-07",
+
+    time:
+      "11:00",
+
+    endTime:
+      "11:50",
+
+    room:
+      "Sala 04",
+
+    type:
+      "Avaliação",
+
+    status:
+      "Cancelado",
+  },
+
+  {
+    id: 6,
+
+    patientId: 1,
+
+    patient:
+      "Maria Oliveira",
+
+    professional:
+      "Dra. Camila Soares",
+
+    specialty:
+      "Fonoaudiologia",
+
+    date:
+      "2026-08-07",
+
+    time:
+      "14:00",
+
+    endTime:
+      "14:50",
+
+    room:
+      "Sala 02",
+
+    type:
+      "Individual",
+
+    status:
+      "Agendado",
+  },
+
+  {
+    id: 7,
+
+    patientId: 3,
+
+    patient:
+      "Lucas Gabriel",
+
+    professional:
+      "Dra. Ana Paula",
+
+    specialty:
+      "Psicologia",
+
+    date:
+      "2026-08-08",
+
+    time:
+      "09:00",
+
+    endTime:
+      "09:50",
+
+    room:
+      "Sala 01",
+
+    type:
+      "Individual",
+
+    status:
+      "Agendado",
+  },
+
+  {
+    id: 8,
+
+    patientId: 1,
+
+    patient:
+      "Maria Oliveira",
+
+    professional:
+      "Dra. Ana Paula",
+
+    specialty:
+      "Psicologia",
+
+    date:
+      "2026-08-10",
+
+    time:
+      "10:30",
+
+    endTime:
+      "11:20",
+
+    room:
+      "Sala 01",
+
+    type:
+      "Individual",
+
+    status:
+      "Confirmado",
   },
 ];
 
-const rooms = [
-  "Sala 01",
-  "Sala 02",
-  "Sala 03",
-  "Sala 04",
-];
+/* =========================================
+   COMPONENTE PRINCIPAL
+========================================= */
 
 export default function RemarcarAgendamento() {
   const navigate =
@@ -176,12 +324,45 @@ export default function RemarcarAgendamento() {
 
   const {
     appointmentId,
-  } = useParams();
+  } =
+    useParams();
 
   const numericId =
     Number(
       appointmentId
     );
+
+  /* =======================================
+     CONFIGURAÇÕES
+  ======================================= */
+
+  const activeProfessionals =
+    useMemo(
+      () =>
+        getActiveProfessionals(),
+
+      []
+    );
+
+  const activeRooms =
+    useMemo(
+      () =>
+        getActiveRooms(),
+
+      []
+    );
+
+  const activeSpecialties =
+    useMemo(
+      () =>
+        getActiveSpecialties(),
+
+      []
+    );
+
+  /* =======================================
+     AGENDAMENTO
+  ======================================= */
 
   const savedAppointments =
     getSavedAppointments();
@@ -189,19 +370,28 @@ export default function RemarcarAgendamento() {
   const appointment =
     [
       ...defaultAppointments,
+
       ...savedAppointments,
     ].find(
-      (item) =>
+      (
+        item
+      ) =>
         item.id ===
         numericId
     );
 
   const isSavedAppointment =
     savedAppointments.some(
-      (item) =>
+      (
+        item
+      ) =>
         item.id ===
         numericId
     );
+
+  /* =======================================
+     FORMULÁRIO
+  ======================================= */
 
   const [
     date,
@@ -209,7 +399,7 @@ export default function RemarcarAgendamento() {
   ] =
     useState(
       appointment?.date ??
-        ""
+      ""
     );
 
   const [
@@ -218,7 +408,7 @@ export default function RemarcarAgendamento() {
   ] =
     useState(
       appointment?.time ??
-        ""
+      ""
     );
 
   const [
@@ -227,7 +417,7 @@ export default function RemarcarAgendamento() {
   ] =
     useState(
       appointment?.endTime ??
-        ""
+      ""
     );
 
   const [
@@ -236,7 +426,7 @@ export default function RemarcarAgendamento() {
   ] =
     useState(
       appointment?.professional ??
-        ""
+      ""
     );
 
   const [
@@ -245,7 +435,7 @@ export default function RemarcarAgendamento() {
   ] =
     useState(
       appointment?.specialty ??
-        ""
+      ""
     );
 
   const [
@@ -254,28 +444,35 @@ export default function RemarcarAgendamento() {
   ] =
     useState(
       appointment?.room ??
-        ""
+      ""
     );
 
   const [
     reason,
     setReason,
   ] =
-    useState("");
+    useState(
+      ""
+    );
 
   const [
     saving,
     setSaving,
   ] =
-    useState(false);
+    useState(
+      false
+    );
 
   const [
     feedback,
     setFeedback,
   ] =
     useState<
-      string | null
-    >(null);
+      string |
+      null
+    >(
+      null
+    );
 
   const [
     feedbackType,
@@ -285,45 +482,106 @@ export default function RemarcarAgendamento() {
       | "success"
       | "error"
       | null
-    >(null);
+    >(
+      null
+    );
+
+  /* =======================================
+     PROFISSIONAL SELECIONADO
+  ======================================= */
+
+  const selectedProfessional =
+    useMemo(
+      () =>
+        activeProfessionals.find(
+          (
+            item
+          ) =>
+            item.name ===
+            professional
+        ),
+
+      [
+        activeProfessionals,
+
+        professional,
+      ]
+    );
+
+  /* =======================================
+     VALIDAÇÃO DE CONFLITO
+  ======================================= */
 
   const conflict =
-    useMemo(() => {
-      if (
-        !professional ||
-        !date ||
-        !startTime ||
-        !endTime
-      ) {
-        return null;
-      }
-
-      return checkScheduleConflict(
-        {
-          professional,
-          date,
-          startTime,
-          endTime,
-
-          ignoreAppointmentId:
-            numericId,
+    useMemo(
+      () => {
+        if (
+          !professional ||
+          !date ||
+          !startTime ||
+          !endTime
+        ) {
+          return null;
         }
-      );
-    }, [
-      professional,
-      date,
-      startTime,
-      endTime,
-      numericId,
-    ]);
 
-  if (!appointment) {
+        return checkScheduleConflict(
+          {
+            professional,
+
+            date,
+
+            startTime,
+
+            endTime,
+
+            room:
+              room ||
+              undefined,
+
+            /*
+             * Muito importante:
+             *
+             * ignora o próprio atendimento
+             * durante a remarcação.
+             */
+            ignoreAppointmentId:
+              numericId,
+          }
+        );
+      },
+
+      [
+        professional,
+
+        date,
+
+        startTime,
+
+        endTime,
+
+        room,
+
+        numericId,
+      ]
+    );
+
+  /* =======================================
+     NÃO ENCONTRADO
+  ======================================= */
+
+  if (
+    !appointment
+  ) {
     return (
       <DashboardLayout>
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
           <h1 className="text-xl font-bold text-slate-900">
             Agendamento não encontrado
           </h1>
+
+          <p className="mt-2 text-sm text-slate-500">
+            O atendimento pode ter sido removido ou não existe.
+          </p>
 
           <Button
             type="button"
@@ -341,41 +599,90 @@ export default function RemarcarAgendamento() {
     );
   }
 
+  /* =======================================
+     TROCA DO PROFISSIONAL
+  ======================================= */
+
   function handleProfessionalChange(
     value: string
   ) {
     const selected =
-      professionals.find(
-        (item) =>
+      activeProfessionals.find(
+        (
+          item
+        ) =>
           item.name ===
           value
+      );
+
+    const selectedSpecialty =
+      selected?.specialty ??
+      "";
+
+    const specialtyAvailable =
+      activeSpecialties.some(
+        (
+          item
+        ) =>
+          item.name ===
+          selectedSpecialty
       );
 
     setProfessional(
       value
     );
 
-    setSpecialty(
-      selected?.specialty ??
+    if (
+      selected &&
+      specialtyAvailable
+    ) {
+      setSpecialty(
+        selected.specialty
+      );
+    } else {
+      setSpecialty(
         ""
-    );
+      );
+    }
+
+    if (
+      selected &&
+      !specialtyAvailable
+    ) {
+      showError(
+        `A especialidade ${selected.specialty} está inativa.`
+      );
+
+      return;
+    }
 
     clearFeedback();
   }
 
-  async function handleSave() {
+  /* =======================================
+     VALIDAR
+  ======================================= */
+
+  function validate() {
     if (
-      !date ||
-      !startTime ||
-      !endTime ||
-      !professional ||
-      !room
+      !date
     ) {
       showError(
-        "Preencha os campos obrigatórios."
+        "Informe a nova data."
       );
 
-      return;
+      return false;
+    }
+
+    if (
+      !startTime ||
+      !endTime
+    ) {
+      showError(
+        "Informe os horários de início e fim."
+      );
+
+      return false;
     }
 
     if (
@@ -386,15 +693,47 @@ export default function RemarcarAgendamento() {
         "O horário final deve ser posterior ao horário inicial."
       );
 
-      return;
+      return false;
     }
 
-    if (conflict) {
+    if (
+      !professional
+    ) {
+      showError(
+        "Selecione o profissional."
+      );
+
+      return false;
+    }
+
+    if (
+      !specialty
+    ) {
+      showError(
+        "Selecione um profissional com especialidade ativa."
+      );
+
+      return false;
+    }
+
+    if (
+      !room
+    ) {
+      showError(
+        "Selecione a sala."
+      );
+
+      return false;
+    }
+
+    if (
+      conflict
+    ) {
       showError(
         conflict.description
       );
 
-      return;
+      return false;
     }
 
     if (
@@ -404,36 +743,74 @@ export default function RemarcarAgendamento() {
         "Os atendimentos de exemplo ainda não podem ser alterados permanentemente. Crie um novo agendamento para testar a remarcação persistente."
       );
 
+      return false;
+    }
+
+    return true;
+  }
+
+  /* =======================================
+     SALVAR REMARCAÇÃO
+  ======================================= */
+
+  async function handleSave() {
+    if (
+      !validate()
+    ) {
       return;
     }
 
-    setSaving(true);
+    setSaving(
+      true
+    );
 
     try {
       updateSavedAppointment(
         numericId,
+
         {
           date,
+
           time:
             startTime,
+
           endTime,
+
           professional,
+
           specialty,
+
           room,
         }
       );
+
+      /*
+       * Enquanto ainda não temos API,
+       * registramos o motivo apenas no
+       * console.
+       *
+       * Posteriormente teremos um
+       * histórico real de remarcações.
+       */
 
       console.log(
         "Agendamento remarcado:",
         {
           appointmentId:
             numericId,
+
           date,
+
           startTime,
+
           endTime,
+
           professional,
+
           specialty,
+
           room,
+
           reason,
         }
       );
@@ -446,19 +823,29 @@ export default function RemarcarAgendamento() {
         "success"
       );
 
-      setTimeout(() => {
-        navigate(
-          `/agenda/${numericId}`
-        );
-      }, 700);
+      setTimeout(
+        () => {
+          navigate(
+            `/agenda/${numericId}`
+          );
+        },
+
+        700
+      );
     } catch {
       showError(
         "Não foi possível remarcar o atendimento."
       );
     } finally {
-      setSaving(false);
+      setSaving(
+        false
+      );
     }
   }
+
+  /* =======================================
+     ERRO
+  ======================================= */
 
   function showError(
     message: string
@@ -472,14 +859,31 @@ export default function RemarcarAgendamento() {
     );
   }
 
+  /* =======================================
+     LIMPAR FEEDBACK
+  ======================================= */
+
   function clearFeedback() {
-    setFeedback(null);
-    setFeedbackType(null);
+    setFeedback(
+      null
+    );
+
+    setFeedbackType(
+      null
+    );
   }
+
+  /* =======================================
+     RENDER
+  ======================================= */
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* ================================= */}
+        {/* CABEÇALHO */}
+        {/* ================================= */}
+
         <div>
           <button
             type="button"
@@ -491,7 +895,9 @@ export default function RemarcarAgendamento() {
             className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-indigo-600"
           >
             <ArrowLeft
-              size={17}
+              size={
+                17
+              }
             />
 
             Voltar para detalhes
@@ -506,6 +912,10 @@ export default function RemarcarAgendamento() {
           </p>
         </div>
 
+        {/* ================================= */}
+        {/* FEEDBACK */}
+        {/* ================================= */}
+
         {feedback && (
           <div
             className={`rounded-xl border px-4 py-3 text-sm font-medium ${
@@ -515,9 +925,15 @@ export default function RemarcarAgendamento() {
                 : "border-emerald-200 bg-emerald-50 text-emerald-700"
             }`}
           >
-            {feedback}
+            {
+              feedback
+            }
           </div>
         )}
+
+        {/* ================================= */}
+        {/* AVISO DEMONSTRAÇÃO */}
+        {/* ================================= */}
 
         {!isSavedAppointment && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -525,11 +941,15 @@ export default function RemarcarAgendamento() {
           </div>
         )}
 
+        {/* ================================= */}
+        {/* ATENDIMENTO ORIGINAL */}
+        {/* ================================= */}
+
         <PageCard
           title="Atendimento"
           description={`Agendamento #${appointment.id}`}
         >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Summary
               label="Paciente"
               value={
@@ -550,14 +970,29 @@ export default function RemarcarAgendamento() {
                 appointment.specialty
               }
             />
+
+            <Summary
+              label="Sala atual"
+              value={
+                appointment.room
+              }
+            />
           </div>
         </PageCard>
+
+        {/* ================================= */}
+        {/* NOVO HORÁRIO */}
+        {/* ================================= */}
 
         <PageCard
           title="Novo Horário"
           description="Defina a nova data e horário."
         >
           <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            {/* ============================= */}
+            {/* DATA */}
+            {/* ============================= */}
+
             <FormField
               label="Data"
               required
@@ -571,14 +1006,17 @@ export default function RemarcarAgendamento() {
                   event
                 ) => {
                   setDate(
-                    event.target
-                      .value
+                    event.target.value
                   );
 
                   clearFeedback();
                 }}
               />
             </FormField>
+
+            {/* ============================= */}
+            {/* INÍCIO */}
+            {/* ============================= */}
 
             <FormField
               label="Hora início"
@@ -593,14 +1031,17 @@ export default function RemarcarAgendamento() {
                   event
                 ) => {
                   setStartTime(
-                    event.target
-                      .value
+                    event.target.value
                   );
 
                   clearFeedback();
                 }}
               />
             </FormField>
+
+            {/* ============================= */}
+            {/* FIM */}
+            {/* ============================= */}
 
             <FormField
               label="Hora fim"
@@ -615,8 +1056,7 @@ export default function RemarcarAgendamento() {
                   event
                 ) => {
                   setEndTime(
-                    event.target
-                      .value
+                    event.target.value
                   );
 
                   clearFeedback();
@@ -625,11 +1065,39 @@ export default function RemarcarAgendamento() {
             </FormField>
           </div>
 
+          {/* =============================== */}
+          {/* VERIFICAÇÃO */}
+          {/* =============================== */}
+
           <div className="mt-5">
-            {conflict ? (
+            {!professional ||
+            !date ||
+            !startTime ||
+            !endTime ? (
+              <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <CalendarDays
+                  size={
+                    20
+                  }
+                  className="mt-0.5 shrink-0 text-slate-400"
+                />
+
+                <div>
+                  <p className="text-sm font-semibold text-slate-700">
+                    Verificação de disponibilidade
+                  </p>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Informe profissional, data e horário para validar a remarcação.
+                  </p>
+                </div>
+              </div>
+            ) : conflict ? (
               <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
                 <AlertTriangle
-                  size={20}
+                  size={
+                    20
+                  }
                   className="mt-0.5 shrink-0 text-red-600"
                 />
 
@@ -650,7 +1118,9 @@ export default function RemarcarAgendamento() {
             ) : (
               <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                 <CheckCircle2
-                  size={20}
+                  size={
+                    20
+                  }
                   className="mt-0.5 shrink-0 text-emerald-600"
                 />
 
@@ -660,7 +1130,7 @@ export default function RemarcarAgendamento() {
                   </p>
 
                   <p className="mt-1 text-sm text-emerald-700">
-                    Nenhum conflito encontrado para este período.
+                    Nenhum conflito de profissional, bloqueio ou sala encontrado.
                   </p>
                 </div>
               </div>
@@ -668,11 +1138,19 @@ export default function RemarcarAgendamento() {
           </div>
         </PageCard>
 
+        {/* ================================= */}
+        {/* PROFISSIONAL E SALA */}
+        {/* ================================= */}
+
         <PageCard
           title="Profissional e Sala"
           description="Altere o responsável ou o local do atendimento."
         >
           <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            {/* ============================= */}
+            {/* PROFISSIONAL */}
+            {/* ============================= */}
+
             <FormField
               label="Profissional"
               required
@@ -685,16 +1163,24 @@ export default function RemarcarAgendamento() {
                   event
                 ) =>
                   handleProfessionalChange(
-                    event.target
-                      .value
+                    event.target.value
                   )
                 }
               >
-                {professionals.map(
-                  (item) => (
+                {activeProfessionals.length ===
+                  0 && (
+                  <option value="">
+                    Nenhum profissional ativo
+                  </option>
+                )}
+
+                {activeProfessionals.map(
+                  (
+                    item
+                  ) => (
                     <option
                       key={
-                        item.name
+                        item.id
                       }
                       value={
                         item.name
@@ -702,12 +1188,27 @@ export default function RemarcarAgendamento() {
                     >
                       {
                         item.name
+                      }{" "}
+                      -{" "}
+                      {
+                        item.specialty
                       }
                     </option>
                   )
                 )}
               </Select>
+
+              {activeProfessionals.length ===
+                0 && (
+                <p className="mt-2 text-xs font-medium text-red-600">
+                  Nenhum profissional ativo nas Configurações.
+                </p>
+              )}
             </FormField>
+
+            {/* ============================= */}
+            {/* ESPECIALIDADE */}
+            {/* ============================= */}
 
             <FormField
               label="Especialidade"
@@ -718,7 +1219,20 @@ export default function RemarcarAgendamento() {
                 }
                 readOnly
               />
+
+              {selectedProfessional &&
+                selectedProfessional.registration && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    {
+                      selectedProfessional.registration
+                    }
+                  </p>
+                )}
             </FormField>
+
+            {/* ============================= */}
+            {/* SALA */}
+            {/* ============================= */}
 
             <FormField
               label="Sala"
@@ -732,31 +1246,52 @@ export default function RemarcarAgendamento() {
                   event
                 ) => {
                   setRoom(
-                    event.target
-                      .value
+                    event.target.value
                   );
 
                   clearFeedback();
                 }}
               >
-                {rooms.map(
-                  (item) => (
+                {activeRooms.length ===
+                  0 && (
+                  <option value="">
+                    Nenhuma sala ativa
+                  </option>
+                )}
+
+                {activeRooms.map(
+                  (
+                    item
+                  ) => (
                     <option
                       key={
-                        item
+                        item.id
                       }
                       value={
-                        item
+                        item.name
                       }
                     >
-                      {item}
+                      {
+                        item.name
+                      }
                     </option>
                   )
                 )}
               </Select>
+
+              {activeRooms.length ===
+                0 && (
+                <p className="mt-2 text-xs font-medium text-red-600">
+                  Nenhuma sala ativa nas Configurações.
+                </p>
+              )}
             </FormField>
           </div>
         </PageCard>
+
+        {/* ================================= */}
+        {/* MOTIVO */}
+        {/* ================================= */}
 
         <PageCard
           title="Motivo da Remarcação"
@@ -770,11 +1305,12 @@ export default function RemarcarAgendamento() {
               event
             ) =>
               setReason(
-                event.target
-                  .value
+                event.target.value
               )
             }
-            maxLength={300}
+            maxLength={
+              300
+            }
             placeholder="Ex.: solicitação do responsável, indisponibilidade do profissional..."
             className="min-h-32 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
           />
@@ -787,14 +1323,20 @@ export default function RemarcarAgendamento() {
           </div>
         </PageCard>
 
+        {/* ================================= */}
+        {/* BARRA INFERIOR */}
+        {/* ================================= */}
+
         <div className="sticky bottom-0 z-20 flex flex-col gap-4 rounded-t-2xl border border-slate-200 bg-white/95 px-5 py-4 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-sm text-slate-500">
             <CalendarDays
-              size={17}
+              size={
+                17
+              }
               className="text-indigo-500"
             />
 
-            O novo horário será validado antes de salvar.
+            Profissional, bloqueios e sala serão validados antes de salvar.
           </div>
 
           <div className="flex gap-3">
@@ -817,14 +1359,23 @@ export default function RemarcarAgendamento() {
                 Boolean(
                   conflict
                 ) ||
-                !isSavedAppointment
+                !isSavedAppointment ||
+                activeProfessionals.length ===
+                  0 ||
+                activeRooms.length ===
+                  0 ||
+                !professional ||
+                !specialty ||
+                !room
               }
               onClick={
                 handleSave
               }
             >
               <Save
-                size={17}
+                size={
+                  17
+                }
               />
 
               {saving
@@ -838,6 +1389,10 @@ export default function RemarcarAgendamento() {
   );
 }
 
+/* =========================================
+   RESUMO
+========================================= */
+
 interface SummaryProps {
   label:
     string;
@@ -848,16 +1403,21 @@ interface SummaryProps {
 
 function Summary({
   label,
+
   value,
 }: SummaryProps) {
   return (
     <div className="rounded-xl bg-slate-50 p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-        {label}
+        {
+          label
+        }
       </p>
 
       <p className="mt-2 text-sm font-semibold text-slate-800">
-        {value}
+        {
+          value
+        }
       </p>
     </div>
   );

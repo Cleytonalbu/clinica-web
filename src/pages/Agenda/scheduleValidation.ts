@@ -11,18 +11,29 @@ import type {
   ScheduleBlock,
 } from "./ScheduleBlocksView";
 
+/* =========================================
+   TIPOS
+========================================= */
+
 export interface ScheduleConflict {
   type:
     | "appointment"
-    | "block";
+    | "block"
+    | "room";
 
   title: string;
+
   description: string;
 }
+
+/* =========================================
+   ATENDIMENTOS DE DEMONSTRAÇÃO
+========================================= */
 
 const defaultAppointments: StoredAppointment[] = [
   {
     id: 1,
+
     patientId: 1,
 
     patient:
@@ -55,6 +66,7 @@ const defaultAppointments: StoredAppointment[] = [
 
   {
     id: 2,
+
     patientId: 2,
 
     patient:
@@ -87,6 +99,7 @@ const defaultAppointments: StoredAppointment[] = [
 
   {
     id: 3,
+
     patientId: 3,
 
     patient:
@@ -119,6 +132,7 @@ const defaultAppointments: StoredAppointment[] = [
 
   {
     id: 4,
+
     patientId: 4,
 
     patient:
@@ -151,6 +165,7 @@ const defaultAppointments: StoredAppointment[] = [
 
   {
     id: 5,
+
     patientId: 5,
 
     patient:
@@ -183,6 +198,7 @@ const defaultAppointments: StoredAppointment[] = [
 
   {
     id: 6,
+
     patientId: 1,
 
     patient:
@@ -215,6 +231,7 @@ const defaultAppointments: StoredAppointment[] = [
 
   {
     id: 7,
+
     patientId: 3,
 
     patient:
@@ -247,6 +264,7 @@ const defaultAppointments: StoredAppointment[] = [
 
   {
     id: 8,
+
     patientId: 1,
 
     patient:
@@ -277,6 +295,10 @@ const defaultAppointments: StoredAppointment[] = [
       "Confirmado",
   },
 ];
+
+/* =========================================
+   BLOQUEIOS DE DEMONSTRAÇÃO
+========================================= */
 
 const defaultBlocks: ScheduleBlock[] = [
   {
@@ -368,22 +390,47 @@ const defaultBlocks: ScheduleBlock[] = [
   },
 ];
 
+/* =========================================
+   PARÂMETROS DA VALIDAÇÃO
+========================================= */
+
 interface CheckScheduleConflictParams {
   professional: string;
+
   date: string;
+
   startTime: string;
+
   endTime: string;
+
+  room?: string;
 
   ignoreAppointmentId?: number;
 }
 
+/* =========================================
+   VERIFICAR CONFLITOS
+========================================= */
+
 export function checkScheduleConflict({
   professional,
+
   date,
+
   startTime,
+
   endTime,
+
+  room,
+
   ignoreAppointmentId,
-}: CheckScheduleConflictParams): ScheduleConflict | null {
+}: CheckScheduleConflictParams):
+  | ScheduleConflict
+  | null {
+  /* =======================================
+     CAMPOS MÍNIMOS
+  ======================================= */
+
   if (
     !professional ||
     !date ||
@@ -393,14 +440,25 @@ export function checkScheduleConflict({
     return null;
   }
 
+  /* =======================================
+     TODOS OS AGENDAMENTOS
+  ======================================= */
+
   const appointments = [
     ...defaultAppointments,
+
     ...getSavedAppointments(),
   ];
 
+  /* =======================================
+     CONFLITO DO PROFISSIONAL
+  ======================================= */
+
   const appointmentConflict =
     appointments.find(
-      (appointment) =>
+      (
+        appointment
+      ) =>
         appointment.id !==
           ignoreAppointmentId &&
         appointment.professional ===
@@ -413,8 +471,11 @@ export function checkScheduleConflict({
           "Faltou" &&
         periodsOverlap(
           startTime,
+
           endTime,
+
           appointment.time,
+
           appointment.endTime
         )
     );
@@ -429,31 +490,93 @@ export function checkScheduleConflict({
       title:
         "Conflito com outro atendimento",
 
-      description: `${professional} já possui atendimento com ${appointmentConflict.patient} das ${appointmentConflict.time} às ${appointmentConflict.endTime}.`,
+      description:
+        `${professional} já possui atendimento com ${appointmentConflict.patient} das ${appointmentConflict.time} às ${appointmentConflict.endTime}.`,
     };
   }
 
+  /* =======================================
+     CONFLITO DA SALA
+  ======================================= */
+
+  if (
+    room
+  ) {
+    const roomConflict =
+      appointments.find(
+        (
+          appointment
+        ) =>
+          appointment.id !==
+            ignoreAppointmentId &&
+          appointment.room ===
+            room &&
+          appointment.date ===
+            date &&
+          appointment.status !==
+            "Cancelado" &&
+          appointment.status !==
+            "Faltou" &&
+          periodsOverlap(
+            startTime,
+
+            endTime,
+
+            appointment.time,
+
+            appointment.endTime
+          )
+      );
+
+    if (
+      roomConflict
+    ) {
+      return {
+        type:
+          "room",
+
+        title:
+          "Sala indisponível",
+
+        description:
+          `${room} já está sendo utilizada por ${roomConflict.professional}, no atendimento de ${roomConflict.patient}, das ${roomConflict.time} às ${roomConflict.endTime}.`,
+      };
+    }
+  }
+
+  /* =======================================
+     BLOQUEIOS DO PROFISSIONAL
+  ======================================= */
+
   const blocks = [
     ...defaultBlocks,
+
     ...getSavedBlocks(),
   ];
 
   const blockConflict =
     blocks.find(
-      (block) =>
+      (
+        block
+      ) =>
         block.professional ===
           professional &&
         block.date ===
           date &&
         periodsOverlap(
           startTime,
+
           endTime,
+
           block.startTime,
+
           block.endTime
         )
     );
 
-  if (blockConflict) {
+  if (
+    blockConflict
+  ) {
     return {
       type:
         "block",
@@ -461,17 +584,29 @@ export function checkScheduleConflict({
       title:
         "Profissional indisponível",
 
-      description: `${professional} possui um bloqueio de ${blockConflict.type.toLowerCase()} das ${blockConflict.startTime} às ${blockConflict.endTime}. ${blockConflict.reason}`,
+      description:
+        `${professional} possui um bloqueio de ${blockConflict.type.toLowerCase()} das ${blockConflict.startTime} às ${blockConflict.endTime}. ${blockConflict.reason}`,
     };
   }
+
+  /* =======================================
+     SEM CONFLITO
+  ======================================= */
 
   return null;
 }
 
+/* =========================================
+   VERIFICAR SOBREPOSIÇÃO DE HORÁRIOS
+========================================= */
+
 export function periodsOverlap(
   startA: string,
+
   endA: string,
+
   startB: string,
+
   endB: string
 ) {
   const startAMinutes =
@@ -502,11 +637,18 @@ export function periodsOverlap(
   );
 }
 
+/* =========================================
+   ADICIONAR MINUTOS AO HORÁRIO
+========================================= */
+
 export function addMinutesToTime(
   time: string,
+
   minutesToAdd: number
 ) {
-  if (!time) {
+  if (
+    !time
+  ) {
     return "";
   }
 
@@ -519,42 +661,59 @@ export function addMinutesToTime(
   const normalized =
     Math.min(
       total,
-      23 * 60 + 59
+
+      23 * 60 +
+        59
     );
 
   const hours =
     Math.floor(
-      normalized / 60
+      normalized /
+        60
     );
 
   const minutes =
-    normalized % 60;
+    normalized %
+    60;
 
   return `${String(
     hours
   ).padStart(
     2,
+
     "0"
   )}:${String(
     minutes
   ).padStart(
     2,
+
     "0"
   )}`;
 }
+
+/* =========================================
+   HORÁRIO PARA MINUTOS
+========================================= */
 
 function timeToMinutes(
   value: string
 ) {
   const [
     hours,
+
     minutes,
-  ] = value
-    .split(":")
-    .map(Number);
+  ] =
+    value
+      .split(
+        ":"
+      )
+      .map(
+        Number
+      );
 
   return (
-    hours * 60 +
+    hours *
+      60 +
     minutes
   );
 }

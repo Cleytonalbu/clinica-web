@@ -31,26 +31,33 @@ import {
   type FinancialExpense,
 } from "./expenseStorage";
 
+/* =========================================
+   TIPOS
+========================================= */
+
 interface ExpenseFormData {
   description: string;
 
   category:
     ExpenseCategory;
 
-  supplier:
-    string;
+  supplier: string;
 
-  dueDate:
-    string;
+  competenceDate: string;
 
-  amount:
-    string;
+  dueDate: string;
 
-  observation:
-    string;
+  amount: string;
+
+  observation: string;
 }
 
-const initialValues: ExpenseFormData = {
+/* =========================================
+   VALORES INICIAIS
+========================================= */
+
+const initialValues:
+  ExpenseFormData = {
   description:
     "",
 
@@ -58,6 +65,9 @@ const initialValues: ExpenseFormData = {
     "Outros",
 
   supplier:
+    "",
+
+  competenceDate:
     "",
 
   dueDate:
@@ -70,7 +80,12 @@ const initialValues: ExpenseFormData = {
     "",
 };
 
-const categories: ExpenseCategory[] = [
+/* =========================================
+   CATEGORIAS
+========================================= */
+
+const categories:
+  ExpenseCategory[] = [
   "Aluguel",
   "Energia",
   "Água",
@@ -82,6 +97,10 @@ const categories: ExpenseCategory[] = [
   "Serviços",
   "Outros",
 ];
+
+/* =========================================
+   COMPONENTE
+========================================= */
 
 export default function NovaDespesa() {
   const navigate =
@@ -99,15 +118,20 @@ export default function NovaDespesa() {
     saving,
     setSaving,
   ] =
-    useState(false);
+    useState(
+      false
+    );
 
   const [
     feedback,
     setFeedback,
   ] =
     useState<
-      string | null
-    >(null);
+      string |
+      null
+    >(
+      null
+    );
 
   const [
     feedbackType,
@@ -117,17 +141,28 @@ export default function NovaDespesa() {
       | "success"
       | "error"
       | null
-    >(null);
+    >(
+      null
+    );
+
+  /* =======================================
+     ATUALIZAR CAMPO
+  ======================================= */
 
   function updateField<
     K extends keyof ExpenseFormData
   >(
     field: K,
-    value: ExpenseFormData[K]
+
+    value:
+      ExpenseFormData[K]
   ) {
     setFormData(
-      (current) => ({
+      (
+        current
+      ) => ({
         ...current,
+
         [field]:
           value,
       })
@@ -141,6 +176,10 @@ export default function NovaDespesa() {
       null
     );
   }
+
+  /* =======================================
+     VALIDAÇÃO
+  ======================================= */
 
   function validate() {
     if (
@@ -164,6 +203,16 @@ export default function NovaDespesa() {
     }
 
     if (
+      !formData.competenceDate
+    ) {
+      showError(
+        "Informe a competência da despesa."
+      );
+
+      return false;
+    }
+
+    if (
       !formData.dueDate
     ) {
       showError(
@@ -179,8 +228,11 @@ export default function NovaDespesa() {
       );
 
     if (
-      !amount ||
-      amount <= 0
+      !Number.isFinite(
+        amount
+      ) ||
+      amount <=
+        0
     ) {
       showError(
         "Informe um valor válido."
@@ -191,6 +243,10 @@ export default function NovaDespesa() {
 
     return true;
   }
+
+  /* =======================================
+     ERRO
+  ======================================= */
 
   function showError(
     message: string
@@ -204,6 +260,10 @@ export default function NovaDespesa() {
     );
   }
 
+  /* =======================================
+     SALVAR
+  ======================================= */
+
   async function handleSave() {
     if (
       !validate()
@@ -216,7 +276,8 @@ export default function NovaDespesa() {
     );
 
     try {
-      const expense: FinancialExpense = {
+      const expense:
+        FinancialExpense = {
         id:
           Date.now(),
 
@@ -228,6 +289,9 @@ export default function NovaDespesa() {
 
         supplier:
           formData.supplier.trim(),
+
+        competenceDate:
+          formData.competenceDate,
 
         dueDate:
           formData.dueDate,
@@ -265,6 +329,7 @@ export default function NovaDespesa() {
             "/financeiro"
           );
         },
+
         700
       );
     } catch {
@@ -278,9 +343,17 @@ export default function NovaDespesa() {
     }
   }
 
+  /* =======================================
+     RENDER
+  ======================================= */
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* ================================= */}
+        {/* CABEÇALHO */}
+        {/* ================================= */}
+
         <div>
           <button
             type="button"
@@ -307,6 +380,10 @@ export default function NovaDespesa() {
           </p>
         </div>
 
+        {/* ================================= */}
+        {/* FEEDBACK */}
+        {/* ================================= */}
+
         {feedback && (
           <div
             className={`rounded-xl border px-4 py-3 text-sm font-medium ${
@@ -316,9 +393,15 @@ export default function NovaDespesa() {
                 : "border-emerald-200 bg-emerald-50 text-emerald-700"
             }`}
           >
-            {feedback}
+            {
+              feedback
+            }
           </div>
         )}
+
+        {/* ================================= */}
+        {/* DADOS */}
+        {/* ================================= */}
 
         <PageCard
           title="Dados da Despesa"
@@ -338,6 +421,7 @@ export default function NovaDespesa() {
                 ) =>
                   updateField(
                     "description",
+
                     event.target.value
                   )
                 }
@@ -358,7 +442,9 @@ export default function NovaDespesa() {
                 ) =>
                   updateField(
                     "category",
-                    event.target.value as ExpenseCategory
+
+                    event.target
+                      .value as ExpenseCategory
                   )
                 }
               >
@@ -396,6 +482,7 @@ export default function NovaDespesa() {
                 ) =>
                   updateField(
                     "supplier",
+
                     event.target.value
                   )
                 }
@@ -419,6 +506,7 @@ export default function NovaDespesa() {
                 ) =>
                   updateField(
                     "amount",
+
                     event.target.value
                   )
                 }
@@ -428,11 +516,48 @@ export default function NovaDespesa() {
           </div>
         </PageCard>
 
+        {/* ================================= */}
+        {/* DATAS */}
+        {/* ================================= */}
+
         <PageCard
-          title="Vencimento"
-          description="Defina quando esta despesa precisa ser paga."
+          title="Competência e Vencimento"
+          description="Informe a qual período a despesa pertence e quando deverá ser paga."
         >
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            {/* ============================= */}
+            {/* COMPETÊNCIA */}
+            {/* ============================= */}
+
+            <FormField
+              label="Competência"
+              required
+            >
+              <Input
+                type="month"
+                value={
+                  formData.competenceDate
+                }
+                onChange={(
+                  event
+                ) =>
+                  updateField(
+                    "competenceDate",
+
+                    event.target.value
+                  )
+                }
+              />
+
+              <p className="mt-2 text-xs text-slate-400">
+                Mês ao qual esta despesa pertence.
+              </p>
+            </FormField>
+
+            {/* ============================= */}
+            {/* VENCIMENTO */}
+            {/* ============================= */}
+
             <FormField
               label="Data de vencimento"
               required
@@ -447,11 +572,20 @@ export default function NovaDespesa() {
                 ) =>
                   updateField(
                     "dueDate",
+
                     event.target.value
                   )
                 }
               />
+
+              <p className="mt-2 text-xs text-slate-400">
+                Data limite para pagamento.
+              </p>
             </FormField>
+
+            {/* ============================= */}
+            {/* STATUS */}
+            {/* ============================= */}
 
             <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
               <div className="flex items-center gap-2 text-indigo-700">
@@ -475,6 +609,10 @@ export default function NovaDespesa() {
           </div>
         </PageCard>
 
+        {/* ================================= */}
+        {/* OBSERVAÇÕES */}
+        {/* ================================= */}
+
         <PageCard
           title="Observações"
           description="Informações adicionais sobre a despesa."
@@ -488,6 +626,7 @@ export default function NovaDespesa() {
             ) =>
               updateField(
                 "observation",
+
                 event.target.value
               )
             }
@@ -504,6 +643,10 @@ export default function NovaDespesa() {
           </div>
         </PageCard>
 
+        {/* ================================= */}
+        {/* BARRA INFERIOR */}
+        {/* ================================= */}
+
         <div className="sticky bottom-0 z-20 rounded-t-2xl border border-slate-200 bg-white/95 px-5 py-4 shadow-lg backdrop-blur">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -519,6 +662,9 @@ export default function NovaDespesa() {
               <Button
                 type="button"
                 variant="outline"
+                disabled={
+                  saving
+                }
                 onClick={() =>
                   navigate(
                     "/financeiro"

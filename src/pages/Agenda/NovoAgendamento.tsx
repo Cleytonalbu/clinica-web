@@ -55,6 +55,10 @@ import {
   getActiveSpecialties,
 } from "@/pages/Configuracoes/settingsStorage";
 
+/* =========================================
+   TIPOS
+========================================= */
+
 interface AppointmentFormData {
   patient: string;
 
@@ -91,57 +95,109 @@ interface AppointmentFormData {
     PaymentMethod;
 }
 
+/* =========================================
+   VALORES INICIAIS
+========================================= */
+
 const initialValues: AppointmentFormData = {
-  patient: "",
-  professional: "",
-  specialty: "",
-  date: "",
-  startTime: "",
-  endTime: "",
-  room: "",
+  patient:
+    "",
+
+  professional:
+    "",
+
+  specialty:
+    "",
+
+  date:
+    "",
+
+  startTime:
+    "",
+
+  endTime:
+    "",
+
+  room:
+    "",
+
   appointmentType:
     "Individual",
+
   status:
     "Agendado",
-  observations: "",
+
+  observations:
+    "",
+
   billingType:
     "Particular",
-  convenio: "",
+
+  convenio:
+    "",
+
   paymentMethod:
     "Pix",
 };
 
+/* =========================================
+   PACIENTES TEMPORÁRIOS
+========================================= */
+
 const patients = [
   {
     id: 1,
-    name: "Maria Oliveira",
+
+    name:
+      "Maria Oliveira",
   },
+
   {
     id: 2,
-    name: "João Miguel Silva",
+
+    name:
+      "João Miguel Silva",
   },
+
   {
     id: 3,
-    name: "Lucas Gabriel",
+
+    name:
+      "Lucas Gabriel",
   },
+
   {
     id: 4,
-    name: "Ana Clara Rodrigues",
+
+    name:
+      "Ana Clara Rodrigues",
   },
+
   {
     id: 5,
-    name: "Pedro Henrique",
+
+    name:
+      "Pedro Henrique",
   },
 ];
+
+/* =========================================
+   COMPONENTE PRINCIPAL
+========================================= */
 
 export default function NovoAgendamento() {
   const navigate =
     useNavigate();
 
+  /* =======================================
+     CONFIGURAÇÕES
+  ======================================= */
+
   const activeRooms =
     useMemo(
       () =>
         getActiveRooms(),
+
       []
     );
 
@@ -149,6 +205,7 @@ export default function NovoAgendamento() {
     useMemo(
       () =>
         getActiveSpecialties(),
+
       []
     );
 
@@ -156,6 +213,7 @@ export default function NovoAgendamento() {
     useMemo(
       () =>
         getActiveProfessionals(),
+
       []
     );
 
@@ -163,8 +221,13 @@ export default function NovoAgendamento() {
     useMemo(
       () =>
         getActiveConvenios(),
+
       []
     );
+
+  /* =======================================
+     FORMULÁRIO
+  ======================================= */
 
   const [
     formData,
@@ -178,15 +241,20 @@ export default function NovoAgendamento() {
     saving,
     setSaving,
   ] =
-    useState(false);
+    useState(
+      false
+    );
 
   const [
     feedback,
     setFeedback,
   ] =
     useState<
-      string | null
-    >(null);
+      string |
+      null
+    >(
+      null
+    );
 
   const [
     feedbackType,
@@ -196,7 +264,13 @@ export default function NovoAgendamento() {
       | "success"
       | "error"
       | null
-    >(null);
+    >(
+      null
+    );
+
+  /* =======================================
+     PROFISSIONAL SELECIONADO
+  ======================================= */
 
   const selectedProfessional =
     useMemo(
@@ -208,11 +282,17 @@ export default function NovoAgendamento() {
             item.name ===
             formData.professional
         ),
+
       [
         activeProfessionals,
+
         formData.professional,
       ]
     );
+
+  /* =======================================
+     CONVÊNIO SELECIONADO
+  ======================================= */
 
   const selectedConvenio =
     useMemo(
@@ -224,92 +304,133 @@ export default function NovoAgendamento() {
             item.name ===
             formData.convenio
         ),
+
       [
         activeConvenios,
+
         formData.convenio,
       ]
     );
 
+  /* =======================================
+     VALOR DO SERVIÇO
+  ======================================= */
+
   const serviceValue =
-    useMemo(() => {
-      if (
-        !formData.professional ||
-        !formData.specialty
-      ) {
-        return 0;
-      }
+    useMemo(
+      () => {
+        if (
+          !formData.professional ||
+          !formData.specialty
+        ) {
+          return 0;
+        }
 
-      if (
-        formData.billingType ===
-          "Convênio" &&
-        !formData.convenio
-      ) {
-        return 0;
-      }
+        if (
+          formData.billingType ===
+            "Convênio" &&
+          !formData.convenio
+        ) {
+          return 0;
+        }
 
-      return calculateChargeAmount({
-        professional:
-          formData.professional,
+        return calculateChargeAmount(
+          {
+            professional:
+              formData.professional,
 
-        specialty:
-          formData.specialty,
+            specialty:
+              formData.specialty,
 
-        billingType:
-          formData.billingType,
+            billingType:
+              formData.billingType,
 
-        convenio:
-          formData.convenio ||
-          undefined,
-      });
-    }, [
-      formData.professional,
-      formData.specialty,
-      formData.billingType,
-      formData.convenio,
-    ]);
+            convenio:
+              formData.convenio ||
+              undefined,
+          }
+        );
+      },
+
+      [
+        formData.professional,
+
+        formData.specialty,
+
+        formData.billingType,
+
+        formData.convenio,
+      ]
+    );
+
+  /* =======================================
+     CONFLITO DA AGENDA
+  ======================================= */
 
   const scheduleConflict =
-    useMemo(() => {
-      if (
-        !formData.professional ||
-        !formData.date ||
-        !formData.startTime ||
-        !formData.endTime
-      ) {
-        return null;
-      }
+    useMemo(
+      () => {
+        if (
+          !formData.professional ||
+          !formData.date ||
+          !formData.startTime ||
+          !formData.endTime
+        ) {
+          return null;
+        }
 
-      return checkScheduleConflict({
-        professional:
-          formData.professional,
+        return checkScheduleConflict(
+          {
+            professional:
+              formData.professional,
 
-        date:
-          formData.date,
+            date:
+              formData.date,
 
-        startTime:
-          formData.startTime,
+            startTime:
+              formData.startTime,
 
-        endTime:
-          formData.endTime,
-      });
-    }, [
-      formData.professional,
-      formData.date,
-      formData.startTime,
-      formData.endTime,
-    ]);
+            endTime:
+              formData.endTime,
+
+            room:
+              formData.room ||
+              undefined,
+          }
+        );
+      },
+
+      [
+        formData.professional,
+
+        formData.date,
+
+        formData.startTime,
+
+        formData.endTime,
+
+        formData.room,
+      ]
+    );
+
+  /* =======================================
+     ATUALIZAR CAMPO
+  ======================================= */
 
   function updateField<
     K extends keyof AppointmentFormData
   >(
     field: K,
-    value: AppointmentFormData[K]
+
+    value:
+      AppointmentFormData[K]
   ) {
     setFormData(
       (
         current
       ) => ({
         ...current,
+
         [field]:
           value,
       })
@@ -317,6 +438,10 @@ export default function NovoAgendamento() {
 
     clearFeedback();
   }
+
+  /* =======================================
+     LIMPAR FEEDBACK
+  ======================================= */
 
   function clearFeedback() {
     setFeedback(
@@ -327,6 +452,10 @@ export default function NovoAgendamento() {
       null
     );
   }
+
+  /* =======================================
+     ERRO
+  ======================================= */
 
   function showError(
     message: string
@@ -339,6 +468,10 @@ export default function NovoAgendamento() {
       "error"
     );
   }
+
+  /* =======================================
+     TROCA DE PROFISSIONAL
+  ======================================= */
 
   function handleProfessionalChange(
     professionalName: string
@@ -395,6 +528,10 @@ export default function NovoAgendamento() {
     clearFeedback();
   }
 
+  /* =======================================
+     TROCA DO HORÁRIO INICIAL
+  ======================================= */
+
   function handleStartTimeChange(
     startTime: string
   ) {
@@ -410,6 +547,7 @@ export default function NovoAgendamento() {
           startTime
             ? addMinutesToTime(
                 startTime,
+
                 50
               )
             : "",
@@ -418,6 +556,10 @@ export default function NovoAgendamento() {
 
     clearFeedback();
   }
+
+  /* =======================================
+     TIPO DE COBRANÇA
+  ======================================= */
 
   function handleBillingTypeChange(
     billingType:
@@ -431,7 +573,8 @@ export default function NovoAgendamento() {
 
         billingType,
 
-        convenio: "",
+        convenio:
+          "",
 
         paymentMethod:
           getDefaultPaymentMethod(
@@ -442,6 +585,10 @@ export default function NovoAgendamento() {
 
     clearFeedback();
   }
+
+  /* =======================================
+     VALIDAÇÃO
+  ======================================= */
 
   function validate() {
     if (
@@ -541,6 +688,10 @@ export default function NovoAgendamento() {
     return true;
   }
 
+  /* =======================================
+     SALVAR
+  ======================================= */
+
   async function handleSave() {
     if (
       !validate()
@@ -634,6 +785,7 @@ export default function NovoAgendamento() {
             "/agenda"
           );
         },
+
         700
       );
     } catch {
@@ -647,9 +799,17 @@ export default function NovoAgendamento() {
     }
   }
 
+  /* =======================================
+     RENDER
+  ======================================= */
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* ================================= */}
+        {/* CABEÇALHO */}
+        {/* ================================= */}
+
         <div>
           <button
             type="button"
@@ -661,7 +821,9 @@ export default function NovoAgendamento() {
             className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-indigo-600"
           >
             <ArrowLeft
-              size={17}
+              size={
+                17
+              }
             />
 
             Voltar para agenda
@@ -676,6 +838,10 @@ export default function NovoAgendamento() {
           </p>
         </div>
 
+        {/* ================================= */}
+        {/* FEEDBACK */}
+        {/* ================================= */}
+
         {feedback && (
           <div
             className={`rounded-xl border px-4 py-3 text-sm font-medium ${
@@ -685,15 +851,25 @@ export default function NovoAgendamento() {
                 : "border-emerald-200 bg-emerald-50 text-emerald-700"
             }`}
           >
-            {feedback}
+            {
+              feedback
+            }
           </div>
         )}
+
+        {/* ================================= */}
+        {/* PACIENTE E PROFISSIONAL */}
+        {/* ================================= */}
 
         <PageCard
           title="Paciente e Profissional"
           description="Selecione quem será atendido e o profissional responsável."
         >
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            {/* ============================= */}
+            {/* PACIENTE */}
+            {/* ============================= */}
+
             <FormField
               label="Paciente"
               required
@@ -707,6 +883,7 @@ export default function NovoAgendamento() {
                 ) =>
                   updateField(
                     "patient",
+
                     event.target.value
                   )
                 }
@@ -735,6 +912,10 @@ export default function NovoAgendamento() {
                 )}
               </Select>
             </FormField>
+
+            {/* ============================= */}
+            {/* PROFISSIONAL */}
+            {/* ============================= */}
 
             <FormField
               label="Profissional"
@@ -781,7 +962,13 @@ export default function NovoAgendamento() {
               </Select>
             </FormField>
 
-            <FormField label="Especialidade">
+            {/* ============================= */}
+            {/* ESPECIALIDADE */}
+            {/* ============================= */}
+
+            <FormField
+              label="Especialidade"
+            >
               <Input
                 value={
                   formData.specialty
@@ -790,11 +977,17 @@ export default function NovoAgendamento() {
               />
             </FormField>
 
+            {/* ============================= */}
+            {/* PROFISSIONAL SELECIONADO */}
+            {/* ============================= */}
+
             <div className="flex items-end">
               <div className="w-full rounded-xl border border-indigo-100 bg-indigo-50 p-4">
                 <div className="flex items-start gap-3">
                   <Stethoscope
-                    size={20}
+                    size={
+                      20
+                    }
                     className="mt-0.5 text-indigo-600"
                   />
 
@@ -832,11 +1025,19 @@ export default function NovoAgendamento() {
           </div>
         </PageCard>
 
+        {/* ================================= */}
+        {/* DATA E HORÁRIO */}
+        {/* ================================= */}
+
         <PageCard
           title="Data e Horário"
-          description="O sistema verifica automaticamente conflitos."
+          description="O sistema verifica automaticamente conflitos do profissional, bloqueios e ocupação da sala."
         >
           <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            {/* ============================= */}
+            {/* DATA */}
+            {/* ============================= */}
+
             <FormField
               label="Data"
               required
@@ -851,11 +1052,16 @@ export default function NovoAgendamento() {
                 ) =>
                   updateField(
                     "date",
+
                     event.target.value
                   )
                 }
               />
             </FormField>
+
+            {/* ============================= */}
+            {/* INÍCIO */}
+            {/* ============================= */}
 
             <FormField
               label="Hora início"
@@ -876,6 +1082,10 @@ export default function NovoAgendamento() {
               />
             </FormField>
 
+            {/* ============================= */}
+            {/* FIM */}
+            {/* ============================= */}
+
             <FormField
               label="Hora fim"
               required
@@ -890,12 +1100,17 @@ export default function NovoAgendamento() {
                 ) =>
                   updateField(
                     "endTime",
+
                     event.target.value
                   )
                 }
               />
             </FormField>
           </div>
+
+          {/* =============================== */}
+          {/* VERIFICAÇÃO */}
+          {/* =============================== */}
 
           <div className="mt-5">
             {!formData.professional ||
@@ -904,7 +1119,9 @@ export default function NovoAgendamento() {
             !formData.endTime ? (
               <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <Clock3
-                  size={19}
+                  size={
+                    19
+                  }
                   className="mt-0.5 text-slate-400"
                 />
 
@@ -921,7 +1138,9 @@ export default function NovoAgendamento() {
             ) : scheduleConflict ? (
               <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
                 <AlertTriangle
-                  size={20}
+                  size={
+                    20
+                  }
                   className="mt-0.5 text-red-600"
                 />
 
@@ -942,7 +1161,9 @@ export default function NovoAgendamento() {
             ) : (
               <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                 <CheckCircle2
-                  size={20}
+                  size={
+                    20
+                  }
                   className="mt-0.5 text-emerald-600"
                 />
 
@@ -960,11 +1181,19 @@ export default function NovoAgendamento() {
           </div>
         </PageCard>
 
+        {/* ================================= */}
+        {/* DETALHES */}
+        {/* ================================= */}
+
         <PageCard
           title="Detalhes do Atendimento"
           description="Sala, tipo e situação."
         >
           <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            {/* ============================= */}
+            {/* SALA */}
+            {/* ============================= */}
+
             <FormField
               label="Sala"
               required
@@ -978,6 +1207,7 @@ export default function NovoAgendamento() {
                 ) =>
                   updateField(
                     "room",
+
                     event.target.value
                   )
                 }
@@ -1007,7 +1237,13 @@ export default function NovoAgendamento() {
               </Select>
             </FormField>
 
-            <FormField label="Tipo">
+            {/* ============================= */}
+            {/* TIPO */}
+            {/* ============================= */}
+
+            <FormField
+              label="Tipo"
+            >
               <Select
                 value={
                   formData.appointmentType
@@ -1017,7 +1253,9 @@ export default function NovoAgendamento() {
                 ) =>
                   updateField(
                     "appointmentType",
-                    event.target.value as AppointmentFormData["appointmentType"]
+
+                    event.target
+                      .value as AppointmentFormData["appointmentType"]
                   )
                 }
               >
@@ -1039,7 +1277,13 @@ export default function NovoAgendamento() {
               </Select>
             </FormField>
 
-            <FormField label="Status">
+            {/* ============================= */}
+            {/* STATUS */}
+            {/* ============================= */}
+
+            <FormField
+              label="Status"
+            >
               <Select
                 value={
                   formData.status
@@ -1049,7 +1293,9 @@ export default function NovoAgendamento() {
                 ) =>
                   updateField(
                     "status",
-                    event.target.value as AppointmentFormData["status"]
+
+                    event.target
+                      .value as AppointmentFormData["status"]
                   )
                 }
               >
@@ -1065,11 +1311,19 @@ export default function NovoAgendamento() {
           </div>
         </PageCard>
 
+        {/* ================================= */}
+        {/* FINANCEIRO */}
+        {/* ================================= */}
+
         <PageCard
           title="Financeiro"
           description="Defina como este atendimento será cobrado."
         >
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {/* ============================= */}
+            {/* TIPO DE COBRANÇA */}
+            {/* ============================= */}
+
             <FormField
               label="Tipo de atendimento"
               required
@@ -1082,7 +1336,8 @@ export default function NovoAgendamento() {
                   event
                 ) =>
                   handleBillingTypeChange(
-                    event.target.value as BillingType
+                    event.target
+                      .value as BillingType
                   )
                 }
               >
@@ -1095,6 +1350,10 @@ export default function NovoAgendamento() {
                 </option>
               </Select>
             </FormField>
+
+            {/* ============================= */}
+            {/* CONVÊNIO */}
+            {/* ============================= */}
 
             {formData.billingType ===
               "Convênio" && (
@@ -1111,6 +1370,7 @@ export default function NovoAgendamento() {
                   ) =>
                     updateField(
                       "convenio",
+
                       event.target.value
                     )
                   }
@@ -1148,7 +1408,13 @@ export default function NovoAgendamento() {
               </FormField>
             )}
 
-            <FormField label="Forma de pagamento">
+            {/* ============================= */}
+            {/* PAGAMENTO */}
+            {/* ============================= */}
+
+            <FormField
+              label="Forma de pagamento"
+            >
               <Select
                 value={
                   formData.paymentMethod
@@ -1162,7 +1428,9 @@ export default function NovoAgendamento() {
                 ) =>
                   updateField(
                     "paymentMethod",
-                    event.target.value as PaymentMethod
+
+                    event.target
+                      .value as PaymentMethod
                   )
                 }
               >
@@ -1192,10 +1460,16 @@ export default function NovoAgendamento() {
               </Select>
             </FormField>
 
+            {/* ============================= */}
+            {/* VALOR */}
+            {/* ============================= */}
+
             <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
               <div className="flex items-center gap-2 text-indigo-700">
                 <CreditCard
-                  size={18}
+                  size={
+                    18
+                  }
                 />
 
                 <span className="text-sm font-semibold">
@@ -1236,6 +1510,10 @@ export default function NovoAgendamento() {
           </div>
         </PageCard>
 
+        {/* ================================= */}
+        {/* OBSERVAÇÕES */}
+        {/* ================================= */}
+
         <PageCard
           title="Observações"
           description="Informações adicionais."
@@ -1249,24 +1527,33 @@ export default function NovoAgendamento() {
             ) =>
               updateField(
                 "observations",
+
                 event.target.value
               )
             }
-            maxLength={500}
+            maxLength={
+              500
+            }
             placeholder="Observações sobre o atendimento..."
             className="min-h-32 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
           />
         </PageCard>
 
+        {/* ================================= */}
+        {/* BARRA INFERIOR */}
+        {/* ================================= */}
+
         <div className="sticky bottom-0 z-20 rounded-t-2xl border border-slate-200 bg-white/95 px-5 py-4 shadow-lg backdrop-blur">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <CalendarDays
-                size={18}
+                size={
+                  18
+                }
                 className="text-indigo-500"
               />
 
-              Valores e convênios são carregados das Configurações.
+              Profissional, sala e convênios são validados automaticamente.
             </div>
 
             <div className="flex gap-3">
@@ -1305,7 +1592,9 @@ export default function NovoAgendamento() {
                 }
               >
                 <Save
-                  size={17}
+                  size={
+                    17
+                  }
                 />
 
                 {saving

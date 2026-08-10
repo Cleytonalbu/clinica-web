@@ -24,8 +24,29 @@ export interface FinancialExpense {
 
   supplier: string;
 
+  /*
+   * Competência financeira.
+   *
+   * Formato:
+   * YYYY-MM
+   *
+   * Exemplo:
+   * 2026-07
+   */
+  competenceDate?: string;
+
+  /*
+   * Data de vencimento.
+   *
+   * Formato:
+   * YYYY-MM-DD
+   */
   dueDate: string;
 
+  /*
+   * Data real em que o pagamento
+   * foi realizado.
+   */
   paymentDate?: string;
 
   amount: number;
@@ -49,10 +70,19 @@ export interface FinancialExpense {
   createdAt: string;
 }
 
+/* =========================================
+   STORAGE
+========================================= */
+
 const STORAGE_KEY =
   "entre-afetos-financial-expenses";
 
-export function getFinancialExpenses(): FinancialExpense[] {
+/* =========================================
+   LISTAR DESPESAS
+========================================= */
+
+export function getFinancialExpenses():
+  FinancialExpense[] {
   try {
     const stored =
       localStorage.getItem(
@@ -63,22 +93,70 @@ export function getFinancialExpenses(): FinancialExpense[] {
       return [];
     }
 
-    return JSON.parse(
-      stored
-    ) as FinancialExpense[];
+    const expenses =
+      JSON.parse(
+        stored
+      ) as FinancialExpense[];
+
+    /*
+     * COMPATIBILIDADE
+     *
+     * Despesas criadas antes do campo
+     * competenceDate continuam funcionando.
+     *
+     * Para elas, utilizamos o mês do
+     * vencimento como competência.
+     */
+
+    return expenses.map(
+      (
+        expense
+      ) => ({
+        ...expense,
+
+        competenceDate:
+          expense.competenceDate ||
+          getCompetenceFromDueDate(
+            expense.dueDate
+          ),
+
+        originalAmount:
+          expense.originalAmount ??
+          expense.amount,
+
+        discount:
+          expense.discount ??
+          0,
+
+        surcharge:
+          expense.surcharge ??
+          0,
+      })
+    );
   } catch {
     return [];
   }
 }
 
+/* =========================================
+   BUSCAR DESPESA
+========================================= */
+
 export function getFinancialExpenseById(
   expenseId: number
 ) {
   return getFinancialExpenses().find(
-    (expense) =>
-      expense.id === expenseId
+    (
+      expense
+    ) =>
+      expense.id ===
+      expenseId
   );
 }
+
+/* =========================================
+   SALVAR DESPESA
+========================================= */
 
 export function saveFinancialExpense(
   expense: FinancialExpense
@@ -86,18 +164,27 @@ export function saveFinancialExpense(
   const current =
     getFinancialExpenses();
 
-  const normalizedExpense: FinancialExpense = {
+  const normalizedExpense:
+    FinancialExpense = {
     ...expense,
+
+    competenceDate:
+      expense.competenceDate ||
+      getCompetenceFromDueDate(
+        expense.dueDate
+      ),
 
     originalAmount:
       expense.originalAmount ??
       expense.amount,
 
     discount:
-      expense.discount ?? 0,
+      expense.discount ??
+      0,
 
     surcharge:
-      expense.surcharge ?? 0,
+      expense.surcharge ??
+      0,
   };
 
   const next = [
@@ -107,21 +194,32 @@ export function saveFinancialExpense(
 
   localStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify(next)
+    JSON.stringify(
+      next
+    )
   );
 }
 
+/* =========================================
+   ATUALIZAR DESPESA
+========================================= */
+
 export function updateFinancialExpense(
   expenseId: number,
-  data: Partial<FinancialExpense>
+
+  data:
+    Partial<FinancialExpense>
 ) {
   const current =
     getFinancialExpenses();
 
   const next =
     current.map(
-      (expense) =>
-        expense.id === expenseId
+      (
+        expense
+      ) =>
+        expense.id ===
+        expenseId
           ? {
               ...expense,
               ...data,
@@ -131,9 +229,15 @@ export function updateFinancialExpense(
 
   localStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify(next)
+    JSON.stringify(
+      next
+    )
   );
 }
+
+/* =========================================
+   PAGAMENTO
+========================================= */
 
 interface PayExpenseData {
   paymentDate: string;
@@ -151,6 +255,7 @@ interface PayExpenseData {
 
 export function payFinancialExpense(
   expenseId: number,
+
   data: PayExpenseData
 ) {
   const expense =
@@ -208,6 +313,10 @@ export function payFinancialExpense(
   );
 }
 
+/* =========================================
+   CANCELAR DESPESA
+========================================= */
+
 export function cancelFinancialExpense(
   expenseId: number
 ) {
@@ -220,6 +329,10 @@ export function cancelFinancialExpense(
   );
 }
 
+/* =========================================
+   REMOVER DESPESA
+========================================= */
+
 export function removeFinancialExpense(
   expenseId: number
 ) {
@@ -228,12 +341,46 @@ export function removeFinancialExpense(
 
   const next =
     current.filter(
-      (expense) =>
-        expense.id !== expenseId
+      (
+        expense
+      ) =>
+        expense.id !==
+        expenseId
     );
 
   localStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify(next)
+    JSON.stringify(
+      next
+    )
   );
+}
+
+/* =========================================
+   GERAR COMPETÊNCIA PELO VENCIMENTO
+========================================= */
+
+function getCompetenceFromDueDate(
+  dueDate: string
+) {
+  if (!dueDate) {
+    return "";
+  }
+
+  const [
+    year,
+    month,
+  ] =
+    dueDate.split(
+      "-"
+    );
+
+  if (
+    !year ||
+    !month
+  ) {
+    return "";
+  }
+
+  return `${year}-${month}`;
 }

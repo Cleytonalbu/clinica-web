@@ -31,6 +31,10 @@ import {
 } from "@/components/ui";
 
 import {
+  useAuth,
+} from "@/auth/AuthContext";
+
+import {
   getSavedAppointments,
   updateSavedAppointment,
   type StoredAppointment,
@@ -40,28 +44,23 @@ import {
   createChargeFromAppointment,
 } from "@/pages/Financeiro/financeStorage";
 
+/* =========================================
+   ATENDIMENTOS DE DEMONSTRAÇÃO
+========================================= */
+
 const defaultAppointments: StoredAppointment[] = [
   {
     id: 1,
     patientId: 1,
-    patient:
-      "Maria Oliveira",
-    professional:
-      "Dra. Ana Paula",
-    specialty:
-      "Psicologia",
-    date:
-      "2026-08-07",
-    time:
-      "08:00",
-    endTime:
-      "08:50",
-    room:
-      "Sala 01",
-    type:
-      "Individual",
-    status:
-      "Realizado",
+    patient: "Maria Oliveira",
+    professional: "Dra. Ana Paula",
+    specialty: "Psicologia",
+    date: "2026-08-07",
+    time: "08:00",
+    endTime: "08:50",
+    room: "Sala 01",
+    type: "Individual",
+    status: "Realizado",
     observations:
       "Paciente compareceu acompanhado pela responsável.",
   },
@@ -69,178 +68,112 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 2,
     patientId: 2,
-    patient:
-      "João Miguel Silva",
-    professional:
-      "Dra. Camila Soares",
-    specialty:
-      "Fonoaudiologia",
-    date:
-      "2026-08-07",
-    time:
-      "08:00",
-    endTime:
-      "08:50",
-    room:
-      "Sala 02",
-    type:
-      "Individual",
-    status:
-      "Confirmado",
-    observations:
-      "",
+    patient: "João Miguel Silva",
+    professional: "Dra. Camila Soares",
+    specialty: "Fonoaudiologia",
+    date: "2026-08-07",
+    time: "08:00",
+    endTime: "08:50",
+    room: "Sala 02",
+    type: "Individual",
+    status: "Confirmado",
+    observations: "",
   },
 
   {
     id: 3,
     patientId: 3,
-    patient:
-      "Lucas Gabriel",
-    professional:
-      "Dra. Ana Paula",
-    specialty:
-      "Psicologia",
-    date:
-      "2026-08-07",
-    time:
-      "09:00",
-    endTime:
-      "09:50",
-    room:
-      "Sala 01",
-    type:
-      "Individual",
-    status:
-      "Confirmado",
-    observations:
-      "",
+    patient: "Lucas Gabriel",
+    professional: "Dra. Ana Paula",
+    specialty: "Psicologia",
+    date: "2026-08-07",
+    time: "09:00",
+    endTime: "09:50",
+    room: "Sala 01",
+    type: "Individual",
+    status: "Confirmado",
+    observations: "",
   },
 
   {
     id: 4,
     patientId: 4,
-    patient:
-      "Ana Clara Rodrigues",
-    professional:
-      "Dra. Larissa Lima",
-    specialty:
-      "Terapia Ocupacional",
-    date:
-      "2026-08-07",
-    time:
-      "10:00",
-    endTime:
-      "10:50",
-    room:
-      "Sala 03",
-    type:
-      "Individual",
-    status:
-      "Agendado",
-    observations:
-      "",
+    patient: "Ana Clara Rodrigues",
+    professional: "Dra. Larissa Lima",
+    specialty: "Terapia Ocupacional",
+    date: "2026-08-07",
+    time: "10:00",
+    endTime: "10:50",
+    room: "Sala 03",
+    type: "Individual",
+    status: "Agendado",
+    observations: "",
   },
 
   {
     id: 5,
     patientId: 5,
-    patient:
-      "Pedro Henrique",
-    professional:
-      "Dr. Rafael Costa",
-    specialty:
-      "Fisioterapia",
-    date:
-      "2026-08-07",
-    time:
-      "11:00",
-    endTime:
-      "11:50",
-    room:
-      "Sala 04",
-    type:
-      "Avaliação",
-    status:
-      "Cancelado",
-    observations:
-      "",
+    patient: "Pedro Henrique",
+    professional: "Dr. Rafael Costa",
+    specialty: "Fisioterapia",
+    date: "2026-08-07",
+    time: "11:00",
+    endTime: "11:50",
+    room: "Sala 04",
+    type: "Avaliação",
+    status: "Cancelado",
+    observations: "",
   },
 
   {
     id: 6,
     patientId: 1,
-    patient:
-      "Maria Oliveira",
-    professional:
-      "Dra. Camila Soares",
-    specialty:
-      "Fonoaudiologia",
-    date:
-      "2026-08-07",
-    time:
-      "14:00",
-    endTime:
-      "14:50",
-    room:
-      "Sala 02",
-    type:
-      "Individual",
-    status:
-      "Agendado",
-    observations:
-      "",
+    patient: "Maria Oliveira",
+    professional: "Dra. Camila Soares",
+    specialty: "Fonoaudiologia",
+    date: "2026-08-07",
+    time: "14:00",
+    endTime: "14:50",
+    room: "Sala 02",
+    type: "Individual",
+    status: "Agendado",
+    observations: "",
   },
 
   {
     id: 7,
     patientId: 3,
-    patient:
-      "Lucas Gabriel",
-    professional:
-      "Dra. Ana Paula",
-    specialty:
-      "Psicologia",
-    date:
-      "2026-08-08",
-    time:
-      "09:00",
-    endTime:
-      "09:50",
-    room:
-      "Sala 01",
-    type:
-      "Individual",
-    status:
-      "Agendado",
-    observations:
-      "",
+    patient: "Lucas Gabriel",
+    professional: "Dra. Ana Paula",
+    specialty: "Psicologia",
+    date: "2026-08-08",
+    time: "09:00",
+    endTime: "09:50",
+    room: "Sala 01",
+    type: "Individual",
+    status: "Agendado",
+    observations: "",
   },
 
   {
     id: 8,
     patientId: 1,
-    patient:
-      "Maria Oliveira",
-    professional:
-      "Dra. Ana Paula",
-    specialty:
-      "Psicologia",
-    date:
-      "2026-08-10",
-    time:
-      "10:30",
-    endTime:
-      "11:20",
-    room:
-      "Sala 01",
-    type:
-      "Individual",
-    status:
-      "Confirmado",
-    observations:
-      "",
+    patient: "Maria Oliveira",
+    professional: "Dra. Ana Paula",
+    specialty: "Psicologia",
+    date: "2026-08-10",
+    time: "10:30",
+    endTime: "11:20",
+    room: "Sala 01",
+    type: "Individual",
+    status: "Confirmado",
+    observations: "",
   },
 ];
+
+/* =========================================
+   COMPONENTE PRINCIPAL
+========================================= */
 
 export default function DetalheAgendamento() {
   const navigate =
@@ -248,13 +181,54 @@ export default function DetalheAgendamento() {
 
   const {
     appointmentId,
-  } =
-    useParams();
+  } = useParams();
+
+  const {
+    user,
+  } = useAuth();
 
   const numericId =
     Number(
       appointmentId
     );
+
+  /* =======================================
+     PERFIL
+  ======================================= */
+
+  const isGestor =
+    user?.profile ===
+    "Gestor";
+
+  const isRecepcao =
+    user?.profile ===
+    "Recepção";
+
+  const isProfissional =
+    user?.profile ===
+    "Profissional";
+
+  const loggedProfessionalName =
+    user?.professionalName ??
+    user?.name ??
+    "";
+
+  /*
+   * Ações administrativas da agenda:
+   *
+   * - confirmar;
+   * - remarcar;
+   * - cancelar;
+   * - registrar falta.
+   */
+
+  const canManageSchedule =
+    isGestor ||
+    isRecepcao;
+
+  /* =======================================
+     AGENDAMENTO
+  ======================================= */
 
   const savedAppointments =
     getSavedAppointments();
@@ -310,6 +284,10 @@ export default function DetalheAgendamento() {
       | null
     >(null);
 
+  /* =======================================
+     NÃO ENCONTRADO
+  ======================================= */
+
   if (!appointment) {
     return (
       <DashboardLayout>
@@ -338,10 +316,104 @@ export default function DetalheAgendamento() {
     );
   }
 
+  /* =======================================
+     VÍNCULO DO PROFISSIONAL
+  ======================================= */
+
+  const belongsToProfessional =
+    !isProfissional ||
+    appointment.professional ===
+      loggedProfessionalName;
+
+  /*
+   * Apenas o profissional responsável
+   * pelo atendimento pode concluí-lo.
+   */
+
+  const canPerformClinicalAction =
+    isProfissional &&
+    belongsToProfessional;
+
+  /*
+   * Registrar evolução segue a mesma
+   * regra do atendimento.
+   */
+
+  const canRegisterEvolution =
+    canPerformClinicalAction &&
+    appointment.status ===
+      "Realizado";
+
+  /* =======================================
+     ATENDIMENTO FINALIZADO
+  ======================================= */
+
+  const finished =
+    appointment.status ===
+      "Realizado" ||
+    appointment.status ===
+      "Cancelado" ||
+    appointment.status ===
+      "Faltou";
+
+  /* =======================================
+     ALTERAR STATUS
+  ======================================= */
+
   function changeStatus(
     status:
       StoredAppointment["status"]
   ) {
+    /* =====================================
+       PERMISSÃO
+    ===================================== */
+
+    const administrativeStatus =
+      status ===
+        "Confirmado" ||
+      status ===
+        "Cancelado" ||
+      status ===
+        "Faltou";
+
+    const clinicalStatus =
+      status ===
+      "Realizado";
+
+    if (
+      administrativeStatus &&
+      !canManageSchedule
+    ) {
+      setFeedback(
+        "Seu perfil não possui permissão para realizar esta ação."
+      );
+
+      setFeedbackType(
+        "error"
+      );
+
+      return;
+    }
+
+    if (
+      clinicalStatus &&
+      !canPerformClinicalAction
+    ) {
+      setFeedback(
+        "Somente o profissional responsável pode concluir este atendimento."
+      );
+
+      setFeedbackType(
+        "error"
+      );
+
+      return;
+    }
+
+    /* =====================================
+       DADOS DEMONSTRATIVOS
+    ===================================== */
+
     if (
       !isSavedAppointment
     ) {
@@ -356,12 +428,20 @@ export default function DetalheAgendamento() {
       return;
     }
 
+    /* =====================================
+       ATUALIZAÇÃO
+    ===================================== */
+
     updateSavedAppointment(
       appointment.id,
       {
         status,
       }
     );
+
+    /* =====================================
+       GERAÇÃO DA COBRANÇA
+    ===================================== */
 
     if (
       status ===
@@ -393,6 +473,10 @@ export default function DetalheAgendamento() {
       );
     }
 
+    /* =====================================
+       ESTADO LOCAL
+    ===================================== */
+
     setAppointment(
       (current) =>
         current
@@ -403,12 +487,16 @@ export default function DetalheAgendamento() {
           : current
     );
 
+    /* =====================================
+       FEEDBACK
+    ===================================== */
+
     if (
       status ===
       "Realizado"
     ) {
       setFeedback(
-        "Atendimento realizado. Uma cobrança de R$ 150,00 foi gerada automaticamente no Financeiro."
+        "Atendimento realizado com sucesso. A cobrança foi gerada automaticamente no Financeiro."
       );
     } else {
       setFeedback(
@@ -423,17 +511,76 @@ export default function DetalheAgendamento() {
     );
   }
 
-  const finished =
-    appointment.status ===
-      "Realizado" ||
-    appointment.status ===
-      "Cancelado" ||
-    appointment.status ===
-      "Faltou";
+  /* =======================================
+     REMARCAR
+  ======================================= */
+
+  function handleReschedule() {
+    if (
+      !canManageSchedule ||
+      finished
+    ) {
+      return;
+    }
+
+    navigate(
+      `/agenda/${appointment.id}/remarcar`
+    );
+  }
+
+  /* =======================================
+     ABRIR PRONTUÁRIO
+  ======================================= */
+
+  function handleOpenPatient() {
+    navigate(
+      `/pacientes/${appointment.patientId}`
+    );
+  }
+
+  /* =======================================
+     VER COBRANÇA
+  ======================================= */
+
+  function handleViewCharge() {
+    if (
+      !canManageSchedule
+    ) {
+      return;
+    }
+
+    navigate(
+      "/financeiro"
+    );
+  }
+
+  /* =======================================
+     REGISTRAR EVOLUÇÃO
+  ======================================= */
+
+  function handleEvolution() {
+    if (
+      !canRegisterEvolution
+    ) {
+      return;
+    }
+
+    navigate(
+      `/pacientes/${appointment.patientId}/evolucoes/nova`
+    );
+  }
+
+  /* =======================================
+     RENDER
+  ======================================= */
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* ================================= */}
+        {/* CABEÇALHO */}
+        {/* ================================= */}
+
         <div>
           <button
             type="button"
@@ -445,7 +592,9 @@ export default function DetalheAgendamento() {
             className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-indigo-600"
           >
             <ArrowLeft
-              size={17}
+              size={
+                17
+              }
             />
 
             Voltar para agenda
@@ -458,7 +607,9 @@ export default function DetalheAgendamento() {
               </h1>
 
               <p className="mt-2 text-sm text-slate-500">
-                Consulte e gerencie o atendimento.
+                {isProfissional
+                  ? "Consulte os dados do atendimento e registre sua realização."
+                  : "Consulte e gerencie o atendimento."}
               </p>
             </div>
 
@@ -470,6 +621,10 @@ export default function DetalheAgendamento() {
           </div>
         </div>
 
+        {/* ================================= */}
+        {/* FEEDBACK */}
+        {/* ================================= */}
+
         {feedback && (
           <div
             className={`rounded-xl border px-4 py-3 text-sm font-medium ${
@@ -479,15 +634,36 @@ export default function DetalheAgendamento() {
                 : "border-emerald-200 bg-emerald-50 text-emerald-700"
             }`}
           >
-            {feedback}
+            {
+              feedback
+            }
           </div>
         )}
+
+        {/* ================================= */}
+        {/* AVISO DE DEMONSTRAÇÃO */}
+        {/* ================================= */}
 
         {!isSavedAppointment && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             Este é um atendimento de demonstração. As alterações permanentes estão disponíveis nos novos agendamentos criados pelo sistema.
           </div>
         )}
+
+        {/* ================================= */}
+        {/* AVISO DO PROFISSIONAL */}
+        {/* ================================= */}
+
+        {isProfissional &&
+          !belongsToProfessional && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              Este atendimento pertence a outro profissional. Você possui acesso somente para consulta.
+            </div>
+          )}
+
+        {/* ================================= */}
+        {/* PACIENTE */}
+        {/* ================================= */}
 
         <PageCard
           title="Paciente"
@@ -497,7 +673,9 @@ export default function DetalheAgendamento() {
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
                 <UserRound
-                  size={26}
+                  size={
+                    26
+                  }
                 />
               </div>
 
@@ -520,16 +698,18 @@ export default function DetalheAgendamento() {
             <Button
               type="button"
               variant="outline"
-              onClick={() =>
-                navigate(
-                  `/pacientes/${appointment.patientId}`
-                )
+              onClick={
+                handleOpenPatient
               }
             >
               Abrir prontuário
             </Button>
           </div>
         </PageCard>
+
+        {/* ================================= */}
+        {/* DADOS + OBSERVAÇÕES */}
+        {/* ================================= */}
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <PageCard
@@ -540,7 +720,9 @@ export default function DetalheAgendamento() {
               <Info
                 icon={
                   <CalendarDays
-                    size={18}
+                    size={
+                      18
+                    }
                   />
                 }
                 label="Data"
@@ -554,7 +736,9 @@ export default function DetalheAgendamento() {
               <Info
                 icon={
                   <Clock3
-                    size={18}
+                    size={
+                      18
+                    }
                   />
                 }
                 label="Horário"
@@ -564,7 +748,9 @@ export default function DetalheAgendamento() {
               <Info
                 icon={
                   <Stethoscope
-                    size={18}
+                    size={
+                      18
+                    }
                   />
                 }
                 label="Profissional"
@@ -576,7 +762,9 @@ export default function DetalheAgendamento() {
               <Info
                 icon={
                   <Stethoscope
-                    size={18}
+                    size={
+                      18
+                    }
                   />
                 }
                 label="Especialidade"
@@ -588,7 +776,9 @@ export default function DetalheAgendamento() {
               <Info
                 icon={
                   <MapPin
-                    size={18}
+                    size={
+                      18
+                    }
                   />
                 }
                 label="Sala"
@@ -600,7 +790,9 @@ export default function DetalheAgendamento() {
               <Info
                 icon={
                   <FileText
-                    size={18}
+                    size={
+                      18
+                    }
                   />
                 }
                 label="Tipo"
@@ -622,162 +814,226 @@ export default function DetalheAgendamento() {
           </PageCard>
         </div>
 
-        <PageCard
-          title="Situação do Atendimento"
-          description="Atualize o andamento da consulta."
-        >
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <ActionCard
-              title="Confirmar"
-              description="Confirma o comparecimento previsto."
-              icon={
-                <CheckCircle2
-                  size={21}
-                />
-              }
-              active={
-                appointment.status ===
-                "Confirmado"
-              }
-              disabled={
-                finished
-              }
-              onClick={() =>
-                changeStatus(
+        {/* ================================= */}
+        {/* SITUAÇÃO DO ATENDIMENTO */}
+        {/* GESTOR + RECEPÇÃO */}
+        {/* ================================= */}
+
+        {canManageSchedule && (
+          <PageCard
+            title="Situação do Atendimento"
+            description="Gerencie a situação administrativa do atendimento."
+          >
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              {/* =========================== */}
+              {/* CONFIRMAR */}
+              {/* =========================== */}
+
+              <ActionCard
+                title="Confirmar"
+                description="Confirma o comparecimento previsto."
+                icon={
+                  <CheckCircle2
+                    size={
+                      21
+                    }
+                  />
+                }
+                active={
+                  appointment.status ===
                   "Confirmado"
-                )
-              }
-            />
+                }
+                disabled={
+                  finished
+                }
+                onClick={() =>
+                  changeStatus(
+                    "Confirmado"
+                  )
+                }
+              />
 
-            <ActionCard
-              title="Realizado"
-              description="Conclui o atendimento e gera a cobrança."
-              icon={
-                <CheckCircle2
-                  size={21}
-                />
-              }
-              active={
-                appointment.status ===
-                "Realizado"
-              }
-              disabled={
-                appointment.status ===
-                  "Cancelado" ||
-                appointment.status ===
+              {/* =========================== */}
+              {/* FALTOU */}
+              {/* =========================== */}
+
+              <ActionCard
+                title="Faltou"
+                description="Registra a ausência do paciente."
+                icon={
+                  <UserX
+                    size={
+                      21
+                    }
+                  />
+                }
+                active={
+                  appointment.status ===
                   "Faltou"
-              }
-              onClick={() =>
-                changeStatus(
+                }
+                warning
+                disabled={
+                  appointment.status ===
+                    "Realizado" ||
+                  appointment.status ===
+                    "Cancelado"
+                }
+                onClick={() =>
+                  changeStatus(
+                    "Faltou"
+                  )
+                }
+              />
+
+              {/* =========================== */}
+              {/* CANCELAR */}
+              {/* =========================== */}
+
+              <ActionCard
+                title="Cancelar"
+                description="Cancela o atendimento."
+                icon={
+                  <XCircle
+                    size={
+                      21
+                    }
+                  />
+                }
+                active={
+                  appointment.status ===
+                  "Cancelado"
+                }
+                danger
+                disabled={
+                  appointment.status ===
+                    "Realizado" ||
+                  appointment.status ===
+                    "Faltou"
+                }
+                onClick={() =>
+                  changeStatus(
+                    "Cancelado"
+                  )
+                }
+              />
+            </div>
+          </PageCard>
+        )}
+
+        {/* ================================= */}
+        {/* REALIZAÇÃO DO ATENDIMENTO */}
+        {/* SOMENTE PROFISSIONAL RESPONSÁVEL */}
+        {/* ================================= */}
+
+        {canPerformClinicalAction && (
+          <PageCard
+            title="Realização do Atendimento"
+            description="Conclua o atendimento após a realização da sessão."
+          >
+            <div className="max-w-md">
+              <ActionCard
+                title="Marcar como realizado"
+                description="Conclui o atendimento e libera o registro da evolução clínica."
+                icon={
+                  <CheckCircle2
+                    size={
+                      21
+                    }
+                  />
+                }
+                active={
+                  appointment.status ===
                   "Realizado"
-                )
-              }
-            />
+                }
+                disabled={
+                  appointment.status ===
+                    "Cancelado" ||
+                  appointment.status ===
+                    "Faltou" ||
+                  appointment.status ===
+                    "Realizado"
+                }
+                onClick={() =>
+                  changeStatus(
+                    "Realizado"
+                  )
+                }
+              />
+            </div>
+          </PageCard>
+        )}
 
-            <ActionCard
-              title="Faltou"
-              description="Registra ausência sem gerar cobrança."
-              icon={
-                <UserX
-                  size={21}
-                />
-              }
-              active={
-                appointment.status ===
-                "Faltou"
-              }
-              warning
-              disabled={
-                appointment.status ===
-                  "Realizado" ||
-                appointment.status ===
-                  "Cancelado"
-              }
-              onClick={() =>
-                changeStatus(
-                  "Faltou"
-                )
-              }
-            />
-
-            <ActionCard
-              title="Cancelar"
-              description="Cancela o atendimento sem gerar cobrança."
-              icon={
-                <XCircle
-                  size={21}
-                />
-              }
-              active={
-                appointment.status ===
-                "Cancelado"
-              }
-              danger
-              disabled={
-                appointment.status ===
-                  "Realizado" ||
-                appointment.status ===
-                  "Faltou"
-              }
-              onClick={() =>
-                changeStatus(
-                  "Cancelado"
-                )
-              }
-            />
-          </div>
-        </PageCard>
+        {/* ================================= */}
+        {/* AÇÕES INFERIORES */}
+        {/* ================================= */}
 
         <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={
-              finished
-            }
-            onClick={() =>
-              navigate(
-                `/agenda/${appointment.id}/remarcar`
-              )
-            }
-          >
-            Remarcar
-          </Button>
+          {/* =============================== */}
+          {/* REMARCAR */}
+          {/* GESTOR + RECEPÇÃO */}
+          {/* =============================== */}
 
-          {appointment.status ===
-            "Realizado" && (
+          {canManageSchedule && (
             <Button
               type="button"
               variant="outline"
-              onClick={() =>
-                navigate(
-                  "/financeiro"
-                )
+              disabled={
+                finished
+              }
+              onClick={
+                handleReschedule
               }
             >
-              Ver cobrança
+              Remarcar
             </Button>
           )}
 
-          <Button
-            type="button"
-            disabled={
-              appointment.status !==
-              "Realizado"
-            }
-            onClick={() =>
-              navigate(
-                `/pacientes/${appointment.patientId}/evolucoes/nova`
-              )
-            }
-          >
-            Registrar evolução
-          </Button>
+          {/* =============================== */}
+          {/* VER COBRANÇA */}
+          {/* GESTOR + RECEPÇÃO */}
+          {/* =============================== */}
+
+          {canManageSchedule &&
+            appointment.status ===
+              "Realizado" && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={
+                  handleViewCharge
+                }
+              >
+                Ver cobrança
+              </Button>
+            )}
+
+          {/* =============================== */}
+          {/* REGISTRAR EVOLUÇÃO */}
+          {/* PROFISSIONAL */}
+          {/* =============================== */}
+
+          {isProfissional && (
+            <Button
+              type="button"
+              disabled={
+                !canRegisterEvolution
+              }
+              onClick={
+                handleEvolution
+              }
+            >
+              Registrar evolução
+            </Button>
+          )}
         </div>
       </div>
     </DashboardLayout>
   );
 }
+
+/* =========================================
+   INFORMAÇÃO
+========================================= */
 
 interface InfoProps {
   icon:
@@ -798,21 +1054,31 @@ function Info({
   return (
     <div className="flex gap-3">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-        {icon}
+        {
+          icon
+        }
       </div>
 
       <div>
         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-          {label}
+          {
+            label
+          }
         </p>
 
         <p className="mt-1 text-sm font-semibold text-slate-800">
-          {value}
+          {
+            value
+          }
         </p>
       </div>
     </div>
   );
 }
+
+/* =========================================
+   CARD DE AÇÃO
+========================================= */
 
 interface ActionCardProps {
   title:
@@ -889,20 +1155,30 @@ function ActionCard({
     >
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/70">
-          {icon}
+          {
+            icon
+          }
         </div>
 
         <p className="font-semibold">
-          {title}
+          {
+            title
+          }
         </p>
       </div>
 
       <p className="mt-3 text-sm leading-6 opacity-80">
-        {description}
+        {
+          description
+        }
       </p>
     </button>
   );
 }
+
+/* =========================================
+   STATUS
+========================================= */
 
 function StatusBadge({
   status,
@@ -934,10 +1210,16 @@ function StatusBadge({
     <span
       className={`w-fit rounded-full px-3 py-1 text-sm font-semibold ${styles[status]}`}
     >
-      {status}
+      {
+        status
+      }
     </span>
   );
 }
+
+/* =========================================
+   MENSAGEM DO STATUS
+========================================= */
 
 function getStatusMessage(
   status:
@@ -961,6 +1243,10 @@ function getStatusMessage(
   }
 }
 
+/* =========================================
+   DATA
+========================================= */
+
 function formatDate(
   value: string
 ) {
@@ -969,7 +1255,9 @@ function formatDate(
     month,
     day,
   ] =
-    value.split("-");
+    value.split(
+      "-"
+    );
 
   return `${day}/${month}/${year}`;
 }
