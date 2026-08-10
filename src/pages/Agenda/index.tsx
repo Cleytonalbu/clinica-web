@@ -23,6 +23,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useAuth,
+} from "@/auth/AuthContext";
+
+import {
   Button,
   Input,
   PageCard,
@@ -253,6 +257,35 @@ export default function Agenda() {
   const navigate =
     useNavigate();
 
+  const {
+    user,
+  } = useAuth();
+
+  const isGestor =
+    user?.profile ===
+    "Gestor";
+
+  const isRecepcao =
+    user?.profile ===
+    "Recepção";
+
+  const isProfissional =
+    user?.profile ===
+    "Profissional";
+
+  const loggedProfessionalName =
+    user?.professionalName ??
+    user?.name ??
+    "";
+
+  const canManageSchedule =
+    isGestor ||
+    isRecepcao;
+
+  const canCreateBlock =
+    isGestor ||
+    isRecepcao;
+
   const [
     view,
     setView,
@@ -319,9 +352,31 @@ export default function Agenda() {
       ...getSavedBlocks(),
     ]);
 
+  const profileAppointments =
+    useMemo(
+      () => {
+        if (
+          !isProfissional
+        ) {
+          return appointments;
+        }
+
+        return appointments.filter(
+          (appointment) =>
+            appointment.professional ===
+            loggedProfessionalName
+        );
+      },
+      [
+        appointments,
+        isProfissional,
+        loggedProfessionalName,
+      ]
+    );
+
   const filteredAppointments =
     useMemo(() => {
-      return appointments.filter(
+      return profileAppointments.filter(
         (
           appointment
         ) => {
@@ -341,6 +396,7 @@ export default function Agenda() {
               );
 
           const matchesProfessional =
+            isProfissional ||
             professional ===
               "Todos" ||
             appointment.professional ===
@@ -367,26 +423,41 @@ export default function Agenda() {
         }
       );
     }, [
-      appointments,
+      profileAppointments,
       search,
       professional,
       specialty,
       status,
+      isProfissional,
     ]);
 
   const filteredBlocks =
     useMemo(
       () =>
         scheduleBlocks.filter(
-          (block) =>
-            professional ===
-              "Todos" ||
-            block.professional ===
-              professional
+          (block) => {
+            if (
+              isProfissional
+            ) {
+              return (
+                block.professional ===
+                loggedProfessionalName
+              );
+            }
+
+            return (
+              professional ===
+                "Todos" ||
+              block.professional ===
+                professional
+            );
+          }
         ),
       [
         professional,
         scheduleBlocks,
+        isProfissional,
+        loggedProfessionalName,
       ]
     );
 
@@ -398,7 +469,7 @@ export default function Agenda() {
     );
 
   const dayStats =
-    appointments.filter(
+    profileAppointments.filter(
       (appointment) =>
         appointment.date ===
         selectedDate
@@ -542,46 +613,54 @@ export default function Agenda() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">
-              Agenda
+              {isProfissional
+                ? "Minha Agenda"
+                : "Agenda"}
             </h1>
 
             <p className="mt-2 text-sm text-slate-500">
-              Visualize e gerencie os atendimentos de todos os profissionais da clínica.
+              {isProfissional
+                ? "Visualize seus atendimentos, pacientes e horários programados."
+                : "Visualize e gerencie os atendimentos de todos os profissionais da clínica."}
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                navigate(
-                  "/agenda/bloqueio/novo"
-                )
-              }
-            >
-              <Lock
-                size={17}
-              />
+          {canManageSchedule && (
+            <div className="flex flex-wrap gap-2">
+              {canCreateBlock && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    navigate(
+                      "/agenda/bloqueio/novo"
+                    )
+                  }
+                >
+                  <Lock
+                    size={17}
+                  />
 
-              Novo bloqueio
-            </Button>
+                  Novo bloqueio
+                </Button>
+              )}
 
-            <Button
-              type="button"
-              onClick={() =>
-                navigate(
-                  "/agenda/novo"
-                )
-              }
-            >
-              <Plus
-                size={18}
-              />
+              <Button
+                type="button"
+                onClick={() =>
+                  navigate(
+                    "/agenda/novo"
+                  )
+                }
+              >
+                <Plus
+                  size={18}
+                />
 
-              Novo agendamento
-            </Button>
-          </div>
+                Novo agendamento
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
@@ -646,19 +725,21 @@ export default function Agenda() {
                 Dia
               </ViewButton>
 
-              <ViewButton
-                active={
-                  view ===
-                  "professionals"
-                }
-                onClick={() =>
-                  setView(
+              {!isProfissional && (
+                <ViewButton
+                  active={
+                    view ===
                     "professionals"
-                  )
-                }
-              >
-                Profissionais
-              </ViewButton>
+                  }
+                  onClick={() =>
+                    setView(
+                      "professionals"
+                    )
+                  }
+                >
+                  Profissionais
+                </ViewButton>
+              )}
 
               <ViewButton
                 active={
@@ -747,7 +828,7 @@ export default function Agenda() {
           title="Filtros"
           description="Refine a visualização da agenda."
         >
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+          <div className={`grid grid-cols-1 gap-4 ${isProfissional ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}>
             <div className="relative xl:col-span-2">
               <Search
                 size={18}
@@ -766,44 +847,55 @@ export default function Agenda() {
                       .value
                   )
                 }
-                placeholder="Pesquisar paciente ou profissional..."
+                placeholder={
+                  isProfissional
+                    ? "Pesquisar paciente..."
+                    : "Pesquisar paciente ou profissional..."
+                }
                 className="pl-11"
               />
             </div>
 
-            <Select
-              value={
-                professional
-              }
-              onChange={(
-                event
-              ) =>
-                setProfessional(
-                  event.target
-                    .value
-                )
-              }
-            >
-              {professionals.map(
-                (
-                  item
-                ) => (
-                  <option
-                    key={
-                      item
-                    }
-                    value={
-                      item
-                    }
-                  >
-                    {item ===
-                    "Todos"
-                      ? "Todos os profissionais"
-                      : item}
-                  </option>
-                )
-              )}
-            </Select>
+            {isProfissional ? (
+              <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">
+                {loggedProfessionalName ||
+                  "Profissional"}
+              </div>
+            ) : (
+              <Select
+                value={
+                  professional
+                }
+                onChange={(
+                  event
+                ) =>
+                  setProfessional(
+                    event.target
+                      .value
+                  )
+                }
+              >
+                {professionals.map(
+                  (
+                    item
+                  ) => (
+                    <option
+                      key={
+                        item
+                      }
+                      value={
+                        item
+                      }
+                    >
+                      {item ===
+                      "Todos"
+                        ? "Todos os profissionais"
+                        : item}
+                    </option>
+                  )
+                )}
+              </Select>
+            )}
 
             <Select
               value={
@@ -889,6 +981,9 @@ export default function Agenda() {
               selectedDate={
                 selectedDate
               }
+              canReschedule={
+                canManageSchedule
+              }
               onPatient={(
                 patientId
               ) =>
@@ -928,7 +1023,8 @@ export default function Agenda() {
           </>
         )}
 
-        {view ===
+        {!isProfissional &&
+          view ===
           "professionals" && (
           <ProfessionalColumnsView
             appointments={
@@ -992,6 +1088,9 @@ interface DayViewProps {
   selectedDate:
     string;
 
+  canReschedule:
+    boolean;
+
   onPatient: (
     patientId: number
   ) => void;
@@ -1008,6 +1107,7 @@ interface DayViewProps {
 function DayView({
   appointments,
   selectedDate,
+  canReschedule,
   onPatient,
   onReschedule,
   onDetails,
@@ -1030,6 +1130,9 @@ function DayView({
               }
               appointment={
                 appointment
+              }
+              canReschedule={
+                canReschedule
               }
               onPatient={() =>
                 onPatient(
@@ -1362,6 +1465,9 @@ interface AppointmentRowProps {
   appointment:
     StoredAppointment;
 
+  canReschedule:
+    boolean;
+
   onPatient:
     () => void;
 
@@ -1374,6 +1480,7 @@ interface AppointmentRowProps {
 
 function AppointmentRow({
   appointment,
+  canReschedule,
   onPatient,
   onReschedule,
   onDetails,
@@ -1455,24 +1562,26 @@ function AppointmentRow({
             Paciente
           </Button>
 
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            disabled={
-              appointment.status ===
-                "Realizado" ||
-              appointment.status ===
-                "Cancelado" ||
-              appointment.status ===
-                "Faltou"
-            }
-            onClick={
-              onReschedule
-            }
-          >
-            Remarcar
-          </Button>
+          {canReschedule && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={
+                appointment.status ===
+                  "Realizado" ||
+                appointment.status ===
+                  "Cancelado" ||
+                appointment.status ===
+                  "Faltou"
+              }
+              onClick={
+                onReschedule
+              }
+            >
+              Remarcar
+            </Button>
+          )}
 
           <Button
             type="button"

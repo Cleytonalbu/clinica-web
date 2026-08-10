@@ -1,22 +1,46 @@
-import { DashboardLayout } from "../../layouts/DashboardLayout";
-import { DashboardGrid } from "../../components/dashboard/DashboardGrid";
+import {
+  useAuth,
+} from "../../auth/AuthContext";
+
+import DashboardGestor from "./Gestor";
+
+import DashboardRecepcao from "./Recepcao";
+
+import DashboardProfissional from "./Profissional";
 
 export default function Dashboard() {
+  const {
+    user,
+  } = useAuth();
+
+  if (
+    user?.profile ===
+    "Gestor"
+  ) {
+    return (
+      <DashboardGestor />
+    );
+  }
+
+  if (
+    user?.profile ===
+    "Recepção"
+  ) {
+    return (
+      <DashboardRecepcao />
+    );
+  }
+
+  if (
+    user?.profile ===
+    "Profissional"
+  ) {
+    return (
+      <DashboardProfissional />
+    );
+  }
+
   return (
-    <DashboardLayout>
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800">
-            Bem-vindo ao Sistema
-          </h1>
-
-          <p className="mt-2 text-slate-500">
-            Acompanhe os principais indicadores da clínica.
-          </p>
-        </div>
-
-        <DashboardGrid />
-      </div>
-    </DashboardLayout>
+    <DashboardGestor />
   );
 }

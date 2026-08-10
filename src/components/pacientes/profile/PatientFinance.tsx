@@ -1,4 +1,7 @@
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useState,
+} from "react";
 
 import {
   AlertCircle,
@@ -12,11 +15,19 @@ import {
 } from "lucide-react";
 
 import {
+  useAuth,
+} from "@/auth/AuthContext";
+
+import {
   Button,
   Input,
   PageCard,
   Select,
 } from "@/components/ui";
+
+/* =========================================
+   TIPOS
+========================================= */
 
 type PaymentStatus =
   | "Pago"
@@ -25,123 +36,404 @@ type PaymentStatus =
 
 interface PatientPayment {
   id: number;
+
   description: string;
+
   dueDate: string;
+
   paymentDate?: string;
+
   amount: number;
+
   status: PaymentStatus;
+
   method?: string;
 }
+
+/* =========================================
+   DADOS TEMPORÁRIOS
+========================================= */
 
 const initialPayments: PatientPayment[] = [
   {
     id: 1,
-    description: "Mensalidade Agosto/2026",
-    dueDate: "10/08/2026",
+
+    description:
+      "Mensalidade Agosto/2026",
+
+    dueDate:
+      "10/08/2026",
+
     amount: 850,
-    status: "Pendente",
+
+    status:
+      "Pendente",
   },
+
   {
     id: 2,
-    description: "Mensalidade Julho/2026",
-    dueDate: "10/07/2026",
-    paymentDate: "08/07/2026",
+
+    description:
+      "Mensalidade Julho/2026",
+
+    dueDate:
+      "10/07/2026",
+
+    paymentDate:
+      "08/07/2026",
+
     amount: 850,
-    status: "Pago",
-    method: "PIX",
+
+    status:
+      "Pago",
+
+    method:
+      "PIX",
   },
+
   {
     id: 3,
-    description: "Mensalidade Junho/2026",
-    dueDate: "10/06/2026",
-    paymentDate: "10/06/2026",
+
+    description:
+      "Mensalidade Junho/2026",
+
+    dueDate:
+      "10/06/2026",
+
+    paymentDate:
+      "10/06/2026",
+
     amount: 850,
-    status: "Pago",
-    method: "Cartão",
+
+    status:
+      "Pago",
+
+    method:
+      "Cartão",
   },
+
   {
     id: 4,
-    description: "Avaliação complementar",
-    dueDate: "20/05/2026",
+
+    description:
+      "Avaliação complementar",
+
+    dueDate:
+      "20/05/2026",
+
     amount: 250,
-    status: "Atrasado",
+
+    status:
+      "Atrasado",
   },
 ];
 
+/* =========================================
+   COMPONENTE PRINCIPAL
+========================================= */
+
 export function PatientFinance() {
-  const [payments] =
-    useState<PatientPayment[]>(
+  const {
+    user,
+  } = useAuth();
+
+  const [
+    payments,
+    setPayments,
+  ] =
+    useState<
+      PatientPayment[]
+    >(
       initialPayments
     );
 
-  const [search, setSearch] =
-    useState("");
+  const [
+    search,
+    setSearch,
+  ] =
+    useState(
+      ""
+    );
 
-  const [status, setStatus] =
-    useState("Todos");
+  const [
+    status,
+    setStatus,
+  ] =
+    useState(
+      "Todos"
+    );
+
+  /* =======================================
+     PERFIS
+  ======================================= */
+
+  const isGestor =
+    user?.profile ===
+    "Gestor";
+
+  const isRecepcao =
+    user?.profile ===
+    "Recepção";
+
+  /*
+   * Gestor possui administração
+   * financeira completa.
+   */
+
+  const canManageFinance =
+    isGestor;
+
+  /*
+   * Gestor e Recepção podem registrar
+   * recebimentos.
+   */
+
+  const canReceivePayment =
+    isGestor ||
+    isRecepcao;
+
+  /* =======================================
+     FILTROS
+  ======================================= */
 
   const filteredPayments =
-    useMemo(() => {
-      return payments.filter(
-        (payment) => {
-          const matchesSearch =
-            payment.description
-              .toLowerCase()
-              .includes(
-                search.toLowerCase()
-              );
+    useMemo(
+      () => {
+        return payments.filter(
+          (
+            payment
+          ) => {
+            const matchesSearch =
+              payment.description
+                .toLowerCase()
+                .includes(
+                  search.toLowerCase()
+                );
 
-          const matchesStatus =
-            status === "Todos" ||
-            payment.status === status;
+            const matchesStatus =
+              status ===
+                "Todos" ||
+              payment.status ===
+                status;
 
-          return (
-            matchesSearch &&
-            matchesStatus
-          );
-        }
+            return (
+              matchesSearch &&
+              matchesStatus
+            );
+          }
+        );
+      },
+      [
+        payments,
+        search,
+        status,
+      ]
+    );
+
+  /* =======================================
+     TOTAIS
+  ======================================= */
+
+  const paidTotal =
+    payments
+      .filter(
+        (
+          item
+        ) =>
+          item.status ===
+          "Pago"
+      )
+      .reduce(
+        (
+          total,
+          item
+        ) =>
+          total +
+          item.amount,
+        0
       );
-    }, [
-      payments,
-      search,
-      status,
-    ]);
 
-  const paidTotal = payments
-    .filter(
-      (item) =>
-        item.status === "Pago"
-    )
-    .reduce(
-      (total, item) =>
-        total + item.amount,
-      0
-    );
+  const pendingTotal =
+    payments
+      .filter(
+        (
+          item
+        ) =>
+          item.status ===
+          "Pendente"
+      )
+      .reduce(
+        (
+          total,
+          item
+        ) =>
+          total +
+          item.amount,
+        0
+      );
 
-  const pendingTotal = payments
-    .filter(
-      (item) =>
-        item.status === "Pendente"
-    )
-    .reduce(
-      (total, item) =>
-        total + item.amount,
-      0
-    );
+  const overdueTotal =
+    payments
+      .filter(
+        (
+          item
+        ) =>
+          item.status ===
+          "Atrasado"
+      )
+      .reduce(
+        (
+          total,
+          item
+        ) =>
+          total +
+          item.amount,
+        0
+      );
 
-  const overdueTotal = payments
-    .filter(
-      (item) =>
-        item.status === "Atrasado"
-    )
-    .reduce(
-      (total, item) =>
-        total + item.amount,
-      0
+  /* =======================================
+     NOVA COBRANÇA
+  ======================================= */
+
+  function handleNewCharge() {
+    if (
+      !canManageFinance
+    ) {
+      return;
+    }
+
+    /*
+     * A tela de nova cobrança ainda
+     * será criada.
+     *
+     * Futuramente:
+     *
+     * /financeiro/cobrancas/nova
+     */
+  }
+
+  /* =======================================
+     REGISTRAR RECEBIMENTO
+  ======================================= */
+
+  function handleReceivePayment(
+    payment: PatientPayment
+  ) {
+    if (
+      !canReceivePayment
+    ) {
+      return;
+    }
+
+    if (
+      payment.status ===
+      "Pago"
+    ) {
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `Confirmar o recebimento de ${formatCurrency(
+          payment.amount
+        )} referente a "${payment.description}"?`
+      );
+
+    if (
+      !confirmed
+    ) {
+      return;
+    }
+
+    /*
+     * TEMPORÁRIO:
+     *
+     * Enquanto não temos API, marcamos
+     * o pagamento como recebido apenas
+     * no estado local da tela.
+     */
+
+    setPayments(
+      (
+        current
+      ) =>
+        current.map(
+          (
+            currentPayment
+          ) =>
+            currentPayment.id ===
+            payment.id
+              ? {
+                  ...currentPayment,
+
+                  status:
+                    "Pago",
+
+                  paymentDate:
+                    new Date().toLocaleDateString(
+                      "pt-BR"
+                    ),
+
+                  method:
+                    "PIX",
+                }
+              : currentPayment
+        )
     );
+  }
+
+  /* =======================================
+     DOWNLOAD
+  ======================================= */
+
+  function handleDownload(
+    payment: PatientPayment
+  ) {
+    /*
+     * Quando conectarmos a API,
+     * receberemos a URL real
+     * do comprovante.
+     */
+
+    console.log(
+      "Baixar comprovante:",
+      payment.id
+    );
+  }
+
+  /* =======================================
+     MAIS OPÇÕES
+  ======================================= */
+
+  function handleMoreOptions(
+    payment: PatientPayment
+  ) {
+    /*
+     * Posteriormente o Gestor poderá
+     * acessar ações como:
+     *
+     * - editar cobrança;
+     * - cancelar cobrança;
+     * - alterar vencimento;
+     * - consultar detalhes.
+     */
+
+    console.log(
+      "Opções da cobrança:",
+      payment.id
+    );
+  }
+
+  /* =======================================
+     RENDER
+  ======================================= */
 
   return (
     <div className="space-y-6">
+      {/* ================================= */}
+      {/* CABEÇALHO */}
+      {/* ================================= */}
+
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">
@@ -149,28 +441,51 @@ export function PatientFinance() {
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            Mensalidades, cobranças
-            e pagamentos vinculados
-            ao paciente.
+            Mensalidades, cobranças e pagamentos vinculados ao paciente.
           </p>
         </div>
 
-        <Button type="button">
-          <CreditCard size={18} />
-          Nova cobrança
-        </Button>
+        {/* ================================= */}
+        {/* NOVA COBRANÇA */}
+        {/* SOMENTE GESTOR */}
+        {/* ================================= */}
+
+        {canManageFinance && (
+          <Button
+            type="button"
+            onClick={
+              handleNewCharge
+            }
+          >
+            <CreditCard
+              size={
+                18
+              }
+            />
+
+            Nova cobrança
+          </Button>
+        )}
       </div>
+
+      {/* ================================= */}
+      {/* RESUMO FINANCEIRO */}
+      {/* ================================= */}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <FinanceSummaryCard
           title="Pago"
-          value={formatCurrency(
-            paidTotal
-          )}
+          value={
+            formatCurrency(
+              paidTotal
+            )
+          }
           description="Valores recebidos"
           icon={
             <CheckCircle2
-              size={22}
+              size={
+                22
+              }
             />
           }
           className="bg-emerald-100 text-emerald-600"
@@ -178,13 +493,17 @@ export function PatientFinance() {
 
         <FinanceSummaryCard
           title="Pendente"
-          value={formatCurrency(
-            pendingTotal
-          )}
+          value={
+            formatCurrency(
+              pendingTotal
+            )
+          }
           description="Aguardando pagamento"
           icon={
             <WalletCards
-              size={22}
+              size={
+                22
+              }
             />
           }
           className="bg-amber-100 text-amber-600"
@@ -192,39 +511,60 @@ export function PatientFinance() {
 
         <FinanceSummaryCard
           title="Em atraso"
-          value={formatCurrency(
-            overdueTotal
-          )}
+          value={
+            formatCurrency(
+              overdueTotal
+            )
+          }
           description="Pendências vencidas"
           icon={
             <AlertCircle
-              size={22}
+              size={
+                22
+              }
             />
           }
           className="bg-red-100 text-red-600"
         />
       </div>
 
+      {/* ================================= */}
+      {/* CONTEÚDO */}
+      {/* ================================= */}
+
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        {/* ================================= */}
+        {/* COBRANÇAS */}
+        {/* ================================= */}
+
         <div className="xl:col-span-2">
           <PageCard
             title="Cobranças"
             description="Histórico financeiro do paciente."
           >
+            {/* ============================= */}
+            {/* FILTROS */}
+            {/* ============================= */}
+
             <div className="mb-6 flex flex-col gap-3 lg:flex-row">
               <div className="relative flex-1">
                 <Search
-                  size={18}
+                  size={
+                    18
+                  }
                   className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                 />
 
                 <Input
-                  value={search}
+                  value={
+                    search
+                  }
                   onChange={(
                     event
                   ) =>
                     setSearch(
-                      event.target
+                      event
+                        .target
                         .value
                     )
                   }
@@ -234,12 +574,15 @@ export function PatientFinance() {
               </div>
 
               <Select
-                value={status}
+                value={
+                  status
+                }
                 onChange={(
                   event
                 ) =>
                   setStatus(
-                    event.target
+                    event
+                      .target
                       .value
                   )
                 }
@@ -262,6 +605,10 @@ export function PatientFinance() {
                 </option>
               </Select>
             </div>
+
+            {/* ============================= */}
+            {/* TABELA */}
+            {/* ============================= */}
 
             <div className="overflow-x-auto">
               <table className="w-full min-w-[850px]">
@@ -295,13 +642,19 @@ export function PatientFinance() {
 
                 <tbody>
                   {filteredPayments.map(
-                    (payment) => (
+                    (
+                      payment
+                    ) => (
                       <tr
                         key={
                           payment.id
                         }
                         className="border-b border-slate-100 last:border-0"
                       >
+                        {/* ================= */}
+                        {/* COBRANÇA */}
+                        {/* ================= */}
+
                         <td className="py-4 pr-4">
                           <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
@@ -330,22 +683,40 @@ export function PatientFinance() {
                           </div>
                         </td>
 
+                        {/* ================= */}
+                        {/* VENCIMENTO */}
+                        {/* ================= */}
+
                         <td className="py-4 pr-4 text-sm text-slate-600">
                           {
                             payment.dueDate
                           }
                         </td>
 
+                        {/* ================= */}
+                        {/* PAGAMENTO */}
+                        {/* ================= */}
+
                         <td className="py-4 pr-4 text-sm text-slate-600">
                           {payment.paymentDate ??
                             "—"}
                         </td>
 
+                        {/* ================= */}
+                        {/* VALOR */}
+                        {/* ================= */}
+
                         <td className="py-4 pr-4 text-sm font-semibold text-slate-800">
-                          {formatCurrency(
-                            payment.amount
-                          )}
+                          {
+                            formatCurrency(
+                              payment.amount
+                            )
+                          }
                         </td>
+
+                        {/* ================= */}
+                        {/* STATUS */}
+                        {/* ================= */}
 
                         <td className="py-4 pr-4">
                           <PaymentStatusBadge
@@ -355,30 +726,74 @@ export function PatientFinance() {
                           />
                         </td>
 
+                        {/* ================= */}
+                        {/* AÇÕES */}
+                        {/* ================= */}
+
                         <td className="py-4">
                           <div className="flex justify-end gap-1">
-                            <button
-                              type="button"
-                              className="rounded-lg p-2 text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600"
-                              title="Baixar comprovante"
-                            >
-                              <Download
-                                size={
-                                  17
-                                }
-                              />
-                            </button>
+                            {/* RECEBER */}
 
-                            <button
-                              type="button"
-                              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                            >
-                              <MoreVertical
-                                size={
-                                  17
+                            {canReceivePayment &&
+                              payment.status !==
+                                "Pago" && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    handleReceivePayment(
+                                      payment
+                                    )
+                                  }
+                                >
+                                  Receber
+                                </Button>
+                              )}
+
+                            {/* COMPROVANTE */}
+
+                            {payment.status ===
+                              "Pago" && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleDownload(
+                                    payment
+                                  )
                                 }
-                              />
-                            </button>
+                                className="rounded-lg p-2 text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600"
+                                title="Baixar comprovante"
+                              >
+                                <Download
+                                  size={
+                                    17
+                                  }
+                                />
+                              </button>
+                            )}
+
+                            {/* MAIS OPÇÕES
+                                SOMENTE GESTOR */}
+
+                            {canManageFinance && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleMoreOptions(
+                                    payment
+                                  )
+                                }
+                                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                                title="Mais opções"
+                              >
+                                <MoreVertical
+                                  size={
+                                    17
+                                  }
+                                />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -387,10 +802,42 @@ export function PatientFinance() {
                 </tbody>
               </table>
             </div>
+
+            {/* ============================= */}
+            {/* LISTA VAZIA */}
+            {/* ============================= */}
+
+            {filteredPayments.length ===
+              0 && (
+              <div className="py-12 text-center">
+                <Receipt
+                  size={
+                    34
+                  }
+                  className="mx-auto text-slate-300"
+                />
+
+                <p className="mt-4 font-semibold text-slate-700">
+                  Nenhuma cobrança encontrada
+                </p>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Altere os filtros para visualizar outros registros.
+                </p>
+              </div>
+            )}
           </PageCard>
         </div>
 
+        {/* ================================= */}
+        {/* COLUNA LATERAL */}
+        {/* ================================= */}
+
         <div className="space-y-6">
+          {/* =============================== */}
+          {/* PLANO ATUAL */}
+          {/* =============================== */}
+
           <PageCard
             title="Plano Atual"
             description="Informações do plano financeiro."
@@ -405,8 +852,7 @@ export function PatientFinance() {
               </p>
 
               <p className="mt-2 text-sm text-slate-500">
-                Psicologia +
-                Fonoaudiologia + TO
+                Psicologia + Fonoaudiologia + TO
               </p>
 
               <div className="mt-5 border-t border-indigo-100 pt-5">
@@ -428,8 +874,28 @@ export function PatientFinance() {
                   Todo dia 10
                 </p>
               </div>
+
+              {/* =========================== */}
+              {/* GERENCIAR PLANO */}
+              {/* SOMENTE GESTOR */}
+              {/* =========================== */}
+
+              {canManageFinance && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-5 w-full"
+                >
+                  Gerenciar plano
+                </Button>
+              )}
             </div>
           </PageCard>
+
+          {/* =============================== */}
+          {/* SITUAÇÃO FINANCEIRA */}
+          {/* =============================== */}
 
           <PageCard
             title="Situação Financeira"
@@ -438,8 +904,18 @@ export function PatientFinance() {
             <div className="space-y-3">
               <FinanceRow
                 label="Situação"
-                value="Regular"
-                valueClassName="text-emerald-600"
+                value={
+                  overdueTotal >
+                  0
+                    ? "Com pendência"
+                    : "Regular"
+                }
+                valueClassName={
+                  overdueTotal >
+                  0
+                    ? "text-red-600"
+                    : "text-emerald-600"
+                }
               />
 
               <FinanceRow
@@ -464,19 +940,33 @@ export function PatientFinance() {
   );
 }
 
+/* =========================================
+   CARD FINANCEIRO
+========================================= */
+
 interface FinanceSummaryCardProps {
   title: string;
+
   value: string;
+
   description: string;
-  icon: React.ReactNode;
-  className: string;
+
+  icon:
+    React.ReactNode;
+
+  className:
+    string;
 }
 
 function FinanceSummaryCard({
   title,
+
   value,
+
   description,
+
   icon,
+
   className,
 }: FinanceSummaryCardProps) {
   return (
@@ -484,52 +974,77 @@ function FinanceSummaryCard({
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-slate-500">
-            {title}
+            {
+              title
+            }
           </p>
 
           <p className="mt-2 text-2xl font-bold text-slate-900">
-            {value}
+            {
+              value
+            }
           </p>
 
           <p className="mt-1 text-xs text-slate-400">
-            {description}
+            {
+              description
+            }
           </p>
         </div>
 
         <div
           className={`flex h-11 w-11 items-center justify-center rounded-xl ${className}`}
         >
-          {icon}
+          {
+            icon
+          }
         </div>
       </div>
     </div>
   );
 }
 
+/* =========================================
+   HEADER DA TABELA
+========================================= */
+
 interface HeaderProps {
-  children: React.ReactNode;
-  align?: "left" | "right";
+  children:
+    React.ReactNode;
+
+  align?:
+    | "left"
+    | "right";
 }
 
 function Header({
   children,
+
   align = "left",
 }: HeaderProps) {
   return (
     <th
       className={`pb-3 text-xs font-semibold uppercase tracking-wide text-slate-400 ${
-        align === "right"
+        align ===
+        "right"
           ? "text-right"
           : "text-left"
       }`}
     >
-      {children}
+      {
+        children
+      }
     </th>
   );
 }
 
+/* =========================================
+   STATUS
+========================================= */
+
 interface PaymentStatusBadgeProps {
-  status: PaymentStatus;
+  status:
+    PaymentStatus;
 }
 
 function PaymentStatusBadge({
@@ -553,36 +1068,58 @@ function PaymentStatusBadge({
     <span
       className={`rounded-full px-3 py-1 text-xs font-semibold ${styles[status]}`}
     >
-      {status}
+      {
+        status
+      }
     </span>
   );
 }
 
+/* =========================================
+   LINHA FINANCEIRA
+========================================= */
+
 interface FinanceRowProps {
-  label: string;
-  value: string;
-  valueClassName?: string;
+  label:
+    string;
+
+  value:
+    string;
+
+  valueClassName?:
+    string;
 }
 
 function FinanceRow({
   label,
+
   value,
-  valueClassName = "text-slate-800",
+
+  valueClassName =
+    "text-slate-800",
 }: FinanceRowProps) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 px-4 py-3">
       <span className="text-sm text-slate-500">
-        {label}
+        {
+          label
+        }
       </span>
 
       <span
         className={`text-right text-sm font-semibold ${valueClassName}`}
       >
-        {value}
+        {
+          value
+        }
       </span>
     </div>
   );
 }
+
+/* =========================================
+   FORMATAÇÃO DE MOEDA
+========================================= */
 
 function formatCurrency(
   value: number
@@ -590,8 +1127,13 @@ function formatCurrency(
   return new Intl.NumberFormat(
     "pt-BR",
     {
-      style: "currency",
-      currency: "BRL",
+      style:
+        "currency",
+
+      currency:
+        "BRL",
     }
-  ).format(value);
+  ).format(
+    value
+  );
 }

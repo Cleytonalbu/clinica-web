@@ -9,7 +9,22 @@ import {
   XCircle,
 } from "lucide-react";
 
-import { Button, PageCard } from "@/components/ui";
+import {
+  useNavigate,
+} from "react-router-dom";
+
+import {
+  useAuth,
+} from "@/auth/AuthContext";
+
+import {
+  Button,
+  PageCard,
+} from "@/components/ui";
+
+/* =========================================
+   TIPOS
+========================================= */
 
 type AppointmentStatus =
   | "Agendado"
@@ -19,77 +34,269 @@ type AppointmentStatus =
 
 interface Appointment {
   id: number;
+
   date: string;
+
   day: string;
+
   time: string;
+
   specialty: string;
+
   professional: string;
+
   status: AppointmentStatus;
 }
+
+/* =========================================
+   PRÓXIMOS ATENDIMENTOS
+========================================= */
 
 const appointments: Appointment[] = [
   {
     id: 1,
-    date: "10/08/2026",
-    day: "Segunda-feira",
-    time: "10:30",
-    specialty: "Psicologia",
-    professional: "Dra. Ana Paula",
-    status: "Confirmado",
+
+    date:
+      "10/08/2026",
+
+    day:
+      "Segunda-feira",
+
+    time:
+      "10:30",
+
+    specialty:
+      "Psicologia",
+
+    professional:
+      "Dra. Ana Paula",
+
+    status:
+      "Confirmado",
   },
+
   {
     id: 2,
-    date: "12/08/2026",
-    day: "Quarta-feira",
-    time: "14:00",
-    specialty: "Fonoaudiologia",
-    professional: "Dra. Camila Soares",
-    status: "Agendado",
+
+    date:
+      "12/08/2026",
+
+    day:
+      "Quarta-feira",
+
+    time:
+      "14:00",
+
+    specialty:
+      "Fonoaudiologia",
+
+    professional:
+      "Dra. Camila Soares",
+
+    status:
+      "Agendado",
   },
+
   {
     id: 3,
-    date: "15/08/2026",
-    day: "Sábado",
-    time: "09:00",
-    specialty: "Terapia Ocupacional",
-    professional: "Dra. Larissa Lima",
-    status: "Agendado",
+
+    date:
+      "15/08/2026",
+
+    day:
+      "Sábado",
+
+    time:
+      "09:00",
+
+    specialty:
+      "Terapia Ocupacional",
+
+    professional:
+      "Dra. Larissa Lima",
+
+    status:
+      "Agendado",
   },
 ];
+
+/* =========================================
+   HISTÓRICO
+========================================= */
 
 const history: Appointment[] = [
   {
     id: 4,
-    date: "05/08/2026",
-    day: "Quarta-feira",
-    time: "08:00",
-    specialty: "Psicologia",
-    professional: "Dra. Ana Paula",
-    status: "Realizado",
+
+    date:
+      "05/08/2026",
+
+    day:
+      "Quarta-feira",
+
+    time:
+      "08:00",
+
+    specialty:
+      "Psicologia",
+
+    professional:
+      "Dra. Ana Paula",
+
+    status:
+      "Realizado",
   },
+
   {
     id: 5,
-    date: "02/08/2026",
-    day: "Domingo",
-    time: "15:30",
-    specialty: "Fonoaudiologia",
-    professional: "Dra. Camila Soares",
-    status: "Realizado",
+
+    date:
+      "02/08/2026",
+
+    day:
+      "Domingo",
+
+    time:
+      "15:30",
+
+    specialty:
+      "Fonoaudiologia",
+
+    professional:
+      "Dra. Camila Soares",
+
+    status:
+      "Realizado",
   },
+
   {
     id: 6,
-    date: "29/07/2026",
-    day: "Quarta-feira",
-    time: "11:00",
-    specialty: "Psicologia",
-    professional: "Dra. Ana Paula",
-    status: "Cancelado",
+
+    date:
+      "29/07/2026",
+
+    day:
+      "Quarta-feira",
+
+    time:
+      "11:00",
+
+    specialty:
+      "Psicologia",
+
+    professional:
+      "Dra. Ana Paula",
+
+    status:
+      "Cancelado",
   },
 ];
 
+/* =========================================
+   COMPONENTE PRINCIPAL
+========================================= */
+
 export function PatientAgenda() {
+  const navigate =
+    useNavigate();
+
+  const {
+    user,
+  } = useAuth();
+
+  /* =======================================
+     PERFIL
+  ======================================= */
+
+  const isGestor =
+    user?.profile ===
+    "Gestor";
+
+  const isRecepcao =
+    user?.profile ===
+    "Recepção";
+
+  /*
+   * A gestão administrativa da agenda
+   * fica com Gestor e Recepção.
+   */
+
+  const canManageSchedule =
+    isGestor ||
+    isRecepcao;
+
+  /* =======================================
+     NOVO AGENDAMENTO
+  ======================================= */
+
+  function handleNewAppointment() {
+    if (
+      !canManageSchedule
+    ) {
+      return;
+    }
+
+    navigate(
+      "/agenda/novo"
+    );
+  }
+
+  /* =======================================
+     REMARCAR
+  ======================================= */
+
+  function handleReschedule(
+    appointmentId: number
+  ) {
+    if (
+      !canManageSchedule
+    ) {
+      return;
+    }
+
+    navigate(
+      `/agenda/${appointmentId}/remarcar`
+    );
+  }
+
+  /* =======================================
+     ATUALIZAR
+  ======================================= */
+
+  function handleRefresh() {
+    /*
+     * Quando conectarmos a API,
+     * esta função buscará novamente
+     * os atendimentos do paciente.
+     */
+
+    console.log(
+      "Atualizar agenda do paciente"
+    );
+  }
+
+  /* =======================================
+     DETALHES
+  ======================================= */
+
+  function handleAppointmentDetails(
+    appointmentId: number
+  ) {
+    navigate(
+      `/agenda/${appointmentId}`
+    );
+  }
+
+  /* =======================================
+     RENDER
+  ======================================= */
+
   return (
     <div className="space-y-6">
+      {/* ================================= */}
+      {/* CABEÇALHO */}
+      {/* ================================= */}
+
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">
@@ -101,37 +308,98 @@ export function PatientAgenda() {
           </p>
         </div>
 
-        <Button type="button">
-          <Plus size={18} />
-          Novo agendamento
-        </Button>
+        {/* ================================= */}
+        {/* NOVO AGENDAMENTO */}
+        {/* GESTOR + RECEPÇÃO */}
+        {/* ================================= */}
+
+        {canManageSchedule && (
+          <Button
+            type="button"
+            onClick={
+              handleNewAppointment
+            }
+          >
+            <Plus
+              size={
+                18
+              }
+            />
+
+            Novo agendamento
+          </Button>
+        )}
       </div>
+
+      {/* ================================= */}
+      {/* INDICADORES */}
+      {/* ================================= */}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <SummaryCard
           title="Próximas sessões"
-          value="3"
+          value={String(
+            appointments.length
+          )}
           description="Agendamentos futuros"
-          icon={<CalendarDays size={22} />}
+          icon={
+            <CalendarDays
+              size={
+                22
+              }
+            />
+          }
           iconClassName="bg-blue-100 text-blue-600"
         />
 
         <SummaryCard
           title="Sessões realizadas"
-          value="24"
-          description="Total de atendimentos"
-          icon={<CheckCircle2 size={22} />}
+          value={String(
+            history.filter(
+              (
+                appointment
+              ) =>
+                appointment.status ===
+                "Realizado"
+            ).length
+          )}
+          description="Atendimentos registrados"
+          icon={
+            <CheckCircle2
+              size={
+                22
+              }
+            />
+          }
           iconClassName="bg-emerald-100 text-emerald-600"
         />
 
         <SummaryCard
           title="Cancelamentos"
-          value="2"
-          description="Nos últimos 90 dias"
-          icon={<XCircle size={22} />}
+          value={String(
+            history.filter(
+              (
+                appointment
+              ) =>
+                appointment.status ===
+                "Cancelado"
+            ).length
+          )}
+          description="Atendimentos cancelados"
+          icon={
+            <XCircle
+              size={
+                22
+              }
+            />
+          }
           iconClassName="bg-red-100 text-red-600"
         />
       </div>
+
+      {/* ================================= */}
+      {/* PRÓXIMOS ATENDIMENTOS */}
+      {/* ================================= */}
 
       <PageCard
         title="Próximos Atendimentos"
@@ -141,21 +409,55 @@ export function PatientAgenda() {
             variant="outline"
             size="sm"
             type="button"
+            onClick={
+              handleRefresh
+            }
           >
-            <RefreshCcw size={15} />
+            <RefreshCcw
+              size={
+                15
+              }
+            />
+
             Atualizar
           </Button>
         }
       >
-        <div className="space-y-3">
-          {appointments.map((appointment) => (
-            <AppointmentRow
-              key={appointment.id}
-              appointment={appointment}
-            />
-          ))}
-        </div>
+        {appointments.length >
+        0 ? (
+          <div className="space-y-3">
+            {appointments.map(
+              (
+                appointment
+              ) => (
+                <AppointmentRow
+                  key={
+                    appointment.id
+                  }
+                  appointment={
+                    appointment
+                  }
+                  canManage={
+                    canManageSchedule
+                  }
+                  onReschedule={
+                    handleReschedule
+                  }
+                  onDetails={
+                    handleAppointmentDetails
+                  }
+                />
+              )
+            )}
+          </div>
+        ) : (
+          <EmptyAppointments />
+        )}
       </PageCard>
+
+      {/* ================================= */}
+      {/* HISTÓRICO */}
+      {/* ================================= */}
 
       <PageCard
         title="Histórico de Atendimentos"
@@ -192,55 +494,113 @@ export function PatientAgenda() {
             </thead>
 
             <tbody>
-              {history.map((appointment) => (
-                <tr
-                  key={appointment.id}
-                  className="border-b border-slate-100 last:border-0"
-                >
-                  <td className="py-4">
-                    <p className="font-medium text-slate-800">
-                      {appointment.date}
-                    </p>
+              {history.map(
+                (
+                  appointment
+                ) => (
+                  <tr
+                    key={
+                      appointment.id
+                    }
+                    className="border-b border-slate-100 last:border-0"
+                  >
+                    {/* ===================== */}
+                    {/* DATA */}
+                    {/* ===================== */}
 
-                    <p className="mt-1 text-xs text-slate-400">
-                      {appointment.day}
-                    </p>
-                  </td>
+                    <td className="py-4">
+                      <p className="font-medium text-slate-800">
+                        {
+                          appointment.date
+                        }
+                      </p>
 
-                  <td className="py-4 text-sm text-slate-600">
-                    {appointment.time}
-                  </td>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {
+                          appointment.day
+                        }
+                      </p>
+                    </td>
 
-                  <td className="py-4 text-sm text-slate-600">
-                    {appointment.specialty}
-                  </td>
+                    {/* ===================== */}
+                    {/* HORÁRIO */}
+                    {/* ===================== */}
 
-                  <td className="py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-                        <UserRound size={17} />
+                    <td className="py-4 text-sm text-slate-600">
+                      {
+                        appointment.time
+                      }
+                    </td>
+
+                    {/* ===================== */}
+                    {/* ESPECIALIDADE */}
+                    {/* ===================== */}
+
+                    <td className="py-4 text-sm text-slate-600">
+                      {
+                        appointment.specialty
+                      }
+                    </td>
+
+                    {/* ===================== */}
+                    {/* PROFISSIONAL */}
+                    {/* ===================== */}
+
+                    <td className="py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+                          <UserRound
+                            size={
+                              17
+                            }
+                          />
+                        </div>
+
+                        <span className="text-sm font-medium text-slate-700">
+                          {
+                            appointment.professional
+                          }
+                        </span>
                       </div>
+                    </td>
 
-                      <span className="text-sm font-medium text-slate-700">
-                        {appointment.professional}
-                      </span>
-                    </div>
-                  </td>
+                    {/* ===================== */}
+                    {/* STATUS */}
+                    {/* ===================== */}
 
-                  <td className="py-4">
-                    <StatusBadge status={appointment.status} />
-                  </td>
+                    <td className="py-4">
+                      <StatusBadge
+                        status={
+                          appointment.status
+                        }
+                      />
+                    </td>
 
-                  <td className="py-4 text-right">
-                    <button
-                      type="button"
-                      className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                    >
-                      <MoreVertical size={18} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    {/* ===================== */}
+                    {/* AÇÕES */}
+                    {/* ===================== */}
+
+                    <td className="py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleAppointmentDetails(
+                            appointment.id
+                          )
+                        }
+                        className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                        title="Ver atendimento"
+                      >
+                        <MoreVertical
+                          size={
+                            18
+                          }
+                        />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              )}
             </tbody>
           </table>
         </div>
@@ -249,80 +609,198 @@ export function PatientAgenda() {
   );
 }
 
+/* =========================================
+   LINHA DE PRÓXIMO ATENDIMENTO
+========================================= */
+
 interface AppointmentRowProps {
-  appointment: Appointment;
+  appointment:
+    Appointment;
+
+  canManage:
+    boolean;
+
+  onReschedule: (
+    appointmentId: number
+  ) => void;
+
+  onDetails: (
+    appointmentId: number
+  ) => void;
 }
 
 function AppointmentRow({
   appointment,
+
+  canManage,
+
+  onReschedule,
+
+  onDetails,
 }: AppointmentRowProps) {
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-slate-200 p-4 transition hover:border-indigo-200 hover:bg-indigo-50/30 lg:flex-row lg:items-center lg:justify-between">
+      {/* ================================= */}
+      {/* INFORMAÇÕES */}
+      {/* ================================= */}
+
       <div className="flex items-start gap-4">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
-          <CalendarDays size={21} />
+          <CalendarDays
+            size={
+              21
+            }
+          />
         </div>
 
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-semibold text-slate-900">
-              {appointment.specialty}
+              {
+                appointment.specialty
+              }
             </p>
 
-            <StatusBadge status={appointment.status} />
+            <StatusBadge
+              status={
+                appointment.status
+              }
+            />
           </div>
 
           <p className="mt-1 text-sm text-slate-500">
-            {appointment.professional}
+            {
+              appointment.professional
+            }
           </p>
 
           <div className="mt-3 flex flex-wrap gap-4 text-sm text-slate-500">
             <span className="flex items-center gap-2">
-              <CalendarDays size={15} />
-              {appointment.date}
+              <CalendarDays
+                size={
+                  15
+                }
+              />
+
+              {
+                appointment.date
+              }
             </span>
 
             <span className="flex items-center gap-2">
-              <Clock3 size={15} />
-              {appointment.time}
+              <Clock3
+                size={
+                  15
+                }
+              />
+
+              {
+                appointment.time
+              }
             </span>
           </div>
         </div>
       </div>
 
+      {/* ================================= */}
+      {/* AÇÕES */}
+      {/* ================================= */}
+
       <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          type="button"
-        >
-          Remarcar
-        </Button>
+        {/* REMARCAR
+            GESTOR + RECEPÇÃO */}
+
+        {canManage && (
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            onClick={() =>
+              onReschedule(
+                appointment.id
+              )
+            }
+          >
+            Remarcar
+          </Button>
+        )}
+
+        {/* DETALHES
+            TODOS */}
 
         <button
           type="button"
+          onClick={() =>
+            onDetails(
+              appointment.id
+            )
+          }
           className="rounded-xl border border-slate-200 p-2.5 text-slate-500 transition hover:bg-slate-100"
+          title="Ver atendimento"
         >
-          <MoreVertical size={18} />
+          <MoreVertical
+            size={
+              18
+            }
+          />
         </button>
       </div>
     </div>
   );
 }
 
+/* =========================================
+   SEM AGENDAMENTOS
+========================================= */
+
+function EmptyAppointments() {
+  return (
+    <div className="flex min-h-48 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 p-8 text-center">
+      <CalendarDays
+        size={
+          34
+        }
+        className="text-slate-300"
+      />
+
+      <p className="mt-4 font-semibold text-slate-700">
+        Nenhum atendimento agendado
+      </p>
+
+      <p className="mt-1 text-sm text-slate-500">
+        Não existem próximas sessões para este paciente.
+      </p>
+    </div>
+  );
+}
+
+/* =========================================
+   CARD DE RESUMO
+========================================= */
+
 interface SummaryCardProps {
   title: string;
+
   value: string;
+
   description: string;
-  icon: React.ReactNode;
-  iconClassName: string;
+
+  icon:
+    React.ReactNode;
+
+  iconClassName:
+    string;
 }
 
 function SummaryCard({
   title,
+
   value,
+
   description,
+
   icon,
+
   iconClassName,
 }: SummaryCardProps) {
   return (
@@ -330,36 +808,52 @@ function SummaryCard({
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-slate-500">
-            {title}
+            {
+              title
+            }
           </p>
 
           <p className="mt-2 text-3xl font-bold text-slate-900">
-            {value}
+            {
+              value
+            }
           </p>
 
           <p className="mt-1 text-xs text-slate-400">
-            {description}
+            {
+              description
+            }
           </p>
         </div>
 
         <div
           className={`flex h-11 w-11 items-center justify-center rounded-xl ${iconClassName}`}
         >
-          {icon}
+          {
+            icon
+          }
         </div>
       </div>
     </div>
   );
 }
 
+/* =========================================
+   STATUS
+========================================= */
+
 interface StatusBadgeProps {
-  status: AppointmentStatus;
+  status:
+    AppointmentStatus;
 }
 
 function StatusBadge({
   status,
 }: StatusBadgeProps) {
-  const styles: Record<AppointmentStatus, string> = {
+  const styles: Record<
+    AppointmentStatus,
+    string
+  > = {
     Agendado:
       "bg-blue-100 text-blue-700",
 
@@ -377,7 +871,9 @@ function StatusBadge({
     <span
       className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${styles[status]}`}
     >
-      {status}
+      {
+        status
+      }
     </span>
   );
 }

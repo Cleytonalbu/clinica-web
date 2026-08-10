@@ -1,18 +1,84 @@
-import { Plus } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import {
+  Plus,
+} from "lucide-react";
 
-import { Button } from "@/components/ui";
+import {
+  useNavigate,
+  useParams,
+} from "react-router-dom";
+
+import {
+  Button,
+} from "@/components/ui";
+
+import {
+  useAuth,
+} from "@/auth/AuthContext";
 
 export function EvolutionHeader() {
-  const navigate = useNavigate();
-  const { id } = useParams();
+  const navigate =
+    useNavigate();
+
+  const {
+    id,
+  } = useParams();
+
+  const {
+    user,
+  } = useAuth();
+
+  /* =========================================
+     PERFIS
+  ========================================= */
+
+  const isGestor =
+    user?.profile ===
+    "Gestor";
+
+  const isProfissional =
+    user?.profile ===
+    "Profissional";
+
+  /*
+   * Somente Gestor e Profissional
+   * podem registrar uma evolução clínica.
+   */
+  const canCreateEvolution =
+    isGestor ||
+    isProfissional;
+
+  /* =========================================
+     NOVA EVOLUÇÃO
+  ========================================= */
 
   function handleNewEvolution() {
-    navigate(`/pacientes/${id}/evolucoes/nova`);
+    if (
+      !canCreateEvolution
+    ) {
+      return;
+    }
+
+    if (
+      !id
+    ) {
+      return;
+    }
+
+    navigate(
+      `/pacientes/${id}/evolucoes/nova`
+    );
   }
+
+  /* =========================================
+     RENDER
+  ========================================= */
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      {/* ================================= */}
+      {/* TÍTULO */}
+      {/* ================================= */}
+
       <div>
         <h2 className="text-2xl font-bold text-slate-900">
           Evoluções Clínicas
@@ -23,13 +89,26 @@ export function EvolutionHeader() {
         </p>
       </div>
 
-      <Button
-        type="button"
-        onClick={handleNewEvolution}
-      >
-        <Plus size={18} />
-        Nova Evolução
-      </Button>
+      {/* ================================= */}
+      {/* NOVA EVOLUÇÃO */}
+      {/* ================================= */}
+
+      {canCreateEvolution && (
+        <Button
+          type="button"
+          onClick={
+            handleNewEvolution
+          }
+        >
+          <Plus
+            size={
+              18
+            }
+          />
+
+          Nova Evolução
+        </Button>
+      )}
     </div>
   );
 }
