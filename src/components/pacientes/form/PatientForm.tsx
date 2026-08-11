@@ -1,72 +1,225 @@
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  useForm,
+} from "react-hook-form";
 
-import { Button, PageCard } from "@/components/ui";
+import {
+  zodResolver,
+} from "@hookform/resolvers/zod";
 
-import { patientSchema } from "./schemas";
-import type { PatientSchema } from "./schemas";
+import {
+  Button,
+  PageCard,
+} from "@/components/ui";
 
-import { defaultValues } from "./defaultValues";
+import {
+  patientSchema,
+} from "./schemas";
 
-import { PersonalDataSection } from "./PersonalDataSection";
-import { ContactSection } from "./ContactSection";
-import { AddressSection } from "./AddressSection";
-import { HealthSection } from "./HealthSection";
-import { ResponsibleSection } from "./ResponsibleSection";
+import type {
+  PatientSchema,
+} from "./schemas";
+
+import {
+  defaultValues,
+} from "./defaultValues";
+
+import {
+  PersonalDataSection,
+} from "./PersonalDataSection";
+
+import {
+  ContactSection,
+} from "./ContactSection";
+
+import {
+  AddressSection,
+} from "./AddressSection";
+
+import {
+  HealthSection,
+} from "./HealthSection";
+
+import {
+  ResponsibleSection,
+} from "./ResponsibleSection";
+
+/* =========================================
+   PROPS
+========================================= */
 
 interface PatientFormProps {
-  onSubmit?: (data: PatientSchema) => void;
-  loading?: boolean;
+  onSubmit?:
+    (
+      data:
+        PatientSchema
+    ) => void;
+
+  onCancel?:
+    () => void;
+
+  initialValues?:
+    Partial<PatientSchema>;
+
+  loading?:
+    boolean;
+
+  submitLabel?:
+    string;
 }
+
+/* =========================================
+   COMPONENTE
+========================================= */
 
 export function PatientForm({
   onSubmit,
-  loading = false,
-}: PatientFormProps) {
-  const form = useForm<PatientSchema>({
-    resolver: zodResolver(patientSchema),
-    defaultValues,
-    mode: "onBlur",
-  });
 
-  function handleFormSubmit(data: PatientSchema) {
-    onSubmit?.(data);
+  onCancel,
+
+  initialValues,
+
+  loading =
+    false,
+
+  submitLabel =
+    "Salvar Paciente",
+}: PatientFormProps) {
+  /* =======================================
+     FORMULÁRIO
+  ======================================= */
+
+  const form =
+    useForm<PatientSchema>({
+      resolver:
+        zodResolver(
+          patientSchema
+        ),
+
+      defaultValues: {
+        ...defaultValues,
+
+        ...initialValues,
+      },
+
+      mode:
+        "onBlur",
+    });
+
+  /* =======================================
+     SUBMIT
+  ======================================= */
+
+  function handleFormSubmit(
+    data:
+      PatientSchema
+  ) {
+    onSubmit?.(
+      data
+    );
   }
+
+  /* =======================================
+     RENDER
+  ======================================= */
 
   return (
     <form
-      onSubmit={form.handleSubmit(handleFormSubmit)}
+      onSubmit={
+        form.handleSubmit(
+          handleFormSubmit
+        )
+      }
       className="space-y-8"
     >
-      <PersonalDataSection form={form} />
+      {/* ================================= */}
+      {/* DADOS PESSOAIS */}
+      {/* ================================= */}
 
-      <ContactSection form={form} />
+      <PersonalDataSection
+        form={
+          form
+        }
+      />
 
-      <AddressSection form={form} />
+      {/* ================================= */}
+      {/* CONTATO */}
+      {/* ================================= */}
 
-      <HealthSection form={form} />
+      <ContactSection
+        form={
+          form
+        }
+      />
 
-      <ResponsibleSection form={form} />
+      {/* ================================= */}
+      {/* ENDEREÇO */}
+      {/* ================================= */}
+
+      <AddressSection
+        form={
+          form
+        }
+      />
+
+      {/* ================================= */}
+      {/* SAÚDE */}
+      {/* ================================= */}
+
+      <HealthSection
+        form={
+          form
+        }
+      />
+
+      {/* ================================= */}
+      {/* RESPONSÁVEL */}
+      {/* ================================= */}
+
+      <ResponsibleSection
+        form={
+          form
+        }
+      />
+
+      {/* ================================= */}
+      {/* SALVAR */}
+      {/* ================================= */}
 
       <PageCard
         title="Salvar Cadastro"
         description="Confira as informações antes de salvar."
       >
         <div className="flex justify-end gap-3">
+          {/* ============================= */}
+          {/* CANCELAR */}
+          {/* ============================= */}
+
           <Button
             type="button"
             variant="outline"
+            disabled={
+              loading
+            }
+            onClick={
+              onCancel
+            }
           >
             Cancelar
           </Button>
 
+          {/* ============================= */}
+          {/* SALVAR */}
+          {/* ============================= */}
+
           <Button
             type="submit"
-            disabled={loading}
+            disabled={
+              loading
+            }
           >
             {loading
               ? "Salvando..."
-              : "Salvar Paciente"}
+              : submitLabel}
           </Button>
         </div>
       </PageCard>

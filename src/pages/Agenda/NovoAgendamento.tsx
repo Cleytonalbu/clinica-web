@@ -12,10 +12,12 @@ import {
   CreditCard,
   Save,
   Stethoscope,
+  UserPlus,
 } from "lucide-react";
 
 import {
   useNavigate,
+  useSearchParams,
 } from "react-router-dom";
 
 import {
@@ -41,6 +43,10 @@ import {
 } from "./appointmentStorage";
 
 import {
+  getPatients,
+} from "@/pages/Pacientes/patientStorage";
+
+import {
   calculateChargeAmount,
   formatCurrency,
   getDefaultPaymentMethod,
@@ -60,6 +66,8 @@ import {
 ========================================= */
 
 interface AppointmentFormData {
+  patientId: string;
+
   patient: string;
 
   professional: string;
@@ -100,6 +108,9 @@ interface AppointmentFormData {
 ========================================= */
 
 const initialValues: AppointmentFormData = {
+  patientId:
+    "",
+
   patient:
     "",
 
@@ -141,53 +152,71 @@ const initialValues: AppointmentFormData = {
 };
 
 /* =========================================
-   PACIENTES TEMPORÁRIOS
-========================================= */
-
-const patients = [
-  {
-    id: 1,
-
-    name:
-      "Maria Oliveira",
-  },
-
-  {
-    id: 2,
-
-    name:
-      "João Miguel Silva",
-  },
-
-  {
-    id: 3,
-
-    name:
-      "Lucas Gabriel",
-  },
-
-  {
-    id: 4,
-
-    name:
-      "Ana Clara Rodrigues",
-  },
-
-  {
-    id: 5,
-
-    name:
-      "Pedro Henrique",
-  },
-];
-
-/* =========================================
    COMPONENTE PRINCIPAL
 ========================================= */
 
 export default function NovoAgendamento() {
   const navigate =
     useNavigate();
+
+  const [
+    searchParams,
+  ] =
+    useSearchParams();
+
+  /* =======================================
+     PACIENTES
+  ======================================= */
+
+  const patients =
+    useMemo(
+      () =>
+        getPatients()
+          .filter(
+            (
+              patient
+            ) =>
+              patient.status ===
+              "Ativo"
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              a.nome.localeCompare(
+                b.nome,
+                "pt-BR"
+              )
+          ),
+
+      []
+    );
+
+  const patientIdFromUrl =
+    searchParams.get(
+      "patientId"
+    ) ??
+    "";
+
+  const patientFromUrl =
+    useMemo(
+      () =>
+        patients.find(
+          (
+            patient
+          ) =>
+            String(
+              patient.id
+            ) ===
+            patientIdFromUrl
+        ),
+
+      [
+        patients,
+        patientIdFromUrl,
+      ]
+    );
 
   /* =======================================
      CONFIGURAÇÕES
@@ -234,7 +263,20 @@ export default function NovoAgendamento() {
     setFormData,
   ] =
     useState<AppointmentFormData>(
-      initialValues
+      () => ({
+        ...initialValues,
+
+        patientId:
+          patientFromUrl
+            ? String(
+                patientFromUrl.id
+              )
+            : "",
+
+        patient:
+          patientFromUrl?.nome ??
+          "",
+      })
     );
 
   const [
@@ -470,6 +512,58 @@ export default function NovoAgendamento() {
   }
 
   /* =======================================
+     TROCA DE PACIENTE
+  ======================================= */
+
+  function handlePatientChange(
+    patientId: string
+  ) {
+    const selected =
+      patients.find(
+        (
+          patient
+        ) =>
+          String(
+            patient.id
+          ) ===
+          patientId
+      );
+
+    setFormData(
+      (
+        current
+      ) => ({
+        ...current,
+
+        patientId,
+
+        patient:
+          selected?.nome ??
+          "",
+      })
+    );
+
+    clearFeedback();
+  }
+
+  /* =======================================
+     NOVO PACIENTE
+  ======================================= */
+
+  function handleNewPatient() {
+    const returnTo =
+      patientIdFromUrl
+        ? `/agenda/novo?patientId=${patientIdFromUrl}`
+        : "/agenda/novo";
+
+    navigate(
+      `/pacientes/novo?returnTo=${encodeURIComponent(
+        returnTo
+      )}`
+    );
+  }
+
+  /* =======================================
      TROCA DE PROFISSIONAL
   ======================================= */
 
@@ -592,6 +686,7 @@ export default function NovoAgendamento() {
 
   function validate() {
     if (
+      !formData.patientId ||
       !formData.patient
     ) {
       showError(
@@ -709,9 +804,25 @@ export default function NovoAgendamento() {
           (
             patient
           ) =>
-            patient.name ===
-            formData.patient
+            String(
+              patient.id
+            ) ===
+            formData.patientId
         );
+
+      if (
+        !selectedPatient
+      ) {
+        showError(
+          "Paciente não encontrado."
+        );
+
+        setSaving(
+          false
+        );
+
+        return;
+      }
 
       const appointment:
         StoredAppointment = {
@@ -719,11 +830,10 @@ export default function NovoAgendamento() {
           Date.now(),
 
         patientId:
-          selectedPatient?.id ??
-          0,
+          selectedPatient.id,
 
         patient:
-          formData.patient,
+          selectedPatient.nome,
 
         professional:
           formData.professional,
@@ -874,43 +984,69 @@ export default function NovoAgendamento() {
               label="Paciente"
               required
             >
-              <Select
-                value={
-                  formData.patient
-                }
-                onChange={(
-                  event
-                ) =>
-                  updateField(
-                    "patient",
-
-                    event.target.value
-                  )
-                }
-              >
-                <option value="">
-                  Selecione o paciente
-                </option>
-
-                {patients.map(
-                  (
-                    patient
-                  ) => (
-                    <option
-                      key={
-                        patient.id
-                      }
-                      value={
-                        patient.name
-                      }
-                    >
-                      {
-                        patient.name
-                      }
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="min-w-0 flex-1">
+                  <Select
+                    value={
+                      formData.patientId
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      handlePatientChange(
+                        event.target.value
+                      )
+                    }
+                  >
+                    <option value="">
+                      Selecione o paciente
                     </option>
-                  )
-                )}
-              </Select>
+
+                    {patients.map(
+                      (
+                        patient
+                      ) => (
+                        <option
+                          key={
+                            patient.id
+                          }
+                          value={
+                            String(
+                              patient.id
+                            )
+                          }
+                        >
+                          {
+                            patient.nome
+                          }
+                        </option>
+                      )
+                    )}
+                  </Select>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={
+                    handleNewPatient
+                  }
+                  className="shrink-0"
+                >
+                  <UserPlus
+                    size={17}
+                  />
+
+                  Novo paciente
+                </Button>
+              </div>
+
+              {patients.length ===
+                0 && (
+                <p className="mt-2 text-xs font-medium text-amber-600">
+                  Nenhum paciente ativo cadastrado. Cadastre um paciente para continuar.
+                </p>
+              )}
             </FormField>
 
             {/* ============================= */}
@@ -1579,6 +1715,8 @@ export default function NovoAgendamento() {
                   Boolean(
                     scheduleConflict
                   ) ||
+                  patients.length ===
+                    0 ||
                   activeProfessionals.length ===
                     0 ||
                   activeRooms.length ===

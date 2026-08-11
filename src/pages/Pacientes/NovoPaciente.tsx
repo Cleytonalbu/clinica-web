@@ -1,35 +1,163 @@
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import {
+  useState,
+} from "react";
 
-import { DashboardLayout } from "@/layouts/DashboardLayout";
-import { Button } from "@/components/ui";
-import { PatientForm } from "@/components/pacientes/form";
+import {
+  useNavigate,
+} from "react-router-dom";
 
-import type { PatientSchema } from "@/components/pacientes/form";
+import {
+  ArrowLeft,
+} from "lucide-react";
+
+import {
+  DashboardLayout,
+} from "@/layouts/DashboardLayout";
+
+import {
+  Button,
+} from "@/components/ui";
+
+import {
+  PatientForm,
+} from "@/components/pacientes/form";
+
+import type {
+  PatientSchema,
+} from "@/components/pacientes/form";
+
+import {
+  createPatient,
+} from "./patientStorage";
+
+/* =========================================
+   COMPONENTE
+========================================= */
 
 export default function NovoPaciente() {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  function handleSubmit(data: PatientSchema) {
-    console.log("Novo paciente:", data);
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(
+      false
+    );
 
-    // Quando a API estiver pronta, entra aqui:
-    // await pacientesService.create(data);
+  const [
+    feedback,
+    setFeedback,
+  ] =
+    useState<
+      string |
+      null
+    >(
+      null
+    );
 
-    navigate("/pacientes");
+  const [
+    feedbackType,
+    setFeedbackType,
+  ] =
+    useState<
+      | "success"
+      | "error"
+      | null
+    >(
+      null
+    );
+
+  /* =======================================
+     SALVAR
+  ======================================= */
+
+  async function handleSubmit(
+    data:
+      PatientSchema
+  ) {
+    setLoading(
+      true
+    );
+
+    setFeedback(
+      null
+    );
+
+    setFeedbackType(
+      null
+    );
+
+    try {
+      const patient =
+        createPatient(
+          data
+        );
+
+      setFeedback(
+        "Paciente cadastrado com sucesso."
+      );
+
+      setFeedbackType(
+        "success"
+      );
+
+      setTimeout(
+        () => {
+          navigate(
+            `/pacientes/${patient.id}`
+          );
+        },
+
+        700
+      );
+    } catch (
+      error
+    ) {
+      setFeedback(
+        error instanceof
+          Error
+          ? error.message
+          : "Não foi possível cadastrar o paciente."
+      );
+
+      setFeedbackType(
+        "error"
+      );
+    } finally {
+      setLoading(
+        false
+      );
+    }
   }
+
+  /* =======================================
+     RENDER
+  ======================================= */
 
   return (
     <DashboardLayout>
       <div className="space-y-8">
+        {/* ================================= */}
+        {/* CABEÇALHO */}
+        {/* ================================= */}
+
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <button
               type="button"
-              onClick={() => navigate("/pacientes")}
+              onClick={() =>
+                navigate(
+                  "/pacientes"
+                )
+              }
               className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-indigo-600"
             >
-              <ArrowLeft size={17} />
+              <ArrowLeft
+                size={17}
+              />
+
               Voltar para pacientes
             </button>
 
@@ -43,15 +171,51 @@ export default function NovoPaciente() {
           </div>
 
           <Button
+            type="button"
             variant="outline"
-            onClick={() => navigate("/pacientes")}
+            disabled={
+              loading
+            }
+            onClick={() =>
+              navigate(
+                "/pacientes"
+              )
+            }
           >
             Cancelar
           </Button>
         </div>
 
+        {/* ================================= */}
+        {/* FEEDBACK */}
+        {/* ================================= */}
+
+        {feedback && (
+          <div
+            className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+              feedbackType ===
+              "error"
+                ? "border-red-200 bg-red-50 text-red-700"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+            }`}
+          >
+            {
+              feedback
+            }
+          </div>
+        )}
+
+        {/* ================================= */}
+        {/* FORMULÁRIO */}
+        {/* ================================= */}
+
         <PatientForm
-          onSubmit={handleSubmit}
+          onSubmit={
+            handleSubmit
+          }
+          loading={
+            loading
+          }
         />
       </div>
     </DashboardLayout>

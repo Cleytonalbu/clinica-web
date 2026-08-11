@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 
 import {
+  useMemo,
   useState,
 } from "react";
 
@@ -26,109 +27,27 @@ import {
   Card,
 } from "@/components/ui/card";
 
-/* =========================================
-   TIPOS
-========================================= */
-
-interface Patient {
-  id: number;
-
-  nome: string;
-
-  cpf: string;
-
-  telefone: string;
-
-  convenio: string;
-
-  ultimaConsulta: string;
-
-  status:
-    | "Ativo"
-    | "Inativo";
-}
+import {
+  deletePatient,
+  getPatients,
+  type StoredPatient,
+} from "@/pages/Pacientes/patientStorage";
 
 /* =========================================
-   DADOS TEMPORÁRIOS
-========================================= */
-
-const initialPatients: Patient[] = [
-  {
-    id: 1,
-
-    nome:
-      "Maria Oliveira",
-
-    cpf:
-      "123.456.789-10",
-
-    telefone:
-      "(83) 99999-9999",
-
-    convenio:
-      "Particular",
-
-    ultimaConsulta:
-      "Hoje",
-
-    status:
-      "Ativo",
-  },
-
-  {
-    id: 2,
-
-    nome:
-      "João Pedro",
-
-    cpf:
-      "987.654.321-11",
-
-    telefone:
-      "(83) 98888-8888",
-
-    convenio:
-      "Unimed",
-
-    ultimaConsulta:
-      "Ontem",
-
-    status:
-      "Ativo",
-  },
-
-  {
-    id: 3,
-
-    nome:
-      "Fernanda Souza",
-
-    cpf:
-      "321.654.987-00",
-
-    telefone:
-      "(83) 97777-7777",
-
-    convenio:
-      "Hapvida",
-
-    ultimaConsulta:
-      "18/07/2026",
-
-    status:
-      "Inativo",
-  },
-];
-
-/* =========================================
-   INICIAIS DO PACIENTE
+   INICIAIS
 ========================================= */
 
 function getInitials(
   nome: string
 ) {
   return nome
-    .split(" ")
+    .trim()
+    .split(
+      /\s+/
+    )
+    .filter(
+      Boolean
+    )
     .slice(
       0,
       2
@@ -144,6 +63,22 @@ function getInitials(
 }
 
 /* =========================================
+   ÚLTIMA CONSULTA
+
+   Temporariamente mostramos "-".
+
+   Depois vamos calcular isso usando
+   os atendimentos realizados da Agenda.
+========================================= */
+
+function getLastAppointment(
+  _patient:
+    StoredPatient
+) {
+  return "-";
+}
+
+/* =========================================
    TABELA
 ========================================= */
 
@@ -153,18 +88,22 @@ export function PatientTable() {
 
   const {
     user,
-  } = useAuth();
+  } =
+    useAuth();
 
   const [
     patients,
     setPatients,
   ] =
-    useState<Patient[]>(
-      initialPatients
+    useState<
+      StoredPatient[]
+    >(
+      () =>
+        getPatients()
     );
 
   /* =======================================
-     PERMISSÕES POR PERFIL
+     PERFIL
   ======================================= */
 
   const isGestor =
@@ -183,11 +122,37 @@ export function PatientTable() {
     isGestor;
 
   /* =======================================
-     VISUALIZAR PACIENTE
+     ORDENAR PACIENTES
+  ======================================= */
+
+  const sortedPatients =
+    useMemo(
+      () =>
+        [
+          ...patients,
+        ].sort(
+          (
+            a,
+            b
+          ) =>
+            a.nome.localeCompare(
+              b.nome,
+              "pt-BR"
+            )
+        ),
+
+      [
+        patients,
+      ]
+    );
+
+  /* =======================================
+     VISUALIZAR
   ======================================= */
 
   function handleViewPatient(
-    patientId: number
+    patientId:
+      number
   ) {
     navigate(
       `/pacientes/${patientId}`
@@ -195,31 +160,31 @@ export function PatientTable() {
   }
 
   /* =======================================
-     EDITAR PACIENTE
+     EDITAR
   ======================================= */
 
   function handleEditPatient(
-    patientId: number
+    patientId:
+      number
   ) {
-    /*
-     * Por enquanto vamos abrir o
-     * perfil do paciente.
-     *
-     * Depois criaremos a tela/rota
-     * específica para edição cadastral.
-     */
+    if (
+      !canEdit
+    ) {
+      return;
+    }
 
     navigate(
-      `/pacientes/${patientId}`
+      `/pacientes/${patientId}/editar`
     );
   }
 
   /* =======================================
-     EXCLUIR PACIENTE
+     EXCLUIR
   ======================================= */
 
   function handleDeletePatient(
-    patient: Patient
+    patient:
+      StoredPatient
   ) {
     if (
       !canDelete
@@ -238,17 +203,12 @@ export function PatientTable() {
       return;
     }
 
+    deletePatient(
+      patient.id
+    );
+
     setPatients(
-      (
-        currentPatients
-      ) =>
-        currentPatients.filter(
-          (
-            currentPatient
-          ) =>
-            currentPatient.id !==
-            patient.id
-        )
+      getPatients()
     );
   }
 
@@ -301,7 +261,7 @@ export function PatientTable() {
           {/* ================================= */}
 
           <tbody>
-            {patients.map(
+            {sortedPatients.map(
               (
                 patient
               ) => (
@@ -317,7 +277,7 @@ export function PatientTable() {
 
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-indigo-100 font-semibold text-indigo-700">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-100 font-semibold text-indigo-700">
                         {
                           getInitials(
                             patient.nome
@@ -348,7 +308,8 @@ export function PatientTable() {
 
                   <td className="px-6 py-4 text-sm text-slate-600">
                     {
-                      patient.cpf
+                      patient.cpf ||
+                      "-"
                     }
                   </td>
 
@@ -363,7 +324,9 @@ export function PatientTable() {
                       />
 
                       {
-                        patient.telefone
+                        patient.celular ||
+                        patient.telefone ||
+                        "-"
                       }
                     </div>
                   </td>
@@ -375,7 +338,8 @@ export function PatientTable() {
                   <td className="px-6 py-4">
                     <span className="rounded-lg bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
                       {
-                        patient.convenio
+                        patient.convenio ||
+                        "Particular"
                       }
                     </span>
                   </td>
@@ -391,7 +355,9 @@ export function PatientTable() {
                       />
 
                       {
-                        patient.ultimaConsulta
+                        getLastAppointment(
+                          patient
+                        )
                       }
                     </div>
                   </td>
@@ -439,8 +405,7 @@ export function PatientTable() {
                         />
                       </Button>
 
-                      {/* EDITAR
-                          Gestor + Recepção */}
+                      {/* EDITAR */}
 
                       {canEdit && (
                         <Button
@@ -460,8 +425,7 @@ export function PatientTable() {
                         </Button>
                       )}
 
-                      {/* EXCLUIR
-                          Somente Gestor */}
+                      {/* EXCLUIR */}
 
                       {canDelete && (
                         <Button
@@ -490,13 +454,11 @@ export function PatientTable() {
             {/* LISTA VAZIA */}
             {/* ================================= */}
 
-            {patients.length ===
+            {sortedPatients.length ===
               0 && (
               <tr>
                 <td
-                  colSpan={
-                    7
-                  }
+                  colSpan={7}
                   className="px-6 py-12 text-center"
                 >
                   <p className="font-semibold text-slate-600">
@@ -504,7 +466,7 @@ export function PatientTable() {
                   </p>
 
                   <p className="mt-1 text-sm text-slate-400">
-                    Não existem pacientes para exibir neste momento.
+                    Não existem pacientes cadastrados neste momento.
                   </p>
                 </td>
               </tr>
@@ -521,15 +483,15 @@ export function PatientTable() {
         <p className="text-sm text-slate-500">
           Exibindo{" "}
           <strong>
-            {patients.length >
+            {sortedPatients.length >
             0
-              ? `1–${patients.length}`
+              ? `1–${sortedPatients.length}`
               : "0"}
           </strong>{" "}
           de{" "}
           <strong>
             {
-              patients.length
+              sortedPatients.length
             }
           </strong>{" "}
           pacientes

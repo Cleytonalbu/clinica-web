@@ -10,7 +10,13 @@ import {
 } from "lucide-react";
 
 import {
+  useMemo,
+  useState,
+} from "react";
+
+import {
   useNavigate,
+  useParams,
 } from "react-router-dom";
 
 import {
@@ -22,175 +28,11 @@ import {
   PageCard,
 } from "@/components/ui";
 
-/* =========================================
-   TIPOS
-========================================= */
-
-type AppointmentStatus =
-  | "Agendado"
-  | "Confirmado"
-  | "Realizado"
-  | "Cancelado";
-
-interface Appointment {
-  id: number;
-
-  date: string;
-
-  day: string;
-
-  time: string;
-
-  specialty: string;
-
-  professional: string;
-
-  status: AppointmentStatus;
-}
-
-/* =========================================
-   PRÓXIMOS ATENDIMENTOS
-========================================= */
-
-const appointments: Appointment[] = [
-  {
-    id: 1,
-
-    date:
-      "10/08/2026",
-
-    day:
-      "Segunda-feira",
-
-    time:
-      "10:30",
-
-    specialty:
-      "Psicologia",
-
-    professional:
-      "Dra. Ana Paula",
-
-    status:
-      "Confirmado",
-  },
-
-  {
-    id: 2,
-
-    date:
-      "12/08/2026",
-
-    day:
-      "Quarta-feira",
-
-    time:
-      "14:00",
-
-    specialty:
-      "Fonoaudiologia",
-
-    professional:
-      "Dra. Camila Soares",
-
-    status:
-      "Agendado",
-  },
-
-  {
-    id: 3,
-
-    date:
-      "15/08/2026",
-
-    day:
-      "Sábado",
-
-    time:
-      "09:00",
-
-    specialty:
-      "Terapia Ocupacional",
-
-    professional:
-      "Dra. Larissa Lima",
-
-    status:
-      "Agendado",
-  },
-];
-
-/* =========================================
-   HISTÓRICO
-========================================= */
-
-const history: Appointment[] = [
-  {
-    id: 4,
-
-    date:
-      "05/08/2026",
-
-    day:
-      "Quarta-feira",
-
-    time:
-      "08:00",
-
-    specialty:
-      "Psicologia",
-
-    professional:
-      "Dra. Ana Paula",
-
-    status:
-      "Realizado",
-  },
-
-  {
-    id: 5,
-
-    date:
-      "02/08/2026",
-
-    day:
-      "Domingo",
-
-    time:
-      "15:30",
-
-    specialty:
-      "Fonoaudiologia",
-
-    professional:
-      "Dra. Camila Soares",
-
-    status:
-      "Realizado",
-  },
-
-  {
-    id: 6,
-
-    date:
-      "29/07/2026",
-
-    day:
-      "Quarta-feira",
-
-    time:
-      "11:00",
-
-    specialty:
-      "Psicologia",
-
-    professional:
-      "Dra. Ana Paula",
-
-    status:
-      "Cancelado",
-  },
-];
+import {
+  getSavedAppointments,
+  type StoredAppointment,
+  type StoredAppointmentStatus,
+} from "@/pages/Agenda/appointmentStorage";
 
 /* =========================================
    COMPONENTE PRINCIPAL
@@ -201,8 +43,32 @@ export function PatientAgenda() {
     useNavigate();
 
   const {
+    id,
+  } =
+    useParams();
+
+  const {
     user,
-  } = useAuth();
+  } =
+    useAuth();
+
+  const patientId =
+    Number(id);
+
+  /* =======================================
+     AGENDAMENTOS
+  ======================================= */
+
+  const [
+    appointments,
+    setAppointments,
+  ] =
+    useState<
+      StoredAppointment[]
+    >(
+      () =>
+        getSavedAppointments()
+    );
 
   /* =======================================
      PERFIL
@@ -216,14 +82,154 @@ export function PatientAgenda() {
     user?.profile ===
     "Recepção";
 
-  /*
-   * A gestão administrativa da agenda
-   * fica com Gestor e Recepção.
-   */
-
   const canManageSchedule =
     isGestor ||
     isRecepcao;
+
+  /* =======================================
+     AGENDAMENTOS DO PACIENTE
+  ======================================= */
+
+  const patientAppointments =
+    useMemo(
+      () =>
+        appointments.filter(
+          (
+            appointment
+          ) =>
+            appointment.patientId ===
+            patientId
+        ),
+      [
+        appointments,
+        patientId,
+      ]
+    );
+
+  /* =======================================
+     PRÓXIMOS ATENDIMENTOS
+  ======================================= */
+
+  const upcomingAppointments =
+    useMemo(
+      () => {
+        const now =
+          new Date();
+
+        return patientAppointments
+          .filter(
+            (
+              appointment
+            ) => {
+              if (
+                appointment.status ===
+                  "Realizado" ||
+                appointment.status ===
+                  "Cancelado" ||
+                appointment.status ===
+                  "Faltou"
+              ) {
+                return false;
+              }
+
+              const appointmentDate =
+                createAppointmentDate(
+                  appointment
+                );
+
+              if (
+                !appointmentDate
+              ) {
+                return false;
+              }
+
+              return (
+                appointmentDate.getTime() >=
+                now.getTime()
+              );
+            }
+          )
+          .sort(
+            sortAppointmentsAscending
+          );
+      },
+      [
+        patientAppointments,
+      ]
+    );
+
+  /* =======================================
+     HISTÓRICO
+  ======================================= */
+
+  const history =
+    useMemo(
+      () => {
+        const now =
+          new Date();
+
+        return patientAppointments
+          .filter(
+            (
+              appointment
+            ) => {
+              const appointmentDate =
+                createAppointmentDate(
+                  appointment
+                );
+
+              const isFinishedStatus =
+                appointment.status ===
+                  "Realizado" ||
+                appointment.status ===
+                  "Cancelado" ||
+                appointment.status ===
+                  "Faltou";
+
+              const isPast =
+                appointmentDate
+                  ? appointmentDate.getTime() <
+                    now.getTime()
+                  : false;
+
+              return (
+                isFinishedStatus ||
+                isPast
+              );
+            }
+          )
+          .sort(
+            sortAppointmentsDescending
+          );
+      },
+      [
+        patientAppointments,
+      ]
+    );
+
+  /* =======================================
+     INDICADORES
+  ======================================= */
+
+  const completedCount =
+    history.filter(
+      (
+        appointment
+      ) =>
+        appointment.status ===
+        "Realizado"
+    ).length;
+
+  const cancelledCount =
+    history.filter(
+      (
+        appointment
+      ) =>
+        appointment.status ===
+          "Cancelado" ||
+        appointment.status ===
+          "Faltou"
+    ).length;
 
   /* =======================================
      NOVO AGENDAMENTO
@@ -236,8 +242,16 @@ export function PatientAgenda() {
       return;
     }
 
+    /*
+     * Enviamos o patientId pela URL.
+     *
+     * Na próxima etapa podemos fazer
+     * NovoAgendamento.tsx usar esse valor
+     * para deixar o paciente já selecionado.
+     */
+
     navigate(
-      "/agenda/novo"
+      `/agenda/novo?patientId=${patientId}`
     );
   }
 
@@ -246,7 +260,8 @@ export function PatientAgenda() {
   ======================================= */
 
   function handleReschedule(
-    appointmentId: number
+    appointmentId:
+      number
   ) {
     if (
       !canManageSchedule
@@ -264,14 +279,8 @@ export function PatientAgenda() {
   ======================================= */
 
   function handleRefresh() {
-    /*
-     * Quando conectarmos a API,
-     * esta função buscará novamente
-     * os atendimentos do paciente.
-     */
-
-    console.log(
-      "Atualizar agenda do paciente"
+    setAppointments(
+      getSavedAppointments()
     );
   }
 
@@ -280,7 +289,8 @@ export function PatientAgenda() {
   ======================================= */
 
   function handleAppointmentDetails(
-    appointmentId: number
+    appointmentId:
+      number
   ) {
     navigate(
       `/agenda/${appointmentId}`
@@ -321,9 +331,7 @@ export function PatientAgenda() {
             }
           >
             <Plus
-              size={
-                18
-              }
+              size={18}
             />
 
             Novo agendamento
@@ -339,14 +347,12 @@ export function PatientAgenda() {
         <SummaryCard
           title="Próximas sessões"
           value={String(
-            appointments.length
+            upcomingAppointments.length
           )}
           description="Agendamentos futuros"
           icon={
             <CalendarDays
-              size={
-                22
-              }
+              size={22}
             />
           }
           iconClassName="bg-blue-100 text-blue-600"
@@ -355,42 +361,26 @@ export function PatientAgenda() {
         <SummaryCard
           title="Sessões realizadas"
           value={String(
-            history.filter(
-              (
-                appointment
-              ) =>
-                appointment.status ===
-                "Realizado"
-            ).length
+            completedCount
           )}
           description="Atendimentos registrados"
           icon={
             <CheckCircle2
-              size={
-                22
-              }
+              size={22}
             />
           }
           iconClassName="bg-emerald-100 text-emerald-600"
         />
 
         <SummaryCard
-          title="Cancelamentos"
+          title="Cancelamentos / faltas"
           value={String(
-            history.filter(
-              (
-                appointment
-              ) =>
-                appointment.status ===
-                "Cancelado"
-            ).length
+            cancelledCount
           )}
-          description="Atendimentos cancelados"
+          description="Cancelamentos e ausências"
           icon={
             <XCircle
-              size={
-                22
-              }
+              size={22}
             />
           }
           iconClassName="bg-red-100 text-red-600"
@@ -414,19 +404,17 @@ export function PatientAgenda() {
             }
           >
             <RefreshCcw
-              size={
-                15
-              }
+              size={15}
             />
 
             Atualizar
           </Button>
         }
       >
-        {appointments.length >
+        {upcomingAppointments.length >
         0 ? (
           <div className="space-y-3">
-            {appointments.map(
+            {upcomingAppointments.map(
               (
                 appointment
               ) => (
@@ -463,147 +451,140 @@ export function PatientAgenda() {
         title="Histórico de Atendimentos"
         description="Últimas sessões registradas."
       >
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px]">
-            <thead>
-              <tr className="border-b border-slate-200">
-                <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Data
-                </th>
+        {history.length >
+        0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px]">
+              <thead>
+                <tr className="border-b border-slate-200">
+                  <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Data
+                  </th>
 
-                <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Horário
-                </th>
+                  <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Horário
+                  </th>
 
-                <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Especialidade
-                </th>
+                  <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Especialidade
+                  </th>
 
-                <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Profissional
-                </th>
+                  <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Profissional
+                  </th>
 
-                <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Status
-                </th>
+                  <th className="pb-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Status
+                  </th>
 
-                <th className="pb-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Ações
-                </th>
-              </tr>
-            </thead>
+                  <th className="pb-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Ações
+                  </th>
+                </tr>
+              </thead>
 
-            <tbody>
-              {history.map(
-                (
-                  appointment
-                ) => (
-                  <tr
-                    key={
-                      appointment.id
-                    }
-                    className="border-b border-slate-100 last:border-0"
-                  >
-                    {/* ===================== */}
-                    {/* DATA */}
-                    {/* ===================== */}
-
-                    <td className="py-4">
-                      <p className="font-medium text-slate-800">
-                        {
-                          appointment.date
-                        }
-                      </p>
-
-                      <p className="mt-1 text-xs text-slate-400">
-                        {
-                          appointment.day
-                        }
-                      </p>
-                    </td>
-
-                    {/* ===================== */}
-                    {/* HORÁRIO */}
-                    {/* ===================== */}
-
-                    <td className="py-4 text-sm text-slate-600">
-                      {
-                        appointment.time
+              <tbody>
+                {history.map(
+                  (
+                    appointment
+                  ) => (
+                    <tr
+                      key={
+                        appointment.id
                       }
-                    </td>
+                      className="border-b border-slate-100 last:border-0"
+                    >
+                      {/* DATA */}
 
-                    {/* ===================== */}
-                    {/* ESPECIALIDADE */}
-                    {/* ===================== */}
-
-                    <td className="py-4 text-sm text-slate-600">
-                      {
-                        appointment.specialty
-                      }
-                    </td>
-
-                    {/* ===================== */}
-                    {/* PROFISSIONAL */}
-                    {/* ===================== */}
-
-                    <td className="py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-                          <UserRound
-                            size={
-                              17
-                            }
-                          />
-                        </div>
-
-                        <span className="text-sm font-medium text-slate-700">
+                      <td className="py-4">
+                        <p className="font-medium text-slate-800">
                           {
-                            appointment.professional
+                            formatDate(
+                              appointment.date
+                            )
                           }
-                        </span>
-                      </div>
-                    </td>
+                        </p>
 
-                    {/* ===================== */}
-                    {/* STATUS */}
-                    {/* ===================== */}
+                        <p className="mt-1 text-xs text-slate-400">
+                          {
+                            getWeekDay(
+                              appointment.date
+                            )
+                          }
+                        </p>
+                      </td>
 
-                    <td className="py-4">
-                      <StatusBadge
-                        status={
-                          appointment.status
+                      {/* HORÁRIO */}
+
+                      <td className="py-4 text-sm text-slate-600">
+                        {
+                          appointment.time
                         }
-                      />
-                    </td>
+                      </td>
 
-                    {/* ===================== */}
-                    {/* AÇÕES */}
-                    {/* ===================== */}
+                      {/* ESPECIALIDADE */}
 
-                    <td className="py-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleAppointmentDetails(
-                            appointment.id
-                          )
+                      <td className="py-4 text-sm text-slate-600">
+                        {
+                          appointment.specialty
                         }
-                        className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                        title="Ver atendimento"
-                      >
-                        <MoreVertical
-                          size={
-                            18
+                      </td>
+
+                      {/* PROFISSIONAL */}
+
+                      <td className="py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+                            <UserRound
+                              size={17}
+                            />
+                          </div>
+
+                          <span className="text-sm font-medium text-slate-700">
+                            {
+                              appointment.professional
+                            }
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* STATUS */}
+
+                      <td className="py-4">
+                        <StatusBadge
+                          status={
+                            appointment.status
                           }
                         />
-                      </button>
-                    </td>
-                  </tr>
-                )
-              )}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+
+                      {/* AÇÕES */}
+
+                      <td className="py-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleAppointmentDetails(
+                              appointment.id
+                            )
+                          }
+                          className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                          title="Ver atendimento"
+                        >
+                          <MoreVertical
+                            size={18}
+                          />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyHistory />
+        )}
       </PageCard>
     </div>
   );
@@ -615,18 +596,22 @@ export function PatientAgenda() {
 
 interface AppointmentRowProps {
   appointment:
-    Appointment;
+    StoredAppointment;
 
   canManage:
     boolean;
 
-  onReschedule: (
-    appointmentId: number
-  ) => void;
+  onReschedule:
+    (
+      appointmentId:
+        number
+    ) => void;
 
-  onDetails: (
-    appointmentId: number
-  ) => void;
+  onDetails:
+    (
+      appointmentId:
+        number
+    ) => void;
 }
 
 function AppointmentRow({
@@ -640,16 +625,12 @@ function AppointmentRow({
 }: AppointmentRowProps) {
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-slate-200 p-4 transition hover:border-indigo-200 hover:bg-indigo-50/30 lg:flex-row lg:items-center lg:justify-between">
-      {/* ================================= */}
       {/* INFORMAÇÕES */}
-      {/* ================================= */}
 
       <div className="flex items-start gap-4">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
           <CalendarDays
-            size={
-              21
-            }
+            size={21}
           />
         </div>
 
@@ -677,21 +658,19 @@ function AppointmentRow({
           <div className="mt-3 flex flex-wrap gap-4 text-sm text-slate-500">
             <span className="flex items-center gap-2">
               <CalendarDays
-                size={
-                  15
-                }
+                size={15}
               />
 
               {
-                appointment.date
+                formatDate(
+                  appointment.date
+                )
               }
             </span>
 
             <span className="flex items-center gap-2">
               <Clock3
-                size={
-                  15
-                }
+                size={15}
               />
 
               {
@@ -702,14 +681,9 @@ function AppointmentRow({
         </div>
       </div>
 
-      {/* ================================= */}
       {/* AÇÕES */}
-      {/* ================================= */}
 
       <div className="flex items-center gap-2">
-        {/* REMARCAR
-            GESTOR + RECEPÇÃO */}
-
         {canManage && (
           <Button
             variant="outline"
@@ -725,9 +699,6 @@ function AppointmentRow({
           </Button>
         )}
 
-        {/* DETALHES
-            TODOS */}
-
         <button
           type="button"
           onClick={() =>
@@ -739,9 +710,7 @@ function AppointmentRow({
           title="Ver atendimento"
         >
           <MoreVertical
-            size={
-              18
-            }
+            size={18}
           />
         </button>
       </div>
@@ -750,16 +719,14 @@ function AppointmentRow({
 }
 
 /* =========================================
-   SEM AGENDAMENTOS
+   SEM PRÓXIMOS AGENDAMENTOS
 ========================================= */
 
 function EmptyAppointments() {
   return (
     <div className="flex min-h-48 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 p-8 text-center">
       <CalendarDays
-        size={
-          34
-        }
+        size={34}
         className="text-slate-300"
       />
 
@@ -775,15 +742,41 @@ function EmptyAppointments() {
 }
 
 /* =========================================
+   SEM HISTÓRICO
+========================================= */
+
+function EmptyHistory() {
+  return (
+    <div className="flex min-h-40 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 p-8 text-center">
+      <CheckCircle2
+        size={32}
+        className="text-slate-300"
+      />
+
+      <p className="mt-4 font-semibold text-slate-700">
+        Nenhum atendimento no histórico
+      </p>
+
+      <p className="mt-1 text-sm text-slate-500">
+        Ainda não existem sessões anteriores registradas para este paciente.
+      </p>
+    </div>
+  );
+}
+
+/* =========================================
    CARD DE RESUMO
 ========================================= */
 
 interface SummaryCardProps {
-  title: string;
+  title:
+    string;
 
-  value: string;
+  value:
+    string;
 
-  description: string;
+  description:
+    string;
 
   icon:
     React.ReactNode;
@@ -844,16 +837,17 @@ function SummaryCard({
 
 interface StatusBadgeProps {
   status:
-    AppointmentStatus;
+    StoredAppointmentStatus;
 }
 
 function StatusBadge({
   status,
 }: StatusBadgeProps) {
-  const styles: Record<
-    AppointmentStatus,
-    string
-  > = {
+  const styles:
+    Record<
+      StoredAppointmentStatus,
+      string
+    > = {
     Agendado:
       "bg-blue-100 text-blue-700",
 
@@ -865,6 +859,9 @@ function StatusBadge({
 
     Cancelado:
       "bg-red-100 text-red-700",
+
+    Faltou:
+      "bg-amber-100 text-amber-700",
   };
 
   return (
@@ -875,5 +872,174 @@ function StatusBadge({
         status
       }
     </span>
+  );
+}
+
+/* =========================================
+   DATA/HORA DO AGENDAMENTO
+========================================= */
+
+function createAppointmentDate(
+  appointment:
+    StoredAppointment
+) {
+  if (
+    !appointment.date ||
+    !appointment.time
+  ) {
+    return null;
+  }
+
+  /*
+   * O storage da Agenda utiliza data
+   * no formato YYYY-MM-DD.
+   */
+
+  const date =
+    new Date(
+      `${appointment.date}T${appointment.time}:00`
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
+/* =========================================
+   ORDENAR - MAIS PRÓXIMO PRIMEIRO
+========================================= */
+
+function sortAppointmentsAscending(
+  a:
+    StoredAppointment,
+
+  b:
+    StoredAppointment
+) {
+  const dateA =
+    createAppointmentDate(
+      a
+    );
+
+  const dateB =
+    createAppointmentDate(
+      b
+    );
+
+  if (
+    !dateA ||
+    !dateB
+  ) {
+    return 0;
+  }
+
+  return (
+    dateA.getTime() -
+    dateB.getTime()
+  );
+}
+
+/* =========================================
+   ORDENAR - MAIS RECENTE PRIMEIRO
+========================================= */
+
+function sortAppointmentsDescending(
+  a:
+    StoredAppointment,
+
+  b:
+    StoredAppointment
+) {
+  return (
+    sortAppointmentsAscending(
+      b,
+      a
+    )
+  );
+}
+
+/* =========================================
+   FORMATAR DATA
+========================================= */
+
+function formatDate(
+  value:
+    string
+) {
+  if (
+    !value
+  ) {
+    return "-";
+  }
+
+  const [
+    year,
+    month,
+    day,
+  ] =
+    value.split(
+      "-"
+    );
+
+  if (
+    !year ||
+    !month ||
+    !day
+  ) {
+    return value;
+  }
+
+  return `${day}/${month}/${year}`;
+}
+
+/* =========================================
+   DIA DA SEMANA
+========================================= */
+
+function getWeekDay(
+  value:
+    string
+) {
+  if (
+    !value
+  ) {
+    return "-";
+  }
+
+  const date =
+    new Date(
+      `${value}T12:00:00`
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "-";
+  }
+
+  const weekDay =
+    new Intl.DateTimeFormat(
+      "pt-BR",
+      {
+        weekday:
+          "long",
+      }
+    ).format(
+      date
+    );
+
+  return (
+    weekDay
+      .charAt(0)
+      .toUpperCase() +
+    weekDay.slice(1)
   );
 }

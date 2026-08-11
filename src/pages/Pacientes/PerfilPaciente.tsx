@@ -5,6 +5,7 @@ import {
 } from "react";
 
 import {
+  useNavigate,
   useParams,
 } from "react-router-dom";
 
@@ -15,6 +16,10 @@ import {
 import {
   useAuth,
 } from "@/auth/AuthContext";
+
+import {
+  Button,
+} from "@/components/ui";
 
 import {
   PatientAgenda,
@@ -53,14 +58,37 @@ import {
   type PatientProfileTab,
 } from "@/components/pacientes/profile/PatientProfileNav";
 
+import {
+  getPatientById,
+} from "./patientStorage";
+
+/* =========================================
+   COMPONENTE
+========================================= */
+
 export default function PerfilPaciente() {
+  const navigate =
+    useNavigate();
+
   const {
     id,
-  } = useParams();
+  } =
+    useParams();
 
   const {
     user,
-  } = useAuth();
+  } =
+    useAuth();
+
+  const patientId =
+    Number(
+      id
+    );
+
+  const patient =
+    getPatientById(
+      patientId
+    );
 
   const [
     activeTab,
@@ -86,6 +114,10 @@ export default function PerfilPaciente() {
     user?.profile ===
     "Profissional";
 
+  const canEdit =
+    isGestor ||
+    isRecepcao;
+
   /* =========================================
      ABAS PERMITIDAS
   ========================================= */
@@ -95,10 +127,6 @@ export default function PerfilPaciente() {
       PatientProfileTab[]
     >(
       () => {
-        /*
-         * GESTOR
-         */
-
         if (
           isGestor
         ) {
@@ -113,10 +141,6 @@ export default function PerfilPaciente() {
           ];
         }
 
-        /*
-         * RECEPÇÃO
-         */
-
         if (
           isRecepcao
         ) {
@@ -127,10 +151,6 @@ export default function PerfilPaciente() {
             "financeiro",
           ];
         }
-
-        /*
-         * PROFISSIONAL
-         */
 
         if (
           isProfissional
@@ -145,10 +165,6 @@ export default function PerfilPaciente() {
           ];
         }
 
-        /*
-         * FALLBACK
-         */
-
         return [
           "resumo",
         ];
@@ -161,7 +177,7 @@ export default function PerfilPaciente() {
     );
 
   /* =========================================
-     PROTEÇÃO DA ABA ATIVA
+     PROTEÇÃO DA ABA
   ========================================= */
 
   useEffect(
@@ -183,11 +199,46 @@ export default function PerfilPaciente() {
   );
 
   /* =========================================
+     PACIENTE NÃO ENCONTRADO
+  ========================================= */
+
+  if (
+    !patient
+  ) {
+    return (
+      <DashboardLayout>
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+          <h1 className="text-xl font-bold text-slate-900">
+            Paciente não encontrado
+          </h1>
+
+          <p className="mt-2 text-sm text-slate-500">
+            O paciente pode ter sido removido ou o cadastro não existe.
+          </p>
+
+          <Button
+            type="button"
+            className="mt-6"
+            onClick={() =>
+              navigate(
+                "/pacientes"
+              )
+            }
+          >
+            Voltar para pacientes
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  /* =========================================
      TROCA DE ABA
   ========================================= */
 
   function handleTabChange(
-    tab: PatientProfileTab
+    tab:
+      PatientProfileTab
   ) {
     if (
       !allowedTabs.includes(
@@ -214,13 +265,43 @@ export default function PerfilPaciente() {
         {/* ================================= */}
 
         <PatientProfileHeader
-          nome="Maria Oliveira"
-          idade={
-            8
+          nome={
+            patient.nome
           }
-          telefone="(83) 99999-9999"
-          status="Ativo"
+          idade={
+            calculateAge(
+              patient.nascimento
+            )
+          }
+          telefone={
+            patient.celular ||
+            patient.telefone ||
+            "-"
+          }
+          status={
+            patient.status
+          }
         />
+
+        {/* ================================= */}
+        {/* AÇÃO DE EDIÇÃO */}
+        {/* ================================= */}
+
+        {canEdit && (
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                navigate(
+                  `/pacientes/${patient.id}/editar`
+                )
+              }
+            >
+              Editar cadastro
+            </Button>
+          </div>
+        )}
 
         {/* ================================= */}
         {/* NAVEGAÇÃO */}
@@ -247,7 +328,11 @@ export default function PerfilPaciente() {
           allowedTabs.includes(
             "resumo"
           ) && (
-            <PatientOverview />
+            <PatientOverview
+              patient={
+                patient
+              }
+            />
           )}
 
         {/* ================================= */}
@@ -344,7 +429,10 @@ export default function PerfilPaciente() {
 
             <p className="mt-2 text-sm text-slate-500">
               Paciente #
-              {id} • seção:{" "}
+              {
+                patient.id
+              }{" "}
+              • seção:{" "}
               {
                 activeTab
               }
@@ -353,5 +441,62 @@ export default function PerfilPaciente() {
         )}
       </div>
     </DashboardLayout>
+  );
+}
+
+/* =========================================
+   CALCULAR IDADE
+========================================= */
+
+function calculateAge(
+  birthDate:
+    string
+) {
+  if (
+    !birthDate
+  ) {
+    return 0;
+  }
+
+  const birth =
+    new Date(
+      `${birthDate}T12:00:00`
+    );
+
+  if (
+    Number.isNaN(
+      birth.getTime()
+    )
+  ) {
+    return 0;
+  }
+
+  const today =
+    new Date();
+
+  let age =
+    today.getFullYear() -
+    birth.getFullYear();
+
+  const monthDifference =
+    today.getMonth() -
+    birth.getMonth();
+
+  if (
+    monthDifference <
+      0 ||
+    (
+      monthDifference ===
+        0 &&
+      today.getDate() <
+        birth.getDate()
+    )
+  ) {
+    age -= 1;
+  }
+
+  return Math.max(
+    age,
+    0
   );
 }

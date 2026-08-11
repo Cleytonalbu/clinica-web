@@ -8,7 +8,7 @@ import {
 
 import {
   useNavigate,
-  useParams,
+  useSearchParams,
 } from "react-router-dom";
 
 import {
@@ -28,32 +28,40 @@ import type {
 } from "@/components/pacientes/form";
 
 import {
-  getPatientById,
-  updatePatient,
+  createPatient,
 } from "./patientStorage";
 
 /* =========================================
    COMPONENTE
 ========================================= */
 
-export default function EditarPaciente() {
+export default function NovoPaciente() {
   const navigate =
     useNavigate();
 
-  const {
-    id,
-  } =
-    useParams();
+  const [
+    searchParams,
+  ] =
+    useSearchParams();
 
-  const patientId =
-    Number(
-      id
+  /* =======================================
+     ORIGEM
+  ======================================= */
+
+  const returnTo =
+    searchParams.get(
+      "returnTo"
     );
 
-  const patient =
-    getPatientById(
-      patientId
-    );
+  const cameFromAppointment =
+    returnTo?.startsWith(
+      "/agenda/novo"
+    ) ??
+    false;
+
+  /* =======================================
+     ESTADOS
+  ======================================= */
 
   const [
     loading,
@@ -87,39 +95,51 @@ export default function EditarPaciente() {
     );
 
   /* =======================================
-     PACIENTE NÃO ENCONTRADO
+     DESTINO DE CANCELAMENTO
   ======================================= */
 
-  if (!patient) {
-    return (
-      <DashboardLayout>
-        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-          <h1 className="text-xl font-bold text-slate-900">
-            Paciente não encontrado
-          </h1>
+  function handleCancel() {
+    if (
+      returnTo
+    ) {
+      navigate(
+        returnTo
+      );
 
-          <p className="mt-2 text-sm text-slate-500">
-            O paciente pode ter sido removido ou o cadastro não existe.
-          </p>
+      return;
+    }
 
-          <Button
-            type="button"
-            className="mt-6"
-            onClick={() =>
-              navigate(
-                "/pacientes"
-              )
-            }
-          >
-            Voltar para pacientes
-          </Button>
-        </div>
-      </DashboardLayout>
+    navigate(
+      "/pacientes"
     );
   }
 
   /* =======================================
-     SALVAR ALTERAÇÕES
+     MONTAR URL DE RETORNO
+  ======================================= */
+
+  function buildReturnUrl(
+    patientId:
+      number
+  ) {
+    if (
+      !returnTo
+    ) {
+      return `/pacientes/${patientId}`;
+    }
+
+    const separator =
+      returnTo.includes(
+        "?"
+      )
+        ? "&"
+        : "?";
+
+    return `${returnTo}${separator}patientId=${patientId}`;
+  }
+
+  /* =======================================
+     SALVAR PACIENTE
   ======================================= */
 
   async function handleSubmit(
@@ -139,13 +159,15 @@ export default function EditarPaciente() {
     );
 
     try {
-      updatePatient(
-        patient.id,
-        data
-      );
+      const patient =
+        createPatient(
+          data
+        );
 
       setFeedback(
-        "Paciente atualizado com sucesso."
+        cameFromAppointment
+          ? "Paciente cadastrado. Retornando ao agendamento..."
+          : "Paciente cadastrado com sucesso."
       );
 
       setFeedbackType(
@@ -155,7 +177,9 @@ export default function EditarPaciente() {
       setTimeout(
         () => {
           navigate(
-            `/pacientes/${patient.id}`
+            buildReturnUrl(
+              patient.id
+            )
           );
         },
         700
@@ -167,7 +191,7 @@ export default function EditarPaciente() {
         error instanceof
           Error
           ? error.message
-          : "Não foi possível atualizar o paciente."
+          : "Não foi possível cadastrar o paciente."
       );
 
       setFeedbackType(
@@ -178,16 +202,6 @@ export default function EditarPaciente() {
         false
       );
     }
-  }
-
-  /* =======================================
-     CANCELAR
-  ======================================= */
-
-  function handleCancel() {
-    navigate(
-      `/pacientes/${patient.id}`
-    );
   }
 
   /* =======================================
@@ -211,22 +225,24 @@ export default function EditarPaciente() {
               className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-indigo-600"
             >
               <ArrowLeft
-                size={17}
+                size={
+                  17
+                }
               />
 
-              Voltar para o paciente
+              {cameFromAppointment
+                ? "Voltar para o agendamento"
+                : "Voltar para pacientes"}
             </button>
 
             <h1 className="text-3xl font-bold text-slate-900">
-              Editar Paciente
+              Novo Paciente
             </h1>
 
             <p className="mt-2 text-slate-500">
-              Atualize as informações cadastrais de{" "}
-              <strong className="font-semibold text-slate-700">
-                {patient.nome}
-              </strong>
-              .
+              {cameFromAppointment
+                ? "Cadastre o paciente para continuar o novo agendamento."
+                : "Cadastre as informações do novo paciente."}
             </p>
           </div>
 
@@ -243,6 +259,22 @@ export default function EditarPaciente() {
             Cancelar
           </Button>
         </div>
+
+        {/* ================================= */}
+        {/* ORIGEM DO AGENDAMENTO */}
+        {/* ================================= */}
+
+        {cameFromAppointment && (
+          <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-5 py-4">
+            <p className="text-sm font-semibold text-indigo-800">
+              Cadastro durante um agendamento
+            </p>
+
+            <p className="mt-1 text-sm text-indigo-600">
+              Depois de salvar, você retornará automaticamente ao Novo Agendamento com este paciente selecionado.
+            </p>
+          </div>
+        )}
 
         {/* ================================= */}
         {/* FEEDBACK */}
@@ -268,9 +300,6 @@ export default function EditarPaciente() {
         {/* ================================= */}
 
         <PatientForm
-          initialValues={
-            patient
-          }
           onSubmit={
             handleSubmit
           }
@@ -280,7 +309,11 @@ export default function EditarPaciente() {
           loading={
             loading
           }
-          submitLabel="Salvar alterações"
+          submitLabel={
+            cameFromAppointment
+              ? "Cadastrar e continuar"
+              : "Salvar Paciente"
+          }
         />
       </div>
     </DashboardLayout>

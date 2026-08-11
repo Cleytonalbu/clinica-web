@@ -18,6 +18,8 @@ import NovoPaciente from "@/pages/Pacientes/NovoPaciente";
 
 import PerfilPaciente from "@/pages/Pacientes/PerfilPaciente";
 
+import EditarPaciente from "@/pages/Pacientes/EditarPaciente";
+
 import NovaEvolucao from "@/pages/Pacientes/NovaEvolucao";
 
 import DetalheEvolucao from "@/pages/Pacientes/DetalheEvolucao";
@@ -195,6 +197,30 @@ export function AppRoutes() {
               action="view"
             >
               <PerfilPaciente />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+      {/* ========================================= */}
+      {/* EDITAR PACIENTE */}
+      {/* GESTOR + RECEPÇÃO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/pacientes/:id/editar"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Gestor",
+              "Recepção",
+            ]}
+          >
+            <ProtectedRoute
+              module="patients"
+              action="edit"
+            >
+              <EditarPaciente />
             </ProtectedRoute>
           </ProfileRoute>
         }
