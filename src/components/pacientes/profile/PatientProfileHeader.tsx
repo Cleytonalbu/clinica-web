@@ -23,11 +23,17 @@ import {
 ========================================= */
 
 interface PatientProfileHeaderProps {
-  nome: string;
+  patientId:
+    number;
 
-  idade: number;
+  nome:
+    string;
 
-  telefone: string;
+  idade:
+    number;
+
+  telefone:
+    string;
 
   status?:
     | "Ativo"
@@ -39,20 +45,20 @@ interface PatientProfileHeaderProps {
 ========================================= */
 
 export function PatientProfileHeader({
+  patientId,
   nome,
-
   idade,
-
   telefone,
-
-  status = "Ativo",
+  status =
+    "Ativo",
 }: PatientProfileHeaderProps) {
   const navigate =
     useNavigate();
 
   const {
     user,
-  } = useAuth();
+  } =
+    useAuth();
 
   /* =======================================
      PERFIL
@@ -65,11 +71,6 @@ export function PatientProfileHeader({
   const isRecepcao =
     user?.profile ===
     "Recepção";
-
-  /*
-   * Gestor e Recepção podem executar
-   * ações administrativas no cadastro.
-   */
 
   const canManagePatient =
     isGestor ||
@@ -96,8 +97,15 @@ export function PatientProfileHeader({
       return;
     }
 
+    /*
+     * Enviamos o patientId na query.
+     *
+     * Assim o NovoAgendamento poderá
+     * pré-selecionar este paciente.
+     */
+
     navigate(
-      "/agenda/novo"
+      `/agenda/novo?patientId=${patientId}`
     );
   }
 
@@ -112,14 +120,9 @@ export function PatientProfileHeader({
       return;
     }
 
-    /*
-     * Ainda não criamos a tela específica
-     * de edição do paciente.
-     *
-     * Quando criarmos, usaremos:
-     *
-     * /pacientes/:id/editar
-     */
+    navigate(
+      `/pacientes/${patientId}/editar`
+    );
   }
 
   /* =======================================
@@ -140,9 +143,7 @@ export function PatientProfileHeader({
         className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-indigo-600"
       >
         <ArrowLeft
-          size={
-            17
-          }
+          size={17}
         />
 
         Voltar para pacientes
@@ -160,9 +161,7 @@ export function PatientProfileHeader({
         <div className="flex items-center gap-5">
           <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 text-indigo-600">
             <UserRound
-              size={
-                38
-              }
+              size={38}
             />
           </div>
 
@@ -190,14 +189,15 @@ export function PatientProfileHeader({
 
             <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-500">
               <span>
-                {idade} anos
+                {
+                  idade
+                }{" "}
+                anos
               </span>
 
               <span className="flex items-center gap-2">
                 <Phone
-                  size={
-                    15
-                  }
+                  size={15}
                 />
 
                 {
@@ -210,15 +210,10 @@ export function PatientProfileHeader({
 
         {/* ================================= */}
         {/* AÇÕES ADMINISTRATIVAS */}
-        {/* GESTOR + RECEPÇÃO */}
         {/* ================================= */}
 
         {canManagePatient && (
           <div className="flex flex-wrap gap-3">
-            {/* ============================= */}
-            {/* AGENDAR */}
-            {/* ============================= */}
-
             <Button
               variant="outline"
               type="button"
@@ -227,17 +222,11 @@ export function PatientProfileHeader({
               }
             >
               <CalendarDays
-                size={
-                  17
-                }
+                size={17}
               />
 
               Agendar
             </Button>
-
-            {/* ============================= */}
-            {/* EDITAR PACIENTE */}
-            {/* ============================= */}
 
             <Button
               type="button"
@@ -246,9 +235,7 @@ export function PatientProfileHeader({
               }
             >
               <Edit3
-                size={
-                  17
-                }
+                size={17}
               />
 
               Editar paciente

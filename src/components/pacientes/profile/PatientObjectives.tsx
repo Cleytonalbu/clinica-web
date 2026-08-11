@@ -8,6 +8,15 @@ import {
 } from "lucide-react";
 
 import {
+  useMemo,
+} from "react";
+
+import {
+  useNavigate,
+  useParams,
+} from "react-router-dom";
+
+import {
   useAuth,
 } from "@/auth/AuthContext";
 
@@ -16,158 +25,11 @@ import {
   PageCard,
 } from "@/components/ui";
 
-/* =========================================
-   TIPOS
-========================================= */
-
-type ObjectiveStatus =
-  | "Em evolução"
-  | "Atingido"
-  | "Com regressão";
-
-interface Objective {
-  id: number;
-
-  title: string;
-
-  specialty: string;
-
-  professional: string;
-
-  startDate: string;
-
-  targetDate: string;
-
-  progress: number;
-
-  status: ObjectiveStatus;
-}
-
-/* =========================================
-   DADOS TEMPORÁRIOS
-========================================= */
-
-const objectives: Objective[] = [
-  {
-    id: 1,
-
-    title:
-      "Melhorar comunicação verbal",
-
-    specialty:
-      "Fonoaudiologia",
-
-    professional:
-      "Dra. Camila Soares",
-
-    startDate:
-      "10/02/2026",
-
-    targetDate:
-      "10/08/2026",
-
-    progress: 70,
-
-    status:
-      "Em evolução",
-  },
-
-  {
-    id: 2,
-
-    title:
-      "Aumentar atenção sustentada",
-
-    specialty:
-      "Psicologia",
-
-    professional:
-      "Dra. Ana Paula",
-
-    startDate:
-      "15/03/2026",
-
-    targetDate:
-      "15/09/2026",
-
-    progress: 60,
-
-    status:
-      "Em evolução",
-  },
-
-  {
-    id: 3,
-
-    title:
-      "Desenvolver autonomia nas tarefas",
-
-    specialty:
-      "Terapia Ocupacional",
-
-    professional:
-      "Dra. Larissa Lima",
-
-    startDate:
-      "02/05/2026",
-
-    targetDate:
-      "02/11/2026",
-
-    progress: 40,
-
-    status:
-      "Em evolução",
-  },
-
-  {
-    id: 4,
-
-    title:
-      "Reconhecer emoções básicas",
-
-    specialty:
-      "Psicologia",
-
-    professional:
-      "Dra. Ana Paula",
-
-    startDate:
-      "20/01/2026",
-
-    targetDate:
-      "20/07/2026",
-
-    progress: 100,
-
-    status:
-      "Atingido",
-  },
-
-  {
-    id: 5,
-
-    title:
-      "Fortalecer consciência fonológica",
-
-    specialty:
-      "Fonoaudiologia",
-
-    professional:
-      "Dra. Camila Soares",
-
-    startDate:
-      "22/04/2026",
-
-    targetDate:
-      "22/10/2026",
-
-    progress: 20,
-
-    status:
-      "Com regressão",
-  },
-];
+import {
+  getObjectivesByPatientId,
+  type ObjectiveStatus,
+  type TherapeuticObjective,
+} from "@/pages/Pacientes/objectiveStorage";
 
 /* =========================================
    COMPONENTE PRINCIPAL
@@ -176,7 +38,21 @@ const objectives: Objective[] = [
 export function PatientObjectives() {
   const {
     user,
-  } = useAuth();
+  } =
+    useAuth();
+
+  const navigate =
+    useNavigate();
+
+  const {
+    id,
+  } =
+    useParams();
+
+  const patientId =
+    Number(
+      id
+    );
 
   /* =======================================
      PERFIL
@@ -194,8 +70,44 @@ export function PatientObjectives() {
    * mas não altera diretamente o
    * registro terapêutico.
    */
+
   const canManageObjectives =
     isProfissional;
+
+  /* =======================================
+     OBJETIVOS DO PACIENTE
+  ======================================= */
+
+  const objectives =
+    useMemo(
+      () => {
+        if (
+          !Number.isFinite(
+            patientId
+          )
+        ) {
+          return [];
+        }
+
+        return getObjectivesByPatientId(
+          patientId
+        ).sort(
+          (
+            a,
+            b
+          ) =>
+            new Date(
+              b.createdAt
+            ).getTime() -
+            new Date(
+              a.createdAt
+            ).getTime()
+        );
+      },
+      [
+        patientId,
+      ]
+    );
 
   /* =======================================
      RESUMOS
@@ -234,19 +146,15 @@ export function PatientObjectives() {
 
   function handleNewObjective() {
     if (
-      !canManageObjectives
+      !canManageObjectives ||
+      !patientId
     ) {
       return;
     }
 
-    /*
-     * A tela de criação do objetivo
-     * ainda será criada.
-     *
-     * Futuramente:
-     *
-     * /pacientes/:id/objetivos/novo
-     */
+    navigate(
+      `/pacientes/${patientId}/objetivos/novo`
+    );
   }
 
   /* =======================================
@@ -254,11 +162,15 @@ export function PatientObjectives() {
   ======================================= */
 
   function handleDetails(
-    objective: Objective
+    objective:
+      TherapeuticObjective
   ) {
     /*
-     * A tela/modal de detalhes será
-     * implementada posteriormente.
+     * Na próxima etapa vamos criar
+     * detalhes/atualização do objetivo.
+     *
+     * Por enquanto mantemos o objetivo
+     * real preparado para essa integração.
      */
 
     console.log(
@@ -272,7 +184,8 @@ export function PatientObjectives() {
   ======================================= */
 
   function handleUpdate(
-    objective: Objective
+    objective:
+      TherapeuticObjective
   ) {
     if (
       !canManageObjectives
@@ -281,14 +194,8 @@ export function PatientObjectives() {
     }
 
     /*
-     * Posteriormente vamos abrir a tela
-     * para atualizar:
-     *
-     * - progresso;
-     * - status;
-     * - observação;
-     * - data;
-     * - resultado.
+     * Na próxima etapa vamos substituir
+     * isto pela tela/modal de atualização.
      */
 
     console.log(
@@ -331,9 +238,7 @@ export function PatientObjectives() {
             }
           >
             <Plus
-              size={
-                18
-              }
+              size={18}
             />
 
             Novo objetivo
@@ -354,9 +259,7 @@ export function PatientObjectives() {
           description="Objetivos em acompanhamento"
           icon={
             <TrendingUp
-              size={
-                22
-              }
+              size={22}
             />
           }
           iconClassName="bg-amber-100 text-amber-600"
@@ -370,9 +273,7 @@ export function PatientObjectives() {
           description="Objetivos concluídos"
           icon={
             <CheckCircle2
-              size={
-                22
-              }
+              size={22}
             />
           }
           iconClassName="bg-emerald-100 text-emerald-600"
@@ -386,9 +287,7 @@ export function PatientObjectives() {
           description="Precisam de atenção"
           icon={
             <AlertTriangle
-              size={
-                22
-              }
+              size={22}
             />
           }
           iconClassName="bg-red-100 text-red-600"
@@ -400,34 +299,91 @@ export function PatientObjectives() {
       {/* ================================= */}
 
       <PageCard
-        title="Objetivos ativos"
-        description="Objetivos atualmente em acompanhamento."
+        title="Objetivos"
+        description={
+          objectives.length > 0
+            ? `${objectives.length} objetivo${
+                objectives.length ===
+                1
+                  ? ""
+                  : "s"
+              } cadastrado${
+                objectives.length ===
+                1
+                  ? ""
+                  : "s"
+              } para este paciente.`
+            : "Nenhum objetivo terapêutico cadastrado."
+        }
       >
-        <div className="space-y-4">
-          {objectives.map(
-            (
-              objective
-            ) => (
-              <ObjectiveCard
-                key={
-                  objective.id
-                }
-                objective={
-                  objective
-                }
-                canManage={
-                  canManageObjectives
-                }
-                onDetails={
-                  handleDetails
-                }
-                onUpdate={
-                  handleUpdate
-                }
+        {/* ================================= */}
+        {/* LISTA */}
+        {/* ================================= */}
+
+        {objectives.length >
+        0 ? (
+          <div className="space-y-4">
+            {objectives.map(
+              (
+                objective
+              ) => (
+                <ObjectiveCard
+                  key={
+                    objective.id
+                  }
+                  objective={
+                    objective
+                  }
+                  canManage={
+                    canManageObjectives
+                  }
+                  onDetails={
+                    handleDetails
+                  }
+                  onUpdate={
+                    handleUpdate
+                  }
+                />
+              )
+            )}
+          </div>
+        ) : (
+          /* ================================= */
+          /* ESTADO VAZIO */
+          /* ================================= */
+
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+              <Target
+                size={22}
               />
-            )
-          )}
-        </div>
+            </div>
+
+            <h3 className="mt-4 font-semibold text-slate-800">
+              Nenhum objetivo terapêutico
+            </h3>
+
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+              Ainda não existem objetivos terapêuticos cadastrados para este paciente.
+            </p>
+
+            {canManageObjectives && (
+              <Button
+                type="button"
+                className="mt-5"
+                onClick={
+                  handleNewObjective
+                }
+              >
+                <Plus
+                  size={17}
+                />
+
+                Criar primeiro objetivo
+              </Button>
+            )}
+          </div>
+        )}
       </PageCard>
     </div>
   );
@@ -438,16 +394,20 @@ export function PatientObjectives() {
 ========================================= */
 
 interface ObjectiveCardProps {
-  objective: Objective;
+  objective:
+    TherapeuticObjective;
 
-  canManage: boolean;
+  canManage:
+    boolean;
 
   onDetails: (
-    objective: Objective
+    objective:
+      TherapeuticObjective
   ) => void;
 
   onUpdate: (
-    objective: Objective
+    objective:
+      TherapeuticObjective
   ) => void;
 }
 
@@ -469,15 +429,13 @@ function ObjectiveCard({
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
               <Target
-                size={
-                  19
-                }
+                size={19}
               />
             </div>
 
-            <div>
+            <div className="min-w-0">
               <h3 className="font-semibold text-slate-900">
                 {
                   objective.title
@@ -546,7 +504,9 @@ function ObjectiveCard({
 
               <span className="mt-1 block font-medium text-slate-700">
                 {
-                  objective.startDate
+                  formatDate(
+                    objective.startDate
+                  )
                 }
               </span>
             </div>
@@ -558,11 +518,31 @@ function ObjectiveCard({
 
               <span className="mt-1 block font-medium text-slate-700">
                 {
-                  objective.targetDate
+                  formatDate(
+                    objective.targetDate
+                  )
                 }
               </span>
             </div>
           </div>
+
+          {/* ================================= */}
+          {/* OBSERVAÇÃO */}
+          {/* ================================= */}
+
+          {objective.observation && (
+            <div className="mt-5 rounded-xl bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Observação
+              </p>
+
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                {
+                  objective.observation
+                }
+              </p>
+            </div>
+          )}
         </div>
 
         {/* ================================= */}
@@ -570,9 +550,6 @@ function ObjectiveCard({
         {/* ================================= */}
 
         <div className="flex shrink-0 gap-2">
-          {/* DETALHES
-              Gestor e Profissional */}
-
           <Button
             variant="outline"
             size="sm"
@@ -585,9 +562,6 @@ function ObjectiveCard({
           >
             Detalhes
           </Button>
-
-          {/* ATUALIZAR
-              Somente Profissional */}
 
           {canManage && (
             <Button
@@ -614,15 +588,20 @@ function ObjectiveCard({
 ========================================= */
 
 interface SummaryCardProps {
-  title: string;
+  title:
+    string;
 
-  value: string;
+  value:
+    string;
 
-  description: string;
+  description:
+    string;
 
-  icon: React.ReactNode;
+  icon:
+    React.ReactNode;
 
-  iconClassName: string;
+  iconClassName:
+    string;
 }
 
 function SummaryCard({
@@ -676,16 +655,18 @@ function SummaryCard({
 ========================================= */
 
 interface StatusBadgeProps {
-  status: ObjectiveStatus;
+  status:
+    ObjectiveStatus;
 }
 
 function StatusBadge({
   status,
 }: StatusBadgeProps) {
-  const styles: Record<
-    ObjectiveStatus,
-    string
-  > = {
+  const styles:
+    Record<
+      ObjectiveStatus,
+      string
+    > = {
     "Em evolução":
       "bg-amber-100 text-amber-700",
 
@@ -696,31 +677,26 @@ function StatusBadge({
       "bg-red-100 text-red-700",
   };
 
-  const icons: Record<
-    ObjectiveStatus,
-    React.ReactNode
-  > = {
+  const icons:
+    Record<
+      ObjectiveStatus,
+      React.ReactNode
+    > = {
     "Em evolução": (
       <TrendingUp
-        size={
-          13
-        }
+        size={13}
       />
     ),
 
     Atingido: (
       <CheckCircle2
-        size={
-          13
-        }
+        size={13}
       />
     ),
 
     "Com regressão": (
       <CircleDot
-        size={
-          13
-        }
+        size={13}
       />
     ),
   };
@@ -747,7 +723,8 @@ function StatusBadge({
 ========================================= */
 
 function getProgressClass(
-  status: ObjectiveStatus
+  status:
+    ObjectiveStatus
 ) {
   const base =
     "h-full rounded-full transition-all duration-300";
@@ -767,4 +744,38 @@ function getProgressClass(
   }
 
   return `${base} bg-violet-600`;
+}
+
+/* =========================================
+   FORMATAR DATA
+========================================= */
+
+function formatDate(
+  value:
+    string
+) {
+  if (
+    !value
+  ) {
+    return "-";
+  }
+
+  const [
+    year,
+    month,
+    day,
+  ] =
+    value.split(
+      "-"
+    );
+
+  if (
+    !year ||
+    !month ||
+    !day
+  ) {
+    return value;
+  }
+
+  return `${day}/${month}/${year}`;
 }

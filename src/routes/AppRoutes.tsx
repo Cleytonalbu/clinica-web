@@ -24,6 +24,8 @@ import NovaEvolucao from "@/pages/Pacientes/NovaEvolucao";
 
 import DetalheEvolucao from "@/pages/Pacientes/DetalheEvolucao";
 
+import NovoObjetivo from "@/pages/Pacientes/NovoObjetivo";
+
 import Profissionais from "@/pages/Profissionais";
 
 import NovoProfissional from "@/pages/Profissionais/NovoProfissional";
@@ -221,6 +223,29 @@ export function AppRoutes() {
               action="edit"
             >
               <EditarPaciente />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+      {/* ========================================= */}
+      {/* NOVO OBJETIVO TERAPÊUTICO */}
+      {/* SOMENTE PROFISSIONAL */}
+      {/* ========================================= */}
+
+      <Route
+        path="/pacientes/:id/objetivos/novo"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Profissional",
+            ]}
+          >
+            <ProtectedRoute
+              module="patients"
+              action="view"
+            >
+              <NovoObjetivo />
             </ProtectedRoute>
           </ProfileRoute>
         }

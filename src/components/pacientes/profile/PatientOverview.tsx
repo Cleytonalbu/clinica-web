@@ -8,6 +8,10 @@ import {
 } from "lucide-react";
 
 import {
+  useMemo,
+} from "react";
+
+import {
   useAuth,
 } from "@/auth/AuthContext";
 
@@ -27,47 +31,35 @@ import {
   PatientActiveGoals,
 } from "./PatientActiveGoals";
 
+import type {
+  StoredPatient,
+} from "@/pages/Pacientes/patientStorage";
+
+import {
+  getSavedAppointments,
+  type StoredAppointment,
+} from "@/pages/Agenda/appointmentStorage";
+
 /* =========================================
-   DADOS TEMPORÁRIOS
+   PROPS
 ========================================= */
 
-const dadosPaciente = {
-  cpf:
-    "123.456.789-10",
-
-  nascimento:
-    "15/04/2018",
-
-  sexo:
-    "Feminino",
-
-  telefone:
-    "(83) 99999-9999",
-
-  email:
-    "responsavel@email.com",
-
-  endereco:
-    "Rua das Flores, 120 - Centro",
-
-  convenio:
-    "Particular",
-
-  responsavel:
-    "Ana Oliveira",
-
-  parentesco:
-    "Mãe",
-};
+interface PatientOverviewProps {
+  patient:
+    StoredPatient;
+}
 
 /* =========================================
    COMPONENTE PRINCIPAL
 ========================================= */
 
-export function PatientOverview() {
+export function PatientOverview({
+  patient,
+}: PatientOverviewProps) {
   const {
     user,
-  } = useAuth();
+  } =
+    useAuth();
 
   /* =======================================
      PERFIS
@@ -89,29 +81,118 @@ export function PatientOverview() {
      PERMISSÕES
   ======================================= */
 
-  /*
-   * Conteúdo clínico resumido.
-   *
-   * Recepção não visualiza:
-   * - timeline clínica;
-   * - objetivos terapêuticos;
-   * - indicadores clínicos.
-   */
-
   const canViewClinicalSummary =
     isGestor ||
     isProfissional;
 
-  /*
-   * Dados administrativos completos.
-   *
-   * Profissional não precisa visualizar
-   * CPF, endereço e convênio.
-   */
-
   const canViewAdministrativeData =
     isGestor ||
     isRecepcao;
+
+  /* =======================================
+     DADOS FORMATADOS
+  ======================================= */
+
+  const phone =
+    patient.celular ||
+    patient.telefone ||
+    "-";
+
+  const responsiblePhone =
+    patient.responsavelTelefone ||
+    "-";
+
+  const address =
+    buildAddress(
+      patient
+    );
+
+  /* =======================================
+     PRÓXIMA SESSÃO
+  ======================================= */
+
+  const nextAppointment =
+    useMemo(
+      () => {
+        const appointments =
+          getSavedAppointments();
+
+        const now =
+          new Date();
+
+        return appointments
+          .filter(
+            (
+              appointment
+            ) => {
+              if (
+                appointment.patientId !==
+                patient.id
+              ) {
+                return false;
+              }
+
+              if (
+                appointment.status ===
+                  "Realizado" ||
+                appointment.status ===
+                  "Cancelado" ||
+                appointment.status ===
+                  "Faltou"
+              ) {
+                return false;
+              }
+
+              const appointmentDate =
+                createAppointmentDate(
+                  appointment
+                );
+
+              if (
+                !appointmentDate
+              ) {
+                return false;
+              }
+
+              return (
+                appointmentDate.getTime() >=
+                now.getTime()
+              );
+            }
+          )
+          .sort(
+            (
+              a,
+              b
+            ) => {
+              const dateA =
+                createAppointmentDate(
+                  a
+                );
+
+              const dateB =
+                createAppointmentDate(
+                  b
+                );
+
+              if (
+                !dateA ||
+                !dateB
+              ) {
+                return 0;
+              }
+
+              return (
+                dateA.getTime() -
+                dateB.getTime()
+              );
+            }
+          )[0];
+      },
+      [
+        patient.id,
+      ]
+    );
 
   /* =======================================
      RENDER
@@ -121,7 +202,6 @@ export function PatientOverview() {
     <div className="space-y-6">
       {/* ================================= */}
       {/* CARDS DE RESUMO */}
-      {/* GESTOR + PROFISSIONAL */}
       {/* ================================= */}
 
       {canViewClinicalSummary && (
@@ -139,7 +219,7 @@ export function PatientOverview() {
 
         <div className="space-y-6 xl:col-span-2">
           {/* =============================== */}
-          {/* DADOS DO PACIENTE */}
+          {/* DADOS PESSOAIS */}
           {/* =============================== */}
 
           <PageCard
@@ -151,122 +231,97 @@ export function PatientOverview() {
             }
           >
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              {/* =========================== */}
               {/* CPF */}
-              {/* GESTOR + RECEPÇÃO */}
-              {/* =========================== */}
 
               {canViewAdministrativeData && (
                 <InfoItem
                   icon={
                     <UserRound
-                      size={
-                        18
-                      }
+                      size={18}
                     />
                   }
                   label="CPF"
                   value={
-                    dadosPaciente.cpf
+                    patient.cpf ||
+                    "-"
                   }
                 />
               )}
 
-              {/* =========================== */}
               {/* NASCIMENTO */}
-              {/* TODOS */}
-              {/* =========================== */}
 
               <InfoItem
                 icon={
                   <CalendarCheck2
-                    size={
-                      18
-                    }
+                    size={18}
                   />
                 }
                 label="Data de nascimento"
                 value={
-                  dadosPaciente.nascimento
+                  formatDate(
+                    patient.nascimento
+                  )
                 }
               />
 
-              {/* =========================== */}
               {/* SEXO */}
-              {/* TODOS */}
-              {/* =========================== */}
 
               <InfoItem
                 icon={
                   <UserRound
-                    size={
-                      18
-                    }
+                    size={18}
                   />
                 }
                 label="Sexo"
                 value={
-                  dadosPaciente.sexo
+                  patient.sexo ||
+                  "-"
                 }
               />
 
-              {/* =========================== */}
               {/* TELEFONE */}
-              {/* TODOS */}
-              {/* =========================== */}
 
               <InfoItem
                 icon={
                   <Phone
-                    size={
-                      18
-                    }
+                    size={18}
                   />
                 }
                 label="Telefone"
                 value={
-                  dadosPaciente.telefone
+                  phone
                 }
               />
 
-              {/* =========================== */}
               {/* ENDEREÇO */}
-              {/* GESTOR + RECEPÇÃO */}
-              {/* =========================== */}
 
               {canViewAdministrativeData && (
                 <InfoItem
                   icon={
                     <MapPin
-                      size={
-                        18
-                      }
+                      size={18}
                     />
                   }
                   label="Endereço"
                   value={
-                    dadosPaciente.endereco
+                    address
                   }
                 />
               )}
 
-              {/* =========================== */}
               {/* CONVÊNIO */}
-              {/* GESTOR + RECEPÇÃO */}
-              {/* =========================== */}
 
               {canViewAdministrativeData && (
                 <InfoItem
                   icon={
                     <ShieldCheck
-                      size={
-                        18
-                      }
+                      size={18}
                     />
                   }
                   label="Convênio"
                   value={
-                    dadosPaciente.convenio
+                    patient.convenio ||
+                    "Particular"
                   }
                 />
               )}
@@ -274,8 +329,58 @@ export function PatientOverview() {
           </PageCard>
 
           {/* =============================== */}
+          {/* SAÚDE */}
+          {/* =============================== */}
+
+          <PageCard
+            title="Informações de Saúde"
+            description="Dados complementares cadastrados."
+          >
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <InfoItem
+                icon={
+                  <HeartPulse
+                    size={18}
+                  />
+                }
+                label="Tipo sanguíneo"
+                value={
+                  patient.tipoSanguineo ||
+                  "-"
+                }
+              />
+
+              <InfoItem
+                icon={
+                  <HeartPulse
+                    size={18}
+                  />
+                }
+                label="Alergias"
+                value={
+                  patient.alergias ||
+                  "Nenhuma informada"
+                }
+              />
+            </div>
+
+            {patient.observacoes && (
+              <div className="mt-6 rounded-xl bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Observações
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {
+                    patient.observacoes
+                  }
+                </p>
+              </div>
+            )}
+          </PageCard>
+
+          {/* =============================== */}
           {/* TIMELINE */}
-          {/* GESTOR + PROFISSIONAL */}
           {/* =============================== */}
 
           {canViewClinicalSummary && (
@@ -290,37 +395,38 @@ export function PatientOverview() {
         <div className="space-y-6">
           {/* =============================== */}
           {/* PRÓXIMA SESSÃO */}
-          {/* TODOS */}
           {/* =============================== */}
 
           <PageCard
             title="Próxima Sessão"
             description="Próximo atendimento agendado."
           >
-            <div className="rounded-xl bg-indigo-50 p-5">
-              <p className="text-sm font-medium text-indigo-600">
-                Segunda-feira
-              </p>
+            {nextAppointment ? (
+              <NextAppointmentCard
+                appointment={
+                  nextAppointment
+                }
+              />
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center">
+                <CalendarCheck2
+                  size={28}
+                  className="mx-auto text-slate-300"
+                />
 
-              <p className="mt-2 text-2xl font-bold text-slate-900">
-                10:30
-              </p>
-
-              <div className="mt-4 border-t border-indigo-100 pt-4">
-                <p className="font-semibold text-slate-800">
-                  Psicologia
+                <p className="mt-3 font-semibold text-slate-700">
+                  Nenhuma sessão agendada
                 </p>
 
-                <p className="mt-1 text-sm text-slate-500">
-                  Dra. Ana Paula
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  Este paciente não possui próximos atendimentos.
                 </p>
               </div>
-            </div>
+            )}
           </PageCard>
 
           {/* =============================== */}
           {/* OBJETIVOS ATIVOS */}
-          {/* GESTOR + PROFISSIONAL */}
           {/* =============================== */}
 
           {canViewClinicalSummary && (
@@ -329,7 +435,6 @@ export function PatientOverview() {
 
           {/* =============================== */}
           {/* RESPONSÁVEL */}
-          {/* TODOS */}
           {/* =============================== */}
 
           <PageCard
@@ -340,62 +445,52 @@ export function PatientOverview() {
               <InfoItem
                 icon={
                   <UserRound
-                    size={
-                      18
-                    }
+                    size={18}
                   />
                 }
                 label="Nome"
                 value={
-                  dadosPaciente.responsavel
+                  patient.responsavelNome ||
+                  "-"
                 }
               />
 
               <InfoItem
                 icon={
                   <HeartPulse
-                    size={
-                      18
-                    }
+                    size={18}
                   />
                 }
                 label="Parentesco"
                 value={
-                  dadosPaciente.parentesco
+                  patient.responsavelParentesco ||
+                  "-"
                 }
               />
 
               <InfoItem
                 icon={
                   <Phone
-                    size={
-                      18
-                    }
+                    size={18}
                   />
                 }
                 label="Contato"
                 value={
-                  dadosPaciente.telefone
+                  responsiblePhone
                 }
               />
-
-              {/* =========================== */}
-              {/* E-MAIL */}
-              {/* GESTOR + RECEPÇÃO */}
-              {/* =========================== */}
 
               {canViewAdministrativeData && (
                 <InfoItem
                   icon={
                     <UserRound
-                      size={
-                        18
-                      }
+                      size={18}
                     />
                   }
                   label="E-mail"
                   value={
-                    dadosPaciente.email
+                    patient.responsavelEmail ||
+                    "-"
                   }
                 />
               )}
@@ -404,6 +499,109 @@ export function PatientOverview() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* =========================================
+   PRÓXIMA SESSÃO
+========================================= */
+
+interface NextAppointmentCardProps {
+  appointment:
+    StoredAppointment;
+}
+
+function NextAppointmentCard({
+  appointment,
+}: NextAppointmentCardProps) {
+  return (
+    <div className="rounded-xl bg-indigo-50 p-5">
+      <p className="text-sm font-medium capitalize text-indigo-600">
+        {
+          getWeekDay(
+            appointment.date
+          )
+        }
+      </p>
+
+      <p className="mt-1 text-sm font-medium text-slate-500">
+        {
+          formatDate(
+            appointment.date
+          )
+        }
+      </p>
+
+      <p className="mt-2 text-2xl font-bold text-slate-900">
+        {
+          appointment.time
+        }
+      </p>
+
+      <div className="mt-4 border-t border-indigo-100 pt-4">
+        <p className="font-semibold text-slate-800">
+          {
+            appointment.specialty
+          }
+        </p>
+
+        <p className="mt-1 text-sm text-slate-500">
+          {
+            appointment.professional
+          }
+        </p>
+
+        <div className="mt-3">
+          <AppointmentStatus
+            status={
+              appointment.status
+            }
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================
+   STATUS DO AGENDAMENTO
+========================================= */
+
+function AppointmentStatus({
+  status,
+}: {
+  status:
+    StoredAppointment["status"];
+}) {
+  const styles:
+    Record<
+      StoredAppointment["status"],
+      string
+    > = {
+    Agendado:
+      "bg-blue-100 text-blue-700",
+
+    Confirmado:
+      "bg-violet-100 text-violet-700",
+
+    Realizado:
+      "bg-emerald-100 text-emerald-700",
+
+    Cancelado:
+      "bg-red-100 text-red-700",
+
+    Faltou:
+      "bg-amber-100 text-amber-700",
+  };
+
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${styles[status]}`}
+    >
+      {
+        status
+      }
+    </span>
   );
 }
 
@@ -424,9 +622,7 @@ interface InfoItemProps {
 
 function InfoItem({
   icon,
-
   label,
-
   value,
 }: InfoItemProps) {
   return (
@@ -452,4 +648,157 @@ function InfoItem({
       </div>
     </div>
   );
+}
+
+/* =========================================
+   DATA/HORA DO AGENDAMENTO
+========================================= */
+
+function createAppointmentDate(
+  appointment:
+    StoredAppointment
+) {
+  if (
+    !appointment.date ||
+    !appointment.time
+  ) {
+    return null;
+  }
+
+  const date =
+    new Date(
+      `${appointment.date}T${appointment.time}:00`
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
+/* =========================================
+   FORMATAR DATA
+========================================= */
+
+function formatDate(
+  value:
+    string
+) {
+  if (
+    !value
+  ) {
+    return "-";
+  }
+
+  const [
+    year,
+    month,
+    day,
+  ] =
+    value.split(
+      "-"
+    );
+
+  if (
+    !year ||
+    !month ||
+    !day
+  ) {
+    return value;
+  }
+
+  return `${day}/${month}/${year}`;
+}
+
+/* =========================================
+   DIA DA SEMANA
+========================================= */
+
+function getWeekDay(
+  value:
+    string
+) {
+  if (
+    !value
+  ) {
+    return "-";
+  }
+
+  const date =
+    new Date(
+      `${value}T12:00:00`
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat(
+    "pt-BR",
+    {
+      weekday:
+        "long",
+    }
+  ).format(
+    date
+  );
+}
+
+/* =========================================
+   MONTAR ENDEREÇO
+========================================= */
+
+function buildAddress(
+  patient:
+    StoredPatient
+) {
+  const streetLine =
+    [
+      patient.rua,
+      patient.numero,
+    ]
+      .filter(
+        Boolean
+      )
+      .join(
+        ", "
+      );
+
+  const locationLine =
+    [
+      patient.bairro,
+      patient.cidade,
+      patient.estado,
+    ]
+      .filter(
+        Boolean
+      )
+      .join(
+        " - "
+      );
+
+  const parts =
+    [
+      streetLine,
+      locationLine,
+      patient.complemento,
+    ].filter(
+      Boolean
+    );
+
+  return parts.length >
+    0
+    ? parts.join(
+        " • "
+      )
+    : "-";
 }

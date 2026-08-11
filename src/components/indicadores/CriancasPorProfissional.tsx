@@ -2,26 +2,36 @@ const professionals = [
   {
     name: "Dra. Juliana Santos",
     value: 32,
+    badge:
+      "bg-[#eeeaff] text-[#6847f5]",
   },
 
   {
     name: "Dra. Camila Soares",
     value: 28,
+    badge:
+      "bg-[#eaf4ff] text-[#3984dc]",
   },
 
   {
     name: "Dra. Larissa Lima",
     value: 26,
+    badge:
+      "bg-[#e8f8f1] text-[#269d75]",
   },
 
   {
     name: "Dr. Rafael Almeida",
     value: 24,
+    badge:
+      "bg-[#fff3e4] text-[#df8a27]",
   },
 
   {
     name: "Dra. Fernanda Lima",
     value: 22,
+    badge:
+      "bg-[#f8eaff] text-[#a04ed7]",
   },
 ];
 
@@ -44,7 +54,9 @@ export function CriancasPorProfissional() {
               }
               className="flex items-center gap-3 rounded-xl border border-slate-100 p-3"
             >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
+              <div
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${professional.badge}`}
+              >
                 {
                   index +
                   1

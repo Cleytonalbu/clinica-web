@@ -16,6 +16,10 @@ import {
 } from "lucide-react";
 
 import {
+  useParams,
+} from "react-router-dom";
+
+import {
   useAuth,
 } from "@/auth/AuthContext";
 
@@ -26,129 +30,63 @@ import {
   Select,
 } from "@/components/ui";
 
+import {
+  createPatientDocumentFromFile,
+  deletePatientDocument,
+  getDocumentsByPatientId,
+  renamePatientDocument,
+  updatePatientDocumentCategory,
+  type DocumentCategory,
+  type StoredPatientDocument,
+} from "@/pages/Pacientes/documentStorage";
+
+import {
+  getEvolutionsByPatientId,
+} from "@/pages/Pacientes/evolutionStorage";
+
 /* =========================================
-   TIPOS
+   TIPOS DE EXIBIÇÃO
 ========================================= */
 
-type DocumentCategory =
-  | "Laudo"
-  | "Relatório"
-  | "Termo"
-  | "Documento pessoal"
-  | "Evolução"
-  | "Outros";
+type DisplayDocument = {
+  key: string;
 
-interface PatientDocument {
-  id: number;
+  id:
+    number |
+    null;
 
-  name: string;
+  patientId:
+    number;
 
-  category: DocumentCategory;
+  name:
+    string;
+
+  category:
+    DocumentCategory;
 
   type:
-    | "PDF"
-    | "Imagem";
+    "PDF" |
+    "Imagem";
 
-  date: string;
+  date:
+    string;
 
-  professional: string;
+  professional:
+    string;
 
-  size: string;
-}
+  size:
+    number;
 
-/* =========================================
-   DADOS TEMPORÁRIOS
-========================================= */
+  source:
+    "DOCUMENTO" |
+    "EVOLUCAO";
 
-const initialDocuments: PatientDocument[] = [
-  {
-    id: 1,
+  evolutionId?:
+    number;
 
-    name:
-      "Laudo Neurológico.pdf",
-
-    category:
-      "Laudo",
-
-    type:
-      "PDF",
-
-    date:
-      "02/08/2026",
-
-    professional:
-      "Dr. Rafael Costa",
-
-    size:
-      "1.8 MB",
-  },
-
-  {
-    id: 2,
-
-    name:
-      "Relatório Psicológico.pdf",
-
-    category:
-      "Relatório",
-
-    type:
-      "PDF",
-
-    date:
-      "28/07/2026",
-
-    professional:
-      "Dra. Ana Paula",
-
-    size:
-      "850 KB",
-  },
-
-  {
-    id: 3,
-
-    name:
-      "Termo de Consentimento.pdf",
-
-    category:
-      "Termo",
-
-    type:
-      "PDF",
-
-    date:
-      "15/07/2026",
-
-    professional:
-      "Recepção",
-
-    size:
-      "420 KB",
-  },
-
-  {
-    id: 4,
-
-    name:
-      "Atividade Comunicação.jpg",
-
-    category:
-      "Evolução",
-
-    type:
-      "Imagem",
-
-    date:
-      "10/07/2026",
-
-    professional:
-      "Dra. Camila Soares",
-
-    size:
-      "2.4 MB",
-  },
-];
+  attachmentId?:
+    string;
+};
 
 /* =========================================
    COMPONENTE PRINCIPAL
@@ -157,16 +95,29 @@ const initialDocuments: PatientDocument[] = [
 export function PatientDocuments() {
   const {
     user,
-  } = useAuth();
+  } =
+    useAuth();
+
+  const {
+    id,
+  } =
+    useParams();
+
+  const patientId =
+    Number(
+      id
+    );
+
+  /* =======================================
+     ESTADOS
+  ======================================= */
 
   const [
-    documents,
-    setDocuments,
+    refreshKey,
+    setRefreshKey,
   ] =
-    useState<
-      PatientDocument[]
-    >(
-      initialDocuments
+    useState(
+      0
     );
 
   const [
@@ -185,6 +136,29 @@ export function PatientDocuments() {
       "Todos"
     );
 
+  const [
+    feedback,
+    setFeedback,
+  ] =
+    useState<
+      string |
+      null
+    >(
+      null
+    );
+
+  const [
+    feedbackType,
+    setFeedbackType,
+  ] =
+    useState<
+      "success" |
+      "error" |
+      null
+    >(
+      null
+    );
+
   /* =======================================
      PERFIL
   ======================================= */
@@ -201,22 +175,10 @@ export function PatientDocuments() {
     user?.profile ===
     "Profissional";
 
-  /*
-   * Os três perfis que possuem acesso
-   * à aba podem enviar documentos.
-   *
-   * Posteriormente a API vai separar
-   * os tipos permitidos por perfil.
-   */
-
   const canUpload =
     isGestor ||
     isRecepcao ||
     isProfissional;
-
-  /*
-   * Exclusão fica restrita ao Gestor.
-   */
 
   const canDelete =
     isGestor;
@@ -231,7 +193,7 @@ export function PatientDocuments() {
         if (
           isProfissional
         ) {
-          return "Envie laudos, relatórios e anexos relacionados ao acompanhamento clínico.";
+          return "Envie laudos, relatórios e documentos relacionados ao acompanhamento clínico.";
         }
 
         if (
@@ -249,26 +211,183 @@ export function PatientDocuments() {
     );
 
   /* =======================================
+     DOCUMENTOS MANUAIS
+  ======================================= */
+
+  const storedDocuments =
+    useMemo(
+      () => {
+        void refreshKey;
+
+        if (
+          !Number.isFinite(
+            patientId
+          ) ||
+          patientId <= 0
+        ) {
+          return [];
+        }
+
+        return getDocumentsByPatientId(
+          patientId
+        );
+      },
+      [
+        patientId,
+        refreshKey,
+      ]
+    );
+
+  /* =======================================
+     ANEXOS DAS EVOLUÇÕES
+  ======================================= */
+
+  const evolutionDocuments =
+    useMemo(
+      () => {
+        void refreshKey;
+
+        if (
+          !Number.isFinite(
+            patientId
+          ) ||
+          patientId <= 0
+        ) {
+          return [];
+        }
+
+        return getEvolutionsByPatientId(
+          patientId
+        ).flatMap(
+          (
+            evolution
+          ) =>
+            evolution.attachments.map(
+              (
+                attachment
+              ) => ({
+                key:
+                  `evolution-${evolution.id}-${attachment.id}`,
+
+                id:
+                  null,
+
+                patientId,
+
+                name:
+                  attachment.name,
+
+                category:
+                  "Evolução" as DocumentCategory,
+
+                type:
+                  attachment.type.startsWith(
+                    "image/"
+                  )
+                    ? "Imagem" as const
+                    : "PDF" as const,
+
+                date:
+                  evolution.sessionDate,
+
+                professional:
+                  evolution.professional ||
+                  "Profissional",
+
+                size:
+                  attachment.size,
+
+                source:
+                  "EVOLUCAO" as const,
+
+                evolutionId:
+                  evolution.id,
+
+                attachmentId:
+                  attachment.id,
+              })
+            )
+        );
+      },
+      [
+        patientId,
+        refreshKey,
+      ]
+    );
+
+  /* =======================================
+     TODOS OS DOCUMENTOS
+  ======================================= */
+
+  const documents =
+    useMemo(
+      () => {
+        const manual:
+          DisplayDocument[] =
+          storedDocuments.map(
+            (
+              document
+            ) =>
+              toDisplayDocument(
+                document
+              )
+          );
+
+        return [
+          ...evolutionDocuments,
+          ...manual,
+        ].sort(
+          (
+            a,
+            b
+          ) =>
+            parseDisplayDate(
+              b.date
+            ) -
+            parseDisplayDate(
+              a.date
+            )
+        );
+      },
+      [
+        storedDocuments,
+        evolutionDocuments,
+      ]
+    );
+
+  /* =======================================
      FILTROS
   ======================================= */
 
   const filteredDocuments =
     useMemo(
       () => {
+        const normalizedSearch =
+          search
+            .trim()
+            .toLocaleLowerCase(
+              "pt-BR"
+            );
+
         return documents.filter(
           (
             document
           ) => {
             const matchesSearch =
+              !normalizedSearch ||
               document.name
-                .toLowerCase()
+                .toLocaleLowerCase(
+                  "pt-BR"
+                )
                 .includes(
-                  search.toLowerCase()
+                  normalizedSearch
                 ) ||
               document.professional
-                .toLowerCase()
+                .toLocaleLowerCase(
+                  "pt-BR"
+                )
                 .includes(
-                  search.toLowerCase()
+                  normalizedSearch
                 );
 
             const matchesCategory =
@@ -292,14 +411,64 @@ export function PatientDocuments() {
     );
 
   /* =======================================
+     FEEDBACK
+  ======================================= */
+
+  function showFeedback(
+    message:
+      string,
+
+    type:
+      "success" |
+      "error"
+  ) {
+    setFeedback(
+      message
+    );
+
+    setFeedbackType(
+      type
+    );
+  }
+
+  function refreshDocuments() {
+    setRefreshKey(
+      (
+        current
+      ) =>
+        current + 1
+    );
+  }
+
+  /* =======================================
      EXCLUIR
   ======================================= */
 
   function handleDelete(
-    document: PatientDocument
+    document:
+      DisplayDocument
   ) {
     if (
       !canDelete
+    ) {
+      return;
+    }
+
+    if (
+      document.source ===
+      "EVOLUCAO"
+    ) {
+      showFeedback(
+        "Anexos clínicos devem ser removidos pela própria evolução.",
+        "error"
+      );
+
+      return;
+    }
+
+    if (
+      document.id ===
+      null
     ) {
       return;
     }
@@ -315,17 +484,28 @@ export function PatientDocuments() {
       return;
     }
 
-    setDocuments(
-      (
-        current
-      ) =>
-        current.filter(
-          (
-            currentDocument
-          ) =>
-            currentDocument.id !==
-            document.id
-        )
+    const deleted =
+      deletePatientDocument(
+        patientId,
+        document.id
+      );
+
+    if (
+      !deleted
+    ) {
+      showFeedback(
+        "Não foi possível excluir o documento.",
+        "error"
+      );
+
+      return;
+    }
+
+    refreshDocuments();
+
+    showFeedback(
+      "Documento excluído com sucesso.",
+      "success"
     );
   }
 
@@ -335,93 +515,77 @@ export function PatientDocuments() {
 
   function handleFiles(
     files:
-      | FileList
-      | null
+      FileList |
+      null
   ) {
     if (
       !canUpload ||
-      !files
+      !files ||
+      !Number.isFinite(
+        patientId
+      ) ||
+      patientId <= 0
     ) {
       return;
     }
 
-    const newDocuments:
-      PatientDocument[] =
+    const defaultCategory:
+      DocumentCategory =
+      isProfissional
+        ? "Outros"
+        : isRecepcao
+          ? "Documento pessoal"
+          : "Outros";
+
+    const selectedFiles =
       Array.from(
         files
-      ).map(
+      );
+
+    try {
+      selectedFiles.forEach(
         (
-          file,
-          index
+          file
         ) => {
-          /*
-           * Enquanto não temos formulário
-           * para escolher a categoria,
-           * usamos uma categoria inicial
-           * coerente com o perfil.
-           */
+          createPatientDocumentFromFile(
+            patientId,
+            file,
+            {
+              category:
+                defaultCategory,
 
-          let defaultCategory:
-            DocumentCategory =
-            "Outros";
-
-          if (
-            isProfissional
-          ) {
-            defaultCategory =
-              "Evolução";
-          }
-
-          if (
-            isRecepcao
-          ) {
-            defaultCategory =
-              "Documento pessoal";
-          }
-
-          return {
-            id:
-              Date.now() +
-              index,
-
-            name:
-              file.name,
-
-            category:
-              defaultCategory,
-
-            type:
-              file.type.startsWith(
-                "image/"
-              )
-                ? "Imagem"
-                : "PDF",
-
-            date:
-              new Date().toLocaleDateString(
-                "pt-BR"
-              ),
-
-            professional:
-              user?.name ??
-              "Usuário",
-
-            size:
-              formatFileSize(
-                file.size
-              ),
-          };
+              professional:
+                user?.name ||
+                (
+                  isRecepcao
+                    ? "Recepção"
+                    : "Usuário"
+                ),
+            }
+          );
         }
       );
 
-    setDocuments(
-      (
-        current
-      ) => [
-        ...newDocuments,
-        ...current,
-      ]
-    );
+      refreshDocuments();
+
+      showFeedback(
+        selectedFiles.length ===
+          1
+          ? "Documento adicionado com sucesso."
+          : `${selectedFiles.length} documentos adicionados com sucesso.`,
+        "success"
+      );
+    } catch (
+      error
+    ) {
+      showFeedback(
+        error instanceof
+          Error
+          ? error.message
+          : "Não foi possível adicionar os documentos.",
+        "error"
+      );
+    }
   }
 
   /* =======================================
@@ -429,20 +593,22 @@ export function PatientDocuments() {
   ======================================= */
 
   function handleDownload(
-    document: PatientDocument
+    document:
+      DisplayDocument
   ) {
     /*
-     * Os arquivos atuais são apenas
-     * dados demonstrativos.
+     * O localStorage guarda apenas os
+     * metadados dos arquivos, e não os
+     * bytes do documento.
      *
-     * Quando conectarmos o backend,
-     * essa função receberá a URL real
-     * do documento.
+     * O download real será implementado
+     * quando o upload estiver conectado
+     * ao backend/API.
      */
 
-    console.log(
-      "Baixar documento:",
-      document.id
+    showFeedback(
+      `O arquivo "${document.name}" está registrado, mas o download real dependerá da integração com a API.`,
+      "error"
     );
   }
 
@@ -451,23 +617,171 @@ export function PatientDocuments() {
   ======================================= */
 
   function handleMoreOptions(
-    document: PatientDocument
+    document:
+      DisplayDocument
   ) {
-    /*
-     * Futuramente podemos abrir um menu
-     * com:
-     *
-     * - visualizar;
-     * - renomear;
-     * - alterar categoria;
-     * - informações do arquivo.
-     */
+    if (
+      document.source ===
+      "EVOLUCAO"
+    ) {
+      showFeedback(
+        "Este arquivo pertence a uma evolução clínica e deve ser gerenciado por ela.",
+        "error"
+      );
 
-    console.log(
-      "Opções do documento:",
-      document.id
-    );
+      return;
+    }
+
+    if (
+      document.id ===
+      null
+    ) {
+      return;
+    }
+
+    const action =
+      window.prompt(
+        [
+          "Digite a opção desejada:",
+          "",
+          "1 - Renomear",
+          "2 - Alterar categoria",
+        ].join(
+          "\n"
+        )
+      );
+
+    if (
+      action ===
+      "1"
+    ) {
+      const newName =
+        window.prompt(
+          "Novo nome do documento:",
+          document.name
+        );
+
+      if (
+        !newName
+      ) {
+        return;
+      }
+
+      try {
+        renamePatientDocument(
+          patientId,
+          document.id,
+          newName
+        );
+
+        refreshDocuments();
+
+        showFeedback(
+          "Documento renomeado com sucesso.",
+          "success"
+        );
+      } catch (
+        error
+      ) {
+        showFeedback(
+          error instanceof
+            Error
+            ? error.message
+            : "Não foi possível renomear o documento.",
+          "error"
+        );
+      }
+
+      return;
+    }
+
+    if (
+      action ===
+      "2"
+    ) {
+      const newCategory =
+        window.prompt(
+          [
+            "Informe a nova categoria:",
+            "",
+            "Laudo",
+            "Relatório",
+            "Termo",
+            "Documento pessoal",
+            "Evolução",
+            "Outros",
+          ].join(
+            "\n"
+          ),
+          document.category
+        );
+
+      if (
+        !newCategory ||
+        !isDocumentCategory(
+          newCategory
+        )
+      ) {
+        if (
+          newCategory
+        ) {
+          showFeedback(
+            "Categoria inválida.",
+            "error"
+          );
+        }
+
+        return;
+      }
+
+      try {
+        updatePatientDocumentCategory(
+          patientId,
+          document.id,
+          newCategory
+        );
+
+        refreshDocuments();
+
+        showFeedback(
+          "Categoria atualizada com sucesso.",
+          "success"
+        );
+      } catch (
+        error
+      ) {
+        showFeedback(
+          error instanceof
+            Error
+            ? error.message
+            : "Não foi possível atualizar a categoria.",
+          "error"
+        );
+      }
+    }
   }
+
+  /* =======================================
+     RESUMOS
+  ======================================= */
+
+  const reportsCount =
+    documents.filter(
+      (
+        document
+      ) =>
+        document.category ===
+        "Relatório"
+    ).length;
+
+  const clinicalAttachmentsCount =
+    documents.filter(
+      (
+        document
+      ) =>
+        document.source ===
+        "EVOLUCAO"
+    ).length;
 
   /* =======================================
      RENDER
@@ -490,10 +804,6 @@ export function PatientDocuments() {
           </p>
         </div>
 
-        {/* ================================= */}
-        {/* NOVO DOCUMENTO */}
-        {/* ================================= */}
-
         {canUpload && (
           <label>
             <input
@@ -503,20 +813,21 @@ export function PatientDocuments() {
               className="hidden"
               onChange={(
                 event
-              ) =>
+              ) => {
                 handleFiles(
                   event
                     .target
                     .files
-                )
-              }
+                );
+
+                event.target.value =
+                  "";
+              }}
             />
 
             <span className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-700">
               <Plus
-                size={
-                  18
-                }
+                size={18}
               />
 
               Novo documento
@@ -524,6 +835,25 @@ export function PatientDocuments() {
           </label>
         )}
       </div>
+
+      {/* ================================= */}
+      {/* FEEDBACK */}
+      {/* ================================= */}
+
+      {feedback && (
+        <div
+          className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+            feedbackType ===
+            "error"
+              ? "border-amber-200 bg-amber-50 text-amber-700"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+          }`}
+        >
+          {
+            feedback
+          }
+        </div>
+      )}
 
       {/* ================================= */}
       {/* RESUMO */}
@@ -538,9 +868,7 @@ export function PatientDocuments() {
           description="Arquivos cadastrados"
           icon={
             <FolderOpen
-              size={
-                22
-              }
+              size={22}
             />
           }
           className="bg-indigo-100 text-indigo-600"
@@ -549,20 +877,12 @@ export function PatientDocuments() {
         <SummaryCard
           title="Relatórios"
           value={String(
-            documents.filter(
-              (
-                document
-              ) =>
-                document.category ===
-                "Relatório"
-            ).length
+            reportsCount
           )}
           description="Relatórios disponíveis"
           icon={
             <FileText
-              size={
-                22
-              }
+              size={22}
             />
           }
           className="bg-emerald-100 text-emerald-600"
@@ -571,20 +891,12 @@ export function PatientDocuments() {
         <SummaryCard
           title="Anexos clínicos"
           value={String(
-            documents.filter(
-              (
-                document
-              ) =>
-                document.category ===
-                "Evolução"
-            ).length
+            clinicalAttachmentsCount
           )}
           description="Anexos das evoluções"
           icon={
             <FileImage
-              size={
-                22
-              }
+              size={22}
             />
           }
           className="bg-violet-100 text-violet-600"
@@ -606,9 +918,7 @@ export function PatientDocuments() {
         <div className="mb-6 flex flex-col gap-3 lg:flex-row">
           <div className="relative flex-1">
             <Search
-              size={
-                18
-              }
+              size={18}
               className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
             />
 
@@ -676,16 +986,14 @@ export function PatientDocuments() {
         </div>
 
         {/* ================================= */}
-        {/* LISTA VAZIA */}
+        {/* LISTA */}
         {/* ================================= */}
 
         {filteredDocuments.length ===
         0 ? (
           <div className="flex min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 p-8 text-center">
             <FolderOpen
-              size={
-                36
-              }
+              size={36}
               className="text-slate-300"
             />
 
@@ -698,10 +1006,6 @@ export function PatientDocuments() {
             </p>
           </div>
         ) : (
-          /* ================================= */
-          /* TABELA */
-          /* ================================= */
-
           <div className="overflow-x-auto">
             <table className="w-full min-w-[850px]">
               <thead>
@@ -739,14 +1043,10 @@ export function PatientDocuments() {
                   ) => (
                     <tr
                       key={
-                        document.id
+                        document.key
                       }
                       className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60"
                     >
-                      {/* ===================== */}
-                      {/* DOCUMENTO */}
-                      {/* ===================== */}
-
                       <td className="py-4 pr-4">
                         <div className="flex items-center gap-3">
                           <div
@@ -760,21 +1060,17 @@ export function PatientDocuments() {
                             {document.type ===
                             "Imagem" ? (
                               <FileImage
-                                size={
-                                  20
-                                }
+                                size={20}
                               />
                             ) : (
                               <FileText
-                                size={
-                                  20
-                                }
+                                size={20}
                               />
                             )}
                           </div>
 
-                          <div>
-                            <p className="font-semibold text-slate-800">
+                          <div className="min-w-0">
+                            <p className="max-w-80 truncate font-semibold text-slate-800">
                               {
                                 document.name
                               }
@@ -782,16 +1078,15 @@ export function PatientDocuments() {
 
                             <p className="mt-1 text-xs text-slate-400">
                               {
-                                document.type
+                                document.source ===
+                                "EVOLUCAO"
+                                  ? "Anexo clínico"
+                                  : document.type
                               }
                             </p>
                           </div>
                         </div>
                       </td>
-
-                      {/* ===================== */}
-                      {/* CATEGORIA */}
-                      {/* ===================== */}
 
                       <td className="py-4 pr-4">
                         <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
@@ -801,19 +1096,13 @@ export function PatientDocuments() {
                         </span>
                       </td>
 
-                      {/* ===================== */}
-                      {/* DATA */}
-                      {/* ===================== */}
-
                       <td className="py-4 pr-4 text-sm text-slate-600">
                         {
-                          document.date
+                          formatDisplayDate(
+                            document.date
+                          )
                         }
                       </td>
-
-                      {/* ===================== */}
-                      {/* RESPONSÁVEL */}
-                      {/* ===================== */}
 
                       <td className="py-4 pr-4 text-sm text-slate-600">
                         {
@@ -821,24 +1110,16 @@ export function PatientDocuments() {
                         }
                       </td>
 
-                      {/* ===================== */}
-                      {/* TAMANHO */}
-                      {/* ===================== */}
-
                       <td className="py-4 pr-4 text-sm text-slate-500">
                         {
-                          document.size
+                          formatFileSize(
+                            document.size
+                          )
                         }
                       </td>
 
-                      {/* ===================== */}
-                      {/* AÇÕES */}
-                      {/* ===================== */}
-
                       <td className="py-4">
                         <div className="flex justify-end gap-1">
-                          {/* DOWNLOAD */}
-
                           <button
                             type="button"
                             onClick={() =>
@@ -850,16 +1131,13 @@ export function PatientDocuments() {
                             title="Baixar documento"
                           >
                             <Download
-                              size={
-                                17
-                              }
+                              size={17}
                             />
                           </button>
 
-                          {/* EXCLUIR
-                              SOMENTE GESTOR */}
-
-                          {canDelete && (
+                          {canDelete &&
+                            document.source ===
+                              "DOCUMENTO" && (
                             <button
                               type="button"
                               onClick={() =>
@@ -871,14 +1149,10 @@ export function PatientDocuments() {
                               title="Excluir documento"
                             >
                               <Trash2
-                                size={
-                                  17
-                                }
+                                size={17}
                               />
                             </button>
                           )}
-
-                          {/* MAIS OPÇÕES */}
 
                           <button
                             type="button"
@@ -891,9 +1165,7 @@ export function PatientDocuments() {
                             title="Mais opções"
                           >
                             <MoreVertical
-                              size={
-                                17
-                              }
+                              size={17}
                             />
                           </button>
                         </div>
@@ -926,13 +1198,15 @@ export function PatientDocuments() {
               <p className="mt-1 text-xs text-slate-400">
                 Formatos aceitos: PDF, JPG e PNG.
               </p>
+
+              <p className="mt-1 text-xs text-amber-600">
+                Nesta etapa local são persistidos os dados do arquivo. O conteúdo físico será armazenado quando a API de upload estiver integrada.
+              </p>
             </div>
 
             <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
               <UploadCloud
-                size={
-                  17
-                }
+                size={17}
               />
 
               Selecionar arquivos
@@ -944,13 +1218,16 @@ export function PatientDocuments() {
                 className="hidden"
                 onChange={(
                   event
-                ) =>
+                ) => {
                   handleFiles(
                     event
                       .target
                       .files
-                  )
-                }
+                  );
+
+                  event.target.value =
+                    "";
+                }}
               />
             </label>
           </div>
@@ -961,31 +1238,79 @@ export function PatientDocuments() {
 }
 
 /* =========================================
+   CONVERTER DOCUMENTO SALVO
+========================================= */
+
+function toDisplayDocument(
+  document:
+    StoredPatientDocument
+):
+  DisplayDocument {
+  return {
+    key:
+      `document-${document.id}`,
+
+    id:
+      document.id,
+
+    patientId:
+      document.patientId,
+
+    name:
+      document.name,
+
+    category:
+      document.category,
+
+    type:
+      document.type,
+
+    date:
+      document.createdAt,
+
+    professional:
+      document.professional,
+
+    size:
+      document.size,
+
+    source:
+      document.source,
+
+    evolutionId:
+      document.evolutionId,
+
+    attachmentId:
+      document.attachmentId,
+  };
+}
+
+/* =========================================
    CARD DE RESUMO
 ========================================= */
 
 interface SummaryCardProps {
-  title: string;
+  title:
+    string;
 
-  value: string;
+  value:
+    string;
 
-  description: string;
+  description:
+    string;
 
   icon:
     React.ReactNode;
 
-  className: string;
+  className:
+    string;
 }
 
 function SummaryCard({
   title,
-
   value,
-
   description,
-
   icon,
-
   className,
 }: SummaryCardProps) {
   return (
@@ -1032,14 +1357,14 @@ interface TableHeaderProps {
     React.ReactNode;
 
   align?:
-    | "left"
-    | "right";
+    "left" |
+    "right";
 }
 
 function TableHeader({
   children,
-
-  align = "left",
+  align =
+    "left",
 }: TableHeaderProps) {
   return (
     <th
@@ -1058,12 +1383,134 @@ function TableHeader({
 }
 
 /* =========================================
+   VALIDAR CATEGORIA
+========================================= */
+
+function isDocumentCategory(
+  value:
+    string
+): value is DocumentCategory {
+  return [
+    "Laudo",
+    "Relatório",
+    "Termo",
+    "Documento pessoal",
+    "Evolução",
+    "Outros",
+  ].includes(
+    value
+  );
+}
+
+/* =========================================
+   FORMATAR DATA
+========================================= */
+
+function formatDisplayDate(
+  value:
+    string
+) {
+  if (
+    !value
+  ) {
+    return "-";
+  }
+
+  /*
+   * Data de sessão YYYY-MM-DD.
+   */
+
+  if (
+    /^\d{4}-\d{2}-\d{2}$/.test(
+      value
+    )
+  ) {
+    const [
+      year,
+      month,
+      day,
+    ] =
+      value.split(
+        "-"
+      );
+
+    return `${day}/${month}/${year}`;
+  }
+
+  /*
+   * Timestamp ISO.
+   */
+
+  const date =
+    new Date(
+      value
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(
+    "pt-BR"
+  ).format(
+    date
+  );
+}
+
+/* =========================================
+   ORDENAR POR DATA
+========================================= */
+
+function parseDisplayDate(
+  value:
+    string
+) {
+  if (
+    /^\d{4}-\d{2}-\d{2}$/.test(
+      value
+    )
+  ) {
+    const date =
+      new Date(
+        `${value}T12:00:00`
+      );
+
+    return date.getTime();
+  }
+
+  const date =
+    new Date(
+      value
+    );
+
+  return Number.isNaN(
+    date.getTime()
+  )
+    ? 0
+    : date.getTime();
+}
+
+/* =========================================
    TAMANHO DO ARQUIVO
 ========================================= */
 
 function formatFileSize(
-  size: number
+  size:
+    number
 ) {
+  if (
+    !Number.isFinite(
+      size
+    ) ||
+    size <= 0
+  ) {
+    return "0 KB";
+  }
+
   if (
     size <
     1024 * 1024

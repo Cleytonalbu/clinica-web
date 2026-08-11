@@ -1,79 +1,122 @@
-import type { EvolutionFormData } from "./evolutionForm.types";
+import type {
+  EvolutionFormData,
+} from "./evolutionForm.types";
+
+/* =========================================
+   VALORES PADRÃO DA EVOLUÇÃO
+========================================= */
 
 export function createEvolutionDefaultValues(
-  patientId: string
+  patientId:
+    string
 ): EvolutionFormData {
   return {
     patientId,
 
-    sessionDate: "",
-    startTime: "",
-    endTime: "",
+    /* =====================================
+       SESSÃO
+    ===================================== */
 
-    specialty: "Psicologia",
-    appointmentType: "Individual",
-    appointmentLocation: "Clinica",
+    sessionDate:
+      "",
 
-    objectives: [
-      {
-        id: 1,
-        name: "Comunicação funcional",
-        status: "Em evolução",
-        performance: 4,
-      },
-      {
-        id: 2,
-        name: "Interação social",
-        status: "Em evolução",
-        performance: 3,
-      },
-      {
-        id: 3,
-        name: "Autorregulação emocional",
-        status: "Alcançado",
-        performance: 5,
-      },
-      {
-        id: 4,
-        name: "Autonomia nas atividades",
-        status: "Parcialmente alcançado",
-        performance: 3,
-      },
-      {
-        id: 5,
-        name: "Atenção e concentração",
-        status: "Em evolução",
-        performance: 4,
-      },
-    ],
+    startTime:
+      "",
 
-    writtenEvolution: "",
+    endTime:
+      "",
 
-    referralSpecialty: "Fonoaudiologia",
-    referralProfessional: "Dra. Camila Soares",
-    referralReason: "",
-    referralPriority: "Alta",
-    referralObservation: "",
+    specialty:
+      "",
 
-    notifyProfessional: true,
-    addProfessionalAgenda: true,
-    notifyManager: false,
+    appointmentType:
+      "Individual",
 
-    observedImpacts: [
-      "Comunicação",
-      "Interação social",
-      "Atenção",
-      "Autonomia",
-      "Regulação emocional",
-    ],
+    appointmentLocation:
+      "Clinica",
 
-    sessionResult: "Dentro do esperado",
-    sessionResultObservation: "",
+    /* =====================================
+       OBJETIVOS
+    ===================================== */
 
-    attachments: [],
+    objectives:
+      [],
 
-    professional: "Dra. Juliana Santos",
+    /* =====================================
+       EVOLUÇÃO ESCRITA
+    ===================================== */
 
-    status: "RASCUNHO",
+    writtenEvolution:
+      "",
+
+    /* =====================================
+       ENCAMINHAMENTO
+    ===================================== */
+
+    referralSpecialty:
+      "",
+
+    referralProfessional:
+      "",
+
+    referralReason:
+      "",
+
+    referralPriority:
+      "Média",
+
+    referralObservation:
+      "",
+
+    /* =====================================
+       NOTIFICAÇÕES
+    ===================================== */
+
+    notifyProfessional:
+      false,
+
+    addProfessionalAgenda:
+      false,
+
+    notifyManager:
+      false,
+
+    /* =====================================
+       IMPACTOS OBSERVADOS
+    ===================================== */
+
+    observedImpacts:
+      [],
+
+    /* =====================================
+       RESULTADO DA SESSÃO
+    ===================================== */
+
+    sessionResult:
+      "Dentro do esperado",
+
+    sessionResultObservation:
+      "",
+
+    /* =====================================
+       ANEXOS
+    ===================================== */
+
+    attachments:
+      [],
+
+    /* =====================================
+       PROFISSIONAL
+    ===================================== */
+
+    professional:
+      "",
+
+    /* =====================================
+       STATUS
+    ===================================== */
+
+    status:
+      "RASCUNHO",
   };
 }

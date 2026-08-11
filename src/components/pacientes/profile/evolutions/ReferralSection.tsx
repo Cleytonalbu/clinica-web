@@ -1,36 +1,167 @@
 import {
+  useMemo,
+} from "react";
+
+import {
   FormField,
   Input,
   PageCard,
   Select,
 } from "@/components/ui";
 
+import {
+  getActiveProfessionals,
+  getActiveSpecialties,
+} from "@/pages/Configuracoes/settingsStorage";
+
 import type {
   EvolutionFormData,
   ReferralPriority,
 } from "./evolutionForm.types";
 
+/* =========================================
+   PROPS
+========================================= */
+
 interface ReferralSectionProps {
-  formData: EvolutionFormData;
+  formData:
+    EvolutionFormData;
 
   updateField: <
     K extends keyof EvolutionFormData
   >(
     field: K,
-    value: EvolutionFormData[K]
+
+    value:
+      EvolutionFormData[K]
   ) => void;
 }
+
+/* =========================================
+   COMPONENTE
+========================================= */
 
 export function ReferralSection({
   formData,
   updateField,
 }: ReferralSectionProps) {
-  const priorities: ReferralPriority[] = [
+  /* =======================================
+     PRIORIDADES
+  ======================================= */
+
+  const priorities:
+    ReferralPriority[] = [
     "Baixa",
     "Média",
     "Alta",
     "Urgente",
   ];
+
+  /* =======================================
+     CONFIGURAÇÕES
+  ======================================= */
+
+  const specialties =
+    useMemo(
+      () =>
+        getActiveSpecialties(),
+
+      []
+    );
+
+  const professionals =
+    useMemo(
+      () =>
+        getActiveProfessionals(),
+
+      []
+    );
+
+  /* =======================================
+     PROFISSIONAIS DA ESPECIALIDADE
+  ======================================= */
+
+  const availableProfessionals =
+    useMemo(
+      () => {
+        if (
+          !formData.referralSpecialty
+        ) {
+          return professionals;
+        }
+
+        return professionals.filter(
+          (
+            professional
+          ) =>
+            professional.specialty ===
+            formData.referralSpecialty
+        );
+      },
+      [
+        professionals,
+        formData.referralSpecialty,
+      ]
+    );
+
+  /* =======================================
+     ALTERAR ESPECIALIDADE
+  ======================================= */
+
+  function handleSpecialtyChange(
+    specialty:
+      string
+  ) {
+    updateField(
+      "referralSpecialty",
+      specialty
+    );
+
+    /*
+     * Ao trocar a especialidade,
+     * limpamos o profissional anterior
+     * para impedir vínculo incorreto.
+     */
+
+    updateField(
+      "referralProfessional",
+      ""
+    );
+
+    /*
+     * Se remover o encaminhamento,
+     * também limpamos seus campos.
+     */
+
+    if (
+      !specialty
+    ) {
+      updateField(
+        "referralReason",
+        ""
+      );
+
+      updateField(
+        "referralObservation",
+        ""
+      );
+
+      updateField(
+        "notifyProfessional",
+        false
+      );
+
+      updateField(
+        "addProfessionalAgenda",
+        false
+      );
+
+      updateField(
+        "notifyManager",
+        false
+      );
+    }
+  }
 
   return (
     <PageCard
@@ -38,13 +169,20 @@ export function ReferralSection({
       description="Registre encaminhamentos realizados durante a sessão."
     >
       <div className="space-y-5">
+        {/* ================================= */}
+        {/* DESTINO */}
+        {/* ================================= */}
+
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
           <FormField label="Encaminhar para">
             <Select
-              value={formData.referralSpecialty}
-              onChange={(event) =>
-                updateField(
-                  "referralSpecialty",
+              value={
+                formData.referralSpecialty
+              }
+              onChange={(
+                event
+              ) =>
+                handleSpecialtyChange(
                   event.target.value
                 )
               }
@@ -53,29 +191,24 @@ export function ReferralSection({
                 Nenhum encaminhamento
               </option>
 
-              <option value="Fonoaudiologia">
-                Fonoaudiologia
-              </option>
-
-              <option value="Psicologia">
-                Psicologia
-              </option>
-
-              <option value="Terapia Ocupacional">
-                Terapia Ocupacional
-              </option>
-
-              <option value="Fisioterapia">
-                Fisioterapia
-              </option>
-
-              <option value="Psicopedagogia">
-                Psicopedagogia
-              </option>
-
-              <option value="Nutrição">
-                Nutrição
-              </option>
+              {specialties.map(
+                (
+                  specialty
+                ) => (
+                  <option
+                    key={
+                      specialty.id
+                    }
+                    value={
+                      specialty.name
+                    }
+                  >
+                    {
+                      specialty.name
+                    }
+                  </option>
+                )
+              )}
             </Select>
           </FormField>
 
@@ -84,7 +217,12 @@ export function ReferralSection({
               value={
                 formData.referralProfessional
               }
-              onChange={(event) =>
+              disabled={
+                !formData.referralSpecialty
+              }
+              onChange={(
+                event
+              ) =>
                 updateField(
                   "referralProfessional",
                   event.target.value
@@ -92,31 +230,63 @@ export function ReferralSection({
               }
             >
               <option value="">
-                Selecione o profissional
+                {formData.referralSpecialty
+                  ? "Selecione o profissional"
+                  : "Selecione primeiro a especialidade"}
               </option>
 
-              <option value="Dra. Camila Soares">
-                Dra. Camila Soares — Fonoaudióloga
-              </option>
-
-              <option value="Dra. Ana Paula">
-                Dra. Ana Paula — Psicóloga
-              </option>
-
-              <option value="Dra. Larissa Lima">
-                Dra. Larissa Lima — Terapeuta Ocupacional
-              </option>
+              {availableProfessionals.map(
+                (
+                  professional
+                ) => (
+                  <option
+                    key={
+                      professional.id
+                    }
+                    value={
+                      professional.name
+                    }
+                  >
+                    {
+                      professional.name
+                    }{" "}
+                    —{" "}
+                    {
+                      professional.specialty
+                    }
+                  </option>
+                )
+              )}
             </Select>
+
+            {formData.referralSpecialty &&
+              availableProfessionals.length ===
+                0 && (
+                <p className="mt-2 text-xs font-medium text-amber-600">
+                  Nenhum profissional ativo cadastrado nesta especialidade.
+                </p>
+              )}
           </FormField>
         </div>
+
+        {/* ================================= */}
+        {/* MOTIVO + PRIORIDADE */}
+        {/* ================================= */}
 
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_260px]">
           <FormField label="Motivo do encaminhamento">
             <div className="relative">
               <Input
-                value={formData.referralReason}
+                value={
+                  formData.referralReason
+                }
+                disabled={
+                  !formData.referralSpecialty
+                }
                 maxLength={300}
-                onChange={(event) =>
+                onChange={(
+                  event
+                ) =>
                   updateField(
                     "referralReason",
                     event.target.value
@@ -127,7 +297,10 @@ export function ReferralSection({
               />
 
               <span className="absolute bottom-2 right-3 text-xs text-slate-400">
-                {formData.referralReason.length}/300
+                {
+                  formData.referralReason.length
+                }
+                /300
               </span>
             </div>
           </FormField>
@@ -138,33 +311,48 @@ export function ReferralSection({
             </p>
 
             <div className="flex min-h-11 flex-wrap items-center gap-3 rounded-xl border border-slate-200 px-3">
-              {priorities.map((priority) => (
-                <label
-                  key={priority}
-                  className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600"
-                >
-                  <input
-                    type="radio"
-                    name="priority"
-                    checked={
-                      formData.referralPriority ===
+              {priorities.map(
+                (
+                  priority
+                ) => (
+                  <label
+                    key={
                       priority
                     }
-                    onChange={() =>
-                      updateField(
-                        "referralPriority",
+                    className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600"
+                  >
+                    <input
+                      type="radio"
+                      name="priority"
+                      disabled={
+                        !formData.referralSpecialty
+                      }
+                      checked={
+                        formData.referralPriority ===
                         priority
-                      )
-                    }
-                    className="accent-indigo-600"
-                  />
+                      }
+                      onChange={() =>
+                        updateField(
+                          "referralPriority",
+                          priority
+                        )
+                      }
+                      className="accent-indigo-600"
+                    />
 
-                  {priority}
-                </label>
-              ))}
+                    {
+                      priority
+                    }
+                  </label>
+                )
+              )}
             </div>
           </div>
         </div>
+
+        {/* ================================= */}
+        {/* OBSERVAÇÃO */}
+        {/* ================================= */}
 
         <FormField label="Observações ao profissional">
           <div className="relative">
@@ -172,26 +360,34 @@ export function ReferralSection({
               value={
                 formData.referralObservation
               }
+              disabled={
+                !formData.referralSpecialty
+              }
               maxLength={300}
-              onChange={(event) =>
+              onChange={(
+                event
+              ) =>
                 updateField(
                   "referralObservation",
                   event.target.value
                 )
               }
               placeholder="Registre informações importantes para o profissional..."
-              className="min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-16 text-sm text-slate-700 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+              className="min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-16 text-sm text-slate-700 outline-none transition disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
             />
 
             <span className="absolute bottom-3 right-3 text-xs text-slate-400">
               {
-                formData.referralObservation
-                  .length
+                formData.referralObservation.length
               }
               /300
             </span>
           </div>
         </FormField>
+
+        {/* ================================= */}
+        {/* NOTIFICAÇÕES */}
+        {/* ================================= */}
 
         <div>
           <p className="mb-3 text-sm font-medium text-slate-700">
@@ -204,7 +400,12 @@ export function ReferralSection({
               checked={
                 formData.notifyProfessional
               }
-              onChange={(value) =>
+              disabled={
+                !formData.referralSpecialty
+              }
+              onChange={(
+                value
+              ) =>
                 updateField(
                   "notifyProfessional",
                   value
@@ -217,7 +418,12 @@ export function ReferralSection({
               checked={
                 formData.addProfessionalAgenda
               }
-              onChange={(value) =>
+              disabled={
+                !formData.referralSpecialty
+              }
+              onChange={(
+                value
+              ) =>
                 updateField(
                   "addProfessionalAgenda",
                   value
@@ -227,8 +433,15 @@ export function ReferralSection({
 
             <CheckOption
               label="Informar gestor"
-              checked={formData.notifyManager}
-              onChange={(value) =>
+              checked={
+                formData.notifyManager
+              }
+              disabled={
+                !formData.referralSpecialty
+              }
+              onChange={(
+                value
+              ) =>
                 updateField(
                   "notifyManager",
                   value
@@ -242,29 +455,62 @@ export function ReferralSection({
   );
 }
 
+/* =========================================
+   CHECKBOX
+========================================= */
+
 interface CheckOptionProps {
-  label: string;
-  checked: boolean;
-  onChange: (value: boolean) => void;
+  label:
+    string;
+
+  checked:
+    boolean;
+
+  disabled?:
+    boolean;
+
+  onChange: (
+    value:
+      boolean
+  ) => void;
 }
 
 function CheckOption({
   label,
   checked,
+  disabled =
+    false,
   onChange,
 }: CheckOptionProps) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+    <label
+      className={`flex items-center gap-2 text-sm ${
+        disabled
+          ? "cursor-not-allowed text-slate-400"
+          : "cursor-pointer text-slate-600"
+      }`}
+    >
       <input
         type="checkbox"
-        checked={checked}
-        onChange={(event) =>
-          onChange(event.target.checked)
+        checked={
+          checked
+        }
+        disabled={
+          disabled
+        }
+        onChange={(
+          event
+        ) =>
+          onChange(
+            event.target.checked
+          )
         }
         className="h-4 w-4 accent-indigo-600"
       />
 
-      {label}
+      {
+        label
+      }
     </label>
   );
 }

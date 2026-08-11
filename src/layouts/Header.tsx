@@ -30,12 +30,26 @@ import {
   userCanAccessModule,
 } from "@/auth/permissions";
 
+/* =========================================
+   TIPOS
+========================================= */
+
 interface HeaderNotification {
-  id: number;
-  title: string;
-  description: string;
-  time: string;
-  read: boolean;
+  id:
+    number;
+
+  title:
+    string;
+
+  description:
+    string;
+
+  time:
+    string;
+
+  read:
+    boolean;
+
   type:
     | "appointment"
     | "payment"
@@ -43,57 +57,116 @@ interface HeaderNotification {
     | "system";
 }
 
-const initialNotifications: HeaderNotification[] = [
+/* =========================================
+   NOTIFICAÇÕES
+========================================= */
+
+const initialNotifications:
+  HeaderNotification[] = [
   {
-    id: 1,
-    title: "Consulta cancelada",
+    id:
+      1,
+
+    title:
+      "Consulta cancelada",
+
     description:
       "Maria Oliveira cancelou a consulta das 14:00.",
-    time: "há 5 min",
-    read: false,
-    type: "appointment",
+
+    time:
+      "há 5 min",
+
+    read:
+      false,
+
+    type:
+      "appointment",
   },
 
   {
-    id: 2,
-    title: "Novo paciente",
+    id:
+      2,
+
+    title:
+      "Novo paciente",
+
     description:
       "João Pedro foi cadastrado no sistema.",
-    time: "há 18 min",
-    read: false,
-    type: "patient",
+
+    time:
+      "há 18 min",
+
+    read:
+      false,
+
+    type:
+      "patient",
   },
 
   {
-    id: 3,
-    title: "Pagamento recebido",
+    id:
+      3,
+
+    title:
+      "Pagamento recebido",
+
     description:
       "O pagamento da consulta de Ana Souza foi confirmado.",
-    time: "há 32 min",
-    read: false,
-    type: "payment",
+
+    time:
+      "há 32 min",
+
+    read:
+      false,
+
+    type:
+      "payment",
   },
 
   {
-    id: 4,
-    title: "Agendamento confirmado",
+    id:
+      4,
+
+    title:
+      "Agendamento confirmado",
+
     description:
       "Fernanda Souza confirmou o atendimento das 16:00.",
-    time: "há 1 h",
-    read: true,
-    type: "appointment",
+
+    time:
+      "há 1 h",
+
+    read:
+      true,
+
+    type:
+      "appointment",
   },
 
   {
-    id: 5,
-    title: "Atualização do sistema",
+    id:
+      5,
+
+    title:
+      "Atualização do sistema",
+
     description:
       "As configurações gerais foram atualizadas.",
-    time: "há 2 h",
-    read: true,
-    type: "system",
+
+    time:
+      "há 2 h",
+
+    read:
+      true,
+
+    type:
+      "system",
   },
 ];
+
+/* =========================================
+   COMPONENTE
+========================================= */
 
 export function Header() {
   const navigate =
@@ -102,24 +175,34 @@ export function Header() {
   const {
     user,
     logout,
-  } = useAuth();
+  } =
+    useAuth();
 
   const [
     userMenuOpen,
     setUserMenuOpen,
-  ] = useState(false);
+  ] =
+    useState(
+      false
+    );
 
   const [
     notificationsOpen,
     setNotificationsOpen,
-  ] = useState(false);
+  ] =
+    useState(
+      false
+    );
 
   const [
     notifications,
     setNotifications,
-  ] = useState<HeaderNotification[]>(
-    initialNotifications
-  );
+  ] =
+    useState<
+      HeaderNotification[]
+    >(
+      initialNotifications
+    );
 
   const userMenuRef =
     useRef<HTMLDivElement>(
@@ -130,6 +213,10 @@ export function Header() {
     useRef<HTMLDivElement>(
       null
     );
+
+  /* =======================================
+     CLIQUE FORA
+  ======================================= */
 
   useEffect(
     () => {
@@ -178,6 +265,10 @@ export function Header() {
     []
   );
 
+  /* =======================================
+     NOTIFICAÇÕES NÃO LIDAS
+  ======================================= */
+
   const unreadCount =
     useMemo(
       () =>
@@ -192,6 +283,32 @@ export function Header() {
       ]
     );
 
+  /* =======================================
+     PRIMEIRO NOME
+  ======================================= */
+
+  const firstName =
+    user?.name
+      ?.trim()
+      .split(
+        /\s+/
+      )[0] ??
+    "Usuário";
+
+  /* =======================================
+     PERMISSÕES
+  ======================================= */
+
+  const canAccessSettings =
+    userCanAccessModule(
+      user,
+      "settings"
+    );
+
+  /* =======================================
+     LOGOUT
+  ======================================= */
+
   function handleLogout() {
     logout();
 
@@ -203,6 +320,10 @@ export function Header() {
       }
     );
   }
+
+  /* =======================================
+     NOTIFICAÇÕES
+  ======================================= */
 
   function handleOpenNotifications() {
     setNotificationsOpen(
@@ -227,6 +348,7 @@ export function Header() {
             notification
           ) => ({
             ...notification,
+
             read:
               true,
           })
@@ -250,6 +372,7 @@ export function Header() {
             id
               ? {
                   ...notification,
+
                   read:
                     true,
                 }
@@ -258,60 +381,132 @@ export function Header() {
     );
   }
 
-  const firstName =
-    user?.name
-      ?.trim()
-      .split(
-        /\s+/
-      )[0] ??
-    "Usuário";
-
-  const canAccessSettings =
-    userCanAccessModule(
-      user,
-      "settings"
-    );
+  /* =======================================
+     RENDER
+  ======================================= */
 
   return (
-    <header className="flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-8">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">
-          Bom dia,{" "}
+    <header
+      className="
+        relative
+        z-40
+        flex
+        h-[92px]
+        shrink-0
+        items-center
+        justify-between
+        border-b
+        border-[#edf0f8]
+        bg-white
+        px-8
+      "
+    >
+      {/* ================================= */}
+      {/* SAUDAÇÃO */}
+      {/* ================================= */}
+
+      <div className="min-w-0">
+        <h1
+          className="
+            truncate
+            text-[27px]
+            font-extrabold
+            leading-tight
+            tracking-[-0.02em]
+            text-[#10235f]
+          "
+        >
+          Olá,{" "}
           {
             firstName
-          }{" "}
-          👋
+          }
+          ! 👋
         </h1>
 
-        <p className="text-sm text-slate-500">
-          Bem-vindo ao sistema Entre Afetos.
+        <p
+          className="
+            mt-1
+            text-sm
+            font-medium
+            text-[#7180a8]
+          "
+        >
+          Aqui está o panorama geral da clínica hoje.
         </p>
       </div>
 
-      <div className="flex items-center gap-5">
-        <div className="hidden h-11 w-80 items-center rounded-xl border border-slate-200 bg-slate-50 px-4 2xl:flex">
+      {/* ================================= */}
+      {/* AÇÕES */}
+      {/* ================================= */}
+
+      <div
+        className="
+          ml-6
+          flex
+          items-center
+          gap-3
+        "
+      >
+        {/* ================================= */}
+        {/* BUSCA */}
+        {/* ================================= */}
+
+        <div
+          className="
+            hidden
+            h-11
+            w-[320px]
+            items-center
+            rounded-xl
+            border
+            border-[#dfe4f4]
+            bg-white
+            px-4
+            shadow-[0_3px_12px_rgba(47,63,112,0.04)]
+            xl:flex
+          "
+        >
           <Search
-            size={18}
-            className="text-slate-400"
+            size={17}
+            className="shrink-0 text-[#596dc0]"
           />
 
           <input
             type="text"
-            placeholder="Pesquisar..."
-            className="ml-3 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
+            placeholder="Buscar paciente, responsável, profissional..."
+            className="
+              ml-3
+              min-w-0
+              flex-1
+              bg-transparent
+              text-xs
+              font-medium
+              text-slate-700
+              outline-none
+              placeholder:text-[#8792b3]
+            "
           />
+
+          <span
+            className="
+              ml-2
+              shrink-0
+              rounded-md
+              bg-[#f5f6fb]
+              px-2
+              py-1
+              text-[9px]
+              font-semibold
+              text-[#7580a2]
+            "
+          >
+            Ctrl + K
+          </span>
         </div>
 
-        <button
-          type="button"
-          title="Mensagens"
-          className="relative rounded-xl bg-slate-100 p-3 transition hover:bg-slate-200"
-        >
-          <Mail
-            size={20}
-            className="text-slate-600"
-          />
-        </button>
+        {/* ================================= */}
+        {/* NOTIFICAÇÕES */}
+        {/* ================================= */}
 
         <div
           ref={
@@ -325,16 +520,46 @@ export function Header() {
             onClick={
               handleOpenNotifications
             }
-            className="relative rounded-xl bg-slate-100 p-3 transition hover:bg-slate-200"
+            className="
+              relative
+              flex
+              h-10
+              w-10
+              items-center
+              justify-center
+              rounded-xl
+              text-[#5368b8]
+              transition
+              hover:bg-[#f6f7ff]
+              hover:text-[#5d3df5]
+            "
           >
             <Bell
               size={20}
-              className="text-slate-600"
             />
 
             {unreadCount >
               0 && (
-              <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+              <span
+                className="
+                  absolute
+                  -right-0.5
+                  -top-0.5
+                  flex
+                  min-h-[18px]
+                  min-w-[18px]
+                  items-center
+                  justify-center
+                  rounded-full
+                  bg-[#ff3b55]
+                  px-1
+                  text-[9px]
+                  font-extrabold
+                  text-white
+                  ring-2
+                  ring-white
+                "
+              >
                 {
                   unreadCount
                 }
@@ -342,15 +567,57 @@ export function Header() {
             )}
           </button>
 
+          {/* ================================= */}
+          {/* DROPDOWN NOTIFICAÇÕES */}
+          {/* ================================= */}
+
           {notificationsOpen && (
-            <div className="absolute right-0 top-[calc(100%+12px)] z-50 w-[390px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+            <div
+              className="
+                absolute
+                right-0
+                top-[calc(100%+14px)]
+                z-50
+                w-[390px]
+                overflow-hidden
+                rounded-2xl
+                border
+                border-[#e8ebf4]
+                bg-white
+                shadow-[0_20px_50px_rgba(44,57,105,0.14)]
+              "
+            >
+              {/* CABEÇALHO */}
+
+              <div
+                className="
+                  flex
+                  items-center
+                  justify-between
+                  border-b
+                  border-slate-100
+                  px-5
+                  py-4
+                "
+              >
                 <div>
-                  <h2 className="text-base font-bold text-slate-900">
+                  <h2
+                    className="
+                      text-base
+                      font-bold
+                      text-[#10235f]
+                    "
+                  >
                     Notificações
                   </h2>
 
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p
+                    className="
+                      mt-1
+                      text-xs
+                      text-slate-500
+                    "
+                  >
                     {unreadCount >
                     0
                       ? `${unreadCount} não lida${
@@ -370,7 +637,18 @@ export function Header() {
                       false
                     )
                   }
-                  className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                  className="
+                    flex
+                    h-9
+                    w-9
+                    items-center
+                    justify-center
+                    rounded-xl
+                    text-slate-400
+                    transition
+                    hover:bg-slate-100
+                    hover:text-slate-600
+                  "
                 >
                   <X
                     size={18}
@@ -378,10 +656,17 @@ export function Header() {
                 </button>
               </div>
 
+              {/* LISTA */}
+
               {notifications.length >
               0 ? (
                 <>
-                  <div className="max-h-[430px] overflow-y-auto">
+                  <div
+                    className="
+                      max-h-[430px]
+                      overflow-y-auto
+                    "
+                  >
                     {notifications.map(
                       (
                         notification
@@ -396,40 +681,106 @@ export function Header() {
                               notification.id
                             )
                           }
-                          className={`flex w-full items-start gap-3 border-b border-slate-100 px-5 py-4 text-left transition hover:bg-slate-50 ${
-                            notification.read
-                              ? "bg-white"
-                              : "bg-sky-50/40"
-                          }`}
+                          className={`
+                            flex
+                            w-full
+                            items-start
+                            gap-3
+                            border-b
+                            border-slate-100
+                            px-5
+                            py-4
+                            text-left
+                            transition
+
+                            ${
+                              notification.read
+                                ? "bg-white"
+                                : "bg-[#faf9ff]"
+                            }
+
+                            hover:bg-slate-50
+                          `}
                         >
                           <div
-                            className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
-                              notification.read
-                                ? "bg-slate-200"
-                                : "bg-sky-500"
-                            }`}
+                            className={`
+                              mt-1
+                              h-2.5
+                              w-2.5
+                              shrink-0
+                              rounded-full
+
+                              ${
+                                notification.read
+                                  ? "bg-slate-200"
+                                  : "bg-[#7046ff]"
+                              }
+                            `}
                           />
 
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-3">
-                              <p className="text-sm font-bold text-slate-800">
+                          <div
+                            className="
+                              min-w-0
+                              flex-1
+                            "
+                          >
+                            <div
+                              className="
+                                flex
+                                items-start
+                                justify-between
+                                gap-3
+                              "
+                            >
+                              <p
+                                className="
+                                  text-sm
+                                  font-bold
+                                  text-slate-800
+                                "
+                              >
                                 {
                                   notification.title
                                 }
                               </p>
 
                               {!notification.read && (
-                                <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />
+                                <span
+                                  className="
+                                    mt-1
+                                    h-2
+                                    w-2
+                                    shrink-0
+                                    rounded-full
+                                    bg-[#ff3b55]
+                                  "
+                                />
                               )}
                             </div>
 
-                            <p className="mt-1 text-xs leading-5 text-slate-500">
+                            <p
+                              className="
+                                mt-1
+                                text-xs
+                                leading-5
+                                text-slate-500
+                              "
+                            >
                               {
                                 notification.description
                               }
                             </p>
 
-                            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400">
+                            <div
+                              className="
+                                mt-2
+                                flex
+                                items-center
+                                gap-1.5
+                                text-[11px]
+                                text-slate-400
+                              "
+                            >
                               <Clock3
                                 size={12}
                               />
@@ -444,7 +795,16 @@ export function Header() {
                     )}
                   </div>
 
-                  <div className="space-y-2 border-t border-slate-100 p-3">
+                  {/* RODAPÉ */}
+
+                  <div
+                    className="
+                      space-y-2
+                      border-t
+                      border-slate-100
+                      p-3
+                    "
+                  >
                     {unreadCount >
                       0 && (
                       <button
@@ -452,7 +812,22 @@ export function Header() {
                         onClick={
                           handleMarkAllAsRead
                         }
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+                        className="
+                          flex
+                          w-full
+                          items-center
+                          justify-center
+                          gap-2
+                          rounded-xl
+                          bg-slate-50
+                          px-4
+                          py-2.5
+                          text-sm
+                          font-semibold
+                          text-slate-600
+                          transition
+                          hover:bg-slate-100
+                        "
                       >
                         <CheckCheck
                           size={16}
@@ -473,24 +848,56 @@ export function Header() {
                           "/notificacoes"
                         );
                       }}
-                      className="w-full rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-sky-700"
+                      className="
+                        w-full
+                        rounded-xl
+                        bg-gradient-to-r
+                        from-[#5d3df5]
+                        to-[#7b3ff5]
+                        px-4
+                        py-2.5
+                        text-sm
+                        font-bold
+                        text-white
+                        transition
+                        hover:opacity-95
+                      "
                     >
                       Ver todas as notificações
                     </button>
                   </div>
                 </>
               ) : (
-                <div className="px-5 py-10 text-center">
+                <div
+                  className="
+                    px-5
+                    py-10
+                    text-center
+                  "
+                >
                   <Bell
                     size={28}
                     className="mx-auto text-slate-300"
                   />
 
-                  <p className="mt-3 text-sm font-semibold text-slate-600">
+                  <p
+                    className="
+                      mt-3
+                      text-sm
+                      font-semibold
+                      text-slate-600
+                    "
+                  >
                     Nenhuma notificação
                   </p>
 
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p
+                    className="
+                      mt-1
+                      text-xs
+                      text-slate-400
+                    "
+                  >
                     Novos avisos aparecerão aqui.
                   </p>
                 </div>
@@ -498,6 +905,55 @@ export function Header() {
             </div>
           )}
         </div>
+
+        {/* ================================= */}
+        {/* MENSAGENS */}
+        {/* ================================= */}
+
+        <button
+          type="button"
+          title="Mensagens"
+          onClick={() =>
+            navigate(
+              "/mensagens"
+            )
+          }
+          className="
+            flex
+            h-10
+            w-10
+            items-center
+            justify-center
+            rounded-xl
+            text-[#5368b8]
+            transition
+            hover:bg-[#f6f7ff]
+            hover:text-[#5d3df5]
+          "
+        >
+          <Mail
+            size={20}
+          />
+        </button>
+
+        {/* ================================= */}
+        {/* DIVISOR */}
+        {/* ================================= */}
+
+        <div
+          className="
+            mx-1
+            hidden
+            h-8
+            w-px
+            bg-[#edf0f8]
+            lg:block
+          "
+        />
+
+        {/* ================================= */}
+        {/* PERFIL */}
+        {/* ================================= */}
 
         <div
           ref={
@@ -519,26 +975,78 @@ export function Header() {
                 false
               );
             }}
-            className="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2 transition hover:bg-slate-50"
+            className="
+              flex
+              items-center
+              gap-3
+              rounded-xl
+              px-2
+              py-1.5
+              transition
+              hover:bg-[#f8f9fd]
+            "
           >
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-sky-600 text-sm font-bold text-white">
+            {/* AVATAR */}
+
+            <div
+              className="
+                flex
+                h-10
+                w-10
+                shrink-0
+                items-center
+                justify-center
+                rounded-full
+                bg-gradient-to-br
+                from-[#f6b28c]
+                to-[#d77c63]
+                text-xs
+                font-extrabold
+                text-white
+                shadow-sm
+              "
+            >
               {
                 getInitials(
                   user?.name ??
-                    "Usuário"
+                  "Usuário"
                 )
               }
             </div>
 
-            <div className="hidden text-left xl:block">
-              <p className="max-w-40 truncate text-sm font-semibold text-slate-800">
+            {/* DADOS */}
+
+            <div
+              className="
+                hidden
+                min-w-0
+                text-left
+                lg:block
+              "
+            >
+              <p
+                className="
+                  max-w-36
+                  truncate
+                  text-sm
+                  font-bold
+                  text-[#10235f]
+                "
+              >
                 {
                   user?.name ??
                   "Usuário"
                 }
               </p>
 
-              <p className="text-xs text-slate-500">
+              <p
+                className="
+                  mt-0.5
+                  text-[11px]
+                  font-medium
+                  text-[#7a86aa]
+                "
+              >
                 {
                   user?.profile ??
                   ""
@@ -547,31 +1055,88 @@ export function Header() {
             </div>
 
             <ChevronDown
-              size={18}
-              className={`text-slate-500 transition-transform ${
-                userMenuOpen
-                  ? "rotate-180"
-                  : ""
-              }`}
+              size={16}
+              className={`
+                hidden
+                text-[#6474a6]
+                transition-transform
+                lg:block
+
+                ${
+                  userMenuOpen
+                    ? "rotate-180"
+                    : ""
+                }
+              `}
             />
           </button>
 
+          {/* ================================= */}
+          {/* MENU DO USUÁRIO */}
+          {/* ================================= */}
+
           {userMenuOpen && (
-            <div className="absolute right-0 top-[calc(100%+12px)] z-50 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-              <div className="border-b border-slate-100 p-4">
-                <p className="truncate text-sm font-bold text-slate-900">
+            <div
+              className="
+                absolute
+                right-0
+                top-[calc(100%+14px)]
+                z-50
+                w-64
+                overflow-hidden
+                rounded-2xl
+                border
+                border-[#e8ebf4]
+                bg-white
+                shadow-[0_20px_50px_rgba(44,57,105,0.14)]
+              "
+            >
+              <div
+                className="
+                  border-b
+                  border-slate-100
+                  p-4
+                "
+              >
+                <p
+                  className="
+                    truncate
+                    text-sm
+                    font-bold
+                    text-[#10235f]
+                  "
+                >
                   {
                     user?.name
                   }
                 </p>
 
-                <p className="mt-1 truncate text-xs text-slate-500">
+                <p
+                  className="
+                    mt-1
+                    truncate
+                    text-xs
+                    text-slate-500
+                  "
+                >
                   {
                     user?.email
                   }
                 </p>
 
-                <span className="mt-3 inline-flex rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                <span
+                  className="
+                    mt-3
+                    inline-flex
+                    rounded-lg
+                    bg-[#f2efff]
+                    px-2.5
+                    py-1
+                    text-xs
+                    font-semibold
+                    text-[#633df0]
+                  "
+                >
                   {
                     user?.profile
                   }
@@ -581,7 +1146,21 @@ export function Header() {
               <div className="p-2">
                 <button
                   type="button"
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                  className="
+                    flex
+                    w-full
+                    items-center
+                    gap-3
+                    rounded-xl
+                    px-3
+                    py-2.5
+                    text-left
+                    text-sm
+                    font-medium
+                    text-slate-600
+                    transition
+                    hover:bg-slate-50
+                  "
                 >
                   <UserRound
                     size={17}
@@ -602,7 +1181,21 @@ export function Header() {
                         "/configuracoes"
                       );
                     }}
-                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                    className="
+                      flex
+                      w-full
+                      items-center
+                      gap-3
+                      rounded-xl
+                      px-3
+                      py-2.5
+                      text-left
+                      text-sm
+                      font-medium
+                      text-slate-600
+                      transition
+                      hover:bg-slate-50
+                    "
                   >
                     <Settings
                       size={17}
@@ -613,13 +1206,33 @@ export function Header() {
                 )}
               </div>
 
-              <div className="border-t border-slate-100 p-2">
+              <div
+                className="
+                  border-t
+                  border-slate-100
+                  p-2
+                "
+              >
                 <button
                   type="button"
                   onClick={
                     handleLogout
                   }
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-red-600 transition hover:bg-red-50"
+                  className="
+                    flex
+                    w-full
+                    items-center
+                    gap-3
+                    rounded-xl
+                    px-3
+                    py-2.5
+                    text-left
+                    text-sm
+                    font-semibold
+                    text-red-600
+                    transition
+                    hover:bg-red-50
+                  "
                 >
                   <LogOut
                     size={17}
@@ -636,6 +1249,10 @@ export function Header() {
   );
 }
 
+/* =========================================
+   INICIAIS
+========================================= */
+
 function getInitials(
   name:
     string
@@ -643,7 +1260,9 @@ function getInitials(
   const parts =
     name
       .trim()
-      .split(/\s+/)
+      .split(
+        /\s+/
+      )
       .filter(
         Boolean
       );

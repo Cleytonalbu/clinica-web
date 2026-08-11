@@ -5,7 +5,6 @@ import type {
 import {
   BarChart3,
   CalendarDays,
-  ChevronLeft,
   CircleDollarSign,
   Gauge,
   Home,
@@ -30,6 +29,8 @@ import {
 import type {
   PermissionModuleKey,
 } from "@/pages/Configuracoes/settingsStorage";
+
+import logoAcSoftware from "@/assets/logo-ac-software.png";
 
 /* =========================================
    TIPOS
@@ -74,7 +75,7 @@ type MenuItem =
   | GestorMenuItem;
 
 /* =========================================
-   ITENS DISPONÍVEIS
+   ITENS DO MENU
 ========================================= */
 
 const menuItems: MenuItem[] = [
@@ -151,12 +152,6 @@ const profileMenuAccess: Record<
   string,
   string[]
 > = {
-  /*
-   * GESTOR
-   *
-   * Tem acesso ao menu administrativo
-   * completo.
-   */
   Gestor: [
     "dashboard",
     "agenda",
@@ -168,11 +163,6 @@ const profileMenuAccess: Record<
     "configuracoes",
   ],
 
-  /*
-   * RECEPÇÃO
-   *
-   * Somente recursos operacionais.
-   */
   "Recepção": [
     "dashboard",
     "agenda",
@@ -180,11 +170,6 @@ const profileMenuAccess: Record<
     "financeiro",
   ],
 
-  /*
-   * PROFISSIONAL
-   *
-   * Foco no atendimento.
-   */
   Profissional: [
     "dashboard",
     "agenda",
@@ -193,7 +178,7 @@ const profileMenuAccess: Record<
 };
 
 /* =========================================
-   SIDEBAR
+   COMPONENTE
 ========================================= */
 
 export function Sidebar() {
@@ -205,49 +190,24 @@ export function Sidebar() {
 
   const {
     user,
-  } = useAuth();
-
-  /* =======================================
-     PERFIL ATUAL
-  ======================================= */
+  } =
+    useAuth();
 
   const currentProfile =
     user?.profile ?? "";
 
-  /*
-   * Primeiro verificamos quais itens
-   * pertencem ao perfil.
-   */
+  /* =======================================
+     PERMISSÕES
+  ======================================= */
 
   const profileAllowedItems =
     profileMenuAccess[
       currentProfile
     ] ?? [];
 
-  /*
-   * Depois aplicamos também as permissões
-   * existentes do sistema.
-   *
-   * Dessa maneira:
-   *
-   * - o perfil controla quais módulos
-   *   podem aparecer;
-   *
-   * - as permissões continuam controlando
-   *   se o usuário realmente pode
-   *   acessar o módulo.
-   */
-
   const allowedMenuItems =
     menuItems.filter(
-      (
-        item
-      ) => {
-        /*
-         * Se o item não pertence ao menu
-         * desse perfil, ele não aparece.
-         */
-
+      (item) => {
         if (
           !profileAllowedItems.includes(
             item.id
@@ -255,11 +215,6 @@ export function Sidebar() {
         ) {
           return false;
         }
-
-        /*
-         * Indicadores é exclusivo
-         * do Gestor.
-         */
 
         if (
           item.gestorOnly
@@ -269,12 +224,6 @@ export function Sidebar() {
             "Gestor"
           );
         }
-
-        /*
-         * Para os demais módulos,
-         * respeitamos as permissões
-         * existentes.
-         */
 
         return userCanAccessModule(
           user,
@@ -314,12 +263,31 @@ export function Sidebar() {
   ======================================= */
 
   return (
-    <aside className="flex h-screen w-72 shrink-0 flex-col border-r border-slate-200 bg-white">
+    <aside
+      className="
+        flex
+        h-screen
+        w-[252px]
+        shrink-0
+        flex-col
+        overflow-hidden
+        border-r
+        border-[#edf0f8]
+        bg-white
+      "
+    >
       {/* ================================= */}
-      {/* LOGO */}
+      {/* MARCA ENTRE AFETOS */}
       {/* ================================= */}
 
-      <div className="flex h-20 shrink-0 items-center justify-center border-b border-slate-200">
+      <div
+        className="
+          shrink-0
+          px-6
+          pb-5
+          pt-6
+        "
+      >
         <button
           type="button"
           onClick={() =>
@@ -327,74 +295,195 @@ export function Sidebar() {
               "/dashboard"
             )
           }
-          className="text-center"
+          className="
+            flex
+            w-full
+            items-center
+            gap-3
+            text-left
+          "
         >
-          <h1 className="text-xl font-bold text-sky-600">
-            Entre Afetos
-          </h1>
+          {/* Logo provisória */}
 
-          <p className="text-xs text-slate-500">
-            Sistema de Gestão
-          </p>
+          <div
+            className="
+              flex
+              h-12
+              w-12
+              shrink-0
+              items-center
+              justify-center
+              rounded-2xl
+              bg-gradient-to-br
+              from-[#8b5cf6]
+              via-[#6d5dfc]
+              to-[#3b82f6]
+              text-lg
+              font-bold
+              text-white
+              shadow-[0_8px_20px_rgba(109,93,252,0.22)]
+            "
+          >
+            EA
+          </div>
+
+          <div className="min-w-0">
+            <p
+              className="
+                whitespace-nowrap
+                text-[9px]
+                font-bold
+                uppercase
+                tracking-[0.20em]
+                text-[#5966c8]
+              "
+            >
+              Clínica Integrada
+            </p>
+
+            <h1
+              className="
+                mt-1
+                whitespace-nowrap
+                text-[20px]
+                font-extrabold
+                leading-none
+                text-[#102a78]
+              "
+            >
+              Entre Afetos
+            </h1>
+          </div>
         </button>
       </div>
 
       {/* ================================= */}
-      {/* MENU PRINCIPAL */}
+      {/* ÁREA CENTRAL */}
       {/* ================================= */}
+      {/* SOMENTE ESTA PARTE TEM ROLAGEM */}
 
-      <nav className="flex-1 overflow-y-auto p-5">
-        <p className="mb-3 px-3 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
-          Menu principal
-        </p>
+      <div
+        className="
+          min-h-0
+          flex-1
+          overflow-y-auto
+          overflow-x-hidden
+          px-3
+          pb-5
+          sidebar-scroll
+        "
+      >
+        {/* ================================= */}
+        {/* MENU */}
+        {/* ================================= */}
 
-        <ul className="space-y-2">
-          {allowedMenuItems.map(
-            (
-              item
-            ) => {
-              const Icon =
-                item.icon;
+        <nav>
+          <ul className="space-y-1">
+            {allowedMenuItems.map(
+              (item) => {
+                const Icon =
+                  item.icon;
 
-              const active =
-                isMenuActive(
-                  item
-                );
+                const active =
+                  isMenuActive(
+                    item
+                  );
 
-              return (
-                <li
-                  key={
-                    item.id
-                  }
-                >
-                  <button
-                    type="button"
-                    onClick={() =>
-                      navigate(
-                        item.path
-                      )
+                return (
+                  <li
+                    key={
+                      item.id
                     }
-                    className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-all duration-200 ${
-                      active
-                        ? "bg-sky-600 text-white shadow-md"
-                        : "text-slate-600 hover:bg-slate-100"
-                    }`}
                   >
-                    <Icon
-                      size={20}
-                    />
-
-                    <span className="font-medium">
-                      {
-                        item.label
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigate(
+                          item.path
+                        )
                       }
-                    </span>
-                  </button>
-                </li>
-              );
-            }
-          )}
-        </ul>
+                      className={`
+                        group
+                        flex
+                        w-full
+                        items-center
+                        gap-3
+                        rounded-xl
+                        px-3
+                        py-2.5
+                        text-left
+                        text-sm
+                        font-semibold
+                        transition-all
+                        duration-200
+
+                        ${
+                          active
+                            ? `
+                              bg-gradient-to-r
+                              from-[#5d3df5]
+                              via-[#7046ff]
+                              to-[#8238ff]
+                              text-white
+                              shadow-[0_8px_20px_rgba(103,66,246,0.22)]
+                            `
+                            : `
+                              text-[#182d73]
+                              hover:bg-[#f6f7ff]
+                            `
+                        }
+                      `}
+                    >
+                      {/* ÍCONE */}
+
+                      <span
+                        className={`
+                          flex
+                          h-8
+                          w-8
+                          shrink-0
+                          items-center
+                          justify-center
+                          rounded-lg
+                          transition
+
+                          ${
+                            active
+                              ? `
+                                bg-white/10
+                                text-white
+                              `
+                              : `
+                                text-[#5368b8]
+                                group-hover:bg-white
+                                group-hover:text-[#5d3df5]
+                              `
+                          }
+                        `}
+                      >
+                        <Icon
+                          size={18}
+                        />
+                      </span>
+
+                      {/* TEXTO */}
+
+                      <span
+                        className="
+                          truncate
+                        "
+                      >
+                        {
+                          item.label
+                        }
+                      </span>
+                    </button>
+                  </li>
+                );
+              }
+            )}
+          </ul>
+        </nav>
 
         {/* ================================= */}
         {/* SEM MÓDULOS */}
@@ -402,128 +491,231 @@ export function Sidebar() {
 
         {allowedMenuItems.length ===
           0 && (
-          <div className="rounded-xl bg-slate-50 p-4 text-center">
-            <p className="text-sm font-medium text-slate-500">
-              Nenhum módulo disponível para este perfil.
+          <div
+            className="
+              mt-4
+              rounded-xl
+              border
+              border-dashed
+              border-slate-200
+              bg-slate-50
+              p-4
+              text-center
+            "
+          >
+            <p
+              className="
+                text-sm
+                font-medium
+                text-slate-500
+              "
+            >
+              Nenhum módulo disponível
+              para este perfil.
             </p>
           </div>
         )}
-      </nav>
 
-      {/* ================================= */}
-      {/* PERFIL ATUAL */}
-      {/* ================================= */}
+        {/* ================================= */}
+        {/* CARD CRESCIMENTO */}
+        {/* ================================= */}
 
-      {user && (
-        <div className="border-t border-slate-100 px-5 py-4">
-          <p className="text-xs font-medium text-slate-400">
-            Perfil atual
-          </p>
+        {currentProfile ===
+          "Gestor" && (
+          <div
+            className="
+              mt-6
+              overflow-hidden
+              rounded-2xl
+              bg-gradient-to-b
+              from-[#faf8ff]
+              to-[#f5f2ff]
+              px-4
+              py-5
+              text-center
+            "
+          >
+            {/* GRÁFICO ILUSTRATIVO */}
 
-          <div className="mt-2 flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-100 text-xs font-bold text-sky-700">
-              {
-                getInitials(
-                  user.name
+            <div
+              className="
+                mx-auto
+                flex
+                h-[82px]
+                w-[130px]
+                items-end
+                justify-center
+                gap-2
+              "
+            >
+              <div
+                className="
+                  h-8
+                  w-5
+                  rounded-t-lg
+                  bg-[#4e8cff]
+                "
+              />
+
+              <div
+                className="
+                  h-12
+                  w-5
+                  rounded-t-lg
+                  bg-[#ffbb45]
+                "
+              />
+
+              <div
+                className="
+                  h-16
+                  w-5
+                  rounded-t-lg
+                  bg-[#ff6fae]
+                "
+              />
+
+              <span
+                className="
+                  mb-8
+                  ml-1
+                  text-3xl
+                  font-light
+                  text-[#102a78]
+                "
+              >
+                ↗
+              </span>
+            </div>
+
+            {/* TEXTO */}
+
+            <p
+              className="
+                mt-3
+                text-sm
+                font-bold
+                leading-5
+                text-[#142a78]
+              "
+            >
+              Acompanhe o crescimento
+            </p>
+
+            <p
+              className="
+                mt-0.5
+                text-xs
+                leading-5
+                text-[#5863a6]
+              "
+            >
+              da clínica em tempo real!
+            </p>
+
+            {/* BOTÃO */}
+
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  "/relatorios"
                 )
               }
-            </div>
-
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-800">
-                {
-                  user.name
-                }
-              </p>
-
-              <p className="text-xs text-slate-500">
-                {
-                  user.profile
-                }
-              </p>
-            </div>
+              className="
+                mt-4
+                inline-flex
+                w-full
+                items-center
+                justify-center
+                rounded-xl
+                bg-white
+                px-4
+                py-2.5
+                text-xs
+                font-bold
+                text-[#653df4]
+                shadow-sm
+                transition
+                hover:bg-[#fdfcff]
+                hover:text-[#5128df]
+              "
+            >
+              Ver relatórios
+            </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ================================= */}
-      {/* RECOLHER MENU */}
+      {/* RODAPÉ AC SOFTWARE */}
       {/* ================================= */}
+      {/* NÃO ROLA E NÃO SOBREPÕE NADA */}
 
-      <div className="border-t border-slate-200 p-4">
-        <button
-          type="button"
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 py-3 text-slate-600 transition hover:bg-slate-100"
+      <div
+        className="
+          shrink-0
+          border-t
+          border-[#edf0f8]
+          bg-white
+          px-5
+          py-3
+        "
+      >
+        <div
+          className="
+            flex
+            flex-col
+            items-center
+            justify-center
+          "
         >
-          <ChevronLeft
-            size={18}
-          />
+          {/* LOGO */}
 
-          <span>
-            Recolher menu
-          </span>
-        </button>
+          <div
+            className="
+              flex
+              h-[55px]
+              w-full
+              items-center
+              justify-center
+              overflow-hidden
+            "
+          >
+            <img
+              src={
+                logoAcSoftware
+              }
+              alt="AC Software"
+              className="
+                block
+                h-auto
+                max-h-[52px]
+                w-auto
+                max-w-[118px]
+                object-contain
+              "
+            />
+          </div>
 
-        {/* ================================= */}
-        {/* AC SOFTWARE */}
-        {/* ================================= */}
+          {/* SLOGAN */}
 
-        <div className="mt-5 rounded-xl bg-sky-600 p-4 text-white">
-          <p className="text-sm font-semibold">
-            Desenvolvido por
-          </p>
-
-          <p className="mt-1 text-lg font-bold">
-            AC Software
-          </p>
-
-          <p className="mt-2 text-xs text-sky-100">
-            Gestão inteligente para clínicas multiprofissionais.
+          <p
+            className="
+              mt-1
+              whitespace-nowrap
+              text-center
+              text-[7px]
+              font-semibold
+              uppercase
+              tracking-[0.05em]
+              text-slate-400
+            "
+          >
+            Transformando ideias em soluções
           </p>
         </div>
       </div>
     </aside>
   );
-}
-
-/* =========================================
-   INICIAIS DO USUÁRIO
-========================================= */
-
-function getInitials(
-  name: string
-) {
-  const parts =
-    name
-      .trim()
-      .split(/\s+/)
-      .filter(
-        Boolean
-      );
-
-  if (
-    parts.length ===
-    0
-  ) {
-    return "US";
-  }
-
-  if (
-    parts.length ===
-    1
-  ) {
-    return parts[0]
-      .slice(
-        0,
-        2
-      )
-      .toUpperCase();
-  }
-
-  return `${parts[0][0]}${
-    parts[
-      parts.length -
-        1
-    ][0]
-  }`.toUpperCase();
 }

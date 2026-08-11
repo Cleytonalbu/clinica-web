@@ -1,9 +1,11 @@
 import {
   Calendar,
+  CalendarClock,
   Eye,
   Pencil,
   Phone,
   Trash2,
+  Users,
 } from "lucide-react";
 
 import {
@@ -20,25 +22,34 @@ import {
 } from "@/auth/AuthContext";
 
 import {
-  Button,
-} from "@/components/ui/button";
-
-import {
-  Card,
-} from "@/components/ui/card";
-
-import {
   deletePatient,
   getPatients,
   type StoredPatient,
 } from "@/pages/Pacientes/patientStorage";
+
+import {
+  getSavedAppointments,
+  type StoredAppointment,
+} from "@/pages/Agenda/appointmentStorage";
+
+interface PatientTableProps {
+  search:
+    string;
+
+  statusFilter:
+    string;
+
+  convenioFilter:
+    string;
+}
 
 /* =========================================
    INICIAIS
 ========================================= */
 
 function getInitials(
-  nome: string
+  nome:
+    string
 ) {
   return nome
     .trim()
@@ -63,26 +74,220 @@ function getInitials(
 }
 
 /* =========================================
-   ÚLTIMA CONSULTA
+   DATA/HORA
+========================================= */
 
-   Temporariamente mostramos "-".
+function createAppointmentDate(
+  appointment:
+    StoredAppointment
+) {
+  if (
+    !appointment.date ||
+    !appointment.time
+  ) {
+    return null;
+  }
 
-   Depois vamos calcular isso usando
-   os atendimentos realizados da Agenda.
+  const date =
+    new Date(
+      `${appointment.date}T${appointment.time}:00`
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
+function formatDate(
+  value:
+    string
+) {
+  if (
+    !value
+  ) {
+    return "-";
+  }
+
+  const [
+    year,
+    month,
+    day,
+  ] =
+    value.split(
+      "-"
+    );
+
+  if (
+    !year ||
+    !month ||
+    !day
+  ) {
+    return value;
+  }
+
+  return `${day}/${month}/${year}`;
+}
+
+/* =========================================
+   CONSULTAS
 ========================================= */
 
 function getLastAppointment(
-  _patient:
-    StoredPatient
+  patient:
+    StoredPatient,
+
+  appointments:
+    StoredAppointment[]
 ) {
-  return "-";
+  const completed =
+    appointments
+      .filter(
+        (
+          appointment
+        ) =>
+          appointment.patientId ===
+            patient.id &&
+          appointment.status ===
+            "Realizado"
+      )
+      .sort(
+        (
+          a,
+          b
+        ) => {
+          const dateA =
+            createAppointmentDate(
+              a
+            );
+
+          const dateB =
+            createAppointmentDate(
+              b
+            );
+
+          if (
+            !dateA &&
+            !dateB
+          ) {
+            return 0;
+          }
+
+          if (
+            !dateA
+          ) {
+            return 1;
+          }
+
+          if (
+            !dateB
+          ) {
+            return -1;
+          }
+
+          return (
+            dateB.getTime() -
+            dateA.getTime()
+          );
+        }
+      );
+
+  return (
+    completed[0] ??
+    null
+  );
+}
+
+function getNextAppointment(
+  patient:
+    StoredPatient,
+
+  appointments:
+    StoredAppointment[]
+) {
+  const now =
+    new Date();
+
+  const future =
+    appointments
+      .filter(
+        (
+          appointment
+        ) => {
+          if (
+            appointment.patientId !==
+            patient.id ||
+            appointment.status ===
+              "Realizado" ||
+            appointment.status ===
+              "Cancelado" ||
+            appointment.status ===
+              "Faltou"
+          ) {
+            return false;
+          }
+
+          const date =
+            createAppointmentDate(
+              appointment
+            );
+
+          return (
+            date &&
+            date.getTime() >=
+              now.getTime()
+          );
+        }
+      )
+      .sort(
+        (
+          a,
+          b
+        ) => {
+          const dateA =
+            createAppointmentDate(
+              a
+            );
+
+          const dateB =
+            createAppointmentDate(
+              b
+            );
+
+          if (
+            !dateA ||
+            !dateB
+          ) {
+            return 0;
+          }
+
+          return (
+            dateA.getTime() -
+            dateB.getTime()
+          );
+        }
+      );
+
+  return (
+    future[0] ??
+    null
+  );
 }
 
 /* =========================================
    TABELA
 ========================================= */
 
-export function PatientTable() {
+export function PatientTable({
+  search,
+  statusFilter,
+  convenioFilter,
+}: PatientTableProps) {
   const navigate =
     useNavigate();
 
@@ -102,9 +307,15 @@ export function PatientTable() {
         getPatients()
     );
 
-  /* =======================================
-     PERFIL
-  ======================================= */
+  const [
+    appointments,
+  ] =
+    useState<
+      StoredAppointment[]
+    >(
+      () =>
+        getSavedAppointments()
+    );
 
   const isGestor =
     user?.profile ===
@@ -121,34 +332,96 @@ export function PatientTable() {
   const canDelete =
     isGestor;
 
-  /* =======================================
-     ORDENAR PACIENTES
-  ======================================= */
-
-  const sortedPatients =
+  const filteredPatients =
     useMemo(
-      () =>
-        [
-          ...patients,
-        ].sort(
-          (
-            a,
-            b
-          ) =>
-            a.nome.localeCompare(
-              b.nome,
+      () => {
+        const normalizedSearch =
+          search
+            .trim()
+            .toLocaleLowerCase(
               "pt-BR"
-            )
-        ),
+            );
 
+        return [
+          ...patients,
+        ]
+          .filter(
+            (
+              patient
+            ) => {
+              const phone =
+                patient.celular ||
+                patient.telefone ||
+                "";
+
+              const matchesSearch =
+                !normalizedSearch ||
+                patient.nome
+                  .toLocaleLowerCase(
+                    "pt-BR"
+                  )
+                  .includes(
+                    normalizedSearch
+                  ) ||
+                (
+                  patient.cpf ||
+                  ""
+                )
+                  .toLocaleLowerCase(
+                    "pt-BR"
+                  )
+                  .includes(
+                    normalizedSearch
+                  ) ||
+                phone
+                  .toLocaleLowerCase(
+                    "pt-BR"
+                  )
+                  .includes(
+                    normalizedSearch
+                  );
+
+              const matchesStatus =
+                statusFilter ===
+                  "Todos" ||
+                patient.status ===
+                  statusFilter;
+
+              const patientConvenio =
+                patient.convenio ||
+                "Particular";
+
+              const matchesConvenio =
+                convenioFilter ===
+                  "Todos" ||
+                patientConvenio ===
+                  convenioFilter;
+
+              return (
+                matchesSearch &&
+                matchesStatus &&
+                matchesConvenio
+              );
+            }
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              a.nome.localeCompare(
+                b.nome,
+                "pt-BR"
+              )
+          );
+      },
       [
         patients,
+        search,
+        statusFilter,
+        convenioFilter,
       ]
     );
-
-  /* =======================================
-     VISUALIZAR
-  ======================================= */
 
   function handleViewPatient(
     patientId:
@@ -158,10 +431,6 @@ export function PatientTable() {
       `/pacientes/${patientId}`
     );
   }
-
-  /* =======================================
-     EDITAR
-  ======================================= */
 
   function handleEditPatient(
     patientId:
@@ -177,10 +446,6 @@ export function PatientTable() {
       `/pacientes/${patientId}/editar`
     );
   }
-
-  /* =======================================
-     EXCLUIR
-  ======================================= */
 
   function handleDeletePatient(
     patient:
@@ -212,261 +477,295 @@ export function PatientTable() {
     );
   }
 
-  /* =======================================
-     RENDER
-  ======================================= */
-
   return (
-    <Card className="overflow-hidden p-0">
+    <section className="overflow-hidden rounded-2xl border border-[#e8eaf3] bg-white shadow-[0_4px_16px_rgba(51,65,120,0.04)]">
       <div className="overflow-x-auto">
-        <table className="min-w-full">
-          {/* ================================= */}
-          {/* CABEÇALHO */}
-          {/* ================================= */}
-
-          <thead className="border-b bg-slate-50">
+        <table className="min-w-[1050px] w-full">
+          <thead className="border-b border-[#e9ebf3] bg-[#fbfbfe]">
             <tr>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">
+              <TableHeading>
                 Paciente
-              </th>
+              </TableHeading>
 
-              <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">
-                CPF
-              </th>
+              <TableHeading>
+                Contato
+              </TableHeading>
 
-              <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">
-                Telefone
-              </th>
-
-              <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">
+              <TableHeading>
                 Convênio
-              </th>
+              </TableHeading>
 
-              <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">
-                Última Consulta
-              </th>
+              <TableHeading>
+                Última consulta
+              </TableHeading>
 
-              <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">
+              <TableHeading>
+                Próxima consulta
+              </TableHeading>
+
+              <TableHeading>
                 Status
-              </th>
+              </TableHeading>
 
-              <th className="px-6 py-4 text-center text-sm font-semibold text-slate-700">
+              <TableHeading
+                centered
+              >
                 Ações
-              </th>
+              </TableHeading>
             </tr>
           </thead>
 
-          {/* ================================= */}
-          {/* CORPO */}
-          {/* ================================= */}
-
-          <tbody>
-            {sortedPatients.map(
+          <tbody className="divide-y divide-[#eef0f5]">
+            {filteredPatients.map(
               (
-                patient
-              ) => (
-                <tr
-                  key={
-                    patient.id
-                  }
-                  className="border-b transition-colors hover:bg-slate-50"
-                >
-                  {/* ========================= */}
-                  {/* PACIENTE */}
-                  {/* ========================= */}
+                patient,
+                index
+              ) => {
+                const lastAppointment =
+                  getLastAppointment(
+                    patient,
+                    appointments
+                  );
 
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-100 font-semibold text-indigo-700">
-                        {
-                          getInitials(
-                            patient.nome
-                          )
-                        }
-                      </div>
+                const nextAppointment =
+                  getNextAppointment(
+                    patient,
+                    appointments
+                  );
 
-                      <div>
-                        <p className="font-semibold text-slate-800">
-                          {
-                            patient.nome
-                          }
-                        </p>
-
-                        <p className="text-sm text-slate-500">
-                          ID #
-                          {
-                            patient.id
-                          }
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* ========================= */}
-                  {/* CPF */}
-                  {/* ========================= */}
-
-                  <td className="px-6 py-4 text-sm text-slate-600">
-                    {
-                      patient.cpf ||
-                      "-"
+                return (
+                  <tr
+                    key={
+                      patient.id
                     }
-                  </td>
+                    className="transition hover:bg-[#fcfbff]"
+                  >
+                    {/* PACIENTE */}
 
-                  {/* ========================= */}
-                  {/* TELEFONE */}
-                  {/* ========================= */}
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${getAvatarStyle(
+                            index
+                          )}`}
+                        >
+                          {
+                            getInitials(
+                              patient.nome
+                            )
+                          }
+                        </div>
 
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <Phone
-                        size={15}
-                      />
+                        <div className="min-w-0">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleViewPatient(
+                                patient.id
+                              )
+                            }
+                            className="max-w-[220px] truncate text-left text-sm font-extrabold text-[#263765] transition hover:text-[#6543ef]"
+                          >
+                            {
+                              patient.nome
+                            }
+                          </button>
 
-                      {
-                        patient.celular ||
-                        patient.telefone ||
-                        "-"
-                      }
-                    </div>
-                  </td>
+                          <p className="mt-1 text-[10px] font-semibold text-[#9aa3b9]">
+                            ID #
+                            {
+                              patient.id
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </td>
 
-                  {/* ========================= */}
-                  {/* CONVÊNIO */}
-                  {/* ========================= */}
+                    {/* CONTATO */}
 
-                  <td className="px-6 py-4">
-                    <span className="rounded-lg bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
-                      {
-                        patient.convenio ||
-                        "Particular"
-                      }
-                    </span>
-                  </td>
+                    <td className="px-5 py-4">
+                      <div className="space-y-1.5">
+                        <p className="flex items-center gap-2 text-xs font-semibold text-[#667394]">
+                          <Phone
+                            size={13}
+                            className="text-[#8590ad]"
+                          />
 
-                  {/* ========================= */}
-                  {/* ÚLTIMA CONSULTA */}
-                  {/* ========================= */}
+                          {
+                            patient.celular ||
+                            patient.telefone ||
+                            "-"
+                          }
+                        </p>
 
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <Calendar
-                        size={15}
-                      />
+                        <p className="text-[10px] font-medium text-[#9aa3b9]">
+                          CPF:{" "}
+                          {
+                            patient.cpf ||
+                            "-"
+                          }
+                        </p>
+                      </div>
+                    </td>
 
-                      {
-                        getLastAppointment(
-                          patient
-                        )
-                      }
-                    </div>
-                  </td>
+                    {/* CONVÊNIO */}
 
-                  {/* ========================= */}
-                  {/* STATUS */}
-                  {/* ========================= */}
-
-                  <td className="px-6 py-4">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        patient.status ===
-                        "Ativo"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {
-                        patient.status
-                      }
-                    </span>
-                  </td>
-
-                  {/* ========================= */}
-                  {/* AÇÕES */}
-                  {/* ========================= */}
-
-                  <td className="px-6 py-4">
-                    <div className="flex justify-center gap-2">
-                      {/* VISUALIZAR */}
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        title="Visualizar paciente"
-                        onClick={() =>
-                          handleViewPatient(
-                            patient.id
-                          )
+                    <td className="px-5 py-4">
+                      <ConvenioBadge
+                        convenio={
+                          patient.convenio ||
+                          "Particular"
                         }
-                      >
-                        <Eye
-                          size={16}
+                      />
+                    </td>
+
+                    {/* ÚLTIMA CONSULTA */}
+
+                    <td className="px-5 py-4">
+                      {lastAppointment ? (
+                        <AppointmentInfo
+                          icon={
+                            Calendar
+                          }
+                          date={
+                            formatDate(
+                              lastAppointment.date
+                            )
+                          }
+                          detail={
+                            lastAppointment.specialty
+                          }
                         />
-                      </Button>
+                      ) : (
+                        <span className="text-xs text-[#a1a9bc]">
+                          -
+                        </span>
+                      )}
+                    </td>
 
-                      {/* EDITAR */}
+                    {/* PRÓXIMA CONSULTA */}
 
-                      {canEdit && (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          title="Editar paciente"
+                    <td className="px-5 py-4">
+                      {nextAppointment ? (
+                        <AppointmentInfo
+                          icon={
+                            CalendarClock
+                          }
+                          date={`${formatDate(
+                            nextAppointment.date
+                          )} ${nextAppointment.time}`}
+                          detail={
+                            nextAppointment.specialty
+                          }
+                        />
+                      ) : (
+                        <span className="text-xs text-[#a1a9bc]">
+                          -
+                        </span>
+                      )}
+                    </td>
+
+                    {/* STATUS */}
+
+                    <td className="px-5 py-4">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-extrabold ${
+                          patient.status ===
+                          "Ativo"
+                            ? "bg-[#e7f8f0] text-[#269d75]"
+                            : "bg-[#fff0f3] text-[#df4e67]"
+                        }`}
+                      >
+                        <i
+                          className={`h-1.5 w-1.5 rounded-full ${
+                            patient.status ===
+                            "Ativo"
+                              ? "bg-[#2daf82]"
+                              : "bg-[#eb5771]"
+                          }`}
+                        />
+
+                        {
+                          patient.status
+                        }
+                      </span>
+                    </td>
+
+                    {/* AÇÕES */}
+
+                    <td className="px-5 py-4">
+                      <div className="flex justify-center gap-2">
+                        <ActionButton
+                          title="Visualizar paciente"
                           onClick={() =>
-                            handleEditPatient(
+                            handleViewPatient(
                               patient.id
                             )
                           }
                         >
-                          <Pencil
-                            size={16}
+                          <Eye
+                            size={15}
                           />
-                        </Button>
-                      )}
+                        </ActionButton>
 
-                      {/* EXCLUIR */}
+                        {canEdit && (
+                          <ActionButton
+                            title="Editar paciente"
+                            onClick={() =>
+                              handleEditPatient(
+                                patient.id
+                              )
+                            }
+                          >
+                            <Pencil
+                              size={15}
+                            />
+                          </ActionButton>
+                        )}
 
-                      {canDelete && (
-                        <Button
-                          type="button"
-                          variant="danger"
-                          size="sm"
-                          title="Excluir paciente"
-                          onClick={() =>
-                            handleDeletePatient(
-                              patient
-                            )
-                          }
-                        >
-                          <Trash2
-                            size={16}
-                          />
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              )
+                        {canDelete && (
+                          <ActionButton
+                            danger
+                            title="Excluir paciente"
+                            onClick={() =>
+                              handleDeletePatient(
+                                patient
+                              )
+                            }
+                          >
+                            <Trash2
+                              size={15}
+                            />
+                          </ActionButton>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
             )}
 
-            {/* ================================= */}
-            {/* LISTA VAZIA */}
-            {/* ================================= */}
-
-            {sortedPatients.length ===
+            {filteredPatients.length ===
               0 && (
               <tr>
                 <td
-                  colSpan={7}
-                  className="px-6 py-12 text-center"
+                  colSpan={
+                    7
+                  }
+                  className="px-6 py-14 text-center"
                 >
-                  <p className="font-semibold text-slate-600">
-                    Nenhum paciente encontrado.
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f2efff] text-[#6847f5]">
+                    <Users
+                      size={21}
+                    />
+                  </div>
+
+                  <p className="mt-4 font-extrabold text-[#526080]">
+                    Nenhum paciente encontrado
                   </p>
 
-                  <p className="mt-1 text-sm text-slate-400">
-                    Não existem pacientes cadastrados neste momento.
+                  <p className="mt-1 text-sm text-[#929bb3]">
+                    Ajuste os filtros ou cadastre um novo paciente.
                   </p>
                 </td>
               </tr>
@@ -475,55 +774,224 @@ export function PatientTable() {
         </table>
       </div>
 
-      {/* ================================= */}
-      {/* PAGINAÇÃO */}
-      {/* ================================= */}
+      {/* RODAPÉ */}
 
-      <div className="flex flex-col gap-3 border-t bg-slate-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-slate-500">
+      <div className="flex flex-col gap-3 border-t border-[#eceef5] bg-[#fbfbfe] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs font-medium text-[#7e89a6]">
           Exibindo{" "}
-          <strong>
-            {sortedPatients.length >
-            0
-              ? `1–${sortedPatients.length}`
-              : "0"}
+          <strong className="text-[#526080]">
+            {
+              filteredPatients.length
+            }
           </strong>{" "}
           de{" "}
-          <strong>
+          <strong className="text-[#526080]">
             {
-              sortedPatients.length
+              patients.length
             }
           </strong>{" "}
           pacientes
         </p>
 
-        <div className="flex gap-2">
-          <Button
+        <div className="flex items-center gap-2">
+          <button
             type="button"
-            variant="outline"
-            size="sm"
             disabled
+            className="h-9 rounded-lg border border-[#e1e4ef] bg-white px-3 text-xs font-semibold text-[#9aa3b8] disabled:opacity-60"
           >
             Anterior
-          </Button>
+          </button>
 
-          <Button
+          <button
             type="button"
-            size="sm"
+            className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#6847f5] text-xs font-extrabold text-white shadow-[0_5px_13px_rgba(104,71,245,0.20)]"
           >
             1
-          </Button>
+          </button>
 
-          <Button
+          <button
             type="button"
-            variant="outline"
-            size="sm"
             disabled
+            className="h-9 rounded-lg border border-[#e1e4ef] bg-white px-3 text-xs font-semibold text-[#9aa3b8] disabled:opacity-60"
           >
             Próxima
-          </Button>
+          </button>
         </div>
       </div>
-    </Card>
+    </section>
   );
+}
+
+/* =========================================
+   AUXILIARES VISUAIS
+========================================= */
+
+function TableHeading({
+  children,
+  centered =
+    false,
+}: {
+  children:
+    React.ReactNode;
+
+  centered?:
+    boolean;
+}) {
+  return (
+    <th
+      className={`px-5 py-4 text-[11px] font-extrabold text-[#5c698c] ${
+        centered
+          ? "text-center"
+          : "text-left"
+      }`}
+    >
+      {
+        children
+      }
+    </th>
+  );
+}
+
+function AppointmentInfo({
+  icon:
+    Icon,
+  date,
+  detail,
+}: {
+  icon:
+    typeof Calendar;
+
+  date:
+    string;
+
+  detail:
+    string;
+}) {
+  return (
+    <div>
+      <p className="flex items-center gap-2 text-xs font-semibold text-[#667394]">
+        <Icon
+          size={13}
+          className="text-[#8590ad]"
+        />
+
+        {
+          date
+        }
+      </p>
+
+      <p className="mt-1 pl-[21px] text-[9px] font-medium text-[#9aa3b9]">
+        {
+          detail
+        }
+      </p>
+    </div>
+  );
+}
+
+function ConvenioBadge({
+  convenio,
+}: {
+  convenio:
+    string;
+}) {
+  const normalized =
+    convenio.toLocaleLowerCase(
+      "pt-BR"
+    );
+
+  let style =
+    "bg-[#eeeaff] text-[#6847f5]";
+
+  if (
+    normalized.includes(
+      "unimed"
+    )
+  ) {
+    style =
+      "bg-[#e8f8f1] text-[#269d75]";
+  } else if (
+    normalized.includes(
+      "hapvida"
+    )
+  ) {
+    style =
+      "bg-[#eaf4ff] text-[#3984dc]";
+  } else if (
+    normalized.includes(
+      "bradesco"
+    )
+  ) {
+    style =
+      "bg-[#fff0f3] text-[#df4e67]";
+  }
+
+  return (
+    <span
+      className={`inline-flex rounded-lg px-3 py-1.5 text-[10px] font-extrabold ${style}`}
+    >
+      {
+        convenio
+      }
+    </span>
+  );
+}
+
+function ActionButton({
+  children,
+  title,
+  onClick,
+  danger =
+    false,
+}: {
+  children:
+    React.ReactNode;
+
+  title:
+    string;
+
+  onClick:
+    () => void;
+
+  danger?:
+    boolean;
+}) {
+  return (
+    <button
+      type="button"
+      title={
+        title
+      }
+      onClick={
+        onClick
+      }
+      className={`flex h-9 w-9 items-center justify-center rounded-lg border transition ${
+        danger
+          ? "border-[#ffdce3] bg-[#fff7f8] text-[#e34e68] hover:border-[#ffc6d1] hover:bg-[#fff0f3]"
+          : "border-[#e1e4ef] bg-white text-[#68769a] hover:border-[#d4ceff] hover:bg-[#faf9ff] hover:text-[#6543ef]"
+      }`}
+    >
+      {
+        children
+      }
+    </button>
+  );
+}
+
+function getAvatarStyle(
+  index:
+    number
+) {
+  const styles = [
+    "bg-[#eeeaff] text-[#6847f5]",
+    "bg-[#eaf4ff] text-[#3984dc]",
+    "bg-[#e8f8f1] text-[#269d75]",
+    "bg-[#fff3e4] text-[#df8a27]",
+    "bg-[#f8eaff] text-[#a04ed7]",
+  ];
+
+  return styles[
+    index %
+    styles.length
+  ];
 }

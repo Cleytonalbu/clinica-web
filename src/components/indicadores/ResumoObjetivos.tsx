@@ -3,18 +3,21 @@ const objectiveItems = [
     label: "Alcançados",
     value: 324,
     percent: 38.5,
+    bar: "bg-[#2daf82]",
   },
 
   {
     label: "Em evolução",
     value: 472,
     percent: 56.1,
+    bar: "bg-[#3b91ed]",
   },
 
   {
     label: "Em regressão",
     value: 46,
     percent: 5.4,
+    bar: "bg-[#eb5771]",
   },
 ];
 
@@ -26,15 +29,23 @@ export function ResumoObjetivos() {
       </h2>
 
       <div className="mt-6 grid grid-cols-1 gap-7 sm:grid-cols-[160px_1fr] sm:items-center">
-        <div className="relative mx-auto flex h-36 w-36 items-center justify-center rounded-full border-[16px] border-amber-500">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-slate-900">
-              842
-            </p>
+        <div
+          className="relative mx-auto flex h-36 w-36 items-center justify-center rounded-full"
+          style={{
+            background:
+              "conic-gradient(#2daf82 0deg 138.6deg, #3b91ed 138.6deg 340.56deg, #eb5771 340.56deg 360deg)",
+          }}
+        >
+          <div className="flex h-[104px] w-[104px] items-center justify-center rounded-full bg-white">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-slate-900">
+                842
+              </p>
 
-            <p className="text-xs text-slate-400">
-              Total
-            </p>
+              <p className="text-xs text-slate-400">
+                Total
+              </p>
+            </div>
           </div>
         </div>
 
@@ -62,7 +73,7 @@ export function ResumoObjetivos() {
 
                 <div className="mt-2 h-2 rounded-full bg-slate-100">
                   <div
-                    className="h-full rounded-full bg-amber-500"
+                    className={`h-full rounded-full ${item.bar}`}
                     style={{
                       width: `${item.percent}%`,
                     }}

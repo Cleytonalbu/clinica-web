@@ -2,31 +2,43 @@ const values = [
   {
     month: "Jan/26",
     percent: 42,
+    bar: "bg-[#6847f5]",
+    text: "text-[#6847f5]",
   },
 
   {
     month: "Fev/26",
     percent: 51,
+    bar: "bg-[#5f74ef]",
+    text: "text-[#5f74ef]",
   },
 
   {
     month: "Mar/26",
     percent: 60,
+    bar: "bg-[#3b91ed]",
+    text: "text-[#3b91ed]",
   },
 
   {
     month: "Abr/26",
     percent: 68,
+    bar: "bg-[#2daf82]",
+    text: "text-[#269d75]",
   },
 
   {
     month: "Mai/26",
     percent: 72,
+    bar: "bg-[#ed982f]",
+    text: "text-[#dc8a27]",
   },
 
   {
     month: "Jun/26",
     percent: 76,
+    bar: "bg-[#e95f9b]",
+    text: "text-[#d9548e]",
   },
 ];
 
@@ -49,7 +61,9 @@ export function EvolucaoPorPeriodo() {
                 }
                 className="flex h-full flex-1 flex-col items-center justify-end gap-2"
               >
-                <span className="text-xs font-bold text-indigo-600">
+                <span
+                  className={`text-xs font-bold ${item.text}`}
+                >
                   {
                     item.percent
                   }%
@@ -57,7 +71,7 @@ export function EvolucaoPorPeriodo() {
 
                 <div className="flex h-full w-full items-end">
                   <div
-                    className="w-full rounded-t-md bg-indigo-500"
+                    className={`w-full rounded-t-md ${item.bar}`}
                     style={{
                       height:
                         `${item.percent}%`,

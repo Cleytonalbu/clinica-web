@@ -7,6 +7,7 @@ import {
 import {
   useNavigate,
   useParams,
+  useSearchParams,
 } from "react-router-dom";
 
 import {
@@ -63,6 +64,20 @@ import {
 } from "./patientStorage";
 
 /* =========================================
+   ABAS VÁLIDAS
+========================================= */
+
+const VALID_TABS: PatientProfileTab[] = [
+  "resumo",
+  "agenda",
+  "objetivos",
+  "evolucoes",
+  "documentos",
+  "financeiro",
+  "relatorios",
+];
+
+/* =========================================
    COMPONENTE
 ========================================= */
 
@@ -75,32 +90,28 @@ export default function PerfilPaciente() {
   } =
     useParams();
 
+  const [
+    searchParams,
+    setSearchParams,
+  ] =
+    useSearchParams();
+
   const {
     user,
   } =
     useAuth();
 
   const patientId =
-    Number(
-      id
-    );
+    Number(id);
 
   const patient =
     getPatientById(
       patientId
     );
 
-  const [
-    activeTab,
-    setActiveTab,
-  ] =
-    useState<PatientProfileTab>(
-      "resumo"
-    );
-
-  /* =========================================
+  /* =======================================
      PERFIL
-  ========================================= */
+  ======================================= */
 
   const isGestor =
     user?.profile ===
@@ -114,22 +125,14 @@ export default function PerfilPaciente() {
     user?.profile ===
     "Profissional";
 
-  const canEdit =
-    isGestor ||
-    isRecepcao;
-
-  /* =========================================
+  /* =======================================
      ABAS PERMITIDAS
-  ========================================= */
+  ======================================= */
 
   const allowedTabs =
-    useMemo<
-      PatientProfileTab[]
-    >(
+    useMemo<PatientProfileTab[]>(
       () => {
-        if (
-          isGestor
-        ) {
+        if (isGestor) {
           return [
             "resumo",
             "agenda",
@@ -141,9 +144,7 @@ export default function PerfilPaciente() {
           ];
         }
 
-        if (
-          isRecepcao
-        ) {
+        if (isRecepcao) {
           return [
             "resumo",
             "agenda",
@@ -152,9 +153,7 @@ export default function PerfilPaciente() {
           ];
         }
 
-        if (
-          isProfissional
-        ) {
+        if (isProfissional) {
           return [
             "resumo",
             "agenda",
@@ -176,9 +175,84 @@ export default function PerfilPaciente() {
       ]
     );
 
-  /* =========================================
-     PROTEÇÃO DA ABA
-  ========================================= */
+  /* =======================================
+     ABA DA URL
+  ======================================= */
+
+  const requestedTab =
+    searchParams.get(
+      "tab"
+    );
+
+  const tabFromUrl: PatientProfileTab =
+    isPatientProfileTab(
+      requestedTab
+    )
+      ? requestedTab
+      : "resumo";
+
+  /* =======================================
+     ABA ATIVA
+  ======================================= */
+
+  const [
+    activeTab,
+    setActiveTab,
+  ] =
+    useState<PatientProfileTab>(
+      () => tabFromUrl
+    );
+
+  /* =======================================
+     SINCRONIZAR URL → ABA
+  ======================================= */
+
+  useEffect(
+    () => {
+      if (
+        allowedTabs.includes(
+          tabFromUrl
+        )
+      ) {
+        setActiveTab(
+          tabFromUrl
+        );
+
+        return;
+      }
+
+      setActiveTab(
+        "resumo"
+      );
+
+      if (
+        requestedTab &&
+        requestedTab !==
+          "resumo"
+      ) {
+        setSearchParams(
+          {
+            tab:
+              "resumo",
+          },
+          {
+            replace:
+              true,
+          }
+        );
+      }
+    },
+    [
+      tabFromUrl,
+      requestedTab,
+      allowedTabs,
+      setSearchParams,
+    ]
+  );
+
+  /* =======================================
+     PROTEGER ABA ATIVA
+  ======================================= */
 
   useEffect(
     () => {
@@ -190,21 +264,31 @@ export default function PerfilPaciente() {
         setActiveTab(
           "resumo"
         );
+
+        setSearchParams(
+          {
+            tab:
+              "resumo",
+          },
+          {
+            replace:
+              true,
+          }
+        );
       }
     },
     [
       activeTab,
       allowedTabs,
+      setSearchParams,
     ]
   );
 
-  /* =========================================
+  /* =======================================
      PACIENTE NÃO ENCONTRADO
-  ========================================= */
+  ======================================= */
 
-  if (
-    !patient
-  ) {
+  if (!patient) {
     return (
       <DashboardLayout>
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
@@ -232,13 +316,12 @@ export default function PerfilPaciente() {
     );
   }
 
-  /* =========================================
-     TROCA DE ABA
-  ========================================= */
+  /* =======================================
+     TROCAR ABA
+  ======================================= */
 
   function handleTabChange(
-    tab:
-      PatientProfileTab
+    tab: PatientProfileTab
   ) {
     if (
       !allowedTabs.includes(
@@ -251,11 +334,17 @@ export default function PerfilPaciente() {
     setActiveTab(
       tab
     );
+
+    setSearchParams(
+      {
+        tab,
+      }
+    );
   }
 
-  /* =========================================
+  /* =======================================
      RENDER
-  ========================================= */
+  ======================================= */
 
   return (
     <DashboardLayout>
@@ -265,6 +354,9 @@ export default function PerfilPaciente() {
         {/* ================================= */}
 
         <PatientProfileHeader
+          patientId={
+            patient.id
+          }
           nome={
             patient.nome
           }
@@ -282,26 +374,6 @@ export default function PerfilPaciente() {
             patient.status
           }
         />
-
-        {/* ================================= */}
-        {/* AÇÃO DE EDIÇÃO */}
-        {/* ================================= */}
-
-        {canEdit && (
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                navigate(
-                  `/pacientes/${patient.id}/editar`
-                )
-              }
-            >
-              Editar cadastro
-            </Button>
-          </div>
-        )}
 
         {/* ================================= */}
         {/* NAVEGAÇÃO */}
@@ -411,15 +483,7 @@ export default function PerfilPaciente() {
         {/* FALLBACK */}
         {/* ================================= */}
 
-        {![
-          "resumo",
-          "agenda",
-          "objetivos",
-          "evolucoes",
-          "documentos",
-          "financeiro",
-          "relatorios",
-        ].includes(
+        {!VALID_TABS.includes(
           activeTab
         ) && (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
@@ -429,13 +493,9 @@ export default function PerfilPaciente() {
 
             <p className="mt-2 text-sm text-slate-500">
               Paciente #
-              {
-                patient.id
-              }{" "}
-              • seção:{" "}
-              {
-                activeTab
-              }
+              {patient.id}
+              {" • seção: "}
+              {activeTab}
             </p>
           </div>
         )}
@@ -445,16 +505,29 @@ export default function PerfilPaciente() {
 }
 
 /* =========================================
+   VALIDAR ABA
+========================================= */
+
+function isPatientProfileTab(
+  value: string | null
+): value is PatientProfileTab {
+  if (!value) {
+    return false;
+  }
+
+  return VALID_TABS.includes(
+    value as PatientProfileTab
+  );
+}
+
+/* =========================================
    CALCULAR IDADE
 ========================================= */
 
 function calculateAge(
-  birthDate:
-    string
+  birthDate: string
 ) {
-  if (
-    !birthDate
-  ) {
+  if (!birthDate) {
     return 0;
   }
 
@@ -483,11 +556,9 @@ function calculateAge(
     birth.getMonth();
 
   if (
-    monthDifference <
-      0 ||
+    monthDifference < 0 ||
     (
-      monthDifference ===
-        0 &&
+      monthDifference === 0 &&
       today.getDate() <
         birth.getDate()
     )

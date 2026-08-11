@@ -3,24 +3,28 @@ const reasons = [
     label: "Problemas de saúde",
     value: 8,
     percent: 44,
+    bar: "bg-[#eb5771]",
   },
 
   {
     label: "Compromissos pessoais",
     value: 5,
     percent: 28,
+    bar: "bg-[#ed982f]",
   },
 
   {
     label: "Esquecimento",
     value: 3,
     percent: 17,
+    bar: "bg-[#6847f5]",
   },
 
   {
     label: "Outros",
     value: 2,
     percent: 11,
+    bar: "bg-[#3b91ed]",
   },
 ];
 
@@ -55,7 +59,7 @@ export function FaltasPorMotivo() {
 
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
                 <div
-                  className="h-full rounded-full bg-orange-500"
+                  className={`h-full rounded-full ${reason.bar}`}
                   style={{
                     width: `${reason.percent}%`,
                   }}

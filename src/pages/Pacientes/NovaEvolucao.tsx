@@ -34,12 +34,29 @@ import { ProfessionalSignatureSection } from "@/components/pacientes/profile/evo
 
 import { createEvolutionDefaultValues } from "@/components/pacientes/profile/evolutions/evolutionForm.defaults";
 
-import { therapeuticPlanObjectives } from "@/components/pacientes/profile/evolutions/therapeuticPlan.mock";
-
 import type {
   EvolutionFormData,
   EvolutionObjectiveStatus,
 } from "@/components/pacientes/profile/evolutions/evolutionForm.types";
+
+import {
+  getPatientById,
+} from "@/pages/Pacientes/patientStorage";
+
+import {
+  getObjectivesByPatientId,
+} from "@/pages/Pacientes/objectiveStorage";
+
+import {
+  createEvolution,
+  createStoredAttachments,
+  getLastEvolutionByPatientId,
+  updateEvolution as updateStoredEvolution,
+} from "@/pages/Pacientes/evolutionStorage";
+
+import {
+  getActiveSpecialties,
+} from "@/pages/Configuracoes/settingsStorage";
 
 type ValidationErrors = Partial<
   Record<keyof EvolutionFormData, string>
@@ -49,12 +66,54 @@ export default function NovaEvolucao() {
   const navigate = useNavigate();
   const { id } = useParams();
 
+  const patientIdNumber = Number(id);
   const patientId = id ?? "";
+
+  const patient =
+    getPatientById(patientIdNumber);
+
+  const therapeuticPlanObjectives =
+    useMemo(
+      () =>
+        Number.isFinite(patientIdNumber) &&
+        patientIdNumber > 0
+          ? getObjectivesByPatientId(
+              patientIdNumber
+            ).filter(
+              (objective) =>
+                objective.status !==
+                "Atingido"
+            )
+          : [],
+      [patientIdNumber]
+    );
+
+  const activeSpecialties =
+    useMemo(
+      () =>
+        getActiveSpecialties(),
+      []
+    );
+
+  const lastEvolution =
+    useMemo(
+      () =>
+        Number.isFinite(patientIdNumber) &&
+        patientIdNumber > 0
+          ? getLastEvolutionByPatientId(
+              patientIdNumber
+            )
+          : undefined,
+      [patientIdNumber]
+    );
 
   const [formData, setFormData] =
     useState<EvolutionFormData>(() =>
       createEvolutionDefaultValues(patientId)
     );
+
+  const [savedEvolutionId, setSavedEvolutionId] =
+    useState<number | null>(null);
 
   const [saving, setSaving] =
     useState(false);
@@ -69,7 +128,7 @@ export default function NovaEvolucao() {
     useState<ValidationErrors>({});
 
   function handleCancel() {
-    navigate(`/pacientes/${patientId}`);
+    navigate(`/pacientes/${patientId}?tab=evolucoes`);
   }
 
   function updateField<
@@ -141,7 +200,7 @@ export default function NovaEvolucao() {
         ...current.objectives,
         {
           id: selectedObjective.id,
-          name: selectedObjective.name,
+          name: selectedObjective.title,
           status: "Em evolução",
           performance: 3,
         },
@@ -202,6 +261,18 @@ export default function NovaEvolucao() {
   }
 
   async function handleSaveDraft() {
+    if (
+      !patient ||
+      !Number.isFinite(patientIdNumber) ||
+      patientIdNumber <= 0
+    ) {
+      setFeedback(
+        "Paciente não encontrado."
+      );
+      setFeedbackType("error");
+      return;
+    }
+
     setSaving(true);
     setFeedback(null);
     setFeedbackType(null);
@@ -212,10 +283,69 @@ export default function NovaEvolucao() {
         status: "RASCUNHO",
       };
 
-      console.log(
-        "Rascunho da evolução:",
-        draft
-      );
+      const payload = {
+        patientId: patientIdNumber,
+        sessionDate: draft.sessionDate,
+        startTime: draft.startTime,
+        endTime: draft.endTime,
+        specialty: draft.specialty,
+        appointmentType:
+          draft.appointmentType,
+        appointmentLocation:
+          draft.appointmentLocation,
+        objectives: draft.objectives,
+        writtenEvolution:
+          draft.writtenEvolution,
+        referralSpecialty:
+          draft.referralSpecialty,
+        referralProfessional:
+          draft.referralProfessional,
+        referralReason:
+          draft.referralReason,
+        referralPriority:
+          draft.referralPriority,
+        referralObservation:
+          draft.referralObservation,
+        notifyProfessional:
+          draft.notifyProfessional,
+        addProfessionalAgenda:
+          draft.addProfessionalAgenda,
+        notifyManager:
+          draft.notifyManager,
+        observedImpacts:
+          draft.observedImpacts,
+        sessionResult:
+          draft.sessionResult,
+        sessionResultObservation:
+          draft.sessionResultObservation,
+        attachments:
+          createStoredAttachments(
+            draft.attachments
+          ),
+        professional:
+          draft.professional,
+        status:
+          "RASCUNHO" as const,
+      };
+
+      const stored =
+        savedEvolutionId
+          ? updateStoredEvolution(
+              savedEvolutionId,
+              payload
+            )
+          : createEvolution(
+              payload
+            );
+
+      if (
+        stored &&
+        !savedEvolutionId
+      ) {
+        setSavedEvolutionId(
+          stored.id
+        );
+      }
 
       setFormData(draft);
 
@@ -224,9 +354,11 @@ export default function NovaEvolucao() {
       );
 
       setFeedbackType("success");
-    } catch {
+    } catch (error) {
       setFeedback(
-        "Não foi possível salvar o rascunho."
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar o rascunho."
       );
 
       setFeedbackType("error");
@@ -257,6 +389,18 @@ export default function NovaEvolucao() {
       return;
     }
 
+    if (
+      !patient ||
+      !Number.isFinite(patientIdNumber) ||
+      patientIdNumber <= 0
+    ) {
+      setFeedback(
+        "Paciente não encontrado."
+      );
+      setFeedbackType("error");
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -265,10 +409,74 @@ export default function NovaEvolucao() {
         status: "FINALIZADA",
       };
 
-      console.log(
-        "Evolução finalizada:",
-        evolution
-      );
+      const payload = {
+        patientId: patientIdNumber,
+        sessionDate:
+          evolution.sessionDate,
+        startTime:
+          evolution.startTime,
+        endTime:
+          evolution.endTime,
+        specialty:
+          evolution.specialty,
+        appointmentType:
+          evolution.appointmentType,
+        appointmentLocation:
+          evolution.appointmentLocation,
+        objectives:
+          evolution.objectives,
+        writtenEvolution:
+          evolution.writtenEvolution,
+        referralSpecialty:
+          evolution.referralSpecialty,
+        referralProfessional:
+          evolution.referralProfessional,
+        referralReason:
+          evolution.referralReason,
+        referralPriority:
+          evolution.referralPriority,
+        referralObservation:
+          evolution.referralObservation,
+        notifyProfessional:
+          evolution.notifyProfessional,
+        addProfessionalAgenda:
+          evolution.addProfessionalAgenda,
+        notifyManager:
+          evolution.notifyManager,
+        observedImpacts:
+          evolution.observedImpacts,
+        sessionResult:
+          evolution.sessionResult,
+        sessionResultObservation:
+          evolution.sessionResultObservation,
+        attachments:
+          createStoredAttachments(
+            evolution.attachments
+          ),
+        professional:
+          evolution.professional,
+        status:
+          "FINALIZADA" as const,
+      };
+
+      const stored =
+        savedEvolutionId
+          ? updateStoredEvolution(
+              savedEvolutionId,
+              payload
+            )
+          : createEvolution(
+              payload
+            );
+
+      if (
+        stored &&
+        !savedEvolutionId
+      ) {
+        setSavedEvolutionId(
+          stored.id
+        );
+      }
 
       setFormData(evolution);
 
@@ -280,18 +488,46 @@ export default function NovaEvolucao() {
 
       setTimeout(() => {
         navigate(
-          `/pacientes/${patientId}`
+          `/pacientes/${patientId}?tab=evolucoes`
         );
       }, 900);
-    } catch {
+    } catch (error) {
       setFeedback(
-        "Não foi possível finalizar a evolução."
+        error instanceof Error
+          ? error.message
+          : "Não foi possível finalizar a evolução."
       );
 
       setFeedbackType("error");
     } finally {
       setSaving(false);
     }
+  }
+
+  if (!patient) {
+    return (
+      <DashboardLayout>
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+          <h1 className="text-xl font-bold text-slate-900">
+            Paciente não encontrado
+          </h1>
+
+          <p className="mt-2 text-sm text-slate-500">
+            O paciente pode ter sido removido ou o cadastro não existe.
+          </p>
+
+          <Button
+            type="button"
+            className="mt-6"
+            onClick={() =>
+              navigate("/pacientes")
+            }
+          >
+            Voltar para pacientes
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
   }
 
   return (
@@ -338,36 +574,56 @@ export default function NovaEvolucao() {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-bold text-slate-900">
-                    Maria Oliveira
+                    {patient.nome}
                   </h2>
 
                   <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                    Ativo
+                    {patient.status}
                   </span>
                 </div>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  8 anos • Feminino
+                  {calculateAge(
+                    patient.nascimento
+                  )} anos •{" "}
+                  {patient.sexo ||
+                    "Não informado"}
                 </p>
               </div>
             </div>
 
             <PatientInfo
               icon={<ClipboardList size={20} />}
-              label="Diagnóstico"
-              value="TEA - Nível 1 de Suporte"
+              label="Objetivos terapêuticos"
+              value={`${therapeuticPlanObjectives.length} ativo${
+                therapeuticPlanObjectives.length ===
+                1
+                  ? ""
+                  : "s"
+              }`}
             />
 
             <PatientInfo
               icon={<FileText size={20} />}
               label="Plano Terapêutico"
-              value="Plano ativo"
+              value={
+                therapeuticPlanObjectives.length >
+                0
+                  ? "Com objetivos ativos"
+                  : "Sem objetivos ativos"
+              }
             />
 
             <PatientInfo
               icon={<CalendarDays size={20} />}
               label="Última evolução"
-              value="05/08/2026"
+              value={
+                lastEvolution
+                  ? formatDate(
+                      lastEvolution.sessionDate
+                    )
+                  : "-"
+              }
             />
           </div>
         </div>
@@ -377,6 +633,9 @@ export default function NovaEvolucao() {
             formData={formData}
             errors={errors}
             updateField={updateField}
+            activeSpecialties={
+              activeSpecialties
+            }
           />
 
           <SessionObjectivesSection
@@ -384,6 +643,9 @@ export default function NovaEvolucao() {
             updateObjective={updateObjective}
             addObjective={addObjective}
             removeObjective={removeObjective}
+            therapeuticPlanObjectives={
+              therapeuticPlanObjectives
+            }
           />
         </div>
 
@@ -523,6 +785,11 @@ interface SessionDataSectionProps {
   formData: EvolutionFormData;
   errors: ValidationErrors;
 
+  activeSpecialties: Array<{
+    id: number;
+    name: string;
+  }>;
+
   updateField: <
     K extends keyof EvolutionFormData
   >(
@@ -534,6 +801,7 @@ interface SessionDataSectionProps {
 function SessionDataSection({
   formData,
   errors,
+  activeSpecialties,
   updateField,
 }: SessionDataSectionProps) {
   return (
@@ -603,29 +871,20 @@ function SessionDataSection({
               )
             }
           >
-            <option value="Psicologia">
-              Psicologia
+            <option value="">
+              Selecione a especialidade
             </option>
 
-            <option value="Fonoaudiologia">
-              Fonoaudiologia
-            </option>
-
-            <option value="Terapia Ocupacional">
-              Terapia Ocupacional
-            </option>
-
-            <option value="Fisioterapia">
-              Fisioterapia
-            </option>
-
-            <option value="Psicopedagogia">
-              Psicopedagogia
-            </option>
-
-            <option value="Nutrição">
-              Nutrição
-            </option>
+            {activeSpecialties.map(
+              (specialty) => (
+                <option
+                  key={specialty.id}
+                  value={specialty.name}
+                >
+                  {specialty.name}
+                </option>
+              )
+            )}
           </Select>
         </FormField>
 
@@ -688,6 +947,12 @@ function SessionDataSection({
 interface SessionObjectivesSectionProps {
   formData: EvolutionFormData;
 
+  therapeuticPlanObjectives: Array<{
+    id: number;
+    title: string;
+    specialty: string;
+  }>;
+
   updateObjective: (
     objectiveId: number,
     field: "status" | "performance",
@@ -701,6 +966,7 @@ interface SessionObjectivesSectionProps {
 
 function SessionObjectivesSection({
   formData,
+  therapeuticPlanObjectives,
   updateObjective,
   addObjective,
   removeObjective,
@@ -862,7 +1128,7 @@ function SessionObjectivesSection({
                     key={objective.id}
                     value={objective.id}
                   >
-                    {objective.name} —{" "}
+                    {objective.title} —{" "}
                     {objective.specialty}
                   </option>
                 )
@@ -888,6 +1154,79 @@ function SessionObjectivesSection({
       </div>
     </PageCard>
   );
+}
+
+function calculateAge(
+  birthDate: string
+) {
+  if (!birthDate) {
+    return 0;
+  }
+
+  const birth =
+    new Date(
+      `${birthDate}T12:00:00`
+    );
+
+  if (
+    Number.isNaN(
+      birth.getTime()
+    )
+  ) {
+    return 0;
+  }
+
+  const today =
+    new Date();
+
+  let age =
+    today.getFullYear() -
+    birth.getFullYear();
+
+  const monthDifference =
+    today.getMonth() -
+    birth.getMonth();
+
+  if (
+    monthDifference < 0 ||
+    (
+      monthDifference === 0 &&
+      today.getDate() <
+        birth.getDate()
+    )
+  ) {
+    age -= 1;
+  }
+
+  return Math.max(
+    age,
+    0
+  );
+}
+
+function formatDate(
+  value: string
+) {
+  if (!value) {
+    return "-";
+  }
+
+  const [
+    year,
+    month,
+    day,
+  ] =
+    value.split("-");
+
+  if (
+    !year ||
+    !month ||
+    !day
+  ) {
+    return value;
+  }
+
+  return `${day}/${month}/${year}`;
 }
 
 interface PatientInfoProps {

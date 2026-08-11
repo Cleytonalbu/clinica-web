@@ -1,103 +1,188 @@
-import { Search, Filter, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 
-export function PatientFilters() {
+interface PatientFiltersProps {
+  search:
+    string;
+
+  status:
+    string;
+
+  convenio:
+    string;
+
+  convenios:
+    string[];
+
+  onSearchChange:
+    (
+      value:
+        string
+    ) => void;
+
+  onStatusChange:
+    (
+      value:
+        string
+    ) => void;
+
+  onConvenioChange:
+    (
+      value:
+        string
+    ) => void;
+
+  onClear:
+    () => void;
+}
+
+export function PatientFilters({
+  search,
+  status,
+  convenio,
+  convenios,
+  onSearchChange,
+  onStatusChange,
+  onConvenioChange,
+  onClear,
+}: PatientFiltersProps) {
+  const hasFilters =
+    search.trim() !==
+      "" ||
+    status !==
+      "Todos" ||
+    convenio !==
+      "Todos";
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        {/* Pesquisa */}
-        <div className="relative lg:col-span-2">
+    <div className="rounded-2xl border border-[#e8eaf3] bg-white p-5 shadow-[0_4px_16px_rgba(51,65,120,0.04)]">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
+        {/* PESQUISA */}
+
+        <div className="relative min-w-0 flex-[1.5]">
           <Search
-            size={18}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+            size={17}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8792b3]"
           />
 
           <input
             type="text"
-            placeholder="Pesquisar paciente..."
-            className="
-              w-full
-              rounded-xl
-              border
-              border-slate-200
-              bg-white
-              py-3
-              pl-11
-              pr-4
-              text-sm
-              outline-none
-              transition
-              focus:border-indigo-500
-              focus:ring-4
-              focus:ring-indigo-100
-            "
+            value={
+              search
+            }
+            onChange={(
+              event
+            ) =>
+              onSearchChange(
+                event.target
+                  .value
+              )
+            }
+            placeholder="Pesquisar paciente por nome, CPF ou telefone..."
+            className="h-11 w-full rounded-xl border border-[#e1e4f1] bg-[#fbfbfe] py-2 pl-11 pr-4 text-sm font-medium text-[#455477] outline-none transition placeholder:text-[#9ca5bb] focus:border-[#bcb0ff] focus:bg-white focus:ring-4 focus:ring-[#eeeaff]"
           />
         </div>
 
-        {/* Status */}
+        {/* STATUS */}
+
         <select
-          className="
-            rounded-xl
-            border
-            border-slate-200
-            bg-white
-            px-4
-            py-3
-            text-sm
-            outline-none
-            transition
-            focus:border-indigo-500
-            focus:ring-4
-            focus:ring-indigo-100
-          "
+          value={
+            status
+          }
+          onChange={(
+            event
+          ) =>
+            onStatusChange(
+              event.target
+                .value
+            )
+          }
+          className="h-11 min-w-[190px] rounded-xl border border-[#e1e4f1] bg-[#fbfbfe] px-4 text-sm font-semibold text-[#59688d] outline-none transition focus:border-[#bcb0ff] focus:bg-white focus:ring-4 focus:ring-[#eeeaff]"
         >
-          <option>Todos os status</option>
-          <option>Ativo</option>
-          <option>Inativo</option>
+          <option value="Todos">
+            Todos os status
+          </option>
+
+          <option value="Ativo">
+            Ativos
+          </option>
+
+          <option value="Inativo">
+            Inativos
+          </option>
         </select>
 
-        {/* Convênio */}
+        {/* CONVÊNIO */}
+
         <select
-          className="
-            rounded-xl
-            border
-            border-slate-200
-            bg-white
-            px-4
-            py-3
-            text-sm
-            outline-none
-            transition
-            focus:border-indigo-500
-            focus:ring-4
-            focus:ring-indigo-100
-          "
+          value={
+            convenio
+          }
+          onChange={(
+            event
+          ) =>
+            onConvenioChange(
+              event.target
+                .value
+            )
+          }
+          className="h-11 min-w-[210px] rounded-xl border border-[#e1e4f1] bg-[#fbfbfe] px-4 text-sm font-semibold text-[#59688d] outline-none transition focus:border-[#bcb0ff] focus:bg-white focus:ring-4 focus:ring-[#eeeaff]"
         >
-          <option>Todos os convênios</option>
-          <option>Particular</option>
-          <option>Unimed</option>
-          <option>Bradesco Saúde</option>
-          <option>Hapvida</option>
+          <option value="Todos">
+            Todos os convênios
+          </option>
+
+          {convenios.map(
+            (
+              item
+            ) => (
+              <option
+                key={
+                  item
+                }
+                value={
+                  item
+                }
+              >
+                {
+                  item
+                }
+              </option>
+            )
+          )}
         </select>
 
-        {/* Botões */}
-        <div className="flex gap-2">
-          <Button
-            variant="secondary"
-            className="flex-1"
-          >
-            <Filter size={16} />
-            Filtrar
-          </Button>
+        {/* INDICADOR */}
 
-          <Button
-            variant="outline"
-            className="flex-1"
-          >
-            <X size={16} />
-            Limpar
-          </Button>
+        <div className="hidden h-11 items-center gap-2 rounded-xl bg-[#f6f4ff] px-4 text-xs font-bold text-[#6744ef] 2xl:flex">
+          <SlidersHorizontal
+            size={15}
+          />
+
+          Filtros
         </div>
+
+        {/* LIMPAR */}
+
+        <button
+          type="button"
+          onClick={
+            onClear
+          }
+          disabled={
+            !hasFilters
+          }
+          className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-[#e1e4ef] bg-white px-4 text-sm font-bold text-[#657295] transition hover:border-[#d4ceff] hover:bg-[#faf9ff] hover:text-[#6543ef] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <X
+            size={16}
+          />
+
+          Limpar
+        </button>
       </div>
     </div>
   );
