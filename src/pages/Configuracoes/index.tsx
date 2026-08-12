@@ -383,6 +383,12 @@ export default function Configuracoes() {
     useState("");
 
   const [
+    specialtyRepasseValue,
+    setSpecialtyRepasseValue,
+  ] =
+    useState("");
+
+  const [
     professionalName,
     setProfessionalName,
   ] =
@@ -403,6 +409,12 @@ export default function Configuracoes() {
   const [
     professionalValue,
     setProfessionalValue,
+  ] =
+    useState("");
+
+  const [
+    professionalRepasseValue,
+    setProfessionalRepasseValue,
   ] =
     useState("");
 
@@ -543,6 +555,11 @@ export default function Configuracoes() {
         specialtyValue
       );
 
+    const repasseValue =
+      Number(
+        specialtyRepasseValue
+      );
+
     if (!name) {
       showFeedback(
         "Informe o nome da especialidade."
@@ -558,6 +575,17 @@ export default function Configuracoes() {
     ) {
       showFeedback(
         "Informe um valor válido."
+      );
+
+      return;
+    }
+
+    if (
+      !repasseValue ||
+      repasseValue <= 0
+    ) {
+      showFeedback(
+        "Informe um valor de repasse válido."
       );
 
       return;
@@ -593,6 +621,8 @@ export default function Configuracoes() {
 
       value,
 
+      repasseValue,
+
       active:
         true,
     };
@@ -620,6 +650,10 @@ export default function Configuracoes() {
     );
 
     setSpecialtyValue(
+      ""
+    );
+
+    setSpecialtyRepasseValue(
       ""
     );
 
@@ -767,8 +801,21 @@ export default function Configuracoes() {
 
     const customValue =
       professionalValue
-        ? Number(
-            professionalValue
+        ? Math.max(
+            0,
+            Number(
+              professionalValue
+            )
+          )
+        : undefined;
+
+    const customRepasseValue =
+      professionalRepasseValue
+        ? Math.max(
+            0,
+            Number(
+              professionalRepasseValue
+            )
           )
         : undefined;
 
@@ -808,6 +855,8 @@ export default function Configuracoes() {
         true,
 
       customValue,
+
+      customRepasseValue,
     };
 
     const nextSettings:
@@ -841,6 +890,10 @@ export default function Configuracoes() {
     );
 
     setProfessionalValue(
+      ""
+    );
+
+    setProfessionalRepasseValue(
       ""
     );
 
@@ -1475,12 +1528,20 @@ export default function Configuracoes() {
                   specialtyValue
                 }
 
+                specialtyRepasseValue={
+                  specialtyRepasseValue
+                }
+
                 onSpecialtyNameChange={
                   setSpecialtyName
                 }
 
                 onSpecialtyValueChange={
                   setSpecialtyValue
+                }
+
+                onSpecialtyRepasseValueChange={
+                  setSpecialtyRepasseValue
                 }
 
                 onAdd={
@@ -1528,6 +1589,10 @@ export default function Configuracoes() {
                   professionalValue
                 }
 
+                professionalRepasseValue={
+                  professionalRepasseValue
+                }
+
                 onNameChange={
                   setProfessionalName
                 }
@@ -1542,6 +1607,10 @@ export default function Configuracoes() {
 
                 onValueChange={
                   setProfessionalValue
+                }
+
+                onRepasseValueChange={
+                  setProfessionalRepasseValue
                 }
 
                 onAdd={
@@ -2112,8 +2181,10 @@ function SpecialtiesSettingsSection({
   settings,
   specialtyName,
   specialtyValue,
+  specialtyRepasseValue,
   onSpecialtyNameChange,
   onSpecialtyValueChange,
+  onSpecialtyRepasseValueChange,
   onAdd,
   onUpdate,
   onToggle,
@@ -2128,6 +2199,9 @@ function SpecialtiesSettingsSection({
   specialtyValue:
     string;
 
+  specialtyRepasseValue:
+    string;
+
   onSpecialtyNameChange:
     (
       value:
@@ -2135,6 +2209,12 @@ function SpecialtiesSettingsSection({
     ) => void;
 
   onSpecialtyValueChange:
+    (
+      value:
+        string
+    ) => void;
+
+  onSpecialtyRepasseValueChange:
     (
       value:
         string
@@ -2205,7 +2285,7 @@ function SpecialtiesSettingsSection({
                 }
                 className="rounded-2xl border border-slate-200 bg-white p-5"
               >
-                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_220px_160px_auto]">
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_190px_190px_150px_auto]">
                   <FormField label="Especialidade">
                     <Input
                       value={
@@ -2225,7 +2305,7 @@ function SpecialtiesSettingsSection({
                     />
                   </FormField>
 
-                  <FormField label="Valor padrão">
+                  <FormField label="Valor cobrado">
                     <Input
                       type="number"
                       value={
@@ -2238,6 +2318,29 @@ function SpecialtiesSettingsSection({
                           specialty.id,
                           {
                             value:
+                              Number(
+                                event.target.value
+                              ) ||
+                              0,
+                          }
+                        )
+                      }
+                    />
+                  </FormField>
+
+                  <FormField label="Repasse profissional">
+                    <Input
+                      type="number"
+                      value={
+                        specialty.repasseValue
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        onUpdate(
+                          specialty.id,
+                          {
+                            repasseValue:
                               Number(
                                 event.target.value
                               ) ||
@@ -2298,7 +2401,7 @@ function SpecialtiesSettingsSection({
         title="Nova Especialidade"
         description="Cadastre uma nova área de atendimento."
       >
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_220px_auto]">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_190px_190px_auto]">
           <FormField label="Nome">
             <Input
               value={
@@ -2314,7 +2417,7 @@ function SpecialtiesSettingsSection({
             />
           </FormField>
 
-          <FormField label="Valor">
+          <FormField label="Valor cobrado">
             <Input
               type="number"
               value={
@@ -2324,6 +2427,22 @@ function SpecialtiesSettingsSection({
                 event
               ) =>
                 onSpecialtyValueChange(
+                  event.target.value
+                )
+              }
+            />
+          </FormField>
+
+          <FormField label="Repasse profissional">
+            <Input
+              type="number"
+              value={
+                specialtyRepasseValue
+              }
+              onChange={(
+                event
+              ) =>
+                onSpecialtyRepasseValueChange(
                   event.target.value
                 )
               }
@@ -2357,10 +2476,12 @@ function ProfessionalsSettingsSection({
   professionalSpecialty,
   professionalRegistration,
   professionalValue,
+  professionalRepasseValue,
   onNameChange,
   onSpecialtyChange,
   onRegistrationChange,
   onValueChange,
+  onRepasseValueChange,
   onAdd,
   onUpdate,
   onToggle,
@@ -2384,6 +2505,9 @@ function ProfessionalsSettingsSection({
   professionalValue:
     string;
 
+  professionalRepasseValue:
+    string;
+
   onNameChange:
     (
       value:
@@ -2403,6 +2527,12 @@ function ProfessionalsSettingsSection({
     ) => void;
 
   onValueChange:
+    (
+      value:
+        string
+    ) => void;
+
+  onRepasseValueChange:
     (
       value:
         string
@@ -2432,176 +2562,288 @@ function ProfessionalsSettingsSection({
         number
     ) => void;
 }) {
+  const selectedNewSpecialty =
+    activeSpecialties.find(
+      (
+        specialty
+      ) =>
+        specialty.name ===
+        professionalSpecialty
+    );
+
+  const inheritedChargeValue =
+    selectedNewSpecialty?.value ??
+    0;
+
+  const inheritedRepasseValue =
+    selectedNewSpecialty?.repasseValue ??
+    0;
+
   return (
     <>
       <PageCard
         title="Profissionais"
-        description="Gerencie os profissionais disponíveis para atendimento."
+        description="Gerencie o valor cobrado do paciente e o repasse de cada profissional."
       >
+        <div className="mb-5 rounded-2xl border border-indigo-100 bg-indigo-50/60 px-4 py-3">
+          <p className="text-sm font-semibold text-indigo-800">
+            Como funcionam os valores
+          </p>
+
+          <p className="mt-1 text-xs leading-5 text-indigo-600">
+            O valor cobrado é a receita do atendimento. O repasse profissional é o valor que será lançado em “Valores a receber” do profissional. Quando não houver valor específico, o sistema utiliza os valores definidos na especialidade.
+          </p>
+        </div>
+
         <div className="space-y-4">
           {settings.professionals.map(
             (
               professional
-            ) => (
-              <div
-                key={
-                  professional.id
-                }
-                className="rounded-2xl border border-slate-200 bg-white p-5"
-              >
-                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_1fr_1fr_180px_140px_auto]">
-                  <FormField label="Nome">
-                    <Input
-                      value={
-                        professional.name
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        onUpdate(
-                          professional.id,
-                          {
-                            name:
-                              event.target.value,
-                          }
-                        )
-                      }
-                    />
-                  </FormField>
+            ) => {
+              const specialtySetting =
+                settings.specialties.find(
+                  (
+                    specialty
+                  ) =>
+                    specialty.name ===
+                    professional.specialty
+                );
 
-                  <FormField label="Especialidade">
-                    <Select
-                      value={
-                        professional.specialty
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        onUpdate(
-                          professional.id,
-                          {
-                            specialty:
-                              event.target.value,
-                          }
-                        )
-                      }
-                    >
-                      {settings.specialties.map(
-                        (
-                          specialty
-                        ) => (
-                          <option
-                            key={
-                              specialty.id
-                            }
-                            value={
-                              specialty.name
-                            }
-                          >
+              const chargeValue =
+                professional.customValue ??
+                specialtySetting?.value ??
+                0;
+
+              const repasseValue =
+                professional.customRepasseValue ??
+                specialtySetting?.repasseValue ??
+                0;
+
+              const usesDefaultCharge =
+                professional.customValue ===
+                undefined;
+
+              const usesDefaultRepasse =
+                professional.customRepasseValue ===
+                undefined;
+
+              return (
+                <div
+                  key={
+                    professional.id
+                  }
+                  className="rounded-2xl border border-slate-200 bg-white p-5"
+                >
+                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr_1fr_1fr_170px_180px_130px_auto]">
+                    <FormField label="Nome">
+                      <Input
+                        value={
+                          professional.name
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          onUpdate(
+                            professional.id,
                             {
-                              specialty.name
+                              name:
+                                event.target.value,
                             }
-                          </option>
-                        )
-                      )}
-                    </Select>
-                  </FormField>
-
-                  <FormField label="Registro">
-                    <Input
-                      value={
-                        professional.registration
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        onUpdate(
-                          professional.id,
-                          {
-                            registration:
-                              event.target.value,
-                          }
-                        )
-                      }
-                    />
-                  </FormField>
-
-                  <FormField label="Valor próprio">
-                    <Input
-                      type="number"
-                      value={
-                        professional.customValue ??
-                        ""
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        onUpdate(
-                          professional.id,
-                          {
-                            customValue:
-                              event.target.value
-                                ? Number(
-                                    event.target.value
-                                  )
-                                : undefined,
-                          }
-                        )
-                      }
-                    />
-                  </FormField>
-
-                  <div>
-                    <p className="mb-2 text-sm font-semibold text-slate-700">
-                      Status
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onToggle(
-                          professional.id
-                        )
-                      }
-                      className={`w-full rounded-xl px-4 py-2.5 text-sm font-semibold ${
-                        professional.active
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-slate-100 text-slate-500"
-                      }`}
-                    >
-                      {professional.active
-                        ? "Ativo"
-                        : "Inativo"}
-                    </button>
-                  </div>
-
-                  <div className="flex items-end">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onRemove(
-                          professional.id
-                        )
-                      }
-                      className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-200 text-red-600"
-                    >
-                      <Trash2
-                        size={18}
+                          )
+                        }
                       />
-                    </button>
+                    </FormField>
+
+                    <FormField label="Especialidade">
+                      <Select
+                        value={
+                          professional.specialty
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          onUpdate(
+                            professional.id,
+                            {
+                              specialty:
+                                event.target.value,
+
+                              customValue:
+                                undefined,
+
+                              customRepasseValue:
+                                undefined,
+                            }
+                          )
+                        }
+                      >
+                        {settings.specialties.map(
+                          (
+                            specialty
+                          ) => (
+                            <option
+                              key={
+                                specialty.id
+                              }
+                              value={
+                                specialty.name
+                              }
+                            >
+                              {
+                                specialty.name
+                              }
+                            </option>
+                          )
+                        )}
+                      </Select>
+                    </FormField>
+
+                    <FormField label="Registro">
+                      <Input
+                        value={
+                          professional.registration
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          onUpdate(
+                            professional.id,
+                            {
+                              registration:
+                                event.target.value,
+                            }
+                          )
+                        }
+                      />
+                    </FormField>
+
+                    <FormField label="Valor cobrado">
+                      <div>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={
+                            chargeValue
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            onUpdate(
+                              professional.id,
+                              {
+                                customValue:
+                                  event.target.value
+                                    ? Math.max(
+                                        0,
+                                        Number(
+                                          event.target.value
+                                        )
+                                      )
+                                    : undefined,
+                              }
+                            )
+                          }
+                        />
+
+                        <p className="mt-1 text-[10px] font-medium text-slate-400">
+                          {usesDefaultCharge
+                            ? "Padrão da especialidade"
+                            : "Valor específico"}
+                        </p>
+                      </div>
+                    </FormField>
+
+                    <FormField label="Repasse profissional">
+                      <div>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={
+                            repasseValue
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            onUpdate(
+                              professional.id,
+                              {
+                                customRepasseValue:
+                                  event.target.value
+                                    ? Math.max(
+                                        0,
+                                        Number(
+                                          event.target.value
+                                        )
+                                      )
+                                    : undefined,
+                              }
+                            )
+                          }
+                        />
+
+                        <p className="mt-1 text-[10px] font-medium text-slate-400">
+                          {usesDefaultRepasse
+                            ? "Repasse padrão"
+                            : "Repasse específico"}
+                        </p>
+                      </div>
+                    </FormField>
+
+                    <div>
+                      <p className="mb-2 text-sm font-semibold text-slate-700">
+                        Status
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onToggle(
+                            professional.id
+                          )
+                        }
+                        className={`w-full rounded-xl px-4 py-2.5 text-sm font-semibold ${
+                          professional.active
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {professional.active
+                          ? "Ativo"
+                          : "Inativo"}
+                      </button>
+                    </div>
+
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onRemove(
+                            professional.id
+                          )
+                        }
+                        className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-200 text-red-600 transition hover:bg-red-50"
+                        title="Excluir profissional"
+                      >
+                        <Trash2
+                          size={18}
+                        />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )
+              );
+            }
           )}
         </div>
       </PageCard>
 
       <PageCard
         title="Novo Profissional"
-        description="Cadastre um novo profissional."
+        description="Cadastre um novo profissional e, se necessário, personalize os valores."
       >
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-[1.2fr_1fr_1fr_180px_auto]">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-[1.2fr_1fr_1fr_170px_180px_auto]">
           <FormField label="Nome">
             <Input
               value={
@@ -2624,11 +2866,19 @@ function ProfessionalsSettingsSection({
               }
               onChange={(
                 event
-              ) =>
+              ) => {
                 onSpecialtyChange(
                   event.target.value
-                )
-              }
+                );
+
+                onValueChange(
+                  ""
+                );
+
+                onRepasseValueChange(
+                  ""
+                );
+              }}
             >
               <option value="">
                 Selecione
@@ -2670,20 +2920,70 @@ function ProfessionalsSettingsSection({
             />
           </FormField>
 
-          <FormField label="Valor próprio">
-            <Input
-              type="number"
-              value={
-                professionalValue
-              }
-              onChange={(
-                event
-              ) =>
-                onValueChange(
-                  event.target.value
-                )
-              }
-            />
+          <FormField label="Valor cobrado">
+            <div>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={
+                  professionalValue ||
+                  (
+                    professionalSpecialty
+                      ? String(
+                          inheritedChargeValue
+                        )
+                      : ""
+                  )
+                }
+                onChange={(
+                  event
+                ) =>
+                  onValueChange(
+                    event.target.value
+                  )
+                }
+              />
+
+              {professionalSpecialty && (
+                <p className="mt-1 text-[10px] font-medium text-slate-400">
+                  Padrão: R$ {inheritedChargeValue.toFixed(2).replace(".", ",")}
+                </p>
+              )}
+            </div>
+          </FormField>
+
+          <FormField label="Repasse profissional">
+            <div>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={
+                  professionalRepasseValue ||
+                  (
+                    professionalSpecialty
+                      ? String(
+                          inheritedRepasseValue
+                        )
+                      : ""
+                  )
+                }
+                onChange={(
+                  event
+                ) =>
+                  onRepasseValueChange(
+                    event.target.value
+                  )
+                }
+              />
+
+              {professionalSpecialty && (
+                <p className="mt-1 text-[10px] font-medium text-slate-400">
+                  Padrão: R$ {inheritedRepasseValue.toFixed(2).replace(".", ",")}
+                </p>
+              )}
+            </div>
           </FormField>
 
           <div className="flex items-end">
@@ -2705,6 +3005,7 @@ function ProfessionalsSettingsSection({
     </>
   );
 }
+
 
 function ConveniosSettingsSection({
   settings,

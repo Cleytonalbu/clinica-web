@@ -2,6 +2,7 @@ export interface SpecialtySetting {
   id: number;
   name: string;
   value: number;
+  repasseValue: number;
   active: boolean;
 }
 
@@ -17,7 +18,18 @@ export interface ProfessionalSetting {
   specialty: string;
   registration: string;
   active: boolean;
+
+  /**
+   * Valor específico cobrado do paciente para este profissional.
+   * Quando não informado, utiliza o valor padrão da especialidade.
+   */
   customValue?: number;
+
+  /**
+   * Repasse específico pago ao profissional por atendimento.
+   * Quando não informado, utiliza o repasse padrão da especialidade.
+   */
+  customRepasseValue?: number;
 }
 
 export interface ConvenioSetting {
@@ -1684,6 +1696,7 @@ const defaultSettings: SystemSettings = {
       id: 1,
       name: "Psicologia",
       value: 150,
+      repasseValue: 100,
       active: true,
     },
 
@@ -1691,6 +1704,7 @@ const defaultSettings: SystemSettings = {
       id: 2,
       name: "Fonoaudiologia",
       value: 140,
+      repasseValue: 90,
       active: true,
     },
 
@@ -1698,6 +1712,7 @@ const defaultSettings: SystemSettings = {
       id: 3,
       name: "Terapia Ocupacional",
       value: 160,
+      repasseValue: 110,
       active: true,
     },
 
@@ -1705,6 +1720,7 @@ const defaultSettings: SystemSettings = {
       id: 4,
       name: "Fisioterapia",
       value: 130,
+      repasseValue: 90,
       active: true,
     },
 
@@ -1712,6 +1728,7 @@ const defaultSettings: SystemSettings = {
       id: 5,
       name: "Psicopedagogia",
       value: 140,
+      repasseValue: 90,
       active: true,
     },
 
@@ -1719,6 +1736,7 @@ const defaultSettings: SystemSettings = {
       id: 6,
       name: "Nutrição",
       value: 150,
+      repasseValue: 100,
       active: true,
     },
   ],
@@ -1954,16 +1972,41 @@ export function getSystemSettings(): SystemSettings {
 
     const normalized: SystemSettings = {
       specialties:
-        parsed.specialties ??
-        defaultSettings.specialties,
+        (parsed.specialties ?? defaultSettings.specialties).map(
+          (specialty) => ({
+            ...specialty,
+            repasseValue:
+              specialty.repasseValue ?? 0,
+          })
+        ),
 
       rooms:
         parsed.rooms ??
         defaultSettings.rooms,
 
       professionals:
-        parsed.professionals ??
-        defaultSettings.professionals,
+        (
+          parsed.professionals ??
+          defaultSettings.professionals
+        ).map(
+          (
+            professional
+          ) => ({
+            ...professional,
+
+            customValue:
+              professional.customValue !== undefined &&
+              professional.customValue >= 0
+                ? professional.customValue
+                : undefined,
+
+            customRepasseValue:
+              professional.customRepasseValue !== undefined &&
+              professional.customRepasseValue >= 0
+                ? professional.customRepasseValue
+                : undefined,
+          })
+        ),
 
       convenios:
         parsed.convenios ??
@@ -2258,6 +2301,43 @@ export function getProfessionalServiceValue(
     );
 
   return specialty?.value ?? 150;
+}
+
+export function getProfessionalRepasseValue(
+  professionalName: string,
+  specialtyName: string
+) {
+  const settings =
+    getSystemSettings();
+
+  const professional =
+    settings.professionals.find(
+      (
+        item
+      ) =>
+        item.name ===
+        professionalName
+    );
+
+  if (
+    professional?.customRepasseValue !==
+      undefined &&
+    professional.customRepasseValue >=
+      0
+  ) {
+    return professional.customRepasseValue;
+  }
+
+  const specialty =
+    settings.specialties.find(
+      (
+        item
+      ) =>
+        item.name ===
+        specialtyName
+    );
+
+  return specialty?.repasseValue ?? 0;
 }
 
 export function getConvenioServiceValue(

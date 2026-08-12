@@ -216,8 +216,8 @@ export default function Agenda() {
 
           <div className="flex flex-col gap-5 px-6 py-5 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-wrap gap-2">
-              <ViewButton icon={CalendarDays} active={view === "day"} onClick={() => setView("day")}>Dia</ViewButton>
               {!isProfissional && <ViewButton icon={UserRound} active={view === "professionals"} onClick={() => setView("professionals")}>Profissionais</ViewButton>}
+              <ViewButton icon={CalendarDays} active={view === "day"} onClick={() => setView("day")}>Dia</ViewButton>
               <ViewButton icon={CalendarDays} active={view === "week"} onClick={() => setView("week")}>Semana</ViewButton>
               <ViewButton icon={CalendarDays} active={view === "month"} onClick={() => setView("month")}>Mês</ViewButton>
             </div>

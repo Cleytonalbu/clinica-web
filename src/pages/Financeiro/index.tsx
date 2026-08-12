@@ -24,6 +24,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useAuth,
+} from "@/auth/AuthContext";
+
+import {
   Button,
   Input,
   PageCard,
@@ -51,6 +55,14 @@ type FinanceView =
 export default function Financeiro() {
   const navigate =
     useNavigate();
+
+  const {
+    user,
+  } = useAuth();
+
+  const isRecepcao =
+    user?.profile ===
+    "Recepção";
 
   const [
     view,
@@ -271,6 +283,24 @@ export default function Financeiro() {
         0
       );
 
+  const pendingChargeCount =
+    charges.filter(
+      (
+        charge
+      ) =>
+        charge.status ===
+        "Pendente"
+    ).length;
+
+  const paidChargeCount =
+    charges.filter(
+      (
+        charge
+      ) =>
+        charge.status ===
+        "Pago"
+    ).length;
+
   const validExpenses =
     expenses.filter(
       (
@@ -357,107 +387,129 @@ export default function Financeiro() {
     );
   }
 
-  return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+  if (
+    isRecepcao
+  ) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-5">
+          {/* ================================= */}
+          {/* CABEÇALHO RECEPÇÃO */}
+          {/* ================================= */}
+
           <div>
             <h1 className="text-[30px] font-extrabold tracking-[-0.03em] text-[#10235f]">
-              Financeiro
+              Financeiro dos Pacientes
             </h1>
 
             <p className="mt-1.5 text-sm font-medium text-[#7d89a8]">
-              Controle receitas, despesas e o resultado financeiro da clínica.
+              Consulte cobranças, acompanhe pendências e registre recebimentos dos pacientes.
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                navigate(
-                  "/financeiro/dashboard"
+          {/* ================================= */}
+          {/* RESUMO OPERACIONAL */}
+          {/* SOMENTE VALORES QUE PASSAM PELA RECEPÇÃO */}
+          {/* ================================= */}
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <ReceptionMetricCard
+              title="A receber"
+              value={
+                formatCurrency(
+                  pendingRevenue
                 )
               }
-              className="border-[#dfe3f2] bg-white text-[#263765] hover:bg-[#faf9ff]"
-            >
-              <BarChart3
-                size={18}
-              />
+              description={`${pendingChargeCount} cobrança(s) pendente(s)`}
+              tone="violet"
+              icon={
+                <WalletCards
+                  size={21}
+                />
+              }
+            />
 
-              Dashboard financeiro
-            </Button>
-
-            <Button
-              type="button"
-              onClick={() =>
-                navigate(
-                  "/financeiro/despesas/nova"
+            <ReceptionMetricCard
+              title="Recebido"
+              value={
+                formatCurrency(
+                  receivedRevenue
                 )
               }
-              className="bg-gradient-to-r from-[#5d3df5] to-[#773cf5] shadow-[0_8px_20px_rgba(103,66,246,0.18)] hover:opacity-95"
-            >
-              <Plus
-                size={18}
-              />
+              description={`${paidChargeCount} pagamento(s) confirmado(s)`}
+              tone="green"
+              icon={
+                <ArrowUpCircle
+                  size={21}
+                />
+              }
+            />
 
-              Nova despesa
-            </Button>
+            <ReceptionMetricCard
+              title="Cobranças"
+              value={
+                String(
+                  validCharges.length
+                )
+              }
+              description="Atendimentos com cobrança"
+              tone="blue"
+              icon={
+                <CircleDollarSign
+                  size={21}
+                />
+              }
+            />
+
+            <ReceptionMetricCard
+              title="Total lançado"
+              value={
+                formatCurrency(
+                  totalRevenue
+                )
+              }
+              description="Valores vinculados a pacientes"
+              tone="amber"
+              icon={
+                <Banknote
+                  size={21}
+                />
+              }
+            />
           </div>
-        </div>
 
-        <PageCard
-          title="Filtros"
-          description={
-            view ===
-            "receivables"
-              ? "Pesquise e filtre as cobranças."
-              : "Pesquise e filtre as despesas."
-          }
-        >
-          <div
-            className={
-              view ===
-              "receivables"
-                ? "grid grid-cols-1 gap-4 lg:grid-cols-[1fr_220px_220px]"
-                : "grid grid-cols-1 gap-4 lg:grid-cols-[1fr_220px]"
-            }
-          >
-            <div className="relative">
-              <Search
-                size={18}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-              />
+          {/* ================================= */}
+          {/* FILTROS DISCRETOS */}
+          {/* ================================= */}
 
-              <Input
-                value={
-                  search
-                }
-                onChange={(
-                  event
-                ) =>
-                  setSearch(
-                    event.target.value
-                  )
-                }
-                placeholder={
-                  view ===
-                  "receivables"
-                    ? "Paciente, profissional ou especialidade..."
-                    : "Descrição, fornecedor ou categoria..."
-                }
-                className="border-[#e1e4f1] bg-[#fbfbfe] pl-11 focus:bg-white"
-              />
-            </div>
+          <section className="rounded-2xl border border-[#e8eaf3] bg-white p-4 shadow-[0_4px_16px_rgba(51,65,120,0.04)]">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_190px_190px]">
+              <div className="relative">
+                <Search
+                  size={17}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8792b3]"
+                />
 
-            {view ===
-              "receivables" && (
+                <Input
+                  value={
+                    search
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setSearch(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Buscar paciente, profissional ou especialidade..."
+                  className="h-11 border-[#e1e4f1] bg-[#fbfbfe] pl-11 focus:bg-white"
+                />
+              </div>
+
               <Select
                 value={
                   billingType
                 }
-                className="border-[#e1e4f1] bg-[#fbfbfe] focus:bg-white"
                 onChange={(
                   event
                 ) =>
@@ -465,6 +517,7 @@ export default function Financeiro() {
                     event.target.value
                   )
                 }
+                className="h-11 border-[#e1e4f1] bg-[#fbfbfe]"
               >
                 <option value="Todos">
                   Particular e Convênio
@@ -478,174 +531,66 @@ export default function Financeiro() {
                   Convênio
                 </option>
               </Select>
-            )}
 
-            <Select
-              value={
-                status
-              }
-              className="border-[#e1e4f1] bg-[#fbfbfe] focus:bg-white"
-              onChange={(
-                event
-              ) =>
-                setStatus(
-                  event.target.value
-                )
-              }
-            >
-              <option value="Todos">
-                Todos os status
-              </option>
+              <Select
+                value={
+                  status
+                }
+                onChange={(
+                  event
+                ) =>
+                  setStatus(
+                    event.target.value
+                  )
+                }
+                className="h-11 border-[#e1e4f1] bg-[#fbfbfe]"
+              >
+                <option value="Todos">
+                  Todos os status
+                </option>
 
-              <option value="Pendente">
-                Pendentes
-              </option>
+                <option value="Pendente">
+                  Pendentes
+                </option>
 
-              <option value="Pago">
-                Pagos
-              </option>
+                <option value="Pago">
+                  Pagos
+                </option>
 
-              <option value="Cancelado">
-                Cancelados
-              </option>
-            </Select>
-          </div>
-        </PageCard>
+                <option value="Cancelado">
+                  Cancelados
+                </option>
+              </Select>
+            </div>
+          </section>
 
+          {/* ================================= */}
+          {/* COBRANÇAS DOS PACIENTES */}
+          {/* ================================= */}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <MetricCard
-            title="Faturado"
-            value={
-              formatCurrency(
-                totalRevenue
-              )
-            }
-            description="Receitas geradas"
-            tone="purple"
-            icon={
-              <CircleDollarSign
-                size={22}
-              />
-            }
-          />
+          <section className="overflow-hidden rounded-2xl border border-[#e8eaf3] bg-white shadow-[0_4px_16px_rgba(51,65,120,0.04)]">
+            <div className="flex flex-col gap-2 border-b border-[#eef0f6] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-extrabold text-[#10235f]">
+                  Cobranças dos pacientes
+                </h2>
 
-          <MetricCard
-            title="Recebido"
-            value={
-              formatCurrency(
-                receivedRevenue
-              )
-            }
-            description="Entradas confirmadas"
-            tone="green"
-            icon={
-              <ArrowUpCircle
-                size={22}
-              />
-            }
-          />
+                <p className="mt-1 text-xs font-medium text-[#8b95b2]">
+                  {filteredCharges.length} cobrança(s) encontrada(s).
+                </p>
+              </div>
 
-          <MetricCard
-            title="Despesas"
-            value={
-              formatCurrency(
-                totalExpenses
-              )
-            }
-            description="Contas cadastradas"
-            tone="red"
-            icon={
-              <ArrowDownCircle
-                size={22}
-              />
-            }
-          />
+              <span className="inline-flex w-fit items-center rounded-full bg-[#f0ecff] px-3 py-1.5 text-[10px] font-extrabold text-[#6847f5]">
+                Recepção
+              </span>
+            </div>
 
-          <MetricCard
-            title="A pagar"
-            value={
-              formatCurrency(
-                pendingExpenses
-              )
-            }
-            description="Despesas pendentes"
-            tone="orange"
-            icon={
-              <WalletCards
-                size={22}
-              />
-            }
-          />
-
-          <MetricCard
-            title="Resultado"
-            value={
-              formatCurrency(
-                netResult
-              )
-            }
-            description="Recebido menos pago"
-            tone={
-              netResult >= 0
-                ? "blue"
-                : "red"
-            }
-            icon={
-              <Banknote
-                size={22}
-              />
-            }
-          />
-        </div>
-
-        <PageCard
-          title="Movimentações"
-          description="Alterne entre receitas e despesas."
-        >
-          <div className="flex flex-wrap gap-2">
-            <ViewButton
-              active={
-                view ===
-                "receivables"
-              }
-              onClick={() =>
-                handleViewChange(
-                  "receivables"
-                )
-              }
-            >
-              Contas a receber
-            </ViewButton>
-
-            <ViewButton
-              active={
-                view ===
-                "expenses"
-              }
-              onClick={() =>
-                handleViewChange(
-                  "expenses"
-                )
-              }
-            >
-              Contas a pagar
-            </ViewButton>
-          </div>
-        </PageCard>
-
-        {view ===
-          "receivables" ? (
-          <PageCard
-            title="Contas a receber"
-            description={`${filteredCharges.length} cobrança(s) encontrada(s).`}
-          >
             {filteredCharges.length >
             0 ? (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1250px]">
+                <table className="w-full min-w-[1120px]">
                   <thead>
-                    <tr className="border-b border-[#e8eaf3] bg-[#fbfbfe] text-left">
+                    <tr className="border-b border-[#eceef5] bg-[#fbfbfe] text-left">
                       <TableHeader>
                         Paciente
                       </TableHeader>
@@ -693,7 +638,539 @@ export default function Financeiro() {
                           key={
                             charge.id
                           }
-                          className="border-b border-[#eef0f5] transition last:border-b-0 hover:bg-[#fcfbff]"
+                          className="border-b border-[#f0f1f6] transition last:border-b-0 hover:bg-[#fcfbff]"
+                        >
+                          <TableCell>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                navigate(
+                                  `/pacientes/${charge.patientId}`
+                                )
+                              }
+                              className="text-left"
+                            >
+                              <p className="font-extrabold text-[#263765] transition hover:text-[#6543ef]">
+                                {
+                                  charge.patient
+                                }
+                              </p>
+
+                              <p className="mt-1 text-[10px] font-medium text-[#98a1b8]">
+                                Paciente #
+                                {
+                                  charge.patientId
+                                }
+                              </p>
+                            </button>
+                          </TableCell>
+
+                          <TableCell>
+                            <p className="font-semibold text-[#526080]">
+                              {
+                                charge.specialty
+                              }
+                            </p>
+
+                            <p className="mt-1 text-[10px] text-[#98a1b8]">
+                              Agendamento #
+                              {
+                                charge.appointmentId
+                              }
+                            </p>
+                          </TableCell>
+
+                          <TableCell>
+                            <span className="font-medium text-[#697699]">
+                              {
+                                charge.professional
+                              }
+                            </span>
+                          </TableCell>
+
+                          <TableCell>
+                            <BillingBadge
+                              type={
+                                charge.billingType
+                              }
+                            />
+
+                            {charge.convenio && (
+                              <p className="mt-2 text-[10px] font-medium text-[#7d89a8]">
+                                {
+                                  charge.convenio
+                                }
+                              </p>
+                            )}
+                          </TableCell>
+
+                          <TableCell>
+                            <span className="text-sm font-medium text-[#5f6e93]">
+                              {
+                                charge.paymentMethod
+                              }
+                            </span>
+                          </TableCell>
+
+                          <TableCell>
+                            <span className="text-sm text-[#697699]">
+                              {
+                                formatDate(
+                                  charge.date
+                                )
+                              }
+                            </span>
+                          </TableCell>
+
+                          <TableCell>
+                            <p className="font-extrabold text-[#263765]">
+                              {
+                                formatCurrency(
+                                  charge.amount
+                                )
+                              }
+                            </p>
+                          </TableCell>
+
+                          <TableCell>
+                            <ChargeStatusBadge
+                              status={
+                                charge.status
+                              }
+                            />
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  navigate(
+                                    `/financeiro/paciente/${charge.patientId}`
+                                  )
+                                }
+                              >
+                                <UserRound
+                                  size={15}
+                                />
+
+                                Histórico
+                              </Button>
+
+                              {charge.status ===
+                                "Pendente" && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() =>
+                                    navigate(
+                                      `/financeiro/receber/${charge.id}`
+                                    )
+                                  }
+                                  className="bg-gradient-to-r from-[#5d3df5] to-[#773cf5] hover:opacity-95"
+                                >
+                                  Receber
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </tr>
+                      )
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <EmptyState
+                title="Nenhuma cobrança encontrada"
+                description="As cobranças dos pacientes aparecerão aqui conforme os atendimentos forem lançados."
+              />
+            )}
+          </section>
+
+          {/* ================================= */}
+          {/* RESUMO DA RECEPÇÃO */}
+          {/* ================================= */}
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <ReceptionSummary
+              title="Pendências de pacientes"
+              value={
+                formatCurrency(
+                  pendingRevenue
+                )
+              }
+              description={`${pendingChargeCount} cobrança(s) aguardando pagamento`}
+              tone="violet"
+            />
+
+            <ReceptionSummary
+              title="Recebimentos confirmados"
+              value={
+                formatCurrency(
+                  receivedRevenue
+                )
+              }
+              description={`${paidChargeCount} pagamento(s) registrado(s)`}
+              tone="green"
+            />
+
+            <ReceptionSummary
+              title="Atendimentos financeiros"
+              value={
+                String(
+                  validCharges.length
+                )
+              }
+              description="Cobranças vinculadas aos pacientes"
+              tone="blue"
+            />
+          </div>
+
+          <div className="flex items-center gap-3 rounded-2xl border border-[#e9e3ff] bg-gradient-to-r from-[#f4f0ff] via-[#f8f5ff] to-[#fbf9ff] px-5 py-4 text-sm text-[#5d678c]">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#6847f5] shadow-sm">
+              <CircleDollarSign
+                size={18}
+              />
+            </span>
+
+            <p>
+              <strong className="text-[#6543ef]">
+                Financeiro da recepção:
+              </strong>{" "}
+              aqui aparecem somente cobranças e recebimentos vinculados aos pacientes. Despesas administrativas permanecem restritas à gestão.
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">
+              Financeiro
+            </h1>
+
+            <p className="mt-2 text-sm text-slate-500">
+              Controle receitas, despesas e o resultado financeiro da clínica.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                navigate(
+                  "/financeiro/dashboard"
+                )
+              }
+            >
+              <BarChart3
+                size={18}
+              />
+
+              Dashboard financeiro
+            </Button>
+
+            <Button
+              type="button"
+              onClick={() =>
+                navigate(
+                  "/financeiro/despesas/nova"
+                )
+              }
+            >
+              <Plus
+                size={18}
+              />
+
+              Nova despesa
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <MetricCard
+            title="Faturado"
+            value={
+              formatCurrency(
+                totalRevenue
+              )
+            }
+            description="Receitas geradas"
+            icon={
+              <CircleDollarSign
+                size={22}
+              />
+            }
+          />
+
+          <MetricCard
+            title="Recebido"
+            value={
+              formatCurrency(
+                receivedRevenue
+              )
+            }
+            description="Entradas confirmadas"
+            icon={
+              <ArrowUpCircle
+                size={22}
+              />
+            }
+          />
+
+          <MetricCard
+            title="Despesas"
+            value={
+              formatCurrency(
+                totalExpenses
+              )
+            }
+            description="Contas cadastradas"
+            icon={
+              <ArrowDownCircle
+                size={22}
+              />
+            }
+          />
+
+          <MetricCard
+            title="A pagar"
+            value={
+              formatCurrency(
+                pendingExpenses
+              )
+            }
+            description="Despesas pendentes"
+            icon={
+              <WalletCards
+                size={22}
+              />
+            }
+          />
+
+          <MetricCard
+            title="Resultado"
+            value={
+              formatCurrency(
+                netResult
+              )
+            }
+            description="Recebido menos pago"
+            icon={
+              <Banknote
+                size={22}
+              />
+            }
+          />
+        </div>
+
+        <PageCard
+          title="Movimentações"
+          description="Alterne entre receitas e despesas."
+        >
+          <div className="flex flex-wrap gap-2">
+            <ViewButton
+              active={
+                view ===
+                "receivables"
+              }
+              onClick={() =>
+                handleViewChange(
+                  "receivables"
+                )
+              }
+            >
+              Contas a receber
+            </ViewButton>
+
+            <ViewButton
+              active={
+                view ===
+                "expenses"
+              }
+              onClick={() =>
+                handleViewChange(
+                  "expenses"
+                )
+              }
+            >
+              Contas a pagar
+            </ViewButton>
+          </div>
+        </PageCard>
+
+        <PageCard
+          title="Filtros"
+          description={
+            view ===
+            "receivables"
+              ? "Pesquise e filtre as cobranças."
+              : "Pesquise e filtre as despesas."
+          }
+        >
+          <div
+            className={
+              view ===
+              "receivables"
+                ? "grid grid-cols-1 gap-4 lg:grid-cols-[1fr_220px_220px]"
+                : "grid grid-cols-1 gap-4 lg:grid-cols-[1fr_220px]"
+            }
+          >
+            <div className="relative">
+              <Search
+                size={18}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+
+              <Input
+                value={
+                  search
+                }
+                onChange={(
+                  event
+                ) =>
+                  setSearch(
+                    event.target.value
+                  )
+                }
+                placeholder={
+                  view ===
+                  "receivables"
+                    ? "Paciente, profissional ou especialidade..."
+                    : "Descrição, fornecedor ou categoria..."
+                }
+                className="pl-11"
+              />
+            </div>
+
+            {view ===
+              "receivables" && (
+              <Select
+                value={
+                  billingType
+                }
+                onChange={(
+                  event
+                ) =>
+                  setBillingType(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="Todos">
+                  Particular e Convênio
+                </option>
+
+                <option value="Particular">
+                  Particular
+                </option>
+
+                <option value="Convênio">
+                  Convênio
+                </option>
+              </Select>
+            )}
+
+            <Select
+              value={
+                status
+              }
+              onChange={(
+                event
+              ) =>
+                setStatus(
+                  event.target.value
+                )
+              }
+            >
+              <option value="Todos">
+                Todos os status
+              </option>
+
+              <option value="Pendente">
+                Pendentes
+              </option>
+
+              <option value="Pago">
+                Pagos
+              </option>
+
+              <option value="Cancelado">
+                Cancelados
+              </option>
+            </Select>
+          </div>
+        </PageCard>
+
+        {view ===
+          "receivables" ? (
+          <PageCard
+            title="Contas a receber"
+            description={`${filteredCharges.length} cobrança(s) encontrada(s).`}
+          >
+            {filteredCharges.length >
+            0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1250px]">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left">
+                      <TableHeader>
+                        Paciente
+                      </TableHeader>
+
+                      <TableHeader>
+                        Atendimento
+                      </TableHeader>
+
+                      <TableHeader>
+                        Profissional
+                      </TableHeader>
+
+                      <TableHeader>
+                        Cobrança
+                      </TableHeader>
+
+                      <TableHeader>
+                        Pagamento
+                      </TableHeader>
+
+                      <TableHeader>
+                        Data
+                      </TableHeader>
+
+                      <TableHeader>
+                        Valor
+                      </TableHeader>
+
+                      <TableHeader>
+                        Status
+                      </TableHeader>
+
+                      <TableHeader>
+                        Ações
+                      </TableHeader>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {filteredCharges.map(
+                      (
+                        charge
+                      ) => (
+                        <tr
+                          key={
+                            charge.id
+                          }
+                          className="border-b border-slate-100 last:border-b-0"
                         >
                           <TableCell>
                             <p className="font-semibold text-slate-800">
@@ -762,7 +1239,7 @@ export default function Financeiro() {
                           </TableCell>
 
                           <TableCell>
-                            <p className="font-extrabold text-[#269d75]">
+                            <p className="font-bold text-slate-900">
                               {
                                 formatCurrency(
                                   charge.amount
@@ -837,7 +1314,7 @@ export default function Financeiro() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1100px]">
                   <thead>
-                    <tr className="border-b border-[#e8eaf3] bg-[#fbfbfe] text-left">
+                    <tr className="border-b border-slate-200 text-left">
                       <TableHeader>
                         Despesa
                       </TableHeader>
@@ -881,7 +1358,7 @@ export default function Financeiro() {
                           key={
                             expense.id
                           }
-                          className="border-b border-[#eef0f5] transition last:border-b-0 hover:bg-[#fcfbff]"
+                          className="border-b border-slate-100 last:border-b-0"
                         >
                           <TableCell>
                             <p className="font-semibold text-slate-800">
@@ -892,7 +1369,7 @@ export default function Financeiro() {
                           </TableCell>
 
                           <TableCell>
-                            <span className="rounded-lg bg-[#f2efff] px-2.5 py-1 text-xs font-semibold text-[#6847f5]">
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
                               {
                                 expense.category
                               }
@@ -914,7 +1391,7 @@ export default function Financeiro() {
                           </TableCell>
 
                           <TableCell>
-                            <p className="font-extrabold text-[#df4e67]">
+                            <p className="font-bold text-slate-900">
                               {
                                 formatCurrency(
                                   expense.amount
@@ -995,7 +1472,6 @@ export default function Financeiro() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <SmallSummary
             title="A receber"
-            tone="purple"
             value={
               formatCurrency(
                 pendingRevenue
@@ -1005,7 +1481,6 @@ export default function Financeiro() {
 
           <SmallSummary
             title="Despesas pagas"
-            tone="red"
             value={
               formatCurrency(
                 paidExpenses
@@ -1015,11 +1490,6 @@ export default function Financeiro() {
 
           <SmallSummary
             title="Resultado realizado"
-            tone={
-              netResult >= 0
-                ? "green"
-                : "red"
-            }
             value={
               formatCurrency(
                 netResult
@@ -1027,23 +1497,188 @@ export default function Financeiro() {
             }
           />
         </div>
-
-        <div className="flex items-center gap-3 rounded-2xl border border-[#e8e2ff] bg-gradient-to-r from-[#f3efff] via-[#f7f4ff] to-[#fbf9ff] px-5 py-4">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#6847f5] shadow-sm">
-            <BarChart3
-              size={18}
-            />
-          </span>
-
-          <p className="text-sm font-medium text-[#657196]">
-            <strong className="text-[#6543ef]">
-              Resumo financeiro:
-            </strong>{" "}
-            acompanhe entradas, despesas pendentes e resultado realizado para identificar rapidamente a saúde financeira da clínica.
-          </p>
-        </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+type ReceptionTone =
+  | "violet"
+  | "green"
+  | "blue"
+  | "amber";
+
+interface ReceptionMetricCardProps {
+  title:
+    string;
+
+  value:
+    string;
+
+  description:
+    string;
+
+  icon:
+    React.ReactNode;
+
+  tone:
+    ReceptionTone;
+}
+
+function ReceptionMetricCard({
+  title,
+  value,
+  description,
+  icon,
+  tone,
+}: ReceptionMetricCardProps) {
+  const toneStyles: Record<
+    ReceptionTone,
+    {
+      card:
+        string;
+      icon:
+        string;
+      value:
+        string;
+    }
+  > = {
+    violet: {
+      card:
+        "border-[#e4ddff] bg-gradient-to-br from-white to-[#f8f5ff]",
+      icon:
+        "bg-[#eeeaff] text-[#6847f5]",
+      value:
+        "text-[#6847f5]",
+    },
+
+    green: {
+      card:
+        "border-[#d8f1e8] bg-gradient-to-br from-white to-[#f4fcf8]",
+      icon:
+        "bg-[#e7f8f1] text-[#28a77d]",
+      value:
+        "text-[#249b75]",
+    },
+
+    blue: {
+      card:
+        "border-[#dcecff] bg-gradient-to-br from-white to-[#f5faff]",
+      icon:
+        "bg-[#eaf4ff] text-[#3988e8]",
+      value:
+        "text-[#397fd5]",
+    },
+
+    amber: {
+      card:
+        "border-[#f5e5cf] bg-gradient-to-br from-white to-[#fffaf3]",
+      icon:
+        "bg-[#fff1df] text-[#e38c28]",
+      value:
+        "text-[#d98725]",
+    },
+  };
+
+  const style =
+    toneStyles[
+      tone
+    ];
+
+  return (
+    <div
+      className={`rounded-2xl border p-5 shadow-[0_4px_16px_rgba(51,65,120,0.04)] ${style.card}`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[12px] font-semibold text-[#68769b]">
+            {
+              title
+            }
+          </p>
+
+          <p
+            className={`mt-3 text-[26px] font-extrabold tracking-[-0.03em] ${style.value}`}
+          >
+            {
+              value
+            }
+          </p>
+
+          <p className="mt-1.5 text-[10px] font-medium text-[#98a1ba]">
+            {
+              description
+            }
+          </p>
+        </div>
+
+        <span
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${style.icon}`}
+        >
+          {
+            icon
+          }
+        </span>
+      </div>
+    </div>
+  );
+}
+
+interface ReceptionSummaryProps {
+  title:
+    string;
+
+  value:
+    string;
+
+  description:
+    string;
+
+  tone:
+    "violet"
+    | "green"
+    | "blue";
+}
+
+function ReceptionSummary({
+  title,
+  value,
+  description,
+  tone,
+}: ReceptionSummaryProps) {
+  const styles = {
+    violet:
+      "border-[#e4ddff] bg-[#faf8ff] text-[#6847f5]",
+
+    green:
+      "border-[#d8f1e8] bg-[#f6fcf9] text-[#269d75]",
+
+    blue:
+      "border-[#dcecff] bg-[#f7fbff] text-[#397fd5]",
+  };
+
+  return (
+    <div
+      className={`rounded-2xl border p-4 ${styles[tone]}`}
+    >
+      <p className="text-xs font-semibold opacity-80">
+        {
+          title
+        }
+      </p>
+
+      <p className="mt-2 text-xl font-extrabold">
+        {
+          value
+        }
+      </p>
+
+      <p className="mt-1 text-[10px] font-medium opacity-70">
+        {
+          description
+        }
+      </p>
+    </div>
   );
 }
 
@@ -1058,8 +1693,8 @@ function BillingBadge({
       className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
         type ===
         "Particular"
-          ? "bg-[#eeeaff] text-[#6847f5]"
-          : "bg-[#eaf4ff] text-[#3984dc]"
+          ? "bg-indigo-100 text-indigo-700"
+          : "bg-cyan-100 text-cyan-700"
       }`}
     >
       {
@@ -1080,13 +1715,13 @@ function ChargeStatusBadge({
     string
   > = {
     Pendente:
-      "bg-[#fff3e4] text-[#df8a27]",
+      "bg-amber-100 text-amber-700",
 
     Pago:
-      "bg-[#e7f8f0] text-[#269d75]",
+      "bg-emerald-100 text-emerald-700",
 
     Cancelado:
-      "bg-[#fff0f3] text-[#df4e67]",
+      "bg-red-100 text-red-700",
   };
 
   return (
@@ -1111,13 +1746,13 @@ function ExpenseStatusBadge({
     string
   > = {
     Pendente:
-      "bg-[#fff3e4] text-[#df8a27]",
+      "bg-amber-100 text-amber-700",
 
     Pago:
-      "bg-[#e7f8f0] text-[#269d75]",
+      "bg-emerald-100 text-emerald-700",
 
     Cancelado:
-      "bg-[#fff0f3] text-[#df4e67]",
+      "bg-red-100 text-red-700",
   };
 
   return (
@@ -1143,13 +1778,6 @@ interface MetricCardProps {
 
   icon:
     React.ReactNode;
-
-  tone:
-    "purple"
-    | "green"
-    | "red"
-    | "orange"
-    | "blue";
 }
 
 function MetricCard({
@@ -1157,73 +1785,31 @@ function MetricCard({
   value,
   description,
   icon,
-  tone,
 }: MetricCardProps) {
-  const styles = {
-    purple: {
-      icon:
-        "bg-[#eeeaff] text-[#6847f5]",
-      value:
-        "text-[#6847f5]",
-    },
-
-    green: {
-      icon:
-        "bg-[#e8faf4] text-[#2daf82]",
-      value:
-        "text-[#269d75]",
-    },
-
-    red: {
-      icon:
-        "bg-[#fff0f3] text-[#eb5771]",
-      value:
-        "text-[#df4e67]",
-    },
-
-    orange: {
-      icon:
-        "bg-[#fff4e7] text-[#ed982f]",
-      value:
-        "text-[#dc8a27]",
-    },
-
-    blue: {
-      icon:
-        "bg-[#eaf4ff] text-[#3988e8]",
-      value:
-        "text-[#357fd6]",
-    },
-  }[tone];
-
   return (
-    <div className="rounded-2xl border border-[#e9ebf4] bg-white p-5 shadow-[0_4px_16px_rgba(51,65,120,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(51,65,120,0.08)]">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[12px] font-semibold text-[#68769b]">
+          <p className="text-sm font-medium text-slate-500">
             {
               title
             }
           </p>
 
-          <p
-            className={`mt-3 text-[27px] font-extrabold tracking-[-0.03em] ${styles.value}`}
-          >
+          <p className="mt-2 text-2xl font-bold text-slate-900">
             {
               value
             }
           </p>
 
-          <p className="mt-1.5 text-[10px] font-medium text-[#98a1ba]">
+          <p className="mt-1 text-xs text-slate-400">
             {
               description
             }
           </p>
         </div>
 
-        <div
-          className={`flex h-11 w-11 items-center justify-center rounded-xl ${styles.icon}`}
-        >
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
           {
             icon
           }
@@ -1255,8 +1841,8 @@ function ViewButton({
       }
       className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
         active
-          ? "bg-gradient-to-r from-[#5d3df5] to-[#773cf5] text-white shadow-[0_7px_18px_rgba(103,66,246,0.18)]"
-          : "border border-[#e0e3ef] bg-white text-[#58678e] hover:border-[#d3ccff] hover:bg-[#faf9ff] hover:text-[#6543ef]"
+          ? "bg-indigo-600 text-white shadow-sm"
+          : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
       }`}
     >
       {
@@ -1273,7 +1859,7 @@ function TableHeader({
     React.ReactNode;
 }) {
   return (
-    <th className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-wide text-[#8d97b1]">
+    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
       {
         children
       }
@@ -1288,7 +1874,7 @@ function TableCell({
     React.ReactNode;
 }) {
   return (
-    <td className="px-4 py-4 text-sm text-[#657295]">
+    <td className="px-4 py-4 text-sm text-slate-600">
       {
         children
       }
@@ -1307,19 +1893,19 @@ function EmptyState({
     string;
 }) {
   return (
-    <div className="rounded-xl border border-dashed border-[#dedfea] bg-[#fbfbfd] p-10 text-center">
+    <div className="rounded-xl border border-dashed border-slate-200 p-10 text-center">
       <CircleDollarSign
         size={34}
-        className="mx-auto text-[#c1c6d4]"
+        className="mx-auto text-slate-300"
       />
 
-      <p className="mt-4 font-extrabold text-[#526080]">
+      <p className="mt-4 font-semibold text-slate-700">
         {
           title
         }
       </p>
 
-      <p className="mt-1 text-sm text-[#929bb3]">
+      <p className="mt-1 text-sm text-slate-500">
         {
           description
         }
@@ -1331,41 +1917,22 @@ function EmptyState({
 function SmallSummary({
   title,
   value,
-  tone,
 }: {
   title:
     string;
 
   value:
     string;
-
-  tone:
-    "purple"
-    | "green"
-    | "red";
 }) {
-  const styles = {
-    purple:
-      "border-[#e8e2ff] bg-[#faf8ff] text-[#6847f5]",
-
-    green:
-      "border-[#dcefe8] bg-[#f7fcfa] text-[#269d75]",
-
-    red:
-      "border-[#f6dde3] bg-[#fff9fa] text-[#df4e67]",
-  }[tone];
-
   return (
-    <div
-      className={`rounded-xl border p-4 ${styles}`}
-    >
-      <p className="text-sm font-semibold opacity-75">
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <p className="text-sm text-slate-500">
         {
           title
         }
       </p>
 
-      <p className="mt-1 text-lg font-extrabold">
+      <p className="mt-1 text-lg font-bold text-slate-900">
         {
           value
         }
