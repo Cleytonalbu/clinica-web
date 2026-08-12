@@ -1,8 +1,4 @@
 import {
-  useAuth,
-} from "../../../auth/AuthContext";
-
-import {
   DashboardLayout,
 } from "../../../layouts/DashboardLayout";
 
@@ -42,39 +38,33 @@ import {
   ProfissionalValoresReceber,
 } from "../../../components/dashboard/profissional/ProfissionalValoresReceber";
 
+/* =========================================
+   DASHBOARD PROFISSIONAL
+========================================= */
+
 export default function DashboardProfissional() {
-  const {
-    user,
-  } = useAuth();
-
-  const firstName =
-    user?.name
-      ?.trim()
-      .replace(
-        /^Dra?\.\s*/i,
-        ""
-      )
-      .split(/\s+/)[0] ??
-    "Profissional";
-
   return (
     <DashboardLayout>
       <div className="mx-auto w-full max-w-[1500px] space-y-5">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">
-            Olá, {firstName}! 👋
-          </h1>
-
-          <p className="mt-2 text-sm text-slate-500">
-            Aqui está o resumo dos seus atendimentos de hoje.
-          </p>
-        </div>
+        {/* ================================= */}
+        {/* MÉTRICAS */}
+        {/* ================================= */}
 
         <ProfissionalMetricCards />
 
+        {/* ================================= */}
+        {/* CONTEÚDO PRINCIPAL */}
+        {/* ================================= */}
+
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_290px]">
+          {/* COLUNA PRINCIPAL */}
+
           <div className="space-y-5">
+            {/* AGENDA DE HOJE */}
+
             <ProfissionalAgendaHoje />
+
+            {/* OCUPAÇÃO + PRÓXIMAS CONSULTAS */}
 
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.8fr_1.2fr]">
               <ProfissionalOcupacao />
@@ -82,14 +72,20 @@ export default function DashboardProfissional() {
               <ProfissionalProximasConsultas />
             </div>
 
+            {/* EVOLUÇÕES + AVISOS */}
+
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.25fr_0.75fr]">
               <ProfissionalEvolucoesStatus />
 
               <ProfissionalAvisos />
             </div>
 
+            {/* OBJETIVOS */}
+
             <ProfissionalObjetivos />
           </div>
+
+          {/* COLUNA LATERAL */}
 
           <div className="space-y-5">
             <ProfissionalAcessoRapido />

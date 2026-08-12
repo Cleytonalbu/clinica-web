@@ -5,6 +5,7 @@ import {
   CalendarDays,
   ClipboardList,
   FileText,
+  PackageOpen,
   Plus,
   Trash2,
   UserRound,
@@ -36,6 +37,7 @@ import { createEvolutionDefaultValues } from "@/components/pacientes/profile/evo
 
 import type {
   EvolutionFormData,
+  EvolutionMaterialFormData,
   EvolutionObjectiveStatus,
 } from "@/components/pacientes/profile/evolutions/evolutionForm.types";
 
@@ -222,6 +224,79 @@ export default function NovaEvolucao() {
     }));
   }
 
+  /* =======================================
+     MATERIAIS UTILIZADOS
+  ======================================= */
+
+  function addMaterial() {
+    setFormData((current) => {
+      const nextId =
+        current.materials.length > 0
+          ? Math.max(
+              ...current.materials.map(
+                (material) => material.id
+              )
+            ) + 1
+          : 1;
+
+      return {
+        ...current,
+        materials: [
+          ...current.materials,
+          {
+            id: nextId,
+            name: "",
+            quantity: "",
+            observation: "",
+          },
+        ],
+      };
+    });
+
+    setFeedback(null);
+    setFeedbackType(null);
+  }
+
+  function updateMaterial(
+    materialId: number,
+    field:
+      | "name"
+      | "quantity"
+      | "observation",
+    value: string
+  ) {
+    setFormData((current) => ({
+      ...current,
+      materials: current.materials.map(
+        (material) =>
+          material.id === materialId
+            ? {
+                ...material,
+                [field]: value,
+              }
+            : material
+      ),
+    }));
+
+    setFeedback(null);
+    setFeedbackType(null);
+  }
+
+  function removeMaterial(
+    materialId: number
+  ) {
+    setFormData((current) => ({
+      ...current,
+      materials: current.materials.filter(
+        (material) =>
+          material.id !== materialId
+      ),
+    }));
+
+    setFeedback(null);
+    setFeedbackType(null);
+  }
+
   function validateForFinalization() {
     const nextErrors: ValidationErrors = {};
 
@@ -294,6 +369,7 @@ export default function NovaEvolucao() {
         appointmentLocation:
           draft.appointmentLocation,
         objectives: draft.objectives,
+        materials: draft.materials,
         writtenEvolution:
           draft.writtenEvolution,
         referralSpecialty:
@@ -425,6 +501,8 @@ export default function NovaEvolucao() {
           evolution.appointmentLocation,
         objectives:
           evolution.objectives,
+        materials:
+          evolution.materials,
         writtenEvolution:
           evolution.writtenEvolution,
         referralSpecialty:
@@ -673,6 +751,13 @@ export default function NovaEvolucao() {
             updateField={updateField}
           />
         </div>
+
+        <MaterialsUsedSection
+          materials={formData.materials}
+          onAdd={addMaterial}
+          onUpdate={updateMaterial}
+          onRemove={removeMaterial}
+        />
 
         <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
           <ObservedImpactsSection
@@ -1150,6 +1235,196 @@ function SessionObjectivesSection({
               Todos os objetivos do plano terapêutico já estão nesta sessão.
             </p>
           )}
+        </div>
+      </div>
+    </PageCard>
+  );
+}
+
+/* =========================================
+   MATERIAIS UTILIZADOS
+========================================= */
+
+interface MaterialsUsedSectionProps {
+  materials:
+    EvolutionMaterialFormData[];
+
+  onAdd:
+    () => void;
+
+  onUpdate:
+    (
+      materialId: number,
+      field:
+        | "name"
+        | "quantity"
+        | "observation",
+      value: string
+    ) => void;
+
+  onRemove:
+    (
+      materialId: number
+    ) => void;
+}
+
+function MaterialsUsedSection({
+  materials,
+  onAdd,
+  onUpdate,
+  onRemove,
+}: MaterialsUsedSectionProps) {
+  return (
+    <PageCard
+      title="Materiais utilizados"
+      description="Registre os recursos e materiais utilizados durante o atendimento."
+    >
+      <div className="space-y-4">
+        {materials.length > 0 && (
+          <div className="hidden grid-cols-[minmax(0,1.2fr)_180px_minmax(0,1.5fr)_42px] gap-4 px-2 text-xs font-semibold uppercase tracking-wide text-slate-400 lg:grid">
+            <span>
+              Material
+            </span>
+
+            <span>
+              Quantidade
+            </span>
+
+            <span>
+              Observação
+            </span>
+
+            <span />
+          </div>
+        )}
+
+        {materials.map(
+          (
+            material,
+            index
+          ) => (
+            <div
+              key={
+                material.id
+              }
+              className="grid grid-cols-1 gap-3 rounded-xl border border-slate-100 bg-slate-50/40 p-4 lg:grid-cols-[minmax(0,1.2fr)_180px_minmax(0,1.5fr)_42px] lg:items-center"
+            >
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-500 lg:hidden">
+                  Material
+                </label>
+
+                <Input
+                  value={
+                    material.name
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    onUpdate(
+                      material.id,
+                      "name",
+                      event.target.value
+                    )
+                  }
+                  placeholder="Ex.: Cartões de emoções"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-500 lg:hidden">
+                  Quantidade
+                </label>
+
+                <Input
+                  value={
+                    material.quantity
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    onUpdate(
+                      material.id,
+                      "quantity",
+                      event.target.value
+                    )
+                  }
+                  placeholder="Ex.: 1 conjunto"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-500 lg:hidden">
+                  Observação
+                </label>
+
+                <Input
+                  value={
+                    material.observation
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    onUpdate(
+                      material.id,
+                      "observation",
+                      event.target.value
+                    )
+                  }
+                  placeholder="Ex.: Utilizado para identificação emocional"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  onRemove(
+                    material.id
+                  )
+                }
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                title={`Remover material ${index + 1}`}
+              >
+                <Trash2
+                  size={17}
+                />
+              </button>
+            </div>
+          )
+        )}
+
+        {materials.length === 0 && (
+          <div className="rounded-xl border border-dashed border-violet-200 bg-violet-50/30 px-5 py-7 text-center">
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-white text-violet-600 shadow-sm">
+              <PackageOpen
+                size={20}
+              />
+            </div>
+
+            <p className="mt-3 text-sm font-semibold text-slate-700">
+              Nenhum material registrado
+            </p>
+
+            <p className="mt-1 text-xs text-slate-500">
+              Adicione os recursos utilizados nesta consulta.
+            </p>
+          </div>
+        )}
+
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={
+              onAdd
+            }
+          >
+            <Plus
+              size={17}
+            />
+
+            Adicionar material
+          </Button>
         </div>
       </div>
     </PageCard>

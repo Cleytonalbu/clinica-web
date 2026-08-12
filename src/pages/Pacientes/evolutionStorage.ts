@@ -1,4 +1,5 @@
 import type {
+  EvolutionMaterialFormData,
   EvolutionObjectiveFormData,
   ReferralPriority,
   SessionResult,
@@ -41,6 +42,9 @@ export interface StoredEvolution {
 
   objectives:
     EvolutionObjectiveFormData[];
+
+  materials:
+    EvolutionMaterialFormData[];
 
   writtenEvolution: string;
 
@@ -106,6 +110,9 @@ export interface CreateEvolutionData {
 
   objectives?:
     EvolutionObjectiveFormData[];
+
+  materials?:
+    EvolutionMaterialFormData[];
 
   writtenEvolution?: string;
 
@@ -193,9 +200,23 @@ export function getEvolutions():
       return [];
     }
 
-    return parsed.filter(
-      isValidStoredEvolution
-    );
+    return parsed
+      .filter(
+        isValidStoredEvolution
+      )
+      .map(
+        (evolution) => ({
+          ...evolution,
+          materials:
+            normalizeMaterials(
+              Array.isArray(
+                evolution.materials
+              )
+                ? evolution.materials
+                : []
+            ),
+        })
+      );
   } catch {
     return [];
   }
@@ -382,6 +403,12 @@ export function createEvolution(
           []
       ),
 
+    materials:
+      normalizeMaterials(
+        data.materials ??
+          []
+      ),
+
     writtenEvolution:
       cleanText(
         data.writtenEvolution
@@ -540,6 +567,14 @@ export function updateEvolution(
             data.objectives
           )
         : existing.objectives,
+
+    materials:
+      data.materials !==
+      undefined
+        ? normalizeMaterials(
+            data.materials
+          )
+        : existing.materials,
 
     writtenEvolution:
       data.writtenEvolution !==
@@ -962,6 +997,44 @@ function normalizeObjectives(
         ),
     })
   );
+}
+
+/* =========================================
+   NORMALIZAR MATERIAIS
+========================================= */
+
+function normalizeMaterials(
+  materials:
+    EvolutionMaterialFormData[]
+) {
+  return materials
+    .map(
+      (
+        material
+      ) => ({
+        ...material,
+
+        name:
+          material.name
+            .trim(),
+
+        quantity:
+          material.quantity
+            .trim(),
+
+        observation:
+          material.observation
+            .trim(),
+      })
+    )
+    .filter(
+      (
+        material
+      ) =>
+        Boolean(
+          material.name
+        )
+    );
 }
 
 /* =========================================

@@ -15,6 +15,10 @@ export type ReferralPriority =
   | "Alta"
   | "Urgente";
 
+/* =========================================
+   OBJETIVO DA EVOLUÇÃO
+========================================= */
+
 export interface EvolutionObjectiveFormData {
   id: number;
   name: string;
@@ -22,14 +26,35 @@ export interface EvolutionObjectiveFormData {
   performance: number;
 }
 
+/* =========================================
+   MATERIAL UTILIZADO
+========================================= */
+
+export interface EvolutionMaterialFormData {
+  id: number;
+  name: string;
+  quantity: string;
+  observation: string;
+}
+
+/* =========================================
+   OBJETIVO DO PLANO TERAPÊUTICO
+========================================= */
+
 export interface TherapeuticPlanObjective {
   id: number;
   name: string;
   specialty: string;
 }
 
+/* =========================================
+   FORMULÁRIO DA EVOLUÇÃO
+========================================= */
+
 export interface EvolutionFormData {
   patientId: string;
+
+  /* SESSÃO */
 
   sessionDate: string;
   startTime: string;
@@ -39,9 +64,19 @@ export interface EvolutionFormData {
   appointmentType: string;
   appointmentLocation: string;
 
+  /* OBJETIVOS */
+
   objectives: EvolutionObjectiveFormData[];
 
+  /* MATERIAIS */
+
+  materials: EvolutionMaterialFormData[];
+
+  /* EVOLUÇÃO ESCRITA */
+
   writtenEvolution: string;
+
+  /* ENCAMINHAMENTO */
 
   referralSpecialty: string;
   referralProfessional: string;
@@ -49,18 +84,30 @@ export interface EvolutionFormData {
   referralPriority: ReferralPriority;
   referralObservation: string;
 
+  /* NOTIFICAÇÕES */
+
   notifyProfessional: boolean;
   addProfessionalAgenda: boolean;
   notifyManager: boolean;
 
+  /* IMPACTOS */
+
   observedImpacts: string[];
+
+  /* RESULTADO */
 
   sessionResult: SessionResult;
   sessionResultObservation: string;
 
+  /* ANEXOS */
+
   attachments: File[];
 
+  /* PROFISSIONAL */
+
   professional: string;
+
+  /* STATUS */
 
   status: "RASCUNHO" | "FINALIZADA";
 }

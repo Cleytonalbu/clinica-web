@@ -7,8 +7,7 @@ import type {
 ========================================= */
 
 export function createEvolutionDefaultValues(
-  patientId:
-    string
+  patientId: string
 ): EvolutionFormData {
   return {
     patientId,
@@ -17,17 +16,13 @@ export function createEvolutionDefaultValues(
        SESSÃO
     ===================================== */
 
-    sessionDate:
-      "",
+    sessionDate: "",
 
-    startTime:
-      "",
+    startTime: "",
 
-    endTime:
-      "",
+    endTime: "",
 
-    specialty:
-      "",
+    specialty: "",
 
     appointmentType:
       "Individual",
@@ -39,34 +34,34 @@ export function createEvolutionDefaultValues(
        OBJETIVOS
     ===================================== */
 
-    objectives:
-      [],
+    objectives: [],
+
+    /* =====================================
+       MATERIAIS UTILIZADOS
+    ===================================== */
+
+    materials: [],
 
     /* =====================================
        EVOLUÇÃO ESCRITA
     ===================================== */
 
-    writtenEvolution:
-      "",
+    writtenEvolution: "",
 
     /* =====================================
        ENCAMINHAMENTO
     ===================================== */
 
-    referralSpecialty:
-      "",
+    referralSpecialty: "",
 
-    referralProfessional:
-      "",
+    referralProfessional: "",
 
-    referralReason:
-      "",
+    referralReason: "",
 
     referralPriority:
       "Média",
 
-    referralObservation:
-      "",
+    referralObservation: "",
 
     /* =====================================
        NOTIFICAÇÕES
@@ -85,8 +80,7 @@ export function createEvolutionDefaultValues(
        IMPACTOS OBSERVADOS
     ===================================== */
 
-    observedImpacts:
-      [],
+    observedImpacts: [],
 
     /* =====================================
        RESULTADO DA SESSÃO
@@ -95,22 +89,19 @@ export function createEvolutionDefaultValues(
     sessionResult:
       "Dentro do esperado",
 
-    sessionResultObservation:
-      "",
+    sessionResultObservation: "",
 
     /* =====================================
        ANEXOS
     ===================================== */
 
-    attachments:
-      [],
+    attachments: [],
 
     /* =====================================
        PROFISSIONAL
     ===================================== */
 
-    professional:
-      "",
+    professional: "",
 
     /* =====================================
        STATUS
