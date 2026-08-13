@@ -1,8 +1,43 @@
 export type EvolutionObjectiveStatus =
   | "Em evolução"
+  | "Regressão"
+  | "Falta da criança"
+  | "Mantido/sem alteração"
   | "Alcançado"
-  | "Parcialmente alcançado"
-  | "Regressão";
+  | "Não trabalhado";
+
+export function getEvolutionObjectiveMarkerScore(
+  status: EvolutionObjectiveStatus
+): number | null {
+  switch (status) {
+    case "Regressão":
+      return -1;
+
+    case "Mantido/sem alteração":
+      return 1;
+
+    case "Em evolução":
+      return 2;
+
+    case "Alcançado":
+      return 3;
+
+    case "Falta da criança":
+    case "Não trabalhado":
+      return null;
+
+    default:
+      return null;
+  }
+}
+
+export function hasEvolutionObjectiveMarkerScore(
+  status: EvolutionObjectiveStatus
+) {
+  return getEvolutionObjectiveMarkerScore(
+    status
+  ) !== null;
+}
 
 export type SessionResult =
   | "Abaixo do esperado"
@@ -15,31 +50,28 @@ export type ReferralPriority =
   | "Alta"
   | "Urgente";
 
-/* =========================================
-   OBJETIVO DA EVOLUÇÃO
-========================================= */
-
 export interface EvolutionObjectiveFormData {
   id: number;
   name: string;
   status: EvolutionObjectiveStatus;
+
+  /**
+   * Avaliação clínica complementar de 1 a 5.
+   * Para falta ou objetivo não trabalhado, o valor
+   * permanece armazenado, mas não entra no marcador.
+   */
   performance: number;
+
+  /**
+   * Marcador numérico derivado do status da sessão.
+   * Regressão = -1
+   * Mantido = 1
+   * Em evolução = 2
+   * Alcançado = 3
+   * Falta / Não trabalhado = null
+   */
+  markerScore: number | null;
 }
-
-/* =========================================
-   MATERIAL UTILIZADO
-========================================= */
-
-export interface EvolutionMaterialFormData {
-  id: number;
-  name: string;
-  quantity: string;
-  observation: string;
-}
-
-/* =========================================
-   OBJETIVO DO PLANO TERAPÊUTICO
-========================================= */
 
 export interface TherapeuticPlanObjective {
   id: number;
@@ -47,14 +79,8 @@ export interface TherapeuticPlanObjective {
   specialty: string;
 }
 
-/* =========================================
-   FORMULÁRIO DA EVOLUÇÃO
-========================================= */
-
 export interface EvolutionFormData {
   patientId: string;
-
-  /* SESSÃO */
 
   sessionDate: string;
   startTime: string;
@@ -64,19 +90,9 @@ export interface EvolutionFormData {
   appointmentType: string;
   appointmentLocation: string;
 
-  /* OBJETIVOS */
-
   objectives: EvolutionObjectiveFormData[];
 
-  /* MATERIAIS */
-
-  materials: EvolutionMaterialFormData[];
-
-  /* EVOLUÇÃO ESCRITA */
-
   writtenEvolution: string;
-
-  /* ENCAMINHAMENTO */
 
   referralSpecialty: string;
   referralProfessional: string;
@@ -84,30 +100,18 @@ export interface EvolutionFormData {
   referralPriority: ReferralPriority;
   referralObservation: string;
 
-  /* NOTIFICAÇÕES */
-
   notifyProfessional: boolean;
   addProfessionalAgenda: boolean;
   notifyManager: boolean;
 
-  /* IMPACTOS */
-
   observedImpacts: string[];
-
-  /* RESULTADO */
 
   sessionResult: SessionResult;
   sessionResultObservation: string;
 
-  /* ANEXOS */
-
   attachments: File[];
 
-  /* PROFISSIONAL */
-
   professional: string;
-
-  /* STATUS */
 
   status: "RASCUNHO" | "FINALIZADA";
 }

@@ -8,6 +8,8 @@ export interface TherapeuticObjective {
 
   patientId: number;
 
+  generalObjective: string;
+
   title: string;
 
   specialty: string;
@@ -52,9 +54,12 @@ export function getObjectives():
       return [];
     }
 
-    return JSON.parse(
-      stored
-    ) as TherapeuticObjective[];
+    const parsed = JSON.parse(stored) as Array<TherapeuticObjective & { generalObjective?: string }>;
+
+    return parsed.map((objective) => ({
+      ...objective,
+      generalObjective: objective.generalObjective?.trim() || "Objetivo terapêutico geral",
+    }));
   } catch {
     return [];
   }
@@ -74,6 +79,29 @@ export function getObjectivesByPatientId(
       objective.patientId ===
       patientId
   );
+}
+
+/* =========================================
+   AGRUPAR POR OBJETIVO GERAL
+========================================= */
+
+export interface ObjectiveGroup {
+  generalObjective: string;
+  objectives: TherapeuticObjective[];
+}
+
+export function getObjectiveGroupsByPatientId(patientId: number): ObjectiveGroup[] {
+  const groups = new Map<string, TherapeuticObjective[]>();
+
+  getObjectivesByPatientId(patientId).forEach((objective) => {
+    const key = objective.generalObjective.trim() || "Objetivo terapêutico geral";
+    groups.set(key, [...(groups.get(key) ?? []), objective]);
+  });
+
+  return Array.from(groups.entries()).map(([generalObjective, objectives]) => ({
+    generalObjective,
+    objectives,
+  }));
 }
 
 /* =========================================
@@ -98,6 +126,8 @@ export function getObjectiveById(
 
 interface CreateObjectiveData {
   patientId: number;
+
+  generalObjective: string;
 
   title: string;
 
@@ -134,6 +164,9 @@ export function createObjective(
 
     patientId:
       data.patientId,
+
+    generalObjective:
+      data.generalObjective.trim(),
 
     title:
       data.title.trim(),

@@ -16,6 +16,7 @@ import {
 
 import {
   useNavigate,
+  useSearchParams,
 } from "react-router-dom";
 
 import {
@@ -43,112 +44,18 @@ import {
   formatCurrency,
 } from "@/pages/Financeiro/financeRules";
 
-const defaultAppointments: StoredAppointment[] = [
-  {
-    id: 1,
-    patientId: 1,
-    patient: "Maria Oliveira",
-    professional: "Dra. Ana Paula",
-    specialty: "Psicologia",
-    date: "2026-08-07",
-    time: "08:00",
-    endTime: "08:50",
-    room: "Sala 01",
-    type: "Individual",
-    status: "Realizado",
-  },
-  {
-    id: 2,
-    patientId: 2,
-    patient: "João Miguel Silva",
-    professional: "Dra. Camila Soares",
-    specialty: "Fonoaudiologia",
-    date: "2026-08-07",
-    time: "08:00",
-    endTime: "08:50",
-    room: "Sala 02",
-    type: "Individual",
-    status: "Confirmado",
-  },
-  {
-    id: 3,
-    patientId: 3,
-    patient: "Lucas Gabriel",
-    professional: "Dra. Ana Paula",
-    specialty: "Psicologia",
-    date: "2026-08-07",
-    time: "09:00",
-    endTime: "09:50",
-    room: "Sala 01",
-    type: "Individual",
-    status: "Confirmado",
-  },
-  {
-    id: 4,
-    patientId: 4,
-    patient: "Ana Clara Rodrigues",
-    professional: "Dra. Larissa Lima",
-    specialty: "Terapia Ocupacional",
-    date: "2026-08-07",
-    time: "10:00",
-    endTime: "10:50",
-    room: "Sala 03",
-    type: "Individual",
-    status: "Agendado",
-  },
-  {
-    id: 5,
-    patientId: 5,
-    patient: "Pedro Henrique",
-    professional: "Dr. Rafael Costa",
-    specialty: "Fisioterapia",
-    date: "2026-08-07",
-    time: "11:00",
-    endTime: "11:50",
-    room: "Sala 04",
-    type: "Avaliação",
-    status: "Cancelado",
-  },
-  {
-    id: 6,
-    patientId: 1,
-    patient: "Maria Oliveira",
-    professional: "Dra. Camila Soares",
-    specialty: "Fonoaudiologia",
-    date: "2026-08-07",
-    time: "14:00",
-    endTime: "14:50",
-    room: "Sala 02",
-    type: "Individual",
-    status: "Agendado",
-  },
-  {
-    id: 7,
-    patientId: 3,
-    patient: "Lucas Gabriel",
-    professional: "Dra. Ana Paula",
-    specialty: "Psicologia",
-    date: "2026-08-08",
-    time: "09:00",
-    endTime: "09:50",
-    room: "Sala 01",
-    type: "Individual",
-    status: "Agendado",
-  },
-  {
-    id: 8,
-    patientId: 1,
-    patient: "Maria Oliveira",
-    professional: "Dra. Ana Paula",
-    specialty: "Psicologia",
-    date: "2026-08-10",
-    time: "10:30",
-    endTime: "11:20",
-    room: "Sala 01",
-    type: "Individual",
-    status: "Confirmado",
-  },
-];
+import {
+  getObjectives,
+} from "@/pages/Pacientes/objectiveStorage";
+
+import {
+  getEvolutions,
+} from "@/pages/Pacientes/evolutionStorage";
+
+import {
+  PatientReportDocument,
+  PATIENT_REPORT_DOCUMENT_STYLES,
+} from "@/components/relatorios/PatientReportDocument";
 
 interface PatientReport {
   patientId: number;
@@ -174,18 +81,199 @@ interface PatientReport {
   paid: number;
 
   pending: number;
+
+  objectives: number;
+
+  achievedObjectives: number;
+
+  evolutions: number;
 }
 
+function formatReportDate(
+  value: string
+) {
+  if (!value) {
+    return "—";
+  }
+
+  const [
+    year,
+    month,
+    day,
+  ] =
+    value.split("-");
+
+  if (
+    !year ||
+    !month ||
+    !day
+  ) {
+    return value;
+  }
+
+  return `${day}/${month}/${year}`;
+}
+
+
+const REPORT_PRINT_STYLES = `
+  .report-print-footer {
+    display: none;
+  }
+
+  @media print {
+    @page {
+      size: A4 landscape;
+      margin: 10mm;
+    }
+
+    html,
+    body {
+      background: #ffffff !important;
+      width: auto !important;
+      height: auto !important;
+      overflow: visible !important;
+    }
+
+    body * {
+      visibility: hidden !important;
+    }
+
+    .report-print-area,
+    .report-print-area * {
+      visibility: visible !important;
+    }
+
+    .report-print-area {
+      position: absolute !important;
+      inset: 0 auto auto 0 !important;
+      width: 100% !important;
+      max-width: none !important;
+      min-width: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #ffffff !important;
+      color: #0f172a !important;
+      overflow: visible !important;
+    }
+
+    .report-print-area .print\\:hidden,
+    .report-print-area button,
+    .report-print-area [data-print-hide="true"] {
+      display: none !important;
+    }
+
+    .report-print-area table {
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      table-layout: auto !important;
+      border-collapse: collapse !important;
+      font-size: 8pt !important;
+    }
+
+    .report-print-area thead {
+      display: table-header-group !important;
+    }
+
+    .report-print-area tr,
+    .report-print-area td,
+    .report-print-area th {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    .report-print-area section,
+    .report-print-area article,
+    .report-print-area .rounded-2xl {
+      break-inside: avoid;
+      page-break-inside: avoid;
+      box-shadow: none !important;
+    }
+
+    .report-print-area .overflow-x-auto,
+    .report-print-area .overflow-hidden {
+      overflow: visible !important;
+    }
+
+    .report-print-area [class*="min-w-"] {
+      min-width: 0 !important;
+    }
+
+    .report-print-area [class*="max-w-"] {
+      max-width: none !important;
+    }
+
+    .report-print-area {
+      font-size: 9pt !important;
+    }
+
+    .report-print-area h1 {
+      font-size: 20pt !important;
+      line-height: 1.15 !important;
+      margin-bottom: 4px !important;
+    }
+
+    .report-print-area h2 {
+      font-size: 14pt !important;
+    }
+
+    .report-print-area h3 {
+      font-size: 11pt !important;
+    }
+
+    .report-print-footer {
+      display: flex !important;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 18px;
+      padding-top: 8px;
+      border-top: 1px solid #dbe2ef;
+      font-size: 7.5pt;
+      color: #64748b;
+    }
+
+    .report-print-footer strong {
+      color: #10235f;
+    }
+
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+  }
+`;
+
 export default function RelatorioPacientes() {
+  const [
+    searchParams,
+  ] =
+    useSearchParams();
+
+  const initialStartDate =
+    searchParams.get(
+      "startDate"
+    ) ??
+    "2026-08-01";
+
+  const initialEndDate =
+    searchParams.get(
+      "endDate"
+    ) ??
+    "2026-08-31";
+
+  const initialPatient =
+    searchParams.get(
+      "patient"
+    ) ??
+    "";
+
   const navigate =
     useNavigate();
 
   const appointments =
     useMemo(
-      () => [
-        ...defaultAppointments,
-        ...getSavedAppointments(),
-      ],
+      () =>
+        getSavedAppointments(),
       []
     );
 
@@ -196,12 +284,26 @@ export default function RelatorioPacientes() {
       []
     );
 
+  const objectives =
+    useMemo(
+      () =>
+        getObjectives(),
+      []
+    );
+
+  const evolutions =
+    useMemo(
+      () =>
+        getEvolutions(),
+      []
+    );
+
   const [
     startDate,
     setStartDate,
   ] =
     useState(
-      "2026-08-01"
+      initialStartDate
     );
 
   const [
@@ -209,14 +311,18 @@ export default function RelatorioPacientes() {
     setEndDate,
   ] =
     useState(
-      "2026-08-31"
+      initialEndDate
     );
 
   const [
     search,
     setSearch,
   ] =
-    useState("");
+    useState(
+      initialPatient === "Todos"
+        ? ""
+        : initialPatient
+    );
 
   const [
     situation,
@@ -298,6 +404,15 @@ export default function RelatorioPacientes() {
                   0,
 
                 pending:
+                  0,
+
+                objectives:
+                  0,
+
+                achievedObjectives:
+                  0,
+
+                evolutions:
                   0,
               }
             );
@@ -426,12 +541,58 @@ export default function RelatorioPacientes() {
         }
       );
 
+      objectives.forEach(
+        (objective) => {
+          const patient =
+            patientMap.get(
+              objective.patientId
+            );
+
+          if (!patient) return;
+
+          if (
+            (startDate && objective.startDate < startDate) ||
+            (endDate && objective.startDate > endDate)
+          ) {
+            return;
+          }
+
+          patient.objectives += 1;
+
+          if (objective.status === "Atingido") {
+            patient.achievedObjectives += 1;
+          }
+        }
+      );
+
+      evolutions.forEach(
+        (evolution) => {
+          const patient =
+            patientMap.get(
+              evolution.patientId
+            );
+
+          if (!patient || evolution.status !== "FINALIZADA") return;
+
+          if (
+            (startDate && evolution.sessionDate < startDate) ||
+            (endDate && evolution.sessionDate > endDate)
+          ) {
+            return;
+          }
+
+          patient.evolutions += 1;
+        }
+      );
+
       return Array.from(
         patientMap.values()
       );
     }, [
       appointments,
       charges,
+      objectives,
+      evolutions,
       startDate,
       endDate,
     ]);
@@ -601,7 +762,50 @@ export default function RelatorioPacientes() {
 
   return (
     <DashboardLayout>
+      <style>
+        {
+          `${REPORT_PRINT_STYLES}
+${PATIENT_REPORT_DOCUMENT_STYLES}`
+        }
+      </style>
       <div className="space-y-6 print:space-y-4">
+        <PatientReportDocument
+          startDate={
+            startDate
+          }
+          endDate={
+            endDate
+          }
+          searchFilter={
+            search ||
+            "Todos"
+          }
+          situationFilter={
+            situation
+          }
+          report={
+            filteredPatients
+          }
+          totalPatients={
+            totalPatients
+          }
+          totalAppointments={
+            totalAppointments
+          }
+          totalRealized={
+            totalRealized
+          }
+          totalAbsences={
+            totalAbsences
+          }
+          totalPending={
+            totalPending
+          }
+          averageAppointments={
+            averageAppointments
+          }
+        />
+
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">
@@ -643,6 +847,13 @@ export default function RelatorioPacientes() {
           </div>
         </div>
 
+        <div className="hidden print:block">
+          <p className="text-xs text-slate-500">
+            Período: {formatReportDate(startDate)} a {formatReportDate(endDate)} • Pesquisa: {search || "Todos"} • Situação: {situation}
+          </p>
+        </div>
+
+        <div className="print:hidden">
         <PageCard
           title="Filtros"
           description="Defina o período e os critérios de pesquisa."
@@ -744,6 +955,7 @@ export default function RelatorioPacientes() {
             </FormField>
           </div>
         </PageCard>
+        </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <MetricCard
@@ -877,7 +1089,7 @@ export default function RelatorioPacientes() {
           {filteredPatients.length >
           0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1350px]">
+              <table className="w-full min-w-[1480px]">
                 <thead>
                   <tr className="border-b border-slate-200 text-left">
                     <TableHeader>
@@ -910,6 +1122,10 @@ export default function RelatorioPacientes() {
 
                     <TableHeader>
                       Especialidades
+                    </TableHeader>
+
+                    <TableHeader>
+                      Clínico
                     </TableHeader>
 
                     <TableHeader>
@@ -1035,6 +1251,22 @@ export default function RelatorioPacientes() {
 
                         <TableCell>
                           <div className="space-y-1 text-xs">
+                            <p className="text-slate-600">
+                              Objetivos: <strong>{patient.objectives}</strong>
+                            </p>
+
+                            <p className="text-emerald-600">
+                              Atingidos: <strong>{patient.achievedObjectives}</strong>
+                            </p>
+
+                            <p className="text-violet-600">
+                              Evoluções: <strong>{patient.evolutions}</strong>
+                            </p>
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="space-y-1 text-xs">
                             <p className="text-slate-500">
                               Faturado:{" "}
                               <strong className="text-slate-800">
@@ -1128,6 +1360,15 @@ export default function RelatorioPacientes() {
             </div>
           )}
         </PageCard>
+        <div className="report-print-footer">
+          <span>
+            <strong>Clínica Integrada Entre Afetos</strong> • Relatório de Pacientes
+          </span>
+
+          <span>
+            AC Software • Documento gerado pelo sistema
+          </span>
+        </div>
       </div>
     </DashboardLayout>
   );

@@ -18,6 +18,7 @@ import {
 
 import {
   useNavigate,
+  useSearchParams,
 } from "react-router-dom";
 
 import {
@@ -45,112 +46,14 @@ import {
   formatCurrency,
 } from "@/pages/Financeiro/financeRules";
 
-const defaultAppointments: StoredAppointment[] = [
-  {
-    id: 1,
-    patientId: 1,
-    patient: "Maria Oliveira",
-    professional: "Dra. Ana Paula",
-    specialty: "Psicologia",
-    date: "2026-08-07",
-    time: "08:00",
-    endTime: "08:50",
-    room: "Sala 01",
-    type: "Individual",
-    status: "Realizado",
-  },
-  {
-    id: 2,
-    patientId: 2,
-    patient: "João Miguel Silva",
-    professional: "Dra. Camila Soares",
-    specialty: "Fonoaudiologia",
-    date: "2026-08-07",
-    time: "08:00",
-    endTime: "08:50",
-    room: "Sala 02",
-    type: "Individual",
-    status: "Confirmado",
-  },
-  {
-    id: 3,
-    patientId: 3,
-    patient: "Lucas Gabriel",
-    professional: "Dra. Ana Paula",
-    specialty: "Psicologia",
-    date: "2026-08-07",
-    time: "09:00",
-    endTime: "09:50",
-    room: "Sala 01",
-    type: "Individual",
-    status: "Confirmado",
-  },
-  {
-    id: 4,
-    patientId: 4,
-    patient: "Ana Clara Rodrigues",
-    professional: "Dra. Larissa Lima",
-    specialty: "Terapia Ocupacional",
-    date: "2026-08-07",
-    time: "10:00",
-    endTime: "10:50",
-    room: "Sala 03",
-    type: "Individual",
-    status: "Agendado",
-  },
-  {
-    id: 5,
-    patientId: 5,
-    patient: "Pedro Henrique",
-    professional: "Dr. Rafael Costa",
-    specialty: "Fisioterapia",
-    date: "2026-08-07",
-    time: "11:00",
-    endTime: "11:50",
-    room: "Sala 04",
-    type: "Avaliação",
-    status: "Cancelado",
-  },
-  {
-    id: 6,
-    patientId: 1,
-    patient: "Maria Oliveira",
-    professional: "Dra. Camila Soares",
-    specialty: "Fonoaudiologia",
-    date: "2026-08-07",
-    time: "14:00",
-    endTime: "14:50",
-    room: "Sala 02",
-    type: "Individual",
-    status: "Agendado",
-  },
-  {
-    id: 7,
-    patientId: 3,
-    patient: "Lucas Gabriel",
-    professional: "Dra. Ana Paula",
-    specialty: "Psicologia",
-    date: "2026-08-08",
-    time: "09:00",
-    endTime: "09:50",
-    room: "Sala 01",
-    type: "Individual",
-    status: "Agendado",
-  },
-  {
-    id: 8,
-    patientId: 1,
-    patient: "Maria Oliveira",
-    professional: "Dra. Ana Paula",
-    specialty: "Psicologia",
-    date: "2026-08-10",
-    time: "10:30",
-    endTime: "11:20",
-    room: "Sala 01",
-    type: "Individual",
-    status: "Confirmado",
-  },
-];
+import {
+  syncProfessionalPayoutsFromAppointments,
+} from "@/pages/Financeiro/professionalPayoutStorage";
+
+import {
+  ProfessionalReportDocument,
+  PROFESSIONAL_REPORT_DOCUMENT_STYLES,
+} from "@/components/relatorios/ProfessionalReportDocument";
 
 interface ProfessionalReport {
   professional: string;
@@ -174,18 +77,199 @@ interface ProfessionalReport {
   received: number;
 
   pending: number;
+
+  payoutTotal: number;
+
+  payoutPaid: number;
+
+  payoutPending: number;
 }
 
+function formatReportDate(
+  value: string
+) {
+  if (!value) {
+    return "—";
+  }
+
+  const [
+    year,
+    month,
+    day,
+  ] =
+    value.split("-");
+
+  if (
+    !year ||
+    !month ||
+    !day
+  ) {
+    return value;
+  }
+
+  return `${day}/${month}/${year}`;
+}
+
+
+const REPORT_PRINT_STYLES = `
+  .report-print-footer {
+    display: none;
+  }
+
+  @media print {
+    @page {
+      size: A4 landscape;
+      margin: 10mm;
+    }
+
+    html,
+    body {
+      background: #ffffff !important;
+      width: auto !important;
+      height: auto !important;
+      overflow: visible !important;
+    }
+
+    body * {
+      visibility: hidden !important;
+    }
+
+    .report-print-area,
+    .report-print-area * {
+      visibility: visible !important;
+    }
+
+    .report-print-area {
+      position: absolute !important;
+      inset: 0 auto auto 0 !important;
+      width: 100% !important;
+      max-width: none !important;
+      min-width: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #ffffff !important;
+      color: #0f172a !important;
+      overflow: visible !important;
+    }
+
+    .report-print-area .print\\:hidden,
+    .report-print-area button,
+    .report-print-area [data-print-hide="true"] {
+      display: none !important;
+    }
+
+    .report-print-area table {
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      table-layout: auto !important;
+      border-collapse: collapse !important;
+      font-size: 8pt !important;
+    }
+
+    .report-print-area thead {
+      display: table-header-group !important;
+    }
+
+    .report-print-area tr,
+    .report-print-area td,
+    .report-print-area th {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    .report-print-area section,
+    .report-print-area article,
+    .report-print-area .rounded-2xl {
+      break-inside: avoid;
+      page-break-inside: avoid;
+      box-shadow: none !important;
+    }
+
+    .report-print-area .overflow-x-auto,
+    .report-print-area .overflow-hidden {
+      overflow: visible !important;
+    }
+
+    .report-print-area [class*="min-w-"] {
+      min-width: 0 !important;
+    }
+
+    .report-print-area [class*="max-w-"] {
+      max-width: none !important;
+    }
+
+    .report-print-area {
+      font-size: 9pt !important;
+    }
+
+    .report-print-area h1 {
+      font-size: 20pt !important;
+      line-height: 1.15 !important;
+      margin-bottom: 4px !important;
+    }
+
+    .report-print-area h2 {
+      font-size: 14pt !important;
+    }
+
+    .report-print-area h3 {
+      font-size: 11pt !important;
+    }
+
+    .report-print-footer {
+      display: flex !important;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 18px;
+      padding-top: 8px;
+      border-top: 1px solid #dbe2ef;
+      font-size: 7.5pt;
+      color: #64748b;
+    }
+
+    .report-print-footer strong {
+      color: #10235f;
+    }
+
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+  }
+`;
+
 export default function RelatorioProfissionais() {
+  const [
+    searchParams,
+  ] =
+    useSearchParams();
+
+  const initialStartDate =
+    searchParams.get(
+      "startDate"
+    ) ??
+    "2026-08-01";
+
+  const initialEndDate =
+    searchParams.get(
+      "endDate"
+    ) ??
+    "2026-08-31";
+
+  const initialProfessional =
+    searchParams.get(
+      "professional"
+    ) ??
+    "";
+
   const navigate =
     useNavigate();
 
   const appointments =
     useMemo(
-      () => [
-        ...defaultAppointments,
-        ...getSavedAppointments(),
-      ],
+      () =>
+        getSavedAppointments(),
       []
     );
 
@@ -196,12 +280,19 @@ export default function RelatorioProfissionais() {
       []
     );
 
+  const payouts =
+    useMemo(
+      () =>
+        syncProfessionalPayoutsFromAppointments(),
+      []
+    );
+
   const [
     startDate,
     setStartDate,
   ] =
     useState(
-      "2026-08-01"
+      initialStartDate
     );
 
   const [
@@ -209,14 +300,18 @@ export default function RelatorioProfissionais() {
     setEndDate,
   ] =
     useState(
-      "2026-08-31"
+      initialEndDate
     );
 
   const [
     search,
     setSearch,
   ] =
-    useState("");
+    useState(
+      initialProfessional === "Todos"
+        ? ""
+        : initialProfessional
+    );
 
   const [
     specialty,
@@ -293,6 +388,15 @@ export default function RelatorioProfissionais() {
                     0,
 
                   pending:
+                    0,
+
+                  payoutTotal:
+                    0,
+
+                  payoutPaid:
+                    0,
+
+                  payoutPending:
                     0,
                 }
               );
@@ -411,12 +515,39 @@ export default function RelatorioProfissionais() {
         }
       );
 
+      payouts.forEach(
+        (payout) => {
+          const item =
+            map.get(
+              payout.professional
+            );
+
+          if (!item) return;
+
+          if (
+            (startDate && payout.serviceDate < startDate) ||
+            (endDate && payout.serviceDate > endDate)
+          ) {
+            return;
+          }
+
+          item.payoutTotal += payout.amount;
+
+          if (payout.status === "Pago") {
+            item.payoutPaid += payout.amount;
+          } else {
+            item.payoutPending += payout.amount;
+          }
+        }
+      );
+
       return Array.from(
         map.values()
       );
     }, [
       appointments,
       charges,
+      payouts,
       startDate,
       endDate,
     ]);
@@ -494,6 +625,20 @@ export default function RelatorioProfissionais() {
       search,
       specialty,
     ]);
+
+  const totalPayoutPaid =
+    filteredReport.reduce(
+      (total, item) =>
+        total + item.payoutPaid,
+      0
+    );
+
+  const totalPayoutPending =
+    filteredReport.reduce(
+      (total, item) =>
+        total + item.payoutPending,
+      0
+    );
 
   const totalProfessionals =
     filteredReport.length;
@@ -598,7 +743,62 @@ export default function RelatorioProfissionais() {
 
   return (
     <DashboardLayout>
+      <style>
+        {
+          `${REPORT_PRINT_STYLES}
+${PROFESSIONAL_REPORT_DOCUMENT_STYLES}`
+        }
+      </style>
       <div className="space-y-6 print:space-y-4">
+        <ProfessionalReportDocument
+          startDate={
+            startDate
+          }
+          endDate={
+            endDate
+          }
+          professionalFilter={
+            search ||
+            "Todos"
+          }
+          specialtyFilter={
+            specialty
+          }
+          report={
+            filteredReport
+          }
+          totalProfessionals={
+            totalProfessionals
+          }
+          totalAppointments={
+            totalAppointments
+          }
+          totalRealized={
+            totalRealized
+          }
+          totalAbsences={
+            totalAbsences
+          }
+          totalPatients={
+            totalPatients
+          }
+          totalBilled={
+            totalBilled
+          }
+          totalReceived={
+            totalReceived
+          }
+          totalPending={
+            totalPending
+          }
+          totalPayoutPaid={
+            totalPayoutPaid
+          }
+          totalPayoutPending={
+            totalPayoutPending
+          }
+        />
+
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">
@@ -640,6 +840,13 @@ export default function RelatorioProfissionais() {
           </div>
         </div>
 
+        <div className="hidden print:block">
+          <p className="text-xs text-slate-500">
+            Período: {formatReportDate(startDate)} a {formatReportDate(endDate)} • Profissional: {search || "Todos"} • Especialidade: {specialty}
+          </p>
+        </div>
+
+        <div className="print:hidden">
         <PageCard
           title="Filtros"
           description="Defina o período, profissional ou especialidade."
@@ -747,6 +954,7 @@ export default function RelatorioProfissionais() {
             </FormField>
           </div>
         </PageCard>
+        </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
           <MetricCard
@@ -863,23 +1071,23 @@ export default function RelatorioProfissionais() {
             />
 
             <SummaryCard
-              title="Recebido"
+              title="Repasses pagos"
               value={
                 formatCurrency(
-                  totalReceived
+                  totalPayoutPaid
                 )
               }
-              description="Receitas confirmadas"
+              description="Valores pagos aos profissionais"
             />
 
             <SummaryCard
-              title="A receber"
+              title="Repasses pendentes"
               value={
                 formatCurrency(
-                  totalPending
+                  totalPayoutPending
                 )
               }
-              description="Cobranças pendentes"
+              description="Valores ainda a repassar"
             />
 
             <SummaryCard
@@ -907,7 +1115,7 @@ export default function RelatorioProfissionais() {
           {filteredReport.length >
           0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1450px]">
+              <table className="w-full min-w-[1580px]">
                 <thead>
                   <tr className="border-b border-slate-200 text-left">
                     <TableHeader>
@@ -952,6 +1160,10 @@ export default function RelatorioProfissionais() {
 
                     <TableHeader>
                       Pendente
+                    </TableHeader>
+
+                    <TableHeader>
+                      Repasse
                     </TableHeader>
 
                     <TableHeader>
@@ -1153,6 +1365,15 @@ export default function RelatorioProfissionais() {
             </div>
           )}
         </PageCard>
+        <div className="report-print-footer">
+          <span>
+            <strong>Clínica Integrada Entre Afetos</strong> • Relatório de Profissionais
+          </span>
+
+          <span>
+            AC Software • Documento gerado pelo sistema
+          </span>
+        </div>
       </div>
     </DashboardLayout>
   );

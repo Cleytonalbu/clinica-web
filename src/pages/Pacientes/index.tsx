@@ -17,6 +17,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useAuth,
+} from "@/auth/AuthContext";
+
+import {
   PatientHeader,
 } from "@/components/pacientes/header/PatientHeader";
 
@@ -36,11 +40,29 @@ import {
   getSavedAppointments,
 } from "@/pages/Agenda/appointmentStorage";
 
+import {
+  getProfessionalAccessiblePatientIds,
+} from "@/pages/Pacientes/patientAccessRules";
+
 /* =========================================
    PÁGINA PACIENTES
 ========================================= */
 
 export default function Pacientes() {
+  const {
+    user,
+  } =
+    useAuth();
+
+  const isProfissional =
+    user?.profile ===
+    "Profissional";
+
+  const loggedProfessionalName =
+    user?.professionalName ??
+    user?.name ??
+    "";
+
   const [
     search,
     setSearch,
@@ -59,11 +81,74 @@ export default function Pacientes() {
   ] =
     useState("Todos");
 
-  const patients =
+  const allPatients =
     getPatients();
 
+  const accessiblePatientIds =
+    useMemo(
+      () =>
+        isProfissional
+          ? new Set(
+              getProfessionalAccessiblePatientIds(
+                loggedProfessionalName
+              )
+            )
+          : null,
+      [
+        isProfissional,
+        loggedProfessionalName,
+      ]
+    );
+
+  const patients =
+    useMemo(
+      () =>
+        isProfissional
+          ? allPatients.filter(
+              (
+                patient
+              ) =>
+                accessiblePatientIds?.has(
+                  patient.id
+                )
+            )
+          : allPatients,
+      [
+        accessiblePatientIds,
+        allPatients,
+        isProfissional,
+      ]
+    );
+
   const appointments =
-    getSavedAppointments();
+    useMemo(
+      () => {
+        const all =
+          getSavedAppointments();
+
+        if (
+          !isProfissional
+        ) {
+          return all;
+        }
+
+        return all.filter(
+          (
+            appointment
+          ) =>
+            appointment.professional ===
+              loggedProfessionalName &&
+            accessiblePatientIds?.has(
+              appointment.patientId
+            )
+        );
+      },
+      [
+        accessiblePatientIds,
+        isProfissional,
+        loggedProfessionalName,
+      ]
+    );
 
   const now =
     new Date();
@@ -203,6 +288,12 @@ export default function Pacientes() {
         {/* CABEÇALHO */}
 
         <PatientHeader />
+
+        {isProfissional && (
+          <div className="rounded-2xl border border-violet-100 bg-violet-50/70 px-5 py-3 text-xs font-semibold text-violet-700">
+            Exibindo somente pacientes vinculados aos seus atendimentos e à sua especialidade.
+          </div>
+        )}
 
         {/* INDICADORES */}
 

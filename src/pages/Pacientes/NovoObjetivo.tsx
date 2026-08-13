@@ -19,6 +19,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useAuth,
+} from "@/auth/AuthContext";
+
+import {
   Button,
   FormField,
   Input,
@@ -45,6 +49,8 @@ import {
 ========================================= */
 
 interface ObjectiveFormData {
+  generalObjective: string;
+
   title: string;
 
   professional: string;
@@ -69,6 +75,9 @@ interface ObjectiveFormData {
 
 const initialValues:
   ObjectiveFormData = {
+  generalObjective:
+    "",
+
   title:
     "",
 
@@ -122,11 +131,25 @@ export default function NovoObjetivo() {
       patientId
     );
 
+  const {
+    user,
+  } =
+    useAuth();
+
+  const isProfissional =
+    user?.profile ===
+    "Profissional";
+
+  const loggedProfessionalName =
+    user?.professionalName ??
+    user?.name ??
+    "";
+
   /* =======================================
      CONFIGURAÇÕES
   ======================================= */
 
-  const activeProfessionals =
+  const allActiveProfessionals =
     useMemo(
       () =>
         getActiveProfessionals(),
@@ -134,12 +157,68 @@ export default function NovoObjetivo() {
       []
     );
 
-  const activeSpecialties =
+  const loggedProfessional =
     useMemo(
       () =>
-        getActiveSpecialties(),
+        allActiveProfessionals.find(
+          (
+            professional
+          ) =>
+            professional.name ===
+            loggedProfessionalName
+        ),
 
-      []
+      [
+        allActiveProfessionals,
+        loggedProfessionalName,
+      ]
+    );
+
+  const activeProfessionals =
+    useMemo(
+      () =>
+        isProfissional
+          ? allActiveProfessionals.filter(
+              (
+                professional
+              ) =>
+                professional.name ===
+                loggedProfessionalName
+            )
+          : allActiveProfessionals,
+
+      [
+        allActiveProfessionals,
+        isProfissional,
+        loggedProfessionalName,
+      ]
+    );
+
+  const activeSpecialties =
+    useMemo(
+      () => {
+        const specialties =
+          getActiveSpecialties();
+
+        if (
+          !isProfissional
+        ) {
+          return specialties;
+        }
+
+        return specialties.filter(
+          (
+            specialty
+          ) =>
+            specialty.name ===
+            loggedProfessional?.specialty
+        );
+      },
+
+      [
+        isProfissional,
+        loggedProfessional?.specialty,
+      ]
     );
 
   /* =======================================
@@ -151,7 +230,22 @@ export default function NovoObjetivo() {
     setFormData,
   ] =
     useState<ObjectiveFormData>(
-      initialValues
+      () => ({
+        ...initialValues,
+
+        professional:
+          isProfissional
+            ? loggedProfessionalName
+            : "",
+
+        specialty:
+          isProfissional
+            ? (
+                loggedProfessional?.specialty ??
+                ""
+              )
+            : "",
+      })
     );
 
   const [
@@ -328,10 +422,20 @@ export default function NovoObjetivo() {
 
   function validate() {
     if (
+      !formData.generalObjective.trim()
+    ) {
+      showError(
+        "Informe o objetivo geral."
+      );
+
+      return false;
+    }
+
+    if (
       !formData.title.trim()
     ) {
       showError(
-        "Informe o objetivo terapêutico."
+        "Informe o objetivo específico."
       );
 
       return false;
@@ -383,6 +487,22 @@ export default function NovoObjetivo() {
     ) {
       showError(
         "A previsão deve ser posterior à data de início."
+      );
+
+      return false;
+    }
+
+    if (
+      isProfissional &&
+      (
+        formData.professional !==
+          loggedProfessionalName ||
+        formData.specialty !==
+          loggedProfessional?.specialty
+      )
+    ) {
+      showError(
+        "Você só pode cadastrar objetivos da sua própria especialidade."
       );
 
       return false;
@@ -443,6 +563,9 @@ export default function NovoObjetivo() {
           patientId:
             patient.id,
 
+          generalObjective:
+            formData.generalObjective,
+
           title:
             formData.title,
 
@@ -472,7 +595,7 @@ export default function NovoObjetivo() {
       );
 
       setFeedback(
-        "Objetivo terapêutico criado com sucesso."
+        "Objetivo específico criado e vinculado ao objetivo geral com sucesso."
       );
 
       setFeedbackType(
@@ -599,30 +722,32 @@ export default function NovoObjetivo() {
         {/* ================================= */}
 
         <PageCard
-          title="Objetivo Terapêutico"
-          description="Defina o resultado terapêutico que será acompanhado."
+          title="Objetivos Terapêuticos"
+          description="Defina o objetivo geral e o objetivo específico que será acompanhado."
         >
           <div className="space-y-5">
             <FormField
-              label="Objetivo"
+              label="Objetivo geral"
               required
             >
               <Input
-                value={
-                  formData.title
-                }
-                onChange={(
-                  event
-                ) =>
-                  updateField(
-                    "title",
-
-                    event.target.value
-                  )
-                }
-                placeholder="Ex.: Melhorar comunicação verbal"
+                value={formData.generalObjective}
+                onChange={(event) => updateField("generalObjective", event.target.value)}
+                placeholder="Ex.: Desenvolver autonomia nas atividades de vida diária"
               />
+              <p className="mt-2 text-xs text-slate-400">Meta terapêutica ampla que pode reunir vários objetivos específicos.</p>
             </FormField>
+
+            <div className="rounded-2xl border border-violet-100 bg-violet-50/60 p-4">
+              <FormField label="Objetivo específico" required>
+                <Input
+                  value={formData.title}
+                  onChange={(event) => updateField("title", event.target.value)}
+                  placeholder="Ex.: Vestir camiseta com apoio verbal"
+                />
+                <p className="mt-2 text-xs text-violet-600">Este é o objetivo que será avaliado durante os atendimentos.</p>
+              </FormField>
+            </div>
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
               <FormField
@@ -632,6 +757,9 @@ export default function NovoObjetivo() {
                 <Select
                   value={
                     formData.professional
+                  }
+                  disabled={
+                    isProfissional
                   }
                   onChange={(
                     event
@@ -681,6 +809,12 @@ export default function NovoObjetivo() {
                 />
               </FormField>
             </div>
+
+            {isProfissional && (
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 px-4 py-3 text-xs font-medium leading-5 text-indigo-700">
+                Este objetivo será vinculado automaticamente à sua especialidade. Profissionais não podem cadastrar ou editar objetivos de outras especialidades.
+              </div>
+            )}
 
             {selectedProfessional && (
               <div className="rounded-xl border border-violet-100 bg-violet-50 p-4">
@@ -870,7 +1004,7 @@ export default function NovoObjetivo() {
                 className="text-violet-500"
               />
 
-              O objetivo ficará vinculado a este paciente.
+              O objetivo específico ficará vinculado ao objetivo geral e a este paciente.
             </div>
 
             <div className="flex gap-3">
@@ -906,7 +1040,7 @@ export default function NovoObjetivo() {
 
                 {saving
                   ? "Salvando..."
-                  : "Salvar objetivo"}
+                  : "Salvar objetivo específico"}
               </Button>
             </div>
           </div>

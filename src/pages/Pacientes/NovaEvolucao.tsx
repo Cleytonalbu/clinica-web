@@ -22,6 +22,10 @@ import {
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 
 import {
+  useAuth,
+} from "@/auth/AuthContext";
+
+import {
   Button,
   FormField,
   Input,
@@ -42,6 +46,11 @@ import type {
   EvolutionFormData,
   EvolutionMaterialFormData,
   EvolutionObjectiveStatus,
+} from "@/components/pacientes/profile/evolutions/evolutionForm.types";
+
+import {
+  getEvolutionObjectiveMarkerScore,
+  hasEvolutionObjectiveMarkerScore,
 } from "@/components/pacientes/profile/evolutions/evolutionForm.types";
 
 import {
@@ -80,10 +89,51 @@ export default function NovaEvolucao() {
   const patient =
     getPatientById(patientIdNumber);
 
+  const {
+    user,
+  } =
+    useAuth();
+
+  const isProfissional =
+    user?.profile ===
+    "Profissional";
+
+  const loggedProfessionalName =
+    user?.professionalName ??
+    user?.name ??
+    "";
+
   const [
     objectiveRefreshKey,
     setObjectiveRefreshKey,
   ] = useState(0);
+
+  const allActiveProfessionals =
+    useMemo(
+      () =>
+        getActiveProfessionals(),
+      []
+    );
+
+  const loggedProfessional =
+    useMemo(
+      () =>
+        allActiveProfessionals.find(
+          (
+            professional
+          ) =>
+            professional.name ===
+            loggedProfessionalName
+        ),
+      [
+        allActiveProfessionals,
+        loggedProfessionalName,
+      ]
+    );
+
+  const professionalSpecialty =
+    loggedProfessional?.specialty ??
+    "";
 
   const therapeuticPlanObjectives =
     useMemo(
@@ -95,27 +145,73 @@ export default function NovaEvolucao() {
             ).filter(
               (objective) =>
                 objective.status !==
-                "Atingido"
+                  "Atingido" &&
+                (
+                  !isProfissional ||
+                  (
+                    objective.professional ===
+                      loggedProfessionalName &&
+                    (
+                      !professionalSpecialty ||
+                      objective.specialty ===
+                        professionalSpecialty
+                    )
+                  )
+                )
             )
           : [],
       [
         patientIdNumber,
         objectiveRefreshKey,
+        isProfissional,
+        loggedProfessionalName,
+        professionalSpecialty,
       ]
     );
 
   const activeProfessionals =
     useMemo(
       () =>
-        getActiveProfessionals(),
-      []
+        isProfissional
+          ? allActiveProfessionals.filter(
+              (
+                professional
+              ) =>
+                professional.name ===
+                loggedProfessionalName
+            )
+          : allActiveProfessionals,
+      [
+        allActiveProfessionals,
+        isProfissional,
+        loggedProfessionalName,
+      ]
     );
 
   const activeSpecialties =
     useMemo(
-      () =>
-        getActiveSpecialties(),
-      []
+      () => {
+        const specialties =
+          getActiveSpecialties();
+
+        if (
+          !isProfissional
+        ) {
+          return specialties;
+        }
+
+        return specialties.filter(
+          (
+            specialty
+          ) =>
+            specialty.name ===
+            professionalSpecialty
+        );
+      },
+      [
+        isProfissional,
+        professionalSpecialty,
+      ]
     );
 
   const lastEvolution =
@@ -181,13 +277,47 @@ export default function NovaEvolucao() {
   ) {
     setFormData((current) => ({
       ...current,
-      objectives: current.objectives.map((objective) =>
-        objective.id === objectiveId
-          ? {
+
+      objectives: current.objectives.map(
+        (
+          objective
+        ) => {
+          if (
+            objective.id !==
+            objectiveId
+          ) {
+            return objective;
+          }
+
+          if (
+            field ===
+            "status"
+          ) {
+            const nextStatus =
+              value as EvolutionObjectiveStatus;
+
+            return {
               ...objective,
-              [field]: value,
-            }
-          : objective
+
+              status:
+                nextStatus,
+
+              markerScore:
+                getEvolutionObjectiveMarkerScore(
+                  nextStatus
+                ),
+            };
+          }
+
+          return {
+            ...objective,
+
+            performance:
+              Number(
+                value
+              ),
+          };
+        }
       ),
     }));
 
@@ -226,6 +356,7 @@ export default function NovaEvolucao() {
           name: selectedObjective.title,
           status: "Em evolução",
           performance: 3,
+          markerScore: 2,
         },
       ],
     }));
@@ -289,6 +420,9 @@ export default function NovaEvolucao() {
 
               performance:
                 3,
+
+              markerScore:
+                2,
             },
           ],
         };
@@ -1293,76 +1427,94 @@ function SessionObjectivesSection({
                     Em evolução
                   </option>
 
-                  <option value="Alcançado">
-                    Alcançado
-                  </option>
-
-                  <option value="Parcialmente alcançado">
-                    Parcialmente alcançado
+                  <option value="Mantido/sem alteração">
+                    Mantido/sem alteração
                   </option>
 
                   <option value="Regressão">
                     Regressão
                   </option>
+
+                  <option value="Alcançado">
+                    Alcançado
+                  </option>
+
+                  <option value="Falta da criança">
+                    Falta da criança
+                  </option>
+
+                  <option value="Não trabalhado">
+                    Não trabalhado
+                  </option>
                 </Select>
 
                 <div className="flex items-center gap-2">
-                  <span className="whitespace-nowrap text-amber-500">
-                    {
-                      "★".repeat(
-                        objective.performance
-                      )
-                    }
-
-                    <span className="text-slate-200">
-                      {
-                        "★".repeat(
-                          5 -
+                  {hasEvolutionObjectiveMarkerScore(
+                    objective.status
+                  ) ? (
+                    <>
+                      <span className="whitespace-nowrap text-amber-500">
+                        {
+                          "★".repeat(
                             objective.performance
-                        )
-                      }
+                          )
+                        }
+
+                        <span className="text-slate-200">
+                          {
+                            "★".repeat(
+                              5 -
+                                objective.performance
+                            )
+                          }
+                        </span>
+                      </span>
+
+                      <Select
+                        value={
+                          String(
+                            objective.performance
+                          )
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          updateObjective(
+                            objective.id,
+                            "performance",
+                            Number(
+                              event.target.value
+                            )
+                          )
+                        }
+                        className="w-16"
+                      >
+                        <option value="1">
+                          1
+                        </option>
+
+                        <option value="2">
+                          2
+                        </option>
+
+                        <option value="3">
+                          3
+                        </option>
+
+                        <option value="4">
+                          4
+                        </option>
+
+                        <option value="5">
+                          5
+                        </option>
+                      </Select>
+                    </>
+                  ) : (
+                    <span className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-500">
+                      Sem pontuação
                     </span>
-                  </span>
-
-                  <Select
-                    value={
-                      String(
-                        objective.performance
-                      )
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      updateObjective(
-                        objective.id,
-                        "performance",
-                        Number(
-                          event.target.value
-                        )
-                      )
-                    }
-                    className="w-16"
-                  >
-                    <option value="1">
-                      1
-                    </option>
-
-                    <option value="2">
-                      2
-                    </option>
-
-                    <option value="3">
-                      3
-                    </option>
-
-                    <option value="4">
-                      4
-                    </option>
-
-                    <option value="5">
-                      5
-                    </option>
-                  </Select>
+                  )}
                 </div>
 
                 <button
@@ -1381,6 +1533,35 @@ function SessionObjectivesSection({
                 </button>
               </div>
             )
+          )}
+
+          {formData.objectives.length >
+            0 && (
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-[11px] font-semibold text-slate-500 sm:grid-cols-3 lg:grid-cols-6">
+              <span>
+                Regressão: -1
+              </span>
+
+              <span>
+                Mantido: 1
+              </span>
+
+              <span>
+                Em evolução: 2
+              </span>
+
+              <span>
+                Alcançado: 3
+              </span>
+
+              <span>
+                Falta: sem ponto
+              </span>
+
+              <span>
+                Não trabalhado: sem ponto
+              </span>
+            </div>
           )}
 
           {formData.objectives.length ===
@@ -1569,6 +1750,9 @@ interface QuickObjectiveModalProps {
 }
 
 interface QuickObjectiveFormData {
+  generalObjective:
+    string;
+
   title:
     string;
 
@@ -1625,6 +1809,9 @@ function QuickObjectiveModal({
   ] =
     useState<QuickObjectiveFormData>(
       {
+        generalObjective:
+          "",
+
         title:
           "",
 
@@ -1753,6 +1940,12 @@ function QuickObjectiveModal({
 
   function validateObjective() {
     if (
+      !objectiveData.generalObjective.trim()
+    ) {
+      return "Informe o objetivo geral.";
+    }
+
+    if (
       !objectiveData.title.trim()
     ) {
       return "Informe o objetivo terapêutico.";
@@ -1849,6 +2042,9 @@ function QuickObjectiveModal({
       createObjective(
         {
           patientId,
+
+          generalObjective:
+            objectiveData.generalObjective,
 
           title:
             objectiveData.title,
@@ -2000,10 +2196,31 @@ function QuickObjectiveModal({
           )}
 
           <div className="rounded-2xl border border-violet-100 bg-violet-50/35 p-5">
-            <FormField
-              label="Objetivo"
-              required
-            >
+            <div className="space-y-5">
+              <FormField
+                label="Objetivo geral"
+                required
+              >
+                <Input
+                  value={
+                    objectiveData.generalObjective
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    updateObjectiveField(
+                      "generalObjective",
+                      event.target.value
+                    )
+                  }
+                  placeholder="Ex.: Desenvolver autonomia nas atividades de vida diária"
+                />
+              </FormField>
+
+              <FormField
+                label="Objetivo específico"
+                required
+              >
               <Input
                 value={
                   objectiveData.title
@@ -2016,9 +2233,10 @@ function QuickObjectiveModal({
                     event.target.value
                   )
                 }
-                placeholder="Ex.: Melhorar comunicação verbal"
+                placeholder="Ex.: Vestir camiseta com apoio verbal"
               />
-            </FormField>
+              </FormField>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">

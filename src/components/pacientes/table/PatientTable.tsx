@@ -32,6 +32,10 @@ import {
   type StoredAppointment,
 } from "@/pages/Agenda/appointmentStorage";
 
+import {
+  getProfessionalAccessiblePatientIds,
+} from "@/pages/Pacientes/patientAccessRules";
+
 interface PatientTableProps {
   search:
     string;
@@ -325,6 +329,31 @@ export function PatientTable({
     user?.profile ===
     "Recepção";
 
+  const isProfissional =
+    user?.profile ===
+    "Profissional";
+
+  const loggedProfessionalName =
+    user?.professionalName ??
+    user?.name ??
+    "";
+
+  const accessiblePatientIds =
+    useMemo(
+      () =>
+        isProfissional
+          ? new Set(
+              getProfessionalAccessiblePatientIds(
+                loggedProfessionalName
+              )
+            )
+          : null,
+      [
+        isProfissional,
+        loggedProfessionalName,
+      ]
+    );
+
   const canEdit =
     isGestor ||
     isRecepcao;
@@ -353,6 +382,14 @@ export function PatientTable({
                 patient.celular ||
                 patient.telefone ||
                 "";
+
+              const matchesProfessionalAccess =
+                !isProfissional ||
+                Boolean(
+                  accessiblePatientIds?.has(
+                    patient.id
+                  )
+                );
 
               const matchesSearch =
                 !normalizedSearch ||
@@ -398,6 +435,7 @@ export function PatientTable({
                   convenioFilter;
 
               return (
+                matchesProfessionalAccess &&
                 matchesSearch &&
                 matchesStatus &&
                 matchesConvenio
@@ -420,6 +458,8 @@ export function PatientTable({
         search,
         statusFilter,
         convenioFilter,
+        isProfissional,
+        accessiblePatientIds,
       ]
     );
 
@@ -521,16 +561,27 @@ export function PatientTable({
                 patient,
                 index
               ) => {
+                const patientAppointments =
+                  isProfissional
+                    ? appointments.filter(
+                        (
+                          appointment
+                        ) =>
+                          appointment.professional ===
+                          loggedProfessionalName
+                      )
+                    : appointments;
+
                 const lastAppointment =
                   getLastAppointment(
                     patient,
-                    appointments
+                    patientAppointments
                   );
 
                 const nextAppointment =
                   getNextAppointment(
                     patient,
-                    appointments
+                    patientAppointments
                   );
 
                 return (
@@ -765,7 +816,9 @@ export function PatientTable({
                   </p>
 
                   <p className="mt-1 text-sm text-[#929bb3]">
-                    Ajuste os filtros ou cadastre um novo paciente.
+                    {isProfissional
+                      ? "Nenhum paciente está vinculado ao seu perfil."
+                      : "Ajuste os filtros ou cadastre um novo paciente."}
                   </p>
                 </td>
               </tr>
@@ -787,7 +840,12 @@ export function PatientTable({
           de{" "}
           <strong className="text-[#526080]">
             {
-              patients.length
+              isProfissional
+                ? (
+                    accessiblePatientIds?.size ??
+                    0
+                  )
+                : patients.length
             }
           </strong>{" "}
           pacientes

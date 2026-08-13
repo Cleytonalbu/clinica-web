@@ -3,10 +3,10 @@ import {
   CalendarDays,
   CheckCircle2,
   ClipboardList,
-  Clock3,
   FileText,
   MapPin,
   PenLine,
+  Stethoscope,
   Target,
   UserRound,
 } from "lucide-react";
@@ -21,6 +21,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useAuth,
+} from "@/auth/AuthContext";
+
+import {
   Button,
   PageCard,
 } from "@/components/ui";
@@ -31,12 +35,12 @@ import {
 
 import {
   getPatientEvolutionById,
-  type StoredEvolution,
 } from "@/pages/Pacientes/evolutionStorage";
 
-/* =========================================
-   COMPONENTE
-========================================= */
+import {
+  canProfessionalAccessPatient,
+  getProfessionalSpecialty,
+} from "@/pages/Pacientes/patientAccessRules";
 
 export default function DetalheEvolucao() {
   const navigate =
@@ -48,57 +52,73 @@ export default function DetalheEvolucao() {
   } =
     useParams();
 
+  const {
+    user,
+  } =
+    useAuth();
+
   const patientId =
-    Number(id);
+    Number(
+      id
+    );
 
-  const currentEvolutionId =
-    Number(evolutionId);
-
-  /* =======================================
-     PACIENTE
-  ======================================= */
+  const numericEvolutionId =
+    Number(
+      evolutionId
+    );
 
   const patient =
     getPatientById(
       patientId
     );
 
-  /* =======================================
-     EVOLUÇÃO
-  ======================================= */
-
   const evolution =
     getPatientEvolutionById(
       patientId,
-      currentEvolutionId
+      numericEvolutionId
     );
 
-  /* =======================================
-     VOLTAR
-  ======================================= */
+  const isProfissional =
+    user?.profile ===
+    "Profissional";
+
+  const loggedProfessionalName =
+    user?.professionalName ??
+    user?.name ??
+    "";
+
+  const professionalSpecialty =
+    isProfissional
+      ? getProfessionalSpecialty(
+          loggedProfessionalName
+        )
+      : "";
+
+  const hasPatientAccess =
+    !isProfissional ||
+    canProfessionalAccessPatient(
+      loggedProfessionalName,
+      patientId
+    );
+
+  const hasEvolutionAccess =
+    !isProfissional ||
+    Boolean(
+      evolution &&
+      evolution.professional ===
+        loggedProfessionalName &&
+      (
+        !professionalSpecialty ||
+        evolution.specialty ===
+          professionalSpecialty
+      )
+    );
 
   function handleBack() {
-    if (
-      Number.isFinite(
-        patientId
-      ) &&
-      patientId > 0
-    ) {
-      navigate(
-        `/pacientes/${patientId}?tab=evolucoes`
-      );
-
-      return;
-    }
-
     navigate(
-      "/pacientes"
+      `/pacientes/${patientId}`
     );
   }
-
-  /* =======================================
-     NÃO ENCONTRADO
-  ======================================= */
 
   if (
     !patient ||
@@ -106,47 +126,46 @@ export default function DetalheEvolucao() {
   ) {
     return (
       <DashboardLayout>
-        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-          <h1 className="text-xl font-bold text-slate-900">
-            Evolução não encontrada
-          </h1>
-
-          <p className="mt-2 text-sm text-slate-500">
-            O registro solicitado não existe ou não pertence a este paciente.
-          </p>
-
-          <Button
-            type="button"
-            className="mt-6"
-            onClick={
-              handleBack
-            }
-          >
-            Voltar
-          </Button>
-        </div>
+        <CenteredMessage
+          title="Evolução não encontrada"
+          description="O registro solicitado não existe para este paciente ou foi removido."
+          buttonLabel="Voltar para paciente"
+          onClick={
+            handleBack
+          }
+        />
       </DashboardLayout>
     );
   }
 
-  /* =======================================
-     RENDER
-  ======================================= */
+  if (
+    !hasPatientAccess ||
+    !hasEvolutionAccess
+  ) {
+    return (
+      <DashboardLayout>
+        <CenteredMessage
+          title="Acesso restrito à evolução"
+          description="Profissionais só podem visualizar evoluções registradas pelo próprio perfil e dentro da própria especialidade."
+          buttonLabel="Voltar para minhas evoluções"
+          onClick={
+            handleBack
+          }
+        />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* ================================= */}
-        {/* CABEÇALHO */}
-        {/* ================================= */}
-
         <div>
           <button
             type="button"
             onClick={
               handleBack
             }
-            className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-indigo-600"
+            className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-violet-600"
           >
             <ArrowLeft
               size={17}
@@ -157,31 +176,41 @@ export default function DetalheEvolucao() {
 
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">
+              <h1 className="text-3xl font-bold text-[#10235f]">
                 Evolução Clínica
               </h1>
 
               <p className="mt-2 text-sm text-slate-500">
-                Visualização completa do registro clínico.
+                Visualização completa do registro clínico do atendimento.
               </p>
             </div>
 
-            <StatusBadge
-              status={
-                evolution.status
-              }
-            />
+            <span
+              className={`inline-flex w-fit rounded-full px-3 py-1.5 text-sm font-semibold ${
+                evolution.status ===
+                "FINALIZADA"
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-amber-100 text-amber-700"
+              }`}
+            >
+              {evolution.status ===
+              "FINALIZADA"
+                ? "Finalizada"
+                : "Rascunho"}
+            </span>
           </div>
         </div>
 
-        {/* ================================= */}
-        {/* PACIENTE */}
-        {/* ================================= */}
+        {isProfissional && (
+          <div className="rounded-2xl border border-violet-100 bg-violet-50/70 px-5 py-3 text-xs font-semibold text-violet-700">
+            Registro autorizado para {loggedProfessionalName} • {professionalSpecialty || evolution.specialty}
+          </div>
+        )}
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
             <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-violet-100 text-violet-600">
                 <UserRound
                   size={30}
                 />
@@ -195,13 +224,7 @@ export default function DetalheEvolucao() {
                 </h2>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  {calculateAge(
-                    patient.nascimento
-                  )}{" "}
-                  anos • Paciente #
-                  {
-                    patient.id
-                  }
+                  Paciente #{patient.id}
                 </p>
               </div>
             </div>
@@ -222,14 +245,14 @@ export default function DetalheEvolucao() {
 
             <Info
               icon={
-                <ClipboardList
+                <Stethoscope
                   size={19}
                 />
               }
               label="Especialidade"
               value={
                 evolution.specialty ||
-                "-"
+                "—"
               }
             />
 
@@ -242,267 +265,173 @@ export default function DetalheEvolucao() {
               label="Profissional"
               value={
                 evolution.professional ||
-                "-"
+                "—"
               }
             />
           </div>
         </div>
 
-        {/* ================================= */}
-        {/* 1. DADOS DA SESSÃO */}
-        {/* ================================= */}
-
-        <PageCard
-          title="1. Dados da Sessão"
-          description="Informações principais do atendimento."
-        >
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            <Info
-              icon={
-                <CalendarDays
-                  size={18}
-                />
-              }
-              label="Data"
-              value={
-                formatDate(
-                  evolution.sessionDate
-                )
-              }
-            />
-
-            <Info
-              icon={
-                <Clock3
-                  size={18}
-                />
-              }
-              label="Horário"
-              value={
-                formatTimeRange(
-                  evolution.startTime,
-                  evolution.endTime
-                )
-              }
-            />
-
-            <Info
-              icon={
-                <ClipboardList
-                  size={18}
-                />
-              }
-              label="Especialidade"
-              value={
-                evolution.specialty ||
-                "-"
-              }
-            />
-
-            <Info
-              icon={
-                <UserRound
-                  size={18}
-                />
-              }
-              label="Profissional"
-              value={
-                evolution.professional ||
-                "-"
-              }
-            />
-
-            <Info
-              icon={
-                <ClipboardList
-                  size={18}
-                />
-              }
-              label="Tipo de atendimento"
-              value={
-                evolution.appointmentType ||
-                "-"
-              }
-            />
-
-            <Info
-              icon={
-                <MapPin
-                  size={18}
-                />
-              }
-              label="Local"
-              value={
-                evolution.appointmentLocation ||
-                "-"
-              }
-            />
-          </div>
-        </PageCard>
-
-        {/* ================================= */}
-        {/* 2. OBJETIVOS */}
-        {/* ================================= */}
-
-        <PageCard
-          title="2. Objetivos Trabalhados"
-          description="Objetivos terapêuticos relacionados à sessão."
-        >
-          {evolution.objectives.length >
-          0 ? (
-            <div className="space-y-3">
-              {evolution.objectives.map(
-                (
-                  objective
-                ) => (
-                  <div
-                    key={
-                      objective.id
-                    }
-                    className="rounded-xl border border-violet-100 bg-violet-50 p-4"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
-                        <Target
-                          size={20}
-                        />
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div>
-                            <p className="font-semibold text-slate-900">
-                              {
-                                objective.name
-                              }
-                            </p>
-
-                            <p className="mt-1 text-sm text-slate-500">
-                              {
-                                objective.specialty
-                              }
-                            </p>
-                          </div>
-
-                          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-violet-700 shadow-sm">
-                            {
-                              objective.status
-                            }
-                          </span>
-                        </div>
-
-                        <div className="mt-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-xs font-medium text-slate-500">
-                              Desempenho na sessão
-                            </span>
-
-                            <span className="text-xs font-bold text-violet-700">
-                              {
-                                objective.performance
-                              }
-                              /5
-                            </span>
-                          </div>
-
-                          <div className="mt-2 grid grid-cols-5 gap-1.5">
-                            {[
-                              1,
-                              2,
-                              3,
-                              4,
-                              5,
-                            ].map(
-                              (
-                                level
-                              ) => (
-                                <div
-                                  key={
-                                    level
-                                  }
-                                  className={`h-2 rounded-full ${
-                                    level <=
-                                    objective.performance
-                                      ? "bg-violet-500"
-                                      : "bg-violet-100"
-                                  }`}
-                                />
-                              )
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )
-              )}
-            </div>
-          ) : (
-            <EmptyText>
-              Nenhum objetivo terapêutico foi vinculado a esta sessão.
-            </EmptyText>
-          )}
-        </PageCard>
-
-        {/* ================================= */}
-        {/* 3. EVOLUÇÃO ESCRITA */}
-        {/* ================================= */}
-
-        <PageCard
-          title="3. Evolução Escrita"
-          description="Registro clínico realizado pelo profissional."
-        >
-          {evolution.writtenEvolution ? (
-            <p className="whitespace-pre-line text-sm leading-7 text-slate-600">
-              {
-                evolution.writtenEvolution
-              }
-            </p>
-          ) : (
-            <EmptyText>
-              Nenhuma evolução escrita registrada.
-            </EmptyText>
-          )}
-        </PageCard>
-
-        {/* ================================= */}
-        {/* 4. RESULTADO + IMPACTOS */}
-        {/* ================================= */}
-
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <PageCard
-            title="4. Resultado da Sessão"
-            description="Avaliação geral do atendimento."
+            title="1. Dados da Sessão"
+            description="Informações principais do atendimento."
           >
-            <div className="space-y-4">
-              <div className="flex items-start gap-3 rounded-xl bg-emerald-50 p-4">
-                <CheckCircle2
-                  size={20}
-                  className="mt-0.5 shrink-0 text-emerald-600"
-                />
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <Info
+                icon={
+                  <CalendarDays
+                    size={18}
+                  />
+                }
+                label="Data"
+                value={
+                  formatDate(
+                    evolution.sessionDate
+                  )
+                }
+              />
 
-                <div>
-                  <p className="text-sm font-semibold text-emerald-800">
-                    {
-                      evolution.sessionResult
-                    }
-                  </p>
+              <Info
+                icon={
+                  <ClipboardList
+                    size={18}
+                  />
+                }
+                label="Horário"
+                value={`${evolution.startTime || "—"}${evolution.endTime ? ` - ${evolution.endTime}` : ""}`}
+              />
 
-                  {evolution.sessionResultObservation && (
-                    <p className="mt-2 whitespace-pre-line text-sm leading-6 text-emerald-700">
-                      {
-                        evolution.sessionResultObservation
-                      }
-                    </p>
-                  )}
-                </div>
-              </div>
+              <Info
+                icon={
+                  <ClipboardList
+                    size={18}
+                  />
+                }
+                label="Tipo"
+                value={
+                  evolution.appointmentType ||
+                  "—"
+                }
+              />
+
+              <Info
+                icon={
+                  <MapPin
+                    size={18}
+                  />
+                }
+                label="Local"
+                value={
+                  evolution.appointmentLocation ||
+                  "—"
+                }
+              />
             </div>
           </PageCard>
 
           <PageCard
+            title="2. Objetivos trabalhados"
+            description="Objetivos terapêuticos registrados nesta sessão."
+          >
+            {evolution.objectives.length >
+            0 ? (
+              <div className="space-y-3">
+                {evolution.objectives.map(
+                  (
+                    objective,
+                    index
+                  ) => (
+                    <div
+                      key={`${objective.id}-${index}`}
+                      className="rounded-xl border border-violet-100 bg-violet-50/50 p-4"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+                          <Target
+                            size={18}
+                          />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-slate-800">
+                            {
+                              objective.name
+                            }
+                          </p>
+
+                          <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-bold">
+                            <span className="rounded-full bg-white px-2.5 py-1 text-violet-700 ring-1 ring-violet-100">
+                              {objective.status}
+                            </span>
+
+                            {objective.markerScore !== null && objective.markerScore !== undefined && (
+                              <span className="rounded-full bg-white px-2.5 py-1 text-slate-600 ring-1 ring-slate-200">
+                                Marcador: {objective.markerScore}
+                              </span>
+                            )}
+
+                            <span className="rounded-full bg-white px-2.5 py-1 text-amber-600 ring-1 ring-amber-100">
+                              Desempenho: {objective.performance}/5
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">
+                Nenhum objetivo foi registrado nesta sessão.
+              </p>
+            )}
+          </PageCard>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <PageCard
+            title="3. Evolução Escrita"
+            description="Registro clínico da sessão."
+          >
+            <p className="whitespace-pre-line text-sm leading-7 text-slate-600">
+              {evolution.writtenEvolution || "Nenhum registro escrito informado."}
+            </p>
+          </PageCard>
+
+          <PageCard
+            title="4. Resultado da Sessão"
+            description="Síntese do resultado observado."
+          >
+            <div className="flex items-start gap-3">
+              <CheckCircle2
+                size={20}
+                className="mt-0.5 text-emerald-600"
+              />
+
+              <div>
+                <p className="text-sm font-semibold text-slate-800">
+                  {
+                    evolution.sessionResult ||
+                    "Não informado"
+                  }
+                </p>
+
+                {evolution.sessionResultObservation && (
+                  <p className="mt-2 text-sm leading-7 text-slate-600">
+                    {
+                      evolution.sessionResultObservation
+                    }
+                  </p>
+                )}
+              </div>
+            </div>
+          </PageCard>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <PageCard
             title="5. Impactos Observados"
-            description="Aspectos percebidos durante a sessão."
+            description="Marcadores clínicos registrados durante a sessão."
           >
             {evolution.observedImpacts.length >
             0 ? (
@@ -515,7 +444,7 @@ export default function DetalheEvolucao() {
                       key={
                         impact
                       }
-                      className="rounded-full bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700"
+                      className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700"
                     >
                       {
                         impact
@@ -525,95 +454,49 @@ export default function DetalheEvolucao() {
                 )}
               </div>
             ) : (
-              <EmptyText>
-                Nenhum impacto observado foi registrado.
-              </EmptyText>
+              <p className="text-sm text-slate-500">
+                Nenhum impacto registrado.
+              </p>
+            )}
+          </PageCard>
+
+          <PageCard
+            title="6. Encaminhamento"
+            description="Dados de encaminhamento registrados no atendimento."
+          >
+            {evolution.referralReason ||
+            evolution.referralProfessional ||
+            evolution.referralSpecialty ? (
+              <div className="space-y-3 text-sm text-slate-600">
+                <p>
+                  <strong className="text-slate-800">Destino:</strong>{" "}
+                  {evolution.referralProfessional || evolution.referralSpecialty || "—"}
+                </p>
+
+                <p>
+                  <strong className="text-slate-800">Prioridade:</strong>{" "}
+                  {evolution.referralPriority}
+                </p>
+
+                <p className="leading-6">
+                  <strong className="text-slate-800">Motivo:</strong>{" "}
+                  {evolution.referralReason || "—"}
+                </p>
+
+                {evolution.referralObservation && (
+                  <p className="leading-6">
+                    <strong className="text-slate-800">Observação:</strong>{" "}
+                    {evolution.referralObservation}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">
+                Nenhum encaminhamento registrado.
+              </p>
             )}
           </PageCard>
         </div>
-
-        {/* ================================= */}
-        {/* 6. ENCAMINHAMENTO */}
-        {/* ================================= */}
-
-        <PageCard
-          title="6. Encaminhamentos / Orientações"
-          description="Encaminhamentos realizados durante a sessão."
-        >
-          {evolution.referralSpecialty ? (
-            <div className="space-y-5">
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-                <SimpleInfo
-                  label="Especialidade"
-                  value={
-                    evolution.referralSpecialty
-                  }
-                />
-
-                <SimpleInfo
-                  label="Profissional"
-                  value={
-                    evolution.referralProfessional ||
-                    "Não definido"
-                  }
-                />
-
-                <SimpleInfo
-                  label="Prioridade"
-                  value={
-                    evolution.referralPriority
-                  }
-                />
-              </div>
-
-              {evolution.referralReason && (
-                <TextBlock
-                  label="Motivo do encaminhamento"
-                  value={
-                    evolution.referralReason
-                  }
-                />
-              )}
-
-              {evolution.referralObservation && (
-                <TextBlock
-                  label="Observações ao profissional"
-                  value={
-                    evolution.referralObservation
-                  }
-                />
-              )}
-
-              <div className="flex flex-wrap gap-2">
-                {evolution.notifyProfessional && (
-                  <NotificationBadge>
-                    Notificação interna
-                  </NotificationBadge>
-                )}
-
-                {evolution.addProfessionalAgenda && (
-                  <NotificationBadge>
-                    Adicionado à agenda
-                  </NotificationBadge>
-                )}
-
-                {evolution.notifyManager && (
-                  <NotificationBadge>
-                    Gestor informado
-                  </NotificationBadge>
-                )}
-              </div>
-            </div>
-          ) : (
-            <EmptyText>
-              Nenhum encaminhamento registrado nesta sessão.
-            </EmptyText>
-          )}
-        </PageCard>
-
-        {/* ================================= */}
-        {/* 7. ANEXOS */}
-        {/* ================================= */}
 
         <PageCard
           title="7. Anexos"
@@ -621,7 +504,7 @@ export default function DetalheEvolucao() {
         >
           {evolution.attachments.length >
           0 ? (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               {evolution.attachments.map(
                 (
                   attachment
@@ -632,9 +515,9 @@ export default function DetalheEvolucao() {
                     }
                     className="flex items-center gap-3 rounded-xl border border-slate-200 p-4"
                   >
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
                       <FileText
-                        size={20}
+                        size={18}
                       />
                     </div>
 
@@ -658,61 +541,34 @@ export default function DetalheEvolucao() {
               )}
             </div>
           ) : (
-            <EmptyText>
-              Nenhum arquivo vinculado a esta evolução.
-            </EmptyText>
-          )}
-
-          {evolution.attachments.length >
-            0 && (
-            <p className="mt-4 text-xs leading-5 text-slate-400">
-              Nesta versão local do sistema são armazenadas as informações dos anexos. O arquivo físico será disponibilizado quando o upload estiver integrado à API.
+            <p className="text-sm text-slate-500">
+              Nenhum anexo registrado.
             </p>
           )}
         </PageCard>
-
-        {/* ================================= */}
-        {/* 8. ASSINATURA */}
-        {/* ================================= */}
 
         <PageCard
           title="8. Assinatura do Profissional"
           description="Registro de autoria da evolução."
         >
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div className="space-y-5">
-              <SimpleInfo
-                label="Profissional"
-                value={
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Profissional
+              </p>
+
+              <p className="mt-2 text-sm font-semibold text-slate-800">
+                {
                   evolution.professional ||
-                  "-"
+                  "—"
                 }
-              />
+              </p>
 
-              <SimpleInfo
-                label="Status do registro"
-                value={
-                  evolution.status ===
-                  "FINALIZADA"
-                    ? "Finalizada"
-                    : "Rascunho"
-                }
-              />
-
-              <SimpleInfo
-                label={
-                  evolution.status ===
-                  "FINALIZADA"
-                    ? "Finalizada em"
-                    : "Última atualização"
-                }
-                value={
-                  formatDateTime(
-                    evolution.finalizedAt ||
-                    evolution.updatedAt
-                  )
-                }
-              />
+              <p className="mt-1 text-xs text-slate-400">
+                {evolution.finalizedAt
+                  ? `Finalizada em ${formatDateTime(evolution.finalizedAt)}`
+                  : "Registro ainda não finalizado"}
+              </p>
             </div>
 
             <div>
@@ -720,14 +576,16 @@ export default function DetalheEvolucao() {
                 Assinatura
               </p>
 
-              <div className="mt-2 flex h-24 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-indigo-600">
+              <div className="mt-2 flex h-20 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-violet-600">
                 <PenLine
                   size={20}
                 />
 
                 <span className="ml-2 font-medium italic">
-                  {evolution.professional ||
-                    "Profissional não informado"}
+                  {
+                    evolution.professional ||
+                    "Profissional"
+                  }
                 </span>
               </div>
             </div>
@@ -738,42 +596,58 @@ export default function DetalheEvolucao() {
   );
 }
 
-/* =========================================
-   STATUS
-========================================= */
+function CenteredMessage({
+  title,
+  description,
+  buttonLabel,
+  onClick,
+}: {
+  title:
+    string;
 
-interface StatusBadgeProps {
-  status:
-    StoredEvolution["status"];
-}
+  description:
+    string;
 
-function StatusBadge({
-  status,
-}: StatusBadgeProps) {
-  const finalized =
-    status ===
-    "FINALIZADA";
+  buttonLabel:
+    string;
 
+  onClick:
+    () => void;
+}) {
   return (
-    <span
-      className={`inline-flex w-fit rounded-full px-3 py-1.5 text-sm font-semibold ${
-        finalized
-          ? "bg-emerald-100 text-emerald-700"
-          : "bg-amber-100 text-amber-700"
-      }`}
-    >
-      {finalized
-        ? "Finalizada"
-        : "Rascunho"}
-    </span>
+    <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+      <h1 className="text-xl font-bold text-slate-900">
+        {
+          title
+        }
+      </h1>
+
+      <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
+        {
+          description
+        }
+      </p>
+
+      <Button
+        type="button"
+        className="mt-6"
+        onClick={
+          onClick
+        }
+      >
+        {
+          buttonLabel
+        }
+      </Button>
+    </div>
   );
 }
 
-/* =========================================
-   INFO COM ÍCONE
-========================================= */
-
-interface InfoProps {
+function Info({
+  icon,
+  label,
+  value,
+}: {
   icon:
     React.ReactNode;
 
@@ -782,16 +656,10 @@ interface InfoProps {
 
   value:
     string;
-}
-
-function Info({
-  icon,
-  label,
-  value,
-}: InfoProps) {
+}) {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
         {
           icon
         }
@@ -804,179 +672,15 @@ function Info({
           }
         </p>
 
-        <p className="mt-1 break-words text-sm font-semibold text-slate-800">
-          {value ||
-            "-"}
+        <p className="mt-1 text-sm font-semibold text-slate-800">
+          {
+            value
+          }
         </p>
       </div>
     </div>
   );
 }
-
-/* =========================================
-   INFO SIMPLES
-========================================= */
-
-interface SimpleInfoProps {
-  label:
-    string;
-
-  value:
-    string;
-}
-
-function SimpleInfo({
-  label,
-  value,
-}: SimpleInfoProps) {
-  return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-        {
-          label
-        }
-      </p>
-
-      <p className="mt-2 text-sm font-semibold text-slate-800">
-        {value ||
-          "-"}
-      </p>
-    </div>
-  );
-}
-
-/* =========================================
-   BLOCO DE TEXTO
-========================================= */
-
-interface TextBlockProps {
-  label:
-    string;
-
-  value:
-    string;
-}
-
-function TextBlock({
-  label,
-  value,
-}: TextBlockProps) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-        {
-          label
-        }
-      </p>
-
-      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">
-        {
-          value
-        }
-      </p>
-    </div>
-  );
-}
-
-/* =========================================
-   BADGE DE NOTIFICAÇÃO
-========================================= */
-
-function NotificationBadge({
-  children,
-}: {
-  children:
-    React.ReactNode;
-}) {
-  return (
-    <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600">
-      {
-        children
-      }
-    </span>
-  );
-}
-
-/* =========================================
-   TEXTO VAZIO
-========================================= */
-
-function EmptyText({
-  children,
-}: {
-  children:
-    React.ReactNode;
-}) {
-  return (
-    <p className="text-sm italic text-slate-400">
-      {
-        children
-      }
-    </p>
-  );
-}
-
-/* =========================================
-   IDADE
-========================================= */
-
-function calculateAge(
-  birthDate:
-    string
-) {
-  if (
-    !birthDate
-  ) {
-    return 0;
-  }
-
-  const birth =
-    new Date(
-      `${birthDate}T12:00:00`
-    );
-
-  if (
-    Number.isNaN(
-      birth.getTime()
-    )
-  ) {
-    return 0;
-  }
-
-  const today =
-    new Date();
-
-  let age =
-    today.getFullYear() -
-    birth.getFullYear();
-
-  const monthDifference =
-    today.getMonth() -
-    birth.getMonth();
-
-  if (
-    monthDifference <
-      0 ||
-    (
-      monthDifference ===
-        0 &&
-      today.getDate() <
-        birth.getDate()
-    )
-  ) {
-    age -=
-      1;
-  }
-
-  return Math.max(
-    age,
-    0
-  );
-}
-
-/* =========================================
-   DATA
-========================================= */
 
 function formatDate(
   value:
@@ -985,7 +689,7 @@ function formatDate(
   if (
     !value
   ) {
-    return "-";
+    return "—";
   }
 
   const [
@@ -1008,44 +712,10 @@ function formatDate(
   return `${day}/${month}/${year}`;
 }
 
-/* =========================================
-   HORÁRIO
-========================================= */
-
-function formatTimeRange(
-  start:
-    string,
-
-  end:
-    string
-) {
-  if (
-    start &&
-    end
-  ) {
-    return `${start} às ${end}`;
-  }
-
-  return start ||
-    end ||
-    "-";
-}
-
-/* =========================================
-   DATA/HORA
-========================================= */
-
 function formatDateTime(
   value:
-    string |
-    undefined
+    string
 ) {
-  if (
-    !value
-  ) {
-    return "-";
-  }
-
   const date =
     new Date(
       value
@@ -1059,57 +729,43 @@ function formatDateTime(
     return value;
   }
 
-  return new Intl.DateTimeFormat(
+  return date.toLocaleString(
     "pt-BR",
     {
       dateStyle:
         "short",
-
       timeStyle:
         "short",
     }
-  ).format(
-    date
   );
 }
 
-/* =========================================
-   TAMANHO DO ARQUIVO
-========================================= */
-
 function formatFileSize(
-  bytes:
+  size:
     number
 ) {
   if (
-    !Number.isFinite(
-      bytes
-    ) ||
-    bytes <= 0
+    size <
+    1024
   ) {
-    return "0 KB";
+    return `${size} B`;
   }
 
   if (
-    bytes <
+    size <
     1024 * 1024
   ) {
-    return `${Math.max(
-      1,
-      Math.round(
-        bytes /
-          1024
-      )
-    )} KB`;
+    return `${(
+      size /
+      1024
+    ).toFixed(1)} KB`;
   }
 
   return `${(
-    bytes /
+    size /
     (
       1024 *
       1024
     )
-  ).toFixed(
-    1
-  )} MB`;
+  ).toFixed(1)} MB`;
 }

@@ -93,10 +93,10 @@ const reportCards:
       "purple",
 
     bullets: [
-      "Perfil e situação cadastral",
-      "Atendimentos realizados",
-      "Faltas e cancelamentos",
-      "Profissionais envolvidos",
+      "Atendimentos e frequência",
+      "Objetivos terapêuticos",
+      "Evoluções finalizadas",
+      "Equipe envolvida",
       "Situação financeira",
     ],
 
@@ -156,7 +156,7 @@ const reportCards:
       "Pacientes atendidos",
       "Sessões realizadas",
       "Produção individual",
-      "Agenda e comparecimento",
+      "Repasses pagos e pendentes",
       "Resumo por especialidade",
     ],
 
@@ -186,8 +186,8 @@ const reportCards:
       "Faturamento gerado",
       "Valores recebidos",
       "Despesas registradas",
-      "Contas pendentes",
-      "Resultado líquido",
+      "Repasses profissionais",
+      "Resultado líquido real",
     ],
 
     route:
@@ -199,6 +199,35 @@ const reportCards:
    PÁGINA
 ========================================= */
 
+function parsePeriod(
+  value:
+    string
+) {
+  const matches =
+    value.match(
+      /(\d{2})\/(\d{2})\/(\d{4})\s*(?:até|a|-)\s*(\d{2})\/(\d{2})\/(\d{4})/i
+    );
+
+  if (
+    !matches
+  ) {
+    return {
+      startDate:
+        "",
+      endDate:
+        "",
+    };
+  }
+
+  return {
+    startDate:
+      `${matches[3]}-${matches[2]}-${matches[1]}`,
+
+    endDate:
+      `${matches[6]}-${matches[5]}-${matches[4]}`,
+  };
+}
+
 export default function Relatorios() {
   const navigate =
     useNavigate();
@@ -208,7 +237,7 @@ export default function Relatorios() {
     setPeriod,
   ] =
     useState(
-      "01/05/2026 até 31/05/2026"
+      "01/08/2026 até 31/08/2026"
     );
 
   const [
@@ -253,7 +282,7 @@ export default function Relatorios() {
 
   function handleClearFilters() {
     setPeriod(
-      "01/05/2026 até 31/05/2026"
+      "01/08/2026 até 31/08/2026"
     );
 
     setPatient(
@@ -270,8 +299,60 @@ export default function Relatorios() {
   }
 
   function handleGenerateReport() {
+    const {
+      startDate,
+      endDate,
+    } =
+      parsePeriod(
+        period
+      );
+
+    const params =
+      new URLSearchParams();
+
+    if (
+      startDate
+    ) {
+      params.set(
+        "startDate",
+        startDate
+      );
+    }
+
+    if (
+      endDate
+    ) {
+      params.set(
+        "endDate",
+        endDate
+      );
+    }
+
+    if (
+      patient !==
+      "Todos"
+    ) {
+      params.set(
+        "patient",
+        patient
+      );
+    }
+
+    if (
+      professional !==
+      "Todos"
+    ) {
+      params.set(
+        "professional",
+        professional
+      );
+    }
+
+    const query =
+      params.toString();
+
     navigate(
-      selectedReport.route
+      `${selectedReport.route}${query ? `?${query}` : ""}`
     );
   }
 

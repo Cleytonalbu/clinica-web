@@ -15,6 +15,10 @@ import {
 } from "lucide-react";
 
 import {
+  useSearchParams,
+} from "react-router-dom";
+
+import {
   DashboardLayout,
 } from "@/layouts/DashboardLayout";
 
@@ -39,6 +43,15 @@ import {
 import {
   formatCurrency,
 } from "@/pages/Financeiro/financeRules";
+
+import {
+  FinancialReportDocument,
+  FINANCIAL_REPORT_DOCUMENT_STYLES,
+} from "@/components/relatorios/FinancialReportDocument";
+
+import {
+  syncProfessionalPayoutsFromAppointments,
+} from "@/pages/Financeiro/professionalPayoutStorage";
 
 type MovementType =
   | "Todos"
@@ -67,7 +80,153 @@ interface FinancialMovement {
   detail: string;
 }
 
+
+const REPORT_PRINT_STYLES = `
+  .report-print-footer {
+    display: none;
+  }
+
+  @media print {
+    @page {
+      size: A4 landscape;
+      margin: 10mm;
+    }
+
+    html,
+    body {
+      background: #ffffff !important;
+      width: auto !important;
+      height: auto !important;
+      overflow: visible !important;
+    }
+
+    body * {
+      visibility: hidden !important;
+    }
+
+    .report-print-area,
+    .report-print-area * {
+      visibility: visible !important;
+    }
+
+    .report-print-area {
+      position: absolute !important;
+      inset: 0 auto auto 0 !important;
+      width: 100% !important;
+      max-width: none !important;
+      min-width: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #ffffff !important;
+      color: #0f172a !important;
+      overflow: visible !important;
+    }
+
+    .report-print-area .print\\:hidden,
+    .report-print-area button,
+    .report-print-area [data-print-hide="true"] {
+      display: none !important;
+    }
+
+    .report-print-area table {
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      table-layout: auto !important;
+      border-collapse: collapse !important;
+      font-size: 8pt !important;
+    }
+
+    .report-print-area thead {
+      display: table-header-group !important;
+    }
+
+    .report-print-area tr,
+    .report-print-area td,
+    .report-print-area th {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    .report-print-area section,
+    .report-print-area article,
+    .report-print-area .rounded-2xl {
+      break-inside: avoid;
+      page-break-inside: avoid;
+      box-shadow: none !important;
+    }
+
+    .report-print-area .overflow-x-auto,
+    .report-print-area .overflow-hidden {
+      overflow: visible !important;
+    }
+
+    .report-print-area [class*="min-w-"] {
+      min-width: 0 !important;
+    }
+
+    .report-print-area [class*="max-w-"] {
+      max-width: none !important;
+    }
+
+    .report-print-area {
+      font-size: 9pt !important;
+    }
+
+    .report-print-area h1 {
+      font-size: 20pt !important;
+      line-height: 1.15 !important;
+      margin-bottom: 4px !important;
+    }
+
+    .report-print-area h2 {
+      font-size: 14pt !important;
+    }
+
+    .report-print-area h3 {
+      font-size: 11pt !important;
+    }
+
+    .report-print-footer {
+      display: flex !important;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 18px;
+      padding-top: 8px;
+      border-top: 1px solid #dbe2ef;
+      font-size: 7.5pt;
+      color: #64748b;
+    }
+
+    .report-print-footer strong {
+      color: #10235f;
+    }
+
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+  }
+`;
+
 export default function RelatorioFinanceiro() {
+  const [
+    searchParams,
+  ] =
+    useSearchParams();
+
+  const initialStartDate =
+    searchParams.get(
+      "startDate"
+    ) ??
+    "2026-08-01";
+
+  const initialEndDate =
+    searchParams.get(
+      "endDate"
+    ) ??
+    "2026-08-31";
+
   const charges =
     useMemo(
       () =>
@@ -82,12 +241,19 @@ export default function RelatorioFinanceiro() {
       []
     );
 
+  const payouts =
+    useMemo(
+      () =>
+        syncProfessionalPayoutsFromAppointments(),
+      []
+    );
+
   const [
     startDate,
     setStartDate,
   ] =
     useState(
-      "2026-08-01"
+      initialStartDate
     );
 
   const [
@@ -95,7 +261,7 @@ export default function RelatorioFinanceiro() {
     setEndDate,
   ] =
     useState(
-      "2026-08-31"
+      initialEndDate
     );
 
   const [
@@ -388,9 +554,43 @@ export default function RelatorioFinanceiro() {
         0
       );
 
+  const periodPayouts =
+    payouts.filter(
+      (payout) =>
+        (!startDate ||
+          payout.serviceDate >= startDate) &&
+        (!endDate ||
+          payout.serviceDate <= endDate)
+    );
+
+  const paidPayouts =
+    periodPayouts
+      .filter(
+        (payout) =>
+          payout.status === "Pago"
+      )
+      .reduce(
+        (total, payout) =>
+          total + payout.amount,
+        0
+      );
+
+  const pendingPayouts =
+    periodPayouts
+      .filter(
+        (payout) =>
+          payout.status === "Pendente"
+      )
+      .reduce(
+        (total, payout) =>
+          total + payout.amount,
+        0
+      );
+
   const result =
     received -
-    paidExpenses;
+    paidExpenses -
+    paidPayouts;
 
   const movements =
     useMemo(() => {
@@ -578,7 +778,28 @@ export default function RelatorioFinanceiro() {
 
   return (
     <DashboardLayout>
+      <style>
+        {
+          `${REPORT_PRINT_STYLES}\n${FINANCIAL_REPORT_DOCUMENT_STYLES}`
+        }
+      </style>
       <div className="space-y-6 print:space-y-4">
+        <FinancialReportDocument
+          startDate={startDate}
+          endDate={endDate}
+          movementType={movementType}
+          status={status}
+          billingType={billingType}
+          movements={movements}
+          received={received}
+          receivable={receivable}
+          paidExpenses={paidExpenses}
+          payable={payable}
+          paidPayouts={paidPayouts}
+          pendingPayouts={pendingPayouts}
+          result={result}
+        />
+
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">
@@ -620,6 +841,13 @@ export default function RelatorioFinanceiro() {
           </div>
         </div>
 
+        <div className="hidden print:block">
+          <p className="text-xs text-slate-500">
+            Período: {formatDate(startDate)} a {formatDate(endDate)} • Movimentação: {movementType} • Status: {status} • Cobrança: {billingType}
+          </p>
+        </div>
+
+        <div className="print:hidden">
         <PageCard
           title="Filtros"
           description="Defina o período e os tipos de movimentação."
@@ -758,6 +986,7 @@ export default function RelatorioFinanceiro() {
             </FormField>
           </div>
         </PageCard>
+        </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <MetricCard
@@ -842,7 +1071,7 @@ export default function RelatorioFinanceiro() {
                 result
               )
             }
-            description="Recebimentos menos pagamentos"
+            description="Recebido − despesas − repasses pagos"
             icon={
               <Banknote
                 size={22}
@@ -939,6 +1168,28 @@ export default function RelatorioFinanceiro() {
         </div>
 
         <PageCard
+          title="Repasses aos Profissionais"
+          description="Valores gerados pelos atendimentos realizados no período."
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <ResultCard
+              title="Total de repasses"
+              value={paidPayouts + pendingPayouts}
+            />
+
+            <ResultCard
+              title="Repasses pagos"
+              value={paidPayouts}
+            />
+
+            <ResultCard
+              title="Repasses pendentes"
+              value={pendingPayouts}
+            />
+          </div>
+        </PageCard>
+
+        <PageCard
           title="Resultado do Período"
           description="Comparação entre entradas e saídas efetivamente realizadas."
         >
@@ -954,7 +1205,8 @@ export default function RelatorioFinanceiro() {
             <ResultCard
               title="Saídas"
               value={
-                paidExpenses
+                paidExpenses +
+                paidPayouts
               }
             />
 
@@ -1106,6 +1358,15 @@ export default function RelatorioFinanceiro() {
             </div>
           )}
         </PageCard>
+        <div className="report-print-footer">
+          <span>
+            <strong>Clínica Integrada Entre Afetos</strong> • Relatório Financeiro
+          </span>
+
+          <span>
+            AC Software • Documento gerado pelo sistema
+          </span>
+        </div>
       </div>
     </DashboardLayout>
   );

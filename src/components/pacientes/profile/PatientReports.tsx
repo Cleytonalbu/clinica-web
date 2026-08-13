@@ -9,17 +9,18 @@ import {
 } from "lucide-react";
 
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
 
 import {
-  useParams,
-} from "react-router-dom";
-
-import {
   useAuth,
 } from "@/auth/AuthContext";
+
+import {
+  useParams,
+} from "react-router-dom";
 
 import {
   Button,
@@ -40,12 +41,18 @@ import {
 } from "@/pages/Agenda/appointmentStorage";
 
 import {
-  getPatientFinancialHistory,
-} from "@/pages/Financeiro/financeStorage";
+  getProfessionalSpecialty,
+} from "@/pages/Pacientes/patientAccessRules";
 
 import {
-  getActiveSpecialties,
-} from "@/pages/Configuracoes/settingsStorage";
+  getPatientById,
+} from "@/pages/Pacientes/patientStorage";
+
+import {
+  PatientIndividualReportDocument,
+  PATIENT_INDIVIDUAL_REPORT_STYLES,
+  type PatientIndividualReportType,
+} from "@/components/relatorios/PatientIndividualReportDocument";
 
 /* =========================================
    TIPOS
@@ -59,283 +66,542 @@ type ReportType =
 
 interface PatientReport {
   id: number;
+
   type: ReportType;
+
   title: string;
+
   description: string;
+
   icon: typeof FileText;
+
+  updatedAt: string;
+
   gestorOnly?: boolean;
 }
 
 /* =========================================
-   RELATÓRIOS DISPONÍVEIS
+   RELATÓRIOS
 ========================================= */
 
 const reports: PatientReport[] = [
   {
     id: 1,
-    type: "clinical",
-    title: "Relatório de Evolução Clínica",
+
+    type:
+      "clinical",
+
+    title:
+      "Relatório de Evolução Clínica",
+
     description:
       "Resumo das evoluções registradas no período selecionado.",
-    icon: TrendingUp,
+
+    icon:
+      TrendingUp,
+
+    updatedAt:
+      "07/08/2026",
   },
+
   {
     id: 2,
-    type: "objectives",
-    title: "Relatório de Objetivos Terapêuticos",
+
+    type:
+      "objectives",
+
+    title:
+      "Relatório de Objetivos Terapêuticos",
+
     description:
       "Acompanhamento do progresso dos objetivos do plano terapêutico.",
-    icon: Target,
+
+    icon:
+      Target,
+
+    updatedAt:
+      "07/08/2026",
   },
+
   {
     id: 3,
-    type: "attendance",
-    title: "Relatório de Frequência",
+
+    type:
+      "attendance",
+
+    title:
+      "Relatório de Frequência",
+
     description:
       "Presenças, faltas, cancelamentos e taxa de comparecimento.",
-    icon: CalendarCheck2,
+
+    icon:
+      CalendarCheck2,
+
+    updatedAt:
+      "06/08/2026",
   },
+
   {
     id: 4,
-    type: "financial",
-    title: "Relatório Financeiro",
+
+    type:
+      "financial",
+
+    title:
+      "Relatório Financeiro",
+
     description:
       "Histórico de cobranças, pagamentos e pendências do paciente.",
-    icon: WalletCards,
-    gestorOnly: true,
+
+    icon:
+      WalletCards,
+
+    updatedAt:
+      "05/08/2026",
+
+    gestorOnly:
+      true,
   },
 ];
 
 /* =========================================
-   COMPONENTE
+   COMPONENTE PRINCIPAL
 ========================================= */
 
 export function PatientReports() {
-  const { user } = useAuth();
-  const { id } = useParams();
+  const {
+    user,
+  } = useAuth();
 
-  const patientId = Number(id);
+  const {
+    id,
+  } = useParams();
 
-  const [period, setPeriod] =
-    useState("ultimos90");
+  const patientId =
+    Number(
+      id
+    );
 
-  const [specialty, setSpecialty] =
-    useState("todas");
+  const patient =
+    getPatientById(
+      patientId
+    );
 
-  const [format, setFormat] =
-    useState("visualizacao");
+  const [
+    activeReport,
+    setActiveReport,
+  ] =
+    useState<
+      PatientIndividualReportType |
+      null
+    >(
+      null
+    );
 
-  const [feedback, setFeedback] =
-    useState<string | null>(null);
+  const [
+    previewOpen,
+    setPreviewOpen,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    printRequested,
+    setPrintRequested,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    period,
+    setPeriod,
+  ] = useState(
+    "ultimos90"
+  );
+
+  const [
+    specialty,
+    setSpecialty,
+  ] = useState(
+    "todas"
+  );
+
+  const [
+    format,
+    setFormat,
+  ] = useState(
+    "pdf"
+  );
 
   /* =======================================
      PERFIL
   ======================================= */
 
   const isGestor =
-    user?.profile === "Gestor";
+    user?.profile ===
+    "Gestor";
 
   const isProfissional =
-    user?.profile === "Profissional";
+    user?.profile ===
+    "Profissional";
+
+  const loggedProfessionalName =
+    user?.professionalName ??
+    user?.name ??
+    "";
+
+  const professionalSpecialty =
+    isProfissional
+      ? getProfessionalSpecialty(
+          loggedProfessionalName
+        )
+      : "";
+
+  /*
+   * Esta aba já não aparece para
+   * a Recepção.
+   */
 
   const canAccessReports =
-    isGestor || isProfissional;
+    isGestor ||
+    isProfissional;
 
-  /* =======================================
-     ESPECIALIDADES
-  ======================================= */
-
-  const specialties =
+  const accessibleEvolutions =
     useMemo(
-      () => getActiveSpecialties(),
-      []
+      () => {
+        if (
+          !Number.isFinite(
+            patientId
+          ) ||
+          patientId <= 0
+        ) {
+          return [];
+        }
+
+        const all =
+          getEvolutionsByPatientId(
+            patientId
+          );
+
+        if (
+          !isProfissional
+        ) {
+          return all;
+        }
+
+        return all.filter(
+          (
+            evolution
+          ) =>
+            evolution.professional ===
+              loggedProfessionalName &&
+            (
+              !professionalSpecialty ||
+              evolution.specialty ===
+                professionalSpecialty
+            )
+        );
+      },
+      [
+        isProfissional,
+        loggedProfessionalName,
+        patientId,
+        professionalSpecialty,
+      ]
     );
 
-  /* =======================================
-     PERÍODO
-  ======================================= */
-
-  const periodRange =
+  const accessibleObjectives =
     useMemo(
-      () => getPeriodRange(period),
-      [period]
+      () => {
+        if (
+          !Number.isFinite(
+            patientId
+          ) ||
+          patientId <= 0
+        ) {
+          return [];
+        }
+
+        const all =
+          getObjectivesByPatientId(
+            patientId
+          );
+
+        if (
+          !isProfissional
+        ) {
+          return all;
+        }
+
+        return all.filter(
+          (
+            objective
+          ) =>
+            objective.professional ===
+              loggedProfessionalName &&
+            (
+              !professionalSpecialty ||
+              objective.specialty ===
+                professionalSpecialty
+            )
+        );
+      },
+      [
+        isProfissional,
+        loggedProfessionalName,
+        patientId,
+        professionalSpecialty,
+      ]
     );
 
-  /* =======================================
-     DADOS REAIS
-  ======================================= */
+  const accessibleAppointments =
+    useMemo(
+      () => {
+        if (
+          !Number.isFinite(
+            patientId
+          ) ||
+          patientId <= 0
+        ) {
+          return [];
+        }
 
-  const evolutions =
-    useMemo(() => {
-      if (
-        !Number.isFinite(patientId) ||
-        patientId <= 0
-      ) {
-        return [];
-      }
-
-      return getEvolutionsByPatientId(
-        patientId
-      ).filter(
-        (evolution) =>
-          matchesDateRange(
-            evolution.sessionDate,
-            periodRange
-          ) &&
-          matchesSpecialty(
-            evolution.specialty,
-            specialty
-          )
-      );
-    }, [
-      patientId,
-      periodRange,
-      specialty,
-    ]);
-
-  const objectives =
-    useMemo(() => {
-      if (
-        !Number.isFinite(patientId) ||
-        patientId <= 0
-      ) {
-        return [];
-      }
-
-      return getObjectivesByPatientId(
-        patientId
-      ).filter(
-        (objective) =>
-          matchesDateRange(
-            objective.createdAt,
-            periodRange
-          ) &&
-          matchesSpecialty(
-            objective.specialty,
-            specialty
-          )
-      );
-    }, [
-      patientId,
-      periodRange,
-      specialty,
-    ]);
-
-  const appointments =
-    useMemo(() => {
-      if (
-        !Number.isFinite(patientId) ||
-        patientId <= 0
-      ) {
-        return [];
-      }
-
-      return getSavedAppointments().filter(
-        (appointment) =>
-          appointment.patientId === patientId &&
-          matchesDateRange(
-            appointment.date,
-            periodRange
-          ) &&
-          matchesSpecialty(
-            appointment.specialty,
-            specialty
-          )
-      );
-    }, [
-      patientId,
-      periodRange,
-      specialty,
-    ]);
-
-  const financialHistory =
-    useMemo(() => {
-      if (
-        !isGestor ||
-        !Number.isFinite(patientId) ||
-        patientId <= 0
-      ) {
-        return [];
-      }
-
-      return getPatientFinancialHistory(
-        patientId
-      ).filter(
-        (charge) =>
-          matchesDateRange(
-            charge.date,
-            periodRange
-          ) &&
-          matchesSpecialty(
-            charge.specialty,
-            specialty
-          )
-      );
-    }, [
-      isGestor,
-      patientId,
-      periodRange,
-      specialty,
-    ]);
-
-  /* =======================================
-     INDICADORES
-  ======================================= */
-
-  const finalizedEvolutions =
-    evolutions.filter(
-      (evolution) =>
-        evolution.status === "FINALIZADA"
-    ).length;
-
-  const activeObjectives =
-    objectives.filter(
-      (objective) =>
-        objective.status !== "Atingido"
-    ).length;
+        return getSavedAppointments().filter(
+          (
+            appointment
+          ) =>
+            appointment.patientId ===
+              patientId &&
+            (
+              !isProfissional ||
+              (
+                appointment.professional ===
+                  loggedProfessionalName &&
+                (
+                  !professionalSpecialty ||
+                  appointment.specialty ===
+                    professionalSpecialty
+                )
+              )
+            )
+        );
+      },
+      [
+        isProfissional,
+        loggedProfessionalName,
+        patientId,
+        professionalSpecialty,
+      ]
+    );
 
   const completedAppointments =
-    appointments.filter(
-      (appointment) =>
-        appointment.status === "Realizado"
-    ).length;
-
-  const missedAppointments =
-    appointments.filter(
-      (appointment) =>
-        appointment.status === "Faltou"
-    ).length;
-
-  const cancelledAppointments =
-    appointments.filter(
-      (appointment) =>
-        appointment.status === "Cancelado"
+    accessibleAppointments.filter(
+      (
+        appointment
+      ) =>
+        appointment.status ===
+        "Realizado"
     ).length;
 
   const attendanceBase =
-    completedAppointments +
-    missedAppointments;
+    accessibleAppointments.filter(
+      (
+        appointment
+      ) =>
+        appointment.status ===
+          "Realizado" ||
+        appointment.status ===
+          "Faltou"
+    ).length;
 
   const attendanceRate =
     attendanceBase > 0
       ? Math.round(
-          (completedAppointments /
-            attendanceBase) *
-            100
+          (
+            completedAppointments /
+            attendanceBase
+          ) * 100
         )
       : 0;
 
-  const pendingFinancial =
-    financialHistory
-      .filter(
-        (charge) =>
-          charge.status === "Pendente"
-      )
-      .reduce(
-        (total, charge) =>
-          total + charge.amount,
-        0
-      );
+  const periodRange =
+    useMemo(
+      () =>
+        getReportPeriodRange(
+          period
+        ),
+      [
+        period,
+      ]
+    );
+
+  const effectiveSpecialty =
+    isProfissional
+      ? professionalSpecialty
+      : specialty;
+
+  const filteredEvolutions =
+    useMemo(
+      () =>
+        accessibleEvolutions.filter(
+          (
+            evolution
+          ) =>
+            isDateInRange(
+              evolution.sessionDate,
+              periodRange
+            ) &&
+            (
+              !effectiveSpecialty ||
+              effectiveSpecialty ===
+                "todas" ||
+              normalizeSpecialty(
+                evolution.specialty
+              ) ===
+                normalizeSpecialty(
+                  effectiveSpecialty
+                )
+            )
+        ),
+      [
+        accessibleEvolutions,
+        effectiveSpecialty,
+        periodRange,
+      ]
+    );
+
+  const filteredObjectives =
+    useMemo(
+      () =>
+        accessibleObjectives.filter(
+          (
+            objective
+          ) =>
+            isDateInRange(
+              objective.startDate,
+              periodRange
+            ) &&
+            (
+              !effectiveSpecialty ||
+              effectiveSpecialty ===
+                "todas" ||
+              normalizeSpecialty(
+                objective.specialty
+              ) ===
+                normalizeSpecialty(
+                  effectiveSpecialty
+                )
+            )
+        ),
+      [
+        accessibleObjectives,
+        effectiveSpecialty,
+        periodRange,
+      ]
+    );
+
+  const filteredAppointments =
+    useMemo(
+      () =>
+        accessibleAppointments.filter(
+          (
+            appointment
+          ) =>
+            isDateInRange(
+              appointment.date,
+              periodRange
+            ) &&
+            (
+              !effectiveSpecialty ||
+              effectiveSpecialty ===
+                "todas" ||
+              normalizeSpecialty(
+                appointment.specialty
+              ) ===
+                normalizeSpecialty(
+                  effectiveSpecialty
+                )
+            )
+        ),
+      [
+        accessibleAppointments,
+        effectiveSpecialty,
+        periodRange,
+      ]
+    );
+
+  const filteredCompleted =
+    filteredAppointments.filter(
+      (
+        appointment
+      ) =>
+        appointment.status ===
+        "Realizado"
+    ).length;
+
+  const filteredMissed =
+    filteredAppointments.filter(
+      (
+        appointment
+      ) =>
+        appointment.status ===
+        "Faltou"
+    ).length;
+
+  const filteredAttendanceBase =
+    filteredCompleted +
+    filteredMissed;
+
+  const filteredAttendanceRate =
+    filteredAttendanceBase > 0
+      ? Math.round(
+          (
+            filteredCompleted /
+            filteredAttendanceBase
+          ) * 100
+        )
+      : 0;
+
+  const periodLabel =
+    getReportPeriodLabel(
+      period,
+      periodRange
+    );
+
+  useEffect(
+    () => {
+      if (
+        !printRequested ||
+        !activeReport
+      ) {
+        return;
+      }
+
+      const timer =
+        window.setTimeout(
+          () => {
+            window.print();
+
+            setPrintRequested(
+              false
+            );
+          },
+          100
+        );
+
+      return () =>
+        window.clearTimeout(
+          timer
+        );
+    },
+    [
+      activeReport,
+      printRequested,
+    ]
+  );
 
   /* =======================================
      RELATÓRIOS VISÍVEIS
@@ -343,71 +609,140 @@ export function PatientReports() {
 
   const visibleReports =
     useMemo(
-      () =>
-        reports.filter(
-          (report) =>
-            !report.gestorOnly ||
-            isGestor
-        ),
-      [isGestor]
+      () => {
+        return reports.filter(
+          (
+            report
+          ) => {
+            if (
+              report.gestorOnly
+            ) {
+              return isGestor;
+            }
+
+            return true;
+          }
+        );
+      },
+      [
+        isGestor,
+      ]
     );
 
   /* =======================================
-     AÇÕES
+     GERAR RELATÓRIO GERAL
   ======================================= */
 
   function handleGenerateReport() {
-    if (!canAccessReports) {
+    if (
+      !canAccessReports
+    ) {
       return;
     }
 
-    setFeedback(
-      format === "pdf"
-        ? "A geração do arquivo PDF será ativada quando o backend de relatórios estiver integrado."
-        : "Os dados abaixo já representam a visualização do período e especialidade selecionados."
+    setActiveReport(
+      "complete"
+    );
+
+    if (
+      format ===
+      "visualizacao"
+    ) {
+      setPreviewOpen(
+        true
+      );
+
+      setPrintRequested(
+        false
+      );
+
+      return;
+    }
+
+    setPreviewOpen(
+      false
+    );
+
+    setPrintRequested(
+      true
     );
   }
+
+  /* =======================================
+     VISUALIZAR
+  ======================================= */
 
   function handleViewReport(
     report: PatientReport
   ) {
-    if (!canAccessReports) {
+    if (
+      !canAccessReports ||
+      report.type ===
+        "financial"
+    ) {
       return;
     }
 
-    setFeedback(
-      buildReportFeedback(
-        report.type,
-        {
-          finalizedEvolutions,
-          activeObjectives,
-          completedAppointments,
-          missedAppointments,
-          cancelledAppointments,
-          attendanceRate,
-          pendingFinancial,
-        }
-      )
+    setActiveReport(
+      report.type
     );
-  }
 
-  function handleGeneratePdf(
-    report: PatientReport
-  ) {
-    if (!canAccessReports) {
-      return;
-    }
-
-    setFeedback(
-      `O relatório "${report.title}" está pronto para visualização com os dados atuais. A exportação real em PDF dependerá da integração com o backend.`
+    setPreviewOpen(
+      true
     );
   }
 
   /* =======================================
-     SEGURANÇA
+     GERAR PDF
   ======================================= */
 
-  if (!canAccessReports) {
+  function handleGeneratePdf(
+    report: PatientReport
+  ) {
+    if (
+      !canAccessReports ||
+      report.type ===
+        "financial"
+    ) {
+      return;
+    }
+
+    setActiveReport(
+      report.type
+    );
+
+    setPreviewOpen(
+      false
+    );
+
+    setPrintRequested(
+      true
+    );
+  }
+
+  function handlePrintActiveReport() {
+    if (
+      !activeReport
+    ) {
+      return;
+    }
+
+    setPreviewOpen(
+      false
+    );
+
+    setPrintRequested(
+      true
+    );
+  }
+
+  /* =======================================
+     SEGURANÇA EXTRA
+  ======================================= */
+
+  if (
+    !canAccessReports
+  ) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
         <FileText
@@ -432,6 +767,101 @@ export function PatientReports() {
 
   return (
     <div className="space-y-6">
+      <style>
+        {
+          PATIENT_INDIVIDUAL_REPORT_STYLES
+        }
+      </style>
+
+      {activeReport && (
+        <PatientIndividualReportDocument
+          type={
+            activeReport
+          }
+          patientName={
+            patient?.name ??
+            `Paciente #${patientId}`
+          }
+          patientId={
+            patientId
+          }
+          specialty={
+            effectiveSpecialty ===
+            "todas"
+              ? "Todas"
+              : effectiveSpecialty
+          }
+          periodLabel={
+            periodLabel
+          }
+          professionalName={
+            isProfissional
+              ? loggedProfessionalName
+              : "Equipe clínica"
+          }
+          evolutions={
+            filteredEvolutions
+          }
+          objectives={
+            filteredObjectives
+          }
+          appointments={
+            filteredAppointments
+          }
+        />
+      )}
+
+      {activeReport &&
+        previewOpen && (
+          <PatientIndividualReportDocument
+            type={
+              activeReport
+            }
+            patientName={
+              patient?.name ??
+              `Paciente #${patientId}`
+            }
+            patientId={
+              patientId
+            }
+            specialty={
+              effectiveSpecialty ===
+              "todas"
+                ? "Todas"
+                : effectiveSpecialty
+            }
+            periodLabel={
+              periodLabel
+            }
+            professionalName={
+              isProfissional
+                ? loggedProfessionalName
+                : "Equipe clínica"
+            }
+            evolutions={
+              filteredEvolutions
+            }
+            objectives={
+              filteredObjectives
+            }
+            appointments={
+              filteredAppointments
+            }
+            preview
+            onClose={() =>
+              setPreviewOpen(
+                false
+              )
+            }
+            onPrint={
+              handlePrintActiveReport
+            }
+          />
+        )}
+      {/* ================================= */}
+      {/* CABEÇALHO */}
+      {/* ================================= */}
+
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">
@@ -440,25 +870,36 @@ export function PatientReports() {
 
           <p className="mt-1 text-sm text-slate-500">
             {isProfissional
-              ? "Consulte indicadores clínicos do acompanhamento do paciente."
-              : "Consulte indicadores clínicos e financeiros do acompanhamento do paciente."}
+              ? "Gere e consulte relatórios clínicos do acompanhamento do paciente."
+              : "Gere e consulte relatórios consolidados do acompanhamento do paciente."}
           </p>
+
+          {isProfissional && (
+            <p className="mt-2 text-xs font-semibold text-violet-600">
+              Relatórios restritos às suas evoluções, objetivos e atendimentos de {professionalSpecialty || "sua especialidade"}.
+            </p>
+          )}
         </div>
 
         <Button
           type="button"
-          onClick={handleGenerateReport}
+          onClick={
+            handleGenerateReport
+          }
         >
-          <FileText size={18} />
-          Gerar relatório
+          <FileText
+            size={
+              18
+            }
+          />
+
+          Gerar relatório consolidado
         </Button>
       </div>
 
-      {feedback && (
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-medium text-indigo-700">
-          {feedback}
-        </div>
-      )}
+      {/* ================================= */}
+      {/* INDICADORES */}
+      {/* ================================= */}
 
       <div
         className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${
@@ -470,63 +911,97 @@ export function PatientReports() {
         <MetricCard
           title="Evoluções"
           value={String(
-            finalizedEvolutions
+            filteredEvolutions.filter(
+              (
+                evolution
+              ) =>
+                evolution.status ===
+                "FINALIZADA"
+            ).length
           )}
-          description="Finalizadas no período"
-          icon={<TrendingUp size={22} />}
+          icon={
+            <TrendingUp
+              size={
+                22
+              }
+            />
+          }
           className="bg-indigo-100 text-indigo-600"
         />
 
         <MetricCard
-          title="Objetivos ativos"
+          title="Objetivos"
           value={String(
-            activeObjectives
+            filteredObjectives.length
           )}
-          description="Em acompanhamento"
-          icon={<Target size={22} />}
+          icon={
+            <Target
+              size={
+                22
+              }
+            />
+          }
           className="bg-violet-100 text-violet-600"
         />
 
         <MetricCard
-          title="Presença"
-          value={`${attendanceRate}%`}
-          description={`${completedAppointments} realizadas • ${missedAppointments} faltas`}
+          title="Presenças"
+          value={`${filteredAttendanceRate}%`}
           icon={
-            <CalendarCheck2 size={22} />
+            <CalendarCheck2
+              size={
+                22
+              }
+            />
           }
           className="bg-emerald-100 text-emerald-600"
         />
 
         {isGestor && (
           <MetricCard
-            title="Pendências"
-            value={
-              formatCurrency(
-                pendingFinancial
-              )
+            title="Relatórios"
+            value="12"
+            icon={
+              <BarChart3
+                size={
+                  22
+                }
+              />
             }
-            description="Cobranças pendentes"
-            icon={<BarChart3 size={22} />}
             className="bg-amber-100 text-amber-600"
           />
         )}
       </div>
+
+      {/* ================================= */}
+      {/* FILTROS */}
+      {/* ================================= */}
 
       <PageCard
         title="Filtros do relatório"
         description="Selecione o período e o tipo de informação."
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {/* ============================= */}
+          {/* PERÍODO */}
+          {/* ============================= */}
+
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">
               Período
             </label>
 
             <Select
-              value={period}
-              onChange={(event) =>
+              value={
+                period
+              }
+              onChange={(
+                event
+              ) =>
                 setPeriod(
-                  event.target.value
+                  event
+                    .target
+                    .value
                 )
               }
             >
@@ -545,38 +1020,76 @@ export function PatientReports() {
               <option value="ano">
                 Ano atual
               </option>
+
+              <option value="personalizado">
+                Período personalizado
+              </option>
             </Select>
           </div>
+
+          {/* ============================= */}
+          {/* ESPECIALIDADE */}
+          {/* ============================= */}
 
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">
               Especialidade
             </label>
 
-            <Select
-              value={specialty}
-              onChange={(event) =>
-                setSpecialty(
-                  event.target.value
-                )
-              }
-            >
-              <option value="todas">
-                Todas
-              </option>
+            {isProfissional ? (
+              <Select
+                value={
+                  professionalSpecialty
+                }
+                disabled
+              >
+                <option
+                  value={
+                    professionalSpecialty
+                  }
+                >
+                  {professionalSpecialty || "Sua especialidade"}
+                </option>
+              </Select>
+            ) : (
+              <Select
+                value={
+                  specialty
+                }
+                onChange={(
+                  event
+                ) =>
+                  setSpecialty(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="todas">
+                  Todas
+                </option>
 
-              {specialties.map(
-                (item) => (
-                  <option
-                    key={item.id}
-                    value={item.name}
-                  >
-                    {item.name}
-                  </option>
-                )
-              )}
-            </Select>
+                <option value="psicologia">
+                  Psicologia
+                </option>
+
+                <option value="fono">
+                  Fonoaudiologia
+                </option>
+
+                <option value="to">
+                  Terapia Ocupacional
+                </option>
+
+                <option value="fisio">
+                  Fisioterapia
+                </option>
+              </Select>
+            )}
           </div>
+
+          {/* ============================= */}
+          {/* FORMATO */}
+          {/* ============================= */}
 
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">
@@ -584,81 +1097,74 @@ export function PatientReports() {
             </label>
 
             <Select
-              value={format}
-              onChange={(event) =>
+              value={
+                format
+              }
+              onChange={(
+                event
+              ) =>
                 setFormat(
-                  event.target.value
+                  event
+                    .target
+                    .value
                 )
               }
             >
-              <option value="visualizacao">
-                Visualização na tela
-              </option>
-
               <option value="pdf">
                 PDF
+              </option>
+
+              <option value="visualizacao">
+                Visualização na tela
               </option>
             </Select>
           </div>
         </div>
       </PageCard>
 
-      <PageCard
-        title="Frequência no período"
-        description="Resumo dos atendimentos considerados para o paciente."
-      >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <SmallMetric
-            label="Realizados"
-            value={String(
-              completedAppointments
-            )}
-          />
-
-          <SmallMetric
-            label="Faltas"
-            value={String(
-              missedAppointments
-            )}
-          />
-
-          <SmallMetric
-            label="Cancelados"
-            value={String(
-              cancelledAppointments
-            )}
-          />
-
-          <SmallMetric
-            label="Taxa de presença"
-            value={`${attendanceRate}%`}
-          />
-        </div>
-      </PageCard>
+      {/* ================================= */}
+      {/* RELATÓRIOS DISPONÍVEIS */}
+      {/* ================================= */}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {visibleReports.map(
-          (report) => {
+          (
+            report
+          ) => {
             const Icon =
               report.icon;
 
             return (
               <div
-                key={report.id}
+                key={
+                  report.id
+                }
                 className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
+                {/* ========================= */}
+                {/* CABEÇALHO DO CARD */}
+                {/* ========================= */}
+
                 <div className="flex items-start gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
-                    <Icon size={22} />
+                    <Icon
+                      size={
+                        22
+                      }
+                    />
                   </div>
 
                   <div className="min-w-0 flex-1">
                     <h3 className="font-semibold text-slate-900">
-                      {report.title}
+                      {
+                        report.title
+                      }
                     </h3>
 
                     <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                      {report.description}
+                      {
+                        report.description
+                      }
                     </p>
 
                     <p className="mt-4 text-xs text-slate-400">
@@ -666,6 +1172,10 @@ export function PatientReports() {
                     </p>
                   </div>
                 </div>
+
+                {/* ========================= */}
+                {/* AÇÕES */}
+                {/* ========================= */}
 
                 <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
                   <Button
@@ -690,7 +1200,12 @@ export function PatientReports() {
                       )
                     }
                   >
-                    <Download size={16} />
+                    <Download
+                      size={
+                        16
+                      }
+                    />
+
                     Gerar PDF
                   </Button>
                 </div>
@@ -703,117 +1218,28 @@ export function PatientReports() {
   );
 }
 
-/* =========================================
-   CARD PRINCIPAL
-========================================= */
-
-interface MetricCardProps {
-  title: string;
-  value: string;
-  description: string;
-  icon: React.ReactNode;
-  className: string;
+interface ReportPeriodRange {
+  start: string;
+  end: string;
 }
 
-function MetricCard({
-  title,
-  value,
-  description,
-  icon,
-  className,
-}: MetricCardProps) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-slate-500">
-            {title}
-          </p>
-
-          <p className="mt-2 text-3xl font-bold text-slate-900">
-            {value}
-          </p>
-
-          <p className="mt-1 text-xs text-slate-400">
-            {description}
-          </p>
-        </div>
-
-        <div
-          className={`flex h-11 w-11 items-center justify-center rounded-xl ${className}`}
-        >
-          {icon}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* =========================================
-   MÉTRICA PEQUENA
-========================================= */
-
-function SmallMetric({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-        {label}
-      </p>
-
-      <p className="mt-2 text-2xl font-bold text-slate-900">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-/* =========================================
-   PERÍODO
-========================================= */
-
-interface DateRange {
-  start: Date;
-  end: Date;
-}
-
-function getPeriodRange(
+function getReportPeriodRange(
   period: string
-): DateRange {
-  const now =
+): ReportPeriodRange {
+  const today =
     new Date();
 
   const end =
-    new Date(now);
-
-  end.setHours(
-    23,
-    59,
-    59,
-    999
-  );
+    formatIsoDate(
+      today
+    );
 
   if (
     period === "ano"
   ) {
-    const start =
-      new Date(
-        now.getFullYear(),
-        0,
-        1,
-        0,
-        0,
-        0,
-        0
-      );
-
     return {
-      start,
+      start:
+        `${today.getFullYear()}-01-01`,
       end,
     };
   }
@@ -825,158 +1251,184 @@ function getPeriodRange(
         ? 60
         : 90;
 
-  const start =
-    new Date(now);
+  const startDate =
+    new Date(
+      today
+    );
 
-  start.setDate(
-    start.getDate() -
-      days
-  );
-
-  start.setHours(
-    0,
-    0,
-    0,
-    0
+  startDate.setDate(
+    startDate.getDate() -
+      (days - 1)
   );
 
   return {
-    start,
+    start:
+      formatIsoDate(
+        startDate
+      ),
     end,
   };
 }
 
-/* =========================================
-   FILTRO DE DATA
-========================================= */
-
-function matchesDateRange(
-  value: string,
-  range: DateRange
+function getReportPeriodLabel(
+  period: string,
+  range: ReportPeriodRange
 ) {
-  if (!value) {
-    return false;
-  }
+  const dates =
+    `${formatDisplayDate(range.start)} a ${formatDisplayDate(range.end)}`;
 
-  const date =
-    parseDate(value);
-
-  if (!date) {
-    return false;
-  }
-
-  return (
-    date.getTime() >=
-      range.start.getTime() &&
-    date.getTime() <=
-      range.end.getTime()
-  );
-}
-
-/* =========================================
-   FILTRO DE ESPECIALIDADE
-========================================= */
-
-function matchesSpecialty(
-  itemSpecialty: string,
-  selected: string
-) {
   if (
-    selected === "todas"
+    period === "ultimos30"
   ) {
-    return true;
+    return `Últimos 30 dias (${dates})`;
   }
 
+  if (
+    period === "ultimos60"
+  ) {
+    return `Últimos 60 dias (${dates})`;
+  }
+
+  if (
+    period === "ano"
+  ) {
+    return `Ano atual (${dates})`;
+  }
+
+  if (
+    period === "personalizado"
+  ) {
+    return `Período selecionado (${dates})`;
+  }
+
+  return `Últimos 90 dias (${dates})`;
+}
+
+function isDateInRange(
+  value: string,
+  range: ReportPeriodRange
+) {
   return (
-    itemSpecialty
-      .trim()
-      .toLocaleLowerCase(
-        "pt-BR"
-      ) ===
-    selected
-      .trim()
-      .toLocaleLowerCase(
-        "pt-BR"
-      )
+    Boolean(
+      value
+    ) &&
+    value >=
+      range.start &&
+    value <=
+      range.end
   );
 }
 
-/* =========================================
-   PARSE DE DATA
-========================================= */
-
-function parseDate(
+function normalizeSpecialty(
   value: string
 ) {
-  const date =
-    /^\d{4}-\d{2}-\d{2}$/.test(
-      value
+  return value
+    .normalize("NFD")
+    .replace(
+      /[\u0300-\u036f]/g,
+      ""
     )
-      ? new Date(
-          `${value}T12:00:00`
-        )
-      : new Date(value);
+    .toLowerCase()
+    .replace(
+      /\s+/g,
+      ""
+    );
+}
 
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-    return null;
-  }
+function formatIsoDate(
+  date: Date
+) {
+  const year =
+    date.getFullYear();
 
-  return date;
+  const month =
+    String(
+      date.getMonth() + 1
+    ).padStart(
+      2,
+      "0"
+    );
+
+  const day =
+    String(
+      date.getDate()
+    ).padStart(
+      2,
+      "0"
+    );
+
+  return `${year}-${month}-${day}`;
+}
+
+function formatDisplayDate(
+  value: string
+) {
+  const [
+    year,
+    month,
+    day,
+  ] =
+    value.split("-");
+
+  return year &&
+    month &&
+    day
+      ? `${day}/${month}/${year}`
+      : value;
 }
 
 /* =========================================
-   FEEDBACK
+   CARD DE MÉTRICA
 ========================================= */
 
-function buildReportFeedback(
-  type: ReportType,
-  data: {
-    finalizedEvolutions: number;
-    activeObjectives: number;
-    completedAppointments: number;
-    missedAppointments: number;
-    cancelledAppointments: number;
-    attendanceRate: number;
-    pendingFinancial: number;
-  }
-) {
-  if (
-    type === "clinical"
-  ) {
-    return `Evoluções finalizadas no período: ${data.finalizedEvolutions}.`;
-  }
+interface MetricCardProps {
+  title:
+    string;
 
-  if (
-    type === "objectives"
-  ) {
-    return `Objetivos ativos no período: ${data.activeObjectives}.`;
-  }
+  value:
+    string;
 
-  if (
-    type === "attendance"
-  ) {
-    return `Realizados: ${data.completedAppointments}. Faltas: ${data.missedAppointments}. Cancelados: ${data.cancelledAppointments}. Taxa de presença: ${data.attendanceRate}%.`;
-  }
+  icon:
+    React.ReactNode;
 
-  return `Pendências financeiras no período: ${formatCurrency(data.pendingFinancial)}.`;
+  className:
+    string;
 }
 
-/* =========================================
-   MOEDA
-========================================= */
+function MetricCard({
+  title,
 
-function formatCurrency(
-  value: number
-) {
-  return new Intl.NumberFormat(
-    "pt-BR",
-    {
-      style: "currency",
-      currency: "BRL",
-    }
-  ).format(value);
+  value,
+
+  icon,
+
+  className,
+}: MetricCardProps) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-slate-500">
+            {
+              title
+            }
+          </p>
+
+          <p className="mt-2 text-3xl font-bold text-slate-900">
+            {
+              value
+            }
+          </p>
+        </div>
+
+        <div
+          className={`flex h-11 w-11 items-center justify-center rounded-xl ${className}`}
+        >
+          {
+            icon
+          }
+        </div>
+      </div>
+    </div>
+  );
 }
