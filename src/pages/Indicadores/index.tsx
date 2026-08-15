@@ -42,6 +42,10 @@ import {
   AlertasGestao,
 } from "../../components/indicadores/AlertasGestao";
 
+import {
+  ObjetivosPorProfissional,
+} from "../../components/indicadores/ObjetivosPorProfissional";
+
 export default function Indicadores() {
   return (
     <DashboardLayout>
@@ -59,6 +63,8 @@ export default function Indicadores() {
         <IndicadoresFiltros />
 
         <IndicadoresMetricCards />
+
+        <ObjetivosPorProfissional />
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <CriancasPorEspecialidade />

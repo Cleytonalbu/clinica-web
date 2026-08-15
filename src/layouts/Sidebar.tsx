@@ -6,6 +6,7 @@ import {
   BarChart3,
   CalendarDays,
   CircleDollarSign,
+  ClipboardList,
   Gauge,
   Home,
   Settings,
@@ -104,6 +105,14 @@ const menuItems: MenuItem[] = [
   },
 
   {
+    id: "solicitacoes-relatorios",
+    label: "Solicitações",
+    icon: ClipboardList,
+    path: "/solicitacoes-relatorios",
+    module: "patients",
+  },
+
+  {
     id: "profissionais",
     label: "Profissionais",
     icon: Stethoscope,
@@ -156,6 +165,7 @@ const profileMenuAccess: Record<
     "dashboard",
     "agenda",
     "pacientes",
+    "solicitacoes-relatorios",
     "profissionais",
     "indicadores",
     "financeiro",
@@ -167,6 +177,7 @@ const profileMenuAccess: Record<
     "dashboard",
     "agenda",
     "pacientes",
+    "solicitacoes-relatorios",
     "financeiro",
   ],
 
@@ -174,6 +185,7 @@ const profileMenuAccess: Record<
     "dashboard",
     "agenda",
     "pacientes",
+    "solicitacoes-relatorios",
   ],
 };
 

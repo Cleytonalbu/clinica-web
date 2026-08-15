@@ -42,6 +42,8 @@ import RemarcarAgendamento from "@/pages/Agenda/RemarcarAgendamento";
 
 import NovoBloqueio from "@/pages/Agenda/NovoBloqueio";
 
+import SolicitarBloqueio from "@/pages/Agenda/SolicitarBloqueio";
+
 import Financeiro from "@/pages/Financeiro";
 
 import DashboardFinanceiro from "@/pages/Financeiro/DashboardFinanceiro";
@@ -63,6 +65,8 @@ import RelatorioFinanceiro from "@/pages/Relatorios/RelatorioFinanceiro";
 import RelatorioPacientes from "@/pages/Relatorios/RelatorioPacientes";
 
 import RelatorioProfissionais from "@/pages/Relatorios/RelatorioProfissionais";
+
+import SolicitacoesRelatorios from "@/pages/SolicitacoesRelatorios";
 
 import Configuracoes from "@/pages/Configuracoes";
 
@@ -400,6 +404,29 @@ export function AppRoutes() {
       />
 
       {/* ========================================= */}
+      {/* SOLICITAR BLOQUEIO */}
+      {/* SOMENTE PROFISSIONAL */}
+      {/* ========================================= */}
+
+      <Route
+        path="/agenda/bloqueio/solicitar"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Profissional",
+            ]}
+          >
+            <ProtectedRoute
+              module="agenda"
+              action="view"
+            >
+              <SolicitarBloqueio />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+      {/* ========================================= */}
       {/* DETALHE DO AGENDAMENTO */}
       {/* TODOS OS PERFIS */}
       {/* ========================================= */}
@@ -559,6 +586,31 @@ export function AppRoutes() {
           <GestorOnlyRoute>
             <PagarDespesa />
           </GestorOnlyRoute>
+        }
+      />
+
+      {/* ========================================= */}
+      {/* SOLICITAÇÕES DE RELATÓRIOS */}
+      {/* GESTOR + RECEPÇÃO + PROFISSIONAL */}
+      {/* ========================================= */}
+
+      <Route
+        path="/solicitacoes-relatorios"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Gestor",
+              "Recepção",
+              "Profissional",
+            ]}
+          >
+            <ProtectedRoute
+              module="patients"
+              action="view"
+            >
+              <SolicitacoesRelatorios />
+            </ProtectedRoute>
+          </ProfileRoute>
         }
       />
 

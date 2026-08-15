@@ -30,6 +30,10 @@ import {
   GestorInsights,
 } from "../../../components/dashboard/gestor/GestorInsights";
 
+import {
+  GestorSolicitacoesBloqueio,
+} from "../../../components/dashboard/gestor/GestorSolicitacoesBloqueio";
+
 /* =========================================
    DASHBOARD GESTOR
 ========================================= */
@@ -65,6 +69,12 @@ export default function DashboardGestor() {
 
           <GestorPendencias />
         </div>
+
+        {/* ================================= */}
+        {/* SOLICITAÇÕES DE BLOQUEIO */}
+        {/* ================================= */}
+
+        <GestorSolicitacoesBloqueio />
 
         {/* ================================= */}
         {/* INSIGHTS */}

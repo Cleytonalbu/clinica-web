@@ -186,16 +186,23 @@ export default function Agenda() {
             </p>
           </div>
 
-          {canManageSchedule && (
+          {(canManageSchedule || isProfissional) && (
             <div className="flex flex-wrap gap-2">
+              {isProfissional && (
+                <Button type="button" variant="outline" onClick={() => navigate("/agenda/bloqueio/solicitar")} className="border-[#dfe3f2] bg-white text-[#263765] hover:bg-[#fafaff]">
+                  <Lock size={17} /> Solicitar bloqueio
+                </Button>
+              )}
               {canCreateBlock && (
                 <Button type="button" variant="outline" onClick={() => navigate("/agenda/bloqueio/novo")} className="border-[#dfe3f2] bg-white text-[#263765] hover:bg-[#fafaff]">
                   <Lock size={17} /> Novo bloqueio
                 </Button>
               )}
-              <Button type="button" onClick={() => navigate("/agenda/novo")} className="bg-gradient-to-r from-[#5d3df5] to-[#773cf5] shadow-[0_8px_20px_rgba(103,66,246,0.18)] hover:opacity-95">
-                <Plus size={18} /> Novo agendamento
-              </Button>
+              {canManageSchedule && (
+                <Button type="button" onClick={() => navigate("/agenda/novo")} className="bg-gradient-to-r from-[#5d3df5] to-[#773cf5] shadow-[0_8px_20px_rgba(103,66,246,0.18)] hover:opacity-95">
+                  <Plus size={18} /> Novo agendamento
+                </Button>
+              )}
             </div>
           )}
         </div>
