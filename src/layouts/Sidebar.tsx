@@ -4,14 +4,24 @@ import type {
 
 import {
   BarChart3,
+  BadgeDollarSign,
   CalendarDays,
+  CalendarRange,
   CircleDollarSign,
+  Clock3,
+  ReceiptText,
+  ShoppingCart,
+  HandCoins,
+  WalletCards,
+  Building2,
+  FileText,
   ClipboardList,
   Gauge,
   Home,
   Settings,
   Stethoscope,
   Users,
+  UserRoundCog,
 } from "lucide-react";
 
 import {
@@ -137,10 +147,103 @@ const menuItems: MenuItem[] = [
   },
 
   {
+    id: "faturamento",
+    label: "Faturamento",
+    icon: ReceiptText,
+    path: "/faturamento",
+    module: "financial",
+  },
+
+  {
+    id: "repasses",
+    label: "Repasses",
+    icon: HandCoins,
+    path: "/repasses",
+    module: "financial",
+  },
+
+  {
+    id: "despesas",
+    label: "Despesas",
+    icon: WalletCards,
+    path: "/despesas",
+    module: "financial",
+  },
+
+
+  {
+    id: "compras",
+    label: "Compras",
+    icon: ShoppingCart,
+    path: "/compras",
+    module: "financial",
+  },
+
+  {
+    id: "fornecedores",
+    label: "Fornecedores",
+    icon: Building2,
+    path: "/fornecedores",
+    module: "financial",
+  },
+
+
+  {
+    id: "colaboradores-administrativos",
+    label: "Colaboradores",
+    icon: UserRoundCog,
+    path: "/colaboradores-administrativos",
+    module: "financial",
+  },
+
+
+  {
+    id: "pagamentos-administrativos",
+    label: "Pagamentos",
+    icon: BadgeDollarSign,
+    path: "/pagamentos-administrativos",
+    module: "financial",
+  },
+
+
+  {
+    id: "ferias-afastamentos",
+    label: "Férias e afastamentos",
+    icon: CalendarRange,
+    path: "/ferias-afastamentos",
+    module: "financial",
+  },
+
+
+  {
+    id: "ponto-frequencia",
+    label: "Ponto e frequência",
+    icon: Clock3,
+    path: "/ponto-frequencia",
+    module: "financial",
+  },
+
+  {
+    id: "documentos-administrativos",
+    label: "Documentos",
+    icon: FileText,
+    path: "/documentos-administrativos",
+    module: "financial",
+  },
+
+  {
     id: "relatorios",
     label: "Relatórios",
     icon: BarChart3,
     path: "/relatorios",
+    module: "reports",
+  },
+
+  {
+    id: "relatorios-administrativos",
+    label: "Relatórios",
+    icon: BarChart3,
+    path: "/relatorios-administrativos",
     module: "reports",
   },
 
@@ -186,6 +289,22 @@ const profileMenuAccess: Record<
     "agenda",
     "pacientes",
     "solicitacoes-relatorios",
+  ],
+
+  Administrativo: [
+    "dashboard",
+    "financeiro",
+    "faturamento",
+    "repasses",
+    "despesas",
+    "compras",
+    "fornecedores",
+    "colaboradores-administrativos",
+    "pagamentos-administrativos",
+    "ferias-afastamentos",
+    "ponto-frequencia",
+    "documentos-administrativos",
+    "relatorios-administrativos",
   ],
 };
 

@@ -8,6 +8,8 @@ import DashboardRecepcao from "./Recepcao";
 
 import DashboardProfissional from "./Profissional";
 
+import DashboardAdministrativo from "./Administrativo";
+
 export default function Dashboard() {
   const {
     user,
@@ -37,6 +39,15 @@ export default function Dashboard() {
   ) {
     return (
       <DashboardProfissional />
+    );
+  }
+
+  if (
+    user?.profile ===
+    "Administrativo"
+  ) {
+    return (
+      <DashboardAdministrativo />
     );
   }
 

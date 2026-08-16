@@ -46,6 +46,26 @@ import SolicitarBloqueio from "@/pages/Agenda/SolicitarBloqueio";
 
 import Financeiro from "@/pages/Financeiro";
 
+import Faturamento from "@/pages/Faturamento";
+
+import Repasses from "@/pages/Repasses";
+
+import Despesas from "@/pages/Despesas";
+
+import Compras from "@/pages/Compras";
+
+import Fornecedores from "@/pages/Fornecedores";
+
+import DocumentosAdministrativos from "@/pages/DocumentosAdministrativos";
+
+import ColaboradoresAdministrativos from "@/pages/ColaboradoresAdministrativos";
+
+import PagamentosAdministrativos from "@/pages/PagamentosAdministrativos";
+
+import FeriasEAfastamentos from "@/pages/FeriasEAfastamentos";
+
+import PontoEFrequencia from "@/pages/PontoEFrequencia";
+
 import DashboardFinanceiro from "@/pages/Financeiro/DashboardFinanceiro";
 
 import HistoricoPaciente from "@/pages/Financeiro/HistoricoPaciente";
@@ -57,6 +77,8 @@ import NovaDespesa from "@/pages/Financeiro/NovaDespesa";
 import PagarDespesa from "@/pages/Financeiro/PagarDespesa";
 
 import Relatorios from "@/pages/Relatorios";
+
+import RelatoriosAdministrativos from "@/pages/RelatoriosAdministrativos";
 
 import RelatorioAtendimentos from "@/pages/Relatorios/RelatorioAtendimentos";
 
@@ -487,6 +509,7 @@ export function AppRoutes() {
             allowedProfiles={[
               "Gestor",
               "Recepção",
+              "Administrativo",
             ]}
           >
             <ProtectedRoute
@@ -494,6 +517,78 @@ export function AppRoutes() {
               action="view"
             >
               <Financeiro />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+
+      {/* ========================================= */}
+      {/* FATURAMENTO */}
+      {/* SOMENTE ADMINISTRATIVO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/faturamento"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="view"
+            >
+              <Faturamento />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+
+
+      {/* ========================================= */}
+      {/* REPASSES AOS PROFISSIONAIS */}
+      {/* SOMENTE ADMINISTRATIVO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/repasses"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="view"
+            >
+              <Repasses />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+      {/* ========================================= */}
+      {/* DESPESAS */}
+      {/* SOMENTE ADMINISTRATIVO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/despesas"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="view"
+            >
+              <Despesas />
             </ProtectedRoute>
           </ProfileRoute>
         }
@@ -507,9 +602,19 @@ export function AppRoutes() {
       <Route
         path="/financeiro/dashboard"
         element={
-          <GestorOnlyRoute>
-            <DashboardFinanceiro />
-          </GestorOnlyRoute>
+          <ProfileRoute
+            allowedProfiles={[
+              "Gestor",
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="view"
+            >
+              <DashboardFinanceiro />
+            </ProtectedRoute>
+          </ProfileRoute>
         }
       />
 
@@ -549,6 +654,7 @@ export function AppRoutes() {
             allowedProfiles={[
               "Gestor",
               "Recepção",
+              "Administrativo",
             ]}
           >
             <ProtectedRoute
@@ -569,9 +675,19 @@ export function AppRoutes() {
       <Route
         path="/financeiro/despesas/nova"
         element={
-          <GestorOnlyRoute>
-            <NovaDespesa />
-          </GestorOnlyRoute>
+          <ProfileRoute
+            allowedProfiles={[
+              "Gestor",
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="create"
+            >
+              <NovaDespesa />
+            </ProtectedRoute>
+          </ProfileRoute>
         }
       />
 
@@ -583,9 +699,190 @@ export function AppRoutes() {
       <Route
         path="/financeiro/despesas/:expenseId/pagar"
         element={
-          <GestorOnlyRoute>
-            <PagarDespesa />
-          </GestorOnlyRoute>
+          <ProfileRoute
+            allowedProfiles={[
+              "Gestor",
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="edit"
+            >
+              <PagarDespesa />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+      {/* ========================================= */}
+      {/* FORNECEDORES */}
+      {/* SOMENTE ADMINISTRATIVO */}
+
+
+      {/* ========================================= */}
+      {/* COMPRAS */}
+      {/* SOMENTE ADMINISTRATIVO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/compras"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="view"
+            >
+              <Compras />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+      {/* ========================================= */}
+
+      <Route
+        path="/fornecedores"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="view"
+            >
+              <Fornecedores />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+      {/* ========================================= */}
+      {/* CONTRATOS E DOCUMENTOS ADMINISTRATIVOS */}
+      {/* SOMENTE ADMINISTRATIVO */}
+
+
+      {/* ========================================= */}
+      {/* COLABORADORES ADMINISTRATIVOS */}
+      {/* SOMENTE ADMINISTRATIVO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/colaboradores-administrativos"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="view"
+            >
+              <ColaboradoresAdministrativos />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+
+
+      {/* ========================================= */}
+      {/* PAGAMENTOS ADMINISTRATIVOS */}
+      {/* SOMENTE ADMINISTRATIVO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/pagamentos-administrativos"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="view"
+            >
+              <PagamentosAdministrativos />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+
+
+      {/* ========================================= */}
+      {/* FÉRIAS E AFASTAMENTOS */}
+      {/* SOMENTE ADMINISTRATIVO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/ferias-afastamentos"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="view"
+            >
+              <FeriasEAfastamentos />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+
+
+      {/* ========================================= */}
+      {/* PONTO E FREQUÊNCIA */}
+      {/* SOMENTE ADMINISTRATIVO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/ponto-frequencia"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="view"
+            >
+              <PontoEFrequencia />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+      {/* ========================================= */}
+
+      <Route
+        path="/documentos-administrativos"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="view"
+            >
+              <DocumentosAdministrativos />
+            </ProtectedRoute>
+          </ProfileRoute>
         }
       />
 
@@ -619,48 +916,121 @@ export function AppRoutes() {
       {/* SOMENTE GESTOR */}
       {/* ========================================= */}
 
+      {/* ========================================= */}
+      {/* RELATÓRIOS ADMINISTRATIVOS */}
+      {/* SOMENTE ADMINISTRATIVO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/relatorios-administrativos"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="reports"
+              action="view"
+            >
+              <RelatoriosAdministrativos />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
       <Route
         path="/relatorios"
         element={
-          <GestorOnlyRoute>
-            <Relatorios />
-          </GestorOnlyRoute>
+          <ProfileRoute
+            allowedProfiles={[
+              "Gestor",
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="reports"
+              action="view"
+            >
+              <Relatorios />
+            </ProtectedRoute>
+          </ProfileRoute>
         }
       />
 
       <Route
         path="/relatorios/atendimentos"
         element={
-          <GestorOnlyRoute>
-            <RelatorioAtendimentos />
-          </GestorOnlyRoute>
+          <ProfileRoute
+            allowedProfiles={[
+              "Gestor",
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="reports"
+              action="view"
+            >
+              <RelatorioAtendimentos />
+            </ProtectedRoute>
+          </ProfileRoute>
         }
       />
 
       <Route
         path="/relatorios/financeiro"
         element={
-          <GestorOnlyRoute>
-            <RelatorioFinanceiro />
-          </GestorOnlyRoute>
+          <ProfileRoute
+            allowedProfiles={[
+              "Gestor",
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="reports"
+              action="view"
+            >
+              <RelatorioFinanceiro />
+            </ProtectedRoute>
+          </ProfileRoute>
         }
       />
 
       <Route
         path="/relatorios/pacientes"
         element={
-          <GestorOnlyRoute>
-            <RelatorioPacientes />
-          </GestorOnlyRoute>
+          <ProfileRoute
+            allowedProfiles={[
+              "Gestor",
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="reports"
+              action="view"
+            >
+              <RelatorioPacientes />
+            </ProtectedRoute>
+          </ProfileRoute>
         }
       />
 
       <Route
         path="/relatorios/profissionais"
         element={
-          <GestorOnlyRoute>
-            <RelatorioProfissionais />
-          </GestorOnlyRoute>
+          <ProfileRoute
+            allowedProfiles={[
+              "Gestor",
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="reports"
+              action="view"
+            >
+              <RelatorioProfissionais />
+            </ProtectedRoute>
+          </ProfileRoute>
         }
       />
 

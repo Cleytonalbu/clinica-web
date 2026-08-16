@@ -1293,6 +1293,61 @@ const defaultPermissionsSettings: PermissionsSettings = {
         },
       },
     },
+
+    {
+      id: 4,
+
+      name: "Administrativo",
+
+      description:
+        "Acesso às rotinas administrativas, financeiras, repasses, despesas e relatórios, sem acesso clínico.",
+
+      active: true,
+
+      systemProfile: true,
+
+      modules: {
+        dashboard: {
+          ...viewOnlyPermission,
+        },
+
+        patients: {
+          ...noPermission,
+        },
+
+        agenda: {
+          ...noPermission,
+        },
+
+        professionals: {
+          ...viewOnlyPermission,
+        },
+
+        financial: {
+          ...fullPermission,
+        },
+
+        evolutions: {
+          ...noPermission,
+        },
+
+        documents: {
+          view: true,
+          create: true,
+          edit: true,
+          delete: false,
+          manage: false,
+        },
+
+        reports: {
+          ...viewOnlyPermission,
+        },
+
+        settings: {
+          ...noPermission,
+        },
+      },
+    },
   ],
 };
 
@@ -1939,9 +1994,29 @@ export function getSystemSettings(): SystemSettings {
 
       ...(parsed.permissions ?? {}),
 
-      profiles:
-        parsed.permissions?.profiles ??
-        defaultPermissionsSettings.profiles,
+      profiles: (() => {
+        const savedProfiles =
+          parsed.permissions?.profiles ??
+          [];
+
+        const missingSystemProfiles =
+          defaultPermissionsSettings.profiles.filter(
+            (defaultProfile) =>
+              defaultProfile.systemProfile &&
+              !savedProfiles.some(
+                (savedProfile) =>
+                  savedProfile.name ===
+                  defaultProfile.name
+              )
+          );
+
+        return savedProfiles.length > 0
+          ? [
+              ...savedProfiles,
+              ...missingSystemProfiles,
+            ]
+          : defaultPermissionsSettings.profiles;
+      })(),
     };
 
     const normalizedFinancial: FinancialSettings = {

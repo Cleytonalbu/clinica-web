@@ -14,7 +14,8 @@ import {
 type AllowedProfile =
   | "Gestor"
   | "Recepção"
-  | "Profissional";
+  | "Profissional"
+  | "Administrativo";
 
 interface ProfileRouteProps {
   children: ReactNode;

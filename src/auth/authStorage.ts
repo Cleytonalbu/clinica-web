@@ -6,7 +6,8 @@ import {
 export type UserProfile =
   | "Gestor"
   | "Recepção"
-  | "Profissional";
+  | "Profissional"
+  | "Administrativo";
 
 export interface AuthUser {
   id: number;
@@ -86,6 +87,20 @@ const defaultUsers: StoredUser[] = [
 
     active: true,
   },
+
+  {
+    id: 4,
+
+    name: "Administrativo",
+
+    email: "administrativo@entreafetos.com.br",
+
+    password: "123456",
+
+    profile: "Administrativo",
+
+    active: true,
+  },
 ];
 
 function generateToken() {
@@ -124,6 +139,36 @@ export function getStoredUsers(): StoredUser[] {
       JSON.parse(
         stored
       ) as StoredUser[];
+
+    const missingDefaults =
+      defaultUsers.filter(
+        (defaultUser) =>
+          !parsed.some(
+            (user) =>
+              user.email
+                .trim()
+                .toLowerCase() ===
+              defaultUser.email
+                .trim()
+                .toLowerCase()
+          )
+      );
+
+    if (missingDefaults.length > 0) {
+      const normalized = [
+        ...parsed,
+        ...missingDefaults,
+      ];
+
+      localStorage.setItem(
+        USERS_STORAGE_KEY,
+        JSON.stringify(
+          normalized
+        )
+      );
+
+      return normalized;
+    }
 
     return parsed;
   } catch {
