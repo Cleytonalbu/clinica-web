@@ -46,13 +46,25 @@ import SolicitarBloqueio from "@/pages/Agenda/SolicitarBloqueio";
 
 import Financeiro from "@/pages/Financeiro";
 
+import ContasBancarias from "@/pages/ContasBancarias";
+
+import ImportarExtrato from "@/pages/ImportarExtrato";
+
+import MovimentacoesBancarias from "@/pages/MovimentacoesBancarias";
+
 import Faturamento from "@/pages/Faturamento";
+
+import ConveniosEPlanos from "@/pages/ConveniosEPlanos";
+
+import GuiasConvenios from "@/pages/GuiasConvenios";
 
 import Repasses from "@/pages/Repasses";
 
 import Despesas from "@/pages/Despesas";
 
 import Compras from "@/pages/Compras";
+
+import Estoque from "@/pages/Estoque";
 
 import Fornecedores from "@/pages/Fornecedores";
 
@@ -526,6 +538,74 @@ export function AppRoutes() {
       {/* ========================================= */}
       {/* FATURAMENTO */}
       {/* SOMENTE ADMINISTRATIVO */}
+
+
+      {/* ========================================= */}
+      {/* CONTAS BANCÁRIAS */}
+      {/* SOMENTE ADMINISTRATIVO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/contas-bancarias"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="view"
+            >
+              <ContasBancarias />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+
+
+      {/* ========================================= */}
+      {/* IMPORTAR EXTRATO BANCÁRIO */}
+      {/* SOMENTE ADMINISTRATIVO */}
+
+
+      {/* ========================================= */}
+      {/* MOVIMENTAÇÕES BANCÁRIAS */}
+      {/* SOMENTE ADMINISTRATIVO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/contas-bancarias/:accountId/movimentacoes"
+        element={
+          <ProfileRoute allowedProfiles={["Administrativo"]}>
+            <ProtectedRoute module="financial" action="view">
+              <MovimentacoesBancarias />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+      {/* ========================================= */}
+
+      <Route
+        path="/financeiro/importar-extrato"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="view"
+            >
+              <ImportarExtrato />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
       {/* ========================================= */}
 
       <Route
@@ -551,6 +631,49 @@ export function AppRoutes() {
       {/* ========================================= */}
       {/* REPASSES AOS PROFISSIONAIS */}
       {/* SOMENTE ADMINISTRATIVO */}
+
+
+      {/* ========================================= */}
+      {/* CONVÊNIOS E PLANOS */}
+      {/* SOMENTE ADMINISTRATIVO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/convenios-planos"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="view"
+            >
+              <ConveniosEPlanos />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+
+
+      {/* ========================================= */}
+      {/* GUIAS E FATURAMENTO DE CONVÊNIOS */}
+      {/* SOMENTE ADMINISTRATIVO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/guias-convenios"
+        element={
+          <ProfileRoute allowedProfiles={["Administrativo"]}>
+            <ProtectedRoute module="financial" action="view">
+              <GuiasConvenios />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
       {/* ========================================= */}
 
       <Route
@@ -738,6 +861,31 @@ export function AppRoutes() {
               action="view"
             >
               <Compras />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+
+
+      {/* ========================================= */}
+      {/* ESTOQUE */}
+      {/* SOMENTE ADMINISTRATIVO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/estoque"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="view"
+            >
+              <Estoque />
             </ProtectedRoute>
           </ProfileRoute>
         }

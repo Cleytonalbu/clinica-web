@@ -12,8 +12,11 @@ import {
   ReceiptText,
   ShoppingCart,
   HandCoins,
+  Landmark,
   WalletCards,
   Building2,
+  Boxes,
+  FileSpreadsheet,
   FileText,
   ClipboardList,
   Gauge,
@@ -146,11 +149,36 @@ const menuItems: MenuItem[] = [
     module: "financial",
   },
 
+
+  {
+    id: "contas-bancarias",
+    label: "Contas bancárias",
+    icon: Landmark,
+    path: "/contas-bancarias",
+    module: "financial",
+  },
+
   {
     id: "faturamento",
     label: "Faturamento",
     icon: ReceiptText,
     path: "/faturamento",
+    module: "financial",
+  },
+
+  {
+    id: "convenios-planos",
+    label: "Convênios e planos",
+    icon: BadgeDollarSign,
+    path: "/convenios-planos",
+    module: "financial",
+  },
+
+  {
+    id: "guias-convenios",
+    label: "Guias de convênios",
+    icon: FileSpreadsheet,
+    path: "/guias-convenios",
     module: "financial",
   },
 
@@ -176,6 +204,15 @@ const menuItems: MenuItem[] = [
     label: "Compras",
     icon: ShoppingCart,
     path: "/compras",
+    module: "financial",
+  },
+
+
+  {
+    id: "estoque",
+    label: "Estoque",
+    icon: Boxes,
+    path: "/estoque",
     module: "financial",
   },
 
@@ -294,10 +331,14 @@ const profileMenuAccess: Record<
   Administrativo: [
     "dashboard",
     "financeiro",
+    "contas-bancarias",
     "faturamento",
+    "convenios-planos",
+    "guias-convenios",
     "repasses",
     "despesas",
     "compras",
+    "estoque",
     "fornecedores",
     "colaboradores-administrativos",
     "pagamentos-administrativos",
