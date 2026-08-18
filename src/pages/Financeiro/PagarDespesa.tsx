@@ -30,6 +30,10 @@ import {
 } from "@/components/ui";
 
 import {
+  getBankAccounts,
+} from "@/pages/ContasBancarias/bankAccountStorage";
+
+import {
   formatCurrency,
 } from "./financeRules";
 
@@ -64,6 +68,42 @@ export default function PagarDespesa() {
   const expense =
     getFinancialExpenseById(
       numericId
+    );
+
+  const bankAccounts =
+    useMemo(
+      () =>
+        getBankAccounts().filter(
+          (account) =>
+            account.status ===
+            "Ativa"
+        ),
+      []
+    );
+
+  const [
+    bankAccountId,
+    setBankAccountId,
+  ] =
+    useState(
+      expense?.bankAccountId ??
+        (bankAccounts.length === 1
+          ? bankAccounts[0].id
+          : "")
+    );
+
+  const selectedBankAccount =
+    useMemo(
+      () =>
+        bankAccounts.find(
+          (account) =>
+            account.id ===
+            bankAccountId
+        ),
+      [
+        bankAccounts,
+        bankAccountId,
+      ]
     );
 
   const originalAmount =
@@ -320,6 +360,26 @@ export default function PagarDespesa() {
     }
 
     if (
+      !bankAccountId
+    ) {
+      showError(
+        "Selecione a conta bancária usada no pagamento."
+      );
+
+      return false;
+    }
+
+    if (
+      !selectedBankAccount
+    ) {
+      showError(
+        "A conta bancária selecionada não está disponível."
+      );
+
+      return false;
+    }
+
+    if (
       paidAmount <
       0
     ) {
@@ -360,6 +420,14 @@ export default function PagarDespesa() {
 
           observation:
             observation.trim(),
+
+          bankAccountId:
+            selectedBankAccount?.id,
+
+          bankAccountName:
+            selectedBankAccount
+              ? `${selectedBankAccount.accountName} — ${selectedBankAccount.bankName}`
+              : undefined,
         }
       );
 
@@ -495,7 +563,7 @@ export default function PagarDespesa() {
           title="Pagamento"
           description="Informe como a despesa será paga."
         >
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
             <FormField
               label="Forma de pagamento"
               required
@@ -533,6 +601,60 @@ export default function PagarDespesa() {
                   )
                 )}
               </Select>
+            </FormField>
+
+            <FormField
+              label="Conta de pagamento"
+              required
+            >
+              <Select
+                value={
+                  bankAccountId
+                }
+                onChange={(
+                  event
+                ) => {
+                  setBankAccountId(
+                    event.target.value
+                  );
+
+                  clearFeedback();
+                }}
+              >
+                <option value="">
+                  Selecione a conta
+                </option>
+
+                {bankAccounts.map(
+                  (
+                    account
+                  ) => (
+                    <option
+                      key={
+                        account.id
+                      }
+                      value={
+                        account.id
+                      }
+                    >
+                      {
+                        account.accountName
+                      }{" "}
+                      —{" "}
+                      {
+                        account.bankName
+                      }
+                    </option>
+                  )
+                )}
+              </Select>
+
+              {bankAccounts.length ===
+                0 && (
+                <p className="mt-2 text-xs text-amber-600">
+                  Nenhuma conta bancária ativa foi cadastrada.
+                </p>
+              )}
             </FormField>
 
             <FormField
@@ -699,6 +821,21 @@ export default function PagarDespesa() {
                     paymentMethod
                   }
                 </strong>
+
+                {selectedBankAccount && (
+                  <>
+                    {" "}pela conta{" "}
+                    <strong className="text-slate-700">
+                      {
+                        selectedBankAccount.accountName
+                      }{" "}
+                      —{" "}
+                      {
+                        selectedBankAccount.bankName
+                      }
+                    </strong>
+                  </>
+                )}
                 .
               </p>
             </div>

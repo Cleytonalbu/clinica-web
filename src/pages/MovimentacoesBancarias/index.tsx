@@ -213,6 +213,7 @@ interface FinancialMatch {
   description: string;
   amount: number;
   date: string;
+  bankAccountDefined: boolean;
 }
 
 export default function MovimentacoesBancarias() {
@@ -639,6 +640,11 @@ export default function MovimentacoesBancarias() {
               sameAmount(
                 charge.amount,
                 selected.amount,
+              ) &&
+              (
+                !charge.bankAccountId ||
+                charge.bankAccountId ===
+                  accountId
               ),
           )
           .map(
@@ -660,6 +666,8 @@ export default function MovimentacoesBancarias() {
               date:
                 charge.dueDate ||
                 charge.date,
+              bankAccountDefined:
+                !!charge.bankAccountId,
             }),
           );
       }
@@ -678,6 +686,11 @@ export default function MovimentacoesBancarias() {
               sameAmount(
                 expense.amount,
                 selected.amount,
+              ) &&
+              (
+                !expense.bankAccountId ||
+                expense.bankAccountId ===
+                  accountId
               ),
           )
           .map(
@@ -699,6 +712,8 @@ export default function MovimentacoesBancarias() {
                 expense.amount,
               date:
                 expense.dueDate,
+              bankAccountDefined:
+                !!expense.bankAccountId,
             }),
           );
       }
@@ -709,6 +724,7 @@ export default function MovimentacoesBancarias() {
       reconciliationType,
       charges,
       expenses,
+      accountId,
     ]);
 
   const existingSelectedReconciliation =
@@ -853,6 +869,14 @@ export default function MovimentacoesBancarias() {
                 selected.date,
               observation:
                 `Conciliado com movimentação bancária: ${selected.description}`,
+
+              bankAccountId:
+                account?.id,
+
+              bankAccountName:
+                account
+                  ? `${account.accountName} — ${account.bankName}`
+                  : undefined,
             },
           );
         } else {
@@ -871,6 +895,14 @@ export default function MovimentacoesBancarias() {
               surcharge: 0,
               observation:
                 `Conciliado com movimentação bancária: ${selected.description}`,
+
+              bankAccountId:
+                account?.id,
+
+              bankAccountName:
+                account
+                  ? `${account.accountName} — ${account.bankName}`
+                  : undefined,
             },
           );
         }
@@ -1871,20 +1903,24 @@ export default function MovimentacoesBancarias() {
                               — venc.{" "}
                               {date(
                                 match.date,
-                              )}
+                              )}{" "}
+                              —{" "}
+                              {match.bankAccountDefined
+                                ? "mesma conta"
+                                : "conta ainda não definida"}
                             </option>
                           ),
                         )}
                       </select>
 
                       <p className="mt-2 text-xs leading-5 text-slate-500">
-                        O sistema mostra apenas lançamentos pendentes com o mesmo valor da movimentação bancária.
+                        O sistema mostra lançamentos pendentes com o mesmo valor e compatíveis com esta conta bancária. Lançamentos antigos sem conta definida também podem aparecer para você confirmar.
                       </p>
 
                       {financialMatches.length ===
                         0 && (
                         <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                          Nenhum lançamento pendente com esse mesmo valor foi encontrado no Financeiro. Você pode salvar apenas a categorização.
+                          Nenhum lançamento pendente com esse valor e compatível com esta conta foi encontrado no Financeiro. Você pode salvar apenas a categorização.
                         </p>
                       )}
                     </Field>

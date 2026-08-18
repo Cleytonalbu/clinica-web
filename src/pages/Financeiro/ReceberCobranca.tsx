@@ -31,6 +31,10 @@ import {
 } from "@/components/ui";
 
 import {
+  getBankAccounts,
+} from "@/pages/ContasBancarias/bankAccountStorage";
+
+import {
   formatCurrency,
   type PaymentMethod,
 } from "./financeRules";
@@ -57,6 +61,42 @@ export default function ReceberCobranca() {
   const charge =
     getFinancialChargeById(
       numericId
+    );
+
+  const bankAccounts =
+    useMemo(
+      () =>
+        getBankAccounts().filter(
+          (account) =>
+            account.status ===
+            "Ativa"
+        ),
+      []
+    );
+
+  const [
+    bankAccountId,
+    setBankAccountId,
+  ] =
+    useState(
+      charge?.bankAccountId ??
+        (bankAccounts.length === 1
+          ? bankAccounts[0].id
+          : "")
+    );
+
+  const selectedBankAccount =
+    useMemo(
+      () =>
+        bankAccounts.find(
+          (account) =>
+            account.id ===
+            bankAccountId
+        ),
+      [
+        bankAccounts,
+        bankAccountId,
+      ]
     );
 
   const [
@@ -257,6 +297,16 @@ export default function ReceberCobranca() {
       return false;
     }
 
+    if (
+      !bankAccountId
+    ) {
+      setFeedback(
+        "Selecione a conta bancária que recebeu o pagamento."
+      );
+
+      return false;
+    }
+
     return true;
   }
 
@@ -284,6 +334,13 @@ export default function ReceberCobranca() {
           paymentDate,
 
           observation,
+
+          bankAccountId,
+
+          bankAccountName:
+            selectedBankAccount
+              ? `${selectedBankAccount.accountName} — ${selectedBankAccount.bankName}`
+              : undefined,
         }
       );
 
@@ -456,6 +513,43 @@ export default function ReceberCobranca() {
             </FormField>
 
             <FormField
+              label="Conta de recebimento"
+              required
+            >
+              <Select
+                value={
+                  bankAccountId
+                }
+                onChange={(
+                  event
+                ) =>
+                  setBankAccountId(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="">
+                  Selecione uma conta
+                </option>
+
+                {bankAccounts.map(
+                  (account) => (
+                    <option
+                      key={
+                        account.id
+                      }
+                      value={
+                        account.id
+                      }
+                    >
+                      {account.accountName} — {account.bankName}
+                    </option>
+                  )
+                )}
+              </Select>
+            </FormField>
+
+            <FormField
               label="Data do pagamento"
               required
             >
@@ -617,6 +711,16 @@ export default function ReceberCobranca() {
                     paymentMethod
                   }
                 </strong>
+                {selectedBankAccount && (
+                  <>
+                    {" "}
+                    na conta
+                    {" "}
+                    <strong className="text-slate-700">
+                      {selectedBankAccount.accountName} — {selectedBankAccount.bankName}
+                    </strong>
+                  </>
+                )}
                 .
               </p>
             </div>

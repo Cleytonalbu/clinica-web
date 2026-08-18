@@ -53,6 +53,10 @@ export interface FinancialCharge {
 
   paymentObservation?: string;
 
+  bankAccountId?: string;
+
+  bankAccountName?: string;
+
   createdAt: string;
 }
 
@@ -320,6 +324,10 @@ interface ReceiveChargeData {
   paymentDate: string;
 
   observation?: string;
+
+  bankAccountId?: string;
+
+  bankAccountName?: string;
 }
 
 export function receiveFinancialCharge(
@@ -368,6 +376,12 @@ export function receiveFinancialCharge(
 
       paymentObservation:
         data.observation,
+
+      bankAccountId:
+        data.bankAccountId,
+
+      bankAccountName:
+        data.bankAccountName,
 
       status:
         "Pago",

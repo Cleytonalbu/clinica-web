@@ -67,6 +67,10 @@ export interface FinancialExpense {
 
   paymentObservation?: string;
 
+  bankAccountId?: string;
+
+  bankAccountName?: string;
+
   createdAt: string;
 }
 
@@ -251,6 +255,10 @@ interface PayExpenseData {
   surcharge: number;
 
   observation?: string;
+
+  bankAccountId?: string;
+
+  bankAccountName?: string;
 }
 
 export function payFinancialExpense(
@@ -309,6 +317,12 @@ export function payFinancialExpense(
 
       paymentObservation:
         data.observation,
+
+      bankAccountId:
+        data.bankAccountId,
+
+      bankAccountName:
+        data.bankAccountName,
     }
   );
 }
