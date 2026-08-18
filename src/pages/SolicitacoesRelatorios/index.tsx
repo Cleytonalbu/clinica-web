@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Clock3,
   FileCheck2,
+  FileText,
   Plus,
   Search,
   Send,
@@ -19,6 +20,8 @@ import {
   useState,
   type FormEvent,
 } from "react";
+
+import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "@/auth/AuthContext";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
@@ -41,6 +44,10 @@ import {
   type ReportRequestStatus,
   type ReportSpecialtyKey,
 } from "./reportRequestStorage";
+
+import {
+  getRequestedReportDocument,
+} from "./reportDocumentStorage";
 
 interface SelectedSpecialty {
   selected: boolean;
@@ -191,7 +198,7 @@ function PageHeader({
 
   const description =
     profile === "Profissional"
-      ? "Acompanhe os relatórios solicitados para você e atualize o andamento de cada entrega."
+      ? "Elabore os relatórios solicitados, assine eletronicamente e encaminhe o documento pronto para a recepção."
       : "Acompanhe os relatórios solicitados pelos responsáveis, os profissionais responsáveis e os prazos de entrega.";
 
   return (
@@ -635,7 +642,20 @@ function ProfessionalStatusActions({
   request: ReportRequest;
   item: ReportRequestItem;
 }) {
-  const [open, setOpen] = useState(false);
+  const navigate =
+    useNavigate();
+
+  const [
+    open,
+    setOpen,
+  ] =
+    useState(false);
+
+  const document =
+    getRequestedReportDocument(
+      request.id,
+      item.id
+    );
 
   const options: Array<{
     status: ReportRequestStatus;
@@ -649,56 +669,103 @@ function ProfessionalStatusActions({
       status: "Em andamento",
       label: "Em andamento",
     },
-    {
-      status: "Entregue",
-      label: "Marcar como entregue",
-    },
   ];
 
-  if (item.status === "Entregue") {
-    return (
-      <div className="text-center">
-        <p className="text-xs font-extrabold text-[#24936d]">
-          Entregue
-        </p>
-
-        <p className="mt-1 text-[10px] font-medium text-[#98a2b7]">
-          {formatDateTime(item.deliveredAt)}
-        </p>
-      </div>
-    );
-  }
+  const reportLabel =
+    document?.status ===
+    "Enviado"
+      ? "Abrir relatório"
+      : document
+          ? "Continuar relatório"
+          : "Elaborar relatório";
 
   return (
-    <div className="relative flex justify-center">
+    <div className="flex min-w-[210px] flex-col items-center gap-2">
       <button
         type="button"
-        onClick={() => setOpen((current) => !current)}
-        className="inline-flex h-9 items-center gap-2 rounded-xl border border-[#dfd9ff] bg-[#f8f6ff] px-3 text-xs font-extrabold text-[#6543ef] transition hover:bg-[#f1edff]"
+        onClick={() =>
+          navigate(
+            `/solicitacoes-relatorios/${request.id}/${item.id}/relatorio`
+          )
+        }
+        className={`inline-flex h-9 items-center gap-2 rounded-xl px-3 text-xs font-extrabold transition ${
+          document?.status ===
+          "Enviado"
+            ? "border border-[#c7eadb] bg-[#eaf8f2] text-[#269d75] hover:bg-[#ddf4ea]"
+            : "bg-gradient-to-r from-[#5d3df5] to-[#7a43ff] text-white shadow-[0_6px_14px_rgba(103,66,246,0.18)] hover:opacity-95"
+        }`}
       >
-        Atualizar
-        <ChevronDown size={14} />
+        <FileText
+          size={14}
+        />
+        {reportLabel}
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-11 z-30 w-52 overflow-hidden rounded-xl border border-[#e6e8f0] bg-white p-1.5 shadow-[0_12px_30px_rgba(37,46,90,0.16)]">
-          {options.map((option) => (
-            <button
-              key={option.status}
-              type="button"
-              onClick={() => {
-                updateReportRequestItemStatus(
-                  request.id,
-                  item.id,
-                  option.status
-                );
-                setOpen(false);
-              }}
-              className="flex w-full items-center rounded-lg px-3 py-2 text-left text-xs font-bold text-[#566487] transition hover:bg-[#f6f4ff] hover:text-[#6543ef]"
-            >
-              {option.label}
-            </button>
-          ))}
+      {document?.status ===
+      "Enviado" ? (
+        <div className="text-center">
+          <p className="text-[10px] font-extrabold text-[#24936d]">
+            Encaminhado à recepção
+          </p>
+
+          <p className="mt-0.5 text-[9px] font-medium text-[#98a2b7]">
+            {formatDateTime(
+              document.sentAt
+            )}
+          </p>
+        </div>
+      ) : (
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() =>
+              setOpen(
+                (
+                  current
+                ) =>
+                  !current
+              )
+            }
+            className="inline-flex h-8 items-center gap-2 rounded-lg border border-[#e3e5ee] bg-white px-3 text-[10px] font-extrabold text-[#667394] transition hover:bg-[#f8f9fc]"
+          >
+            Status
+            <ChevronDown
+              size={12}
+            />
+          </button>
+
+          {open && (
+            <div className="absolute right-0 top-10 z-30 w-48 overflow-hidden rounded-xl border border-[#e6e8f0] bg-white p-1.5 shadow-[0_12px_30px_rgba(37,46,90,0.16)]">
+              {options.map(
+                (
+                  option
+                ) => (
+                  <button
+                    key={
+                      option.status
+                    }
+                    type="button"
+                    onClick={() => {
+                      updateReportRequestItemStatus(
+                        request.id,
+                        item.id,
+                        option.status
+                      );
+
+                      setOpen(
+                        false
+                      );
+                    }}
+                    className="flex w-full items-center rounded-lg px-3 py-2 text-left text-xs font-bold text-[#566487] transition hover:bg-[#f6f4ff] hover:text-[#6543ef]"
+                  >
+                    {
+                      option.label
+                    }
+                  </button>
+                )
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -712,18 +779,57 @@ function SpecialtyStatusCell({
   request: ReportRequest;
   item: ReportRequestItem;
 }) {
-  const status = getReportItemDisplayStatus(request, item);
+  const navigate =
+    useNavigate();
+
+  const status =
+    getReportItemDisplayStatus(
+      request,
+      item
+    );
+
+  const document =
+    getRequestedReportDocument(
+      request.id,
+      item.id
+    );
 
   return (
-    <div className="mx-auto flex max-w-[155px] flex-col items-center gap-1.5">
-      <StatusBadge status={status} />
+    <div className="mx-auto flex max-w-[165px] flex-col items-center gap-1.5">
+      <StatusBadge
+        status={
+          status
+        }
+      />
 
       <span
         className="max-w-full truncate text-[10px] font-semibold text-[#7d87a4]"
-        title={item.professionalName || "Profissional não definido"}
+        title={
+          item.professionalName ||
+          "Profissional não definido"
+        }
       >
-        {item.professionalName || "A definir"}
+        {item.professionalName ||
+          "A definir"}
       </span>
+
+      {document?.status ===
+        "Enviado" && (
+        <button
+          type="button"
+          onClick={() =>
+            navigate(
+              `/solicitacoes-relatorios/${request.id}/${item.id}/relatorio`
+            )
+          }
+          className="mt-1 inline-flex items-center gap-1 rounded-lg border border-[#c7eadb] bg-[#eaf8f2] px-2 py-1 text-[9px] font-extrabold text-[#269d75] transition hover:bg-[#ddf4ea]"
+        >
+          <FileText
+            size={11}
+          />
+          Abrir relatório
+        </button>
+      )}
     </div>
   );
 }

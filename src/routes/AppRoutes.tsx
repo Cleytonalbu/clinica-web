@@ -102,6 +102,8 @@ import RelatorioProfissionais from "@/pages/Relatorios/RelatorioProfissionais";
 
 import SolicitacoesRelatorios from "@/pages/SolicitacoesRelatorios";
 
+import RelatorioSolicitado from "@/pages/SolicitacoesRelatorios/RelatorioSolicitado";
+
 import Configuracoes from "@/pages/Configuracoes";
 
 import Indicadores from "@/pages/Indicadores";
@@ -1054,6 +1056,32 @@ export function AppRoutes() {
               action="view"
             >
               <SolicitacoesRelatorios />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+
+      {/* ========================================= */}
+      {/* RELATÓRIO PRODUZIDO A PARTIR DA SOLICITAÇÃO */}
+      {/* GESTOR + RECEPÇÃO + PROFISSIONAL */}
+      {/* ========================================= */}
+
+      <Route
+        path="/solicitacoes-relatorios/:requestId/:itemId/relatorio"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Gestor",
+              "Recepção",
+              "Profissional",
+            ]}
+          >
+            <ProtectedRoute
+              module="patients"
+              action="view"
+            >
+              <RelatorioSolicitado />
             </ProtectedRoute>
           </ProfileRoute>
         }
