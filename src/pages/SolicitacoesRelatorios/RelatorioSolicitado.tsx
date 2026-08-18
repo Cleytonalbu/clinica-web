@@ -1026,27 +1026,28 @@ export default function RelatorioSolicitado() {
                   }
                 />
 
-                <div className="grid grid-cols-[1fr_0.55fr]">
-                  <InfoCell
-                    label="DATA DE NASCIMENTO"
-                    value={
-                      formatDate(
-                        patient?.nascimento ??
-                          ""
-                      )
-                    }
-                  />
+                <div className="report-info-date-row">
+                  <strong className="report-info-label">
+                    DATA DE NASCIMENTO
+                  </strong>
 
-                  <InfoCell
-                    label="IDADE"
-                    value={
-                      calculateAge(
-                        patient?.nascimento ??
-                          ""
-                      )
-                    }
-                    leftBorder
-                  />
+                  <span className="report-info-value">
+                    {formatDate(
+                      patient?.nascimento ??
+                        ""
+                    ) || "-"}
+                  </span>
+
+                  <strong className="report-info-date-age-label">
+                    IDADE
+                  </strong>
+
+                  <span className="report-info-date-age-value">
+                    {calculateAge(
+                      patient?.nascimento ??
+                        ""
+                    ) || "-"}
+                  </span>
                 </div>
 
                 <InfoRow
@@ -1401,36 +1402,74 @@ export default function RelatorioSolicitado() {
 
           .report-info-row {
             display: grid;
-            grid-template-columns: 160px 1fr;
+            grid-template-columns: 160px minmax(0, 1fr);
             border-bottom: 1px solid #111827;
-            min-height: 34px;
+            min-height: 38px;
           }
 
           .report-info-row:last-child {
             border-bottom: 0;
           }
 
+          .report-info-date-row {
+            display: grid;
+            grid-template-columns:
+              160px
+              minmax(0, 1fr)
+              145px
+              72px;
+            min-height: 38px;
+            border-bottom: 1px solid #111827;
+          }
+
           .report-info-label {
             display: flex;
             align-items: center;
-            padding: 5px 8px;
+            padding: 6px 8px;
             border-right: 1px solid #111827;
             font-size: 13px;
+            line-height: 1.15;
+            font-weight: 800;
           }
 
           .report-info-value {
             display: flex;
             align-items: center;
-            padding: 5px 8px;
+            min-width: 0;
+            padding: 6px 8px;
             font-size: 13px;
+            line-height: 1.2;
+          }
+
+          .report-info-date-age-label {
+            display: flex;
+            align-items: center;
+            padding: 6px 8px;
+            border-left: 1px solid #111827;
+            border-right: 1px solid #111827;
+            font-size: 13px;
+            line-height: 1.15;
+            font-weight: 800;
+          }
+
+          .report-info-date-age-value {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 6px;
+            font-size: 13px;
+            line-height: 1.2;
+            white-space: nowrap;
           }
 
           .report-inline-input {
             width: 100%;
+            min-width: 0;
             border: 0;
             outline: 0;
-            padding: 5px 8px;
+            padding: 6px 8px;
             font-size: 13px;
+            line-height: 1.2;
             background: #fffdf7;
           }
 
@@ -1521,7 +1560,7 @@ function SectionTitle({
     React.ReactNode;
 }) {
   return (
-    <div className="mb-3 mt-7 bg-[#7bb4e6] px-3 py-1.5 text-center text-[15px] font-extrabold uppercase text-white">
+    <div className="mb-3 mt-7 flex min-h-[36px] items-center justify-center bg-[#7bb4e6] px-4 py-2 text-center text-[17px] font-black uppercase leading-none tracking-[0.01em] text-white">
       {children}
     </div>
   );
@@ -1543,36 +1582,6 @@ function InfoRow({
       </strong>
 
       <span className="report-info-value">
-        {value || "-"}
-      </span>
-    </div>
-  );
-}
-
-function InfoCell({
-  label,
-  value,
-  leftBorder = false,
-}: {
-  label:
-    string;
-  value:
-    string;
-  leftBorder?: boolean;
-}) {
-  return (
-    <div
-      className={`grid grid-cols-[145px_1fr] border-b border-slate-900 ${
-        leftBorder
-          ? "border-l"
-          : ""
-      }`}
-    >
-      <strong className="border-r border-slate-900 px-2 py-1.5 text-[13px]">
-        {label}
-      </strong>
-
-      <span className="px-2 py-1.5 text-[13px]">
         {value || "-"}
       </span>
     </div>
