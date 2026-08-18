@@ -239,3 +239,100 @@ export function importBankTransactions(
     duplicates,
   };
 }
+
+export function createManualBankTransaction(
+  input: {
+    accountId: string;
+    date: string;
+    description: string;
+    amount: number;
+  },
+) {
+  if (
+    !input.accountId
+  ) {
+    throw new Error(
+      "Conta bancária não informada.",
+    );
+  }
+
+  if (
+    !input.date
+  ) {
+    throw new Error(
+      "Informe a data do lançamento.",
+    );
+  }
+
+  if (
+    !input.description.trim()
+  ) {
+    throw new Error(
+      "Informe a descrição do lançamento.",
+    );
+  }
+
+  if (
+    !Number.isFinite(
+      input.amount,
+    ) ||
+    input.amount === 0
+  ) {
+    throw new Error(
+      "Informe um valor válido.",
+    );
+  }
+
+  const fingerprint =
+    createTransactionFingerprint(
+      input.accountId,
+      input.date,
+      input.amount,
+      input.description,
+    );
+
+  if (
+    transactionExists(
+      fingerprint,
+    )
+  ) {
+    throw new Error(
+      "Já existe uma movimentação idêntica nesta conta.",
+    );
+  }
+
+  const transaction:
+    BankTransaction = {
+    id:
+      typeof crypto !== "undefined" &&
+      "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2)}`,
+    accountId:
+      input.accountId,
+    date:
+      input.date,
+    description:
+      input.description.trim(),
+    amount:
+      input.amount,
+    source:
+      "Manual",
+    fingerprint,
+    importedAt:
+      new Date().toISOString(),
+  };
+
+  saveBankTransactions([
+    transaction,
+    ...getBankTransactions(),
+  ]);
+
+  recalculateBankAccountBalance(
+    input.accountId,
+  );
+
+  return transaction;
+}

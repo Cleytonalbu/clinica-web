@@ -1,5 +1,7 @@
 import {
   AlertTriangle,
+  ArrowDownCircle,
+  ArrowUpCircle,
   ArrowRight,
   Banknote,
   Building2,
@@ -8,6 +10,7 @@ import {
   FileClock,
   FileWarning,
   HandCoins,
+  Landmark,
   ReceiptText,
   TrendingUp,
   UsersRound,
@@ -27,6 +30,9 @@ import { getFinancialCharges } from "../../Financeiro/financeStorage";
 import { formatCurrency } from "../../Financeiro/financeRules";
 import { syncProfessionalPayoutsFromAppointments } from "../../Financeiro/professionalPayoutStorage";
 import { getSuppliers } from "../../Fornecedores/supplierStorage";
+import { getBankAccounts } from "../../ContasBancarias/bankAccountStorage";
+import { getBankTransactions } from "../../ImportarExtrato/bankTransactionStorage";
+import { getBankReconciliations } from "../../MovimentacoesBancarias/bankReconciliationStorage";
 
 function isSameMonth(dateValue: string | undefined, referenceDate = new Date()) {
   if (!dateValue) return false;
@@ -54,6 +60,9 @@ export default function DashboardAdministrativo() {
   const payouts = useMemo(() => syncProfessionalPayoutsFromAppointments(), []);
   const documents = useMemo(() => getAdministrativeDocuments(), []);
   const suppliers = useMemo(() => getSuppliers(), []);
+  const bankAccounts = useMemo(() => getBankAccounts(), []);
+  const bankTransactions = useMemo(() => getBankTransactions(), []);
+  const bankReconciliations = useMemo(() => getBankReconciliations(), []);
 
   const monthCharges = charges.filter((charge) => isSameMonth(charge.date));
 
@@ -94,6 +103,50 @@ export default function DashboardAdministrativo() {
   const pendingExpenses = expenses.filter(
     (expense) => expense.status === "Pendente"
   );
+
+  const activeBankAccounts = bankAccounts.filter(
+    (account) => account.status === "Ativa"
+  );
+
+  const totalBankBalance = activeBankAccounts.reduce(
+    (total, account) => total + account.currentBalance,
+    0
+  );
+
+  const activeAccountIds = new Set(
+    activeBankAccounts.map((account) => account.id)
+  );
+
+  const monthBankTransactions = bankTransactions.filter(
+    (transaction) =>
+      activeAccountIds.has(transaction.accountId) &&
+      isSameMonth(transaction.date)
+  );
+
+  const bankEntries = monthBankTransactions
+    .filter((transaction) => transaction.amount > 0)
+    .reduce(
+      (total, transaction) => total + transaction.amount,
+      0
+    );
+
+  const bankExits = monthBankTransactions
+    .filter((transaction) => transaction.amount < 0)
+    .reduce(
+      (total, transaction) => total + Math.abs(transaction.amount),
+      0
+    );
+
+  const reconciledTransactionIds = new Set(
+    bankReconciliations.map(
+      (reconciliation) => reconciliation.transactionId
+    )
+  );
+
+  const pendingBankReconciliations = monthBankTransactions.filter(
+    (transaction) =>
+      !reconciledTransactionIds.has(transaction.id)
+  ).length;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -220,378 +273,613 @@ export default function DashboardAdministrativo() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Dashboard Administrativo
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Acompanhe a rotina financeira e administrativa da clínica.
-          </p>
-        </div>
+        {/* ========================================= */}
+        {/* MOVIMENTO BANCÁRIO NO TOPO */}
+        {/* ========================================= */}
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {metricCards.map((card) => {
-            const Icon = card.icon;
+        <section className="space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                Contas bancárias
+              </p>
 
-            return (
-              <div
-                key={card.title}
-                className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">
-                      {card.title}
-                    </p>
-                    <p className="mt-2 text-2xl font-bold text-slate-900">
-                      {card.value}
-                    </p>
-                    <p className="mt-2 text-xs text-slate-400">
-                      {card.helper}
-                    </p>
-                  </div>
+              <h2 className="mt-1 text-lg font-bold text-slate-900">
+                Movimento bancário do mês
+              </h2>
+            </div>
 
-                  <div
-                    className={`flex h-11 w-11 items-center justify-center rounded-xl ${card.iconClass}`}
-                  >
-                    <Icon size={21} />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">
-              Indicadores administrativos
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Situação atual das principais rotinas administrativas.
-            </p>
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  "/contas-bancarias",
+                )
+              }
+              className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 transition hover:text-indigo-700"
+            >
+              Ver contas bancárias
+              <ArrowRight size={16} />
+            </button>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {administrativeCards.map((card) => {
-              const Icon = card.icon;
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <DashboardStatCard
+              title="Saldo bancário atual"
+              value={formatCurrency(
+                totalBankBalance,
+              )}
+              description={`${activeBankAccounts.length} conta(s) ativa(s)`}
+              icon={Landmark}
+              iconClassName="bg-indigo-50 text-indigo-600"
+            />
+
+            <DashboardStatCard
+              title="Entradas no mês"
+              value={formatCurrency(
+                bankEntries,
+              )}
+              description={`${monthBankTransactions.filter(
+                (item) =>
+                  item.amount > 0,
+              ).length} movimentação(ões)`}
+              icon={ArrowUpCircle}
+              iconClassName="bg-emerald-50 text-emerald-600"
+            />
+
+            <DashboardStatCard
+              title="Saídas no mês"
+              value={formatCurrency(
+                bankExits,
+              )}
+              description={`${monthBankTransactions.filter(
+                (item) =>
+                  item.amount < 0,
+              ).length} movimentação(ões)`}
+              icon={ArrowDownCircle}
+              iconClassName="bg-red-50 text-red-600"
+            />
+
+            <DashboardStatCard
+              title="Não conciliadas"
+              value={String(
+                pendingBankReconciliations,
+              )}
+              description="Movimentações do mês atual"
+              icon={AlertTriangle}
+              iconClassName="bg-amber-50 text-amber-600"
+            />
+          </div>
+        </section>
+
+        {/* ========================================= */}
+        {/* INDICADORES FINANCEIROS */}
+        {/* ========================================= */}
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {metricCards.map(
+            (card) => {
+              const Icon =
+                card.icon;
 
               return (
-                <button
-                  key={card.title}
-                  type="button"
-                  onClick={() => navigate(card.path)}
-                  className="rounded-xl border border-slate-100 p-4 text-left transition hover:border-slate-200 hover:bg-slate-50/70"
+                <div
+                  key={
+                    card.title
+                  }
+                  className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-sm font-medium text-slate-500">
-                        {card.title}
+                        {
+                          card.title
+                        }
                       </p>
+
                       <p className="mt-2 text-2xl font-bold text-slate-900">
-                        {card.value}
+                        {
+                          card.value
+                        }
                       </p>
-                      <p className="mt-1 text-xs text-slate-400">
-                        {card.helper}
+
+                      <p className="mt-2 text-xs text-slate-400">
+                        {
+                          card.helper
+                        }
                       </p>
                     </div>
 
                     <div
-                      className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.iconClass}`}
+                      className={`flex h-11 w-11 items-center justify-center rounded-xl ${card.iconClass}`}
                     >
-                      <Icon size={19} />
+                      <Icon size={21} />
                     </div>
                   </div>
-                </button>
+                </div>
               );
-            })}
-          </div>
-        </section>
-
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(330px,0.75fr)]">
-          <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">
-                  Movimentações recentes
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Últimas entradas e saídas registradas.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => navigate("/financeiro")}
-                className="flex items-center gap-2 text-sm font-semibold text-indigo-600 transition hover:text-indigo-700"
-              >
-                Ver financeiro
-                <ArrowRight size={16} />
-              </button>
-            </div>
-
-            <div className="mt-5 overflow-hidden rounded-xl border border-slate-100">
-              {recentMovements.length > 0 ? (
-                <div className="divide-y divide-slate-100">
-                  {recentMovements.map((movement) => (
-                    <div
-                      key={movement.id}
-                      className="flex items-center justify-between gap-4 px-4 py-4"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`h-2 w-2 rounded-full ${
-                              movement.type === "Entrada"
-                                ? "bg-emerald-500"
-                                : "bg-rose-500"
-                            }`}
-                          />
-                          <p className="truncate text-sm font-semibold text-slate-800">
-                            {movement.title}
-                          </p>
-                        </div>
-                        <p className="mt-1 truncate text-xs text-slate-500">
-                          {movement.description}
-                        </p>
-                      </div>
-
-                      <div className="shrink-0 text-right">
-                        <p
-                          className={`text-sm font-bold ${
-                            movement.type === "Entrada"
-                              ? "text-emerald-600"
-                              : "text-rose-600"
-                          }`}
-                        >
-                          {movement.type === "Entrada" ? "+" : "-"}
-                          {formatCurrency(movement.value)}
-                        </p>
-                        <span
-                          className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${getStatusBadgeClass(
-                            movement.status
-                          )}`}
-                        >
-                          {movement.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="px-5 py-10 text-center text-sm text-slate-400">
-                  Nenhuma movimentação financeira registrada até o momento.
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-                <AlertTriangle size={20} />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">
-                  Pendências administrativas
-                </h2>
-                <p className="text-sm text-slate-500">
-                  Itens que precisam de atenção.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              <button
-                type="button"
-                onClick={() => navigate("/faturamento")}
-                className="flex w-full items-center justify-between rounded-xl border border-slate-100 px-4 py-3 text-left transition hover:border-indigo-100 hover:bg-indigo-50/40"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-slate-700">
-                    Cobranças pendentes
-                  </p>
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    Aguardando recebimento
-                  </p>
-                </div>
-                <span className="rounded-full bg-indigo-50 px-3 py-1 text-sm font-bold text-indigo-600">
-                  {charges.filter((charge) => charge.status === "Pendente").length}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate("/despesas")}
-                className="flex w-full items-center justify-between rounded-xl border border-slate-100 px-4 py-3 text-left transition hover:border-rose-100 hover:bg-rose-50/40"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-slate-700">
-                    Despesas vencidas
-                  </p>
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    Pendentes após o vencimento
-                  </p>
-                </div>
-                <span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-bold text-rose-600">
-                  {overdueExpenses.length}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate("/repasses")}
-                className="flex w-full items-center justify-between rounded-xl border border-slate-100 px-4 py-3 text-left transition hover:border-amber-100 hover:bg-amber-50/40"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-slate-700">
-                    Repasses pendentes
-                  </p>
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    Profissionais a pagar
-                  </p>
-                </div>
-                <span className="rounded-full bg-amber-50 px-3 py-1 text-sm font-bold text-amber-600">
-                  {pendingPayoutCount}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate("/documentos-administrativos")}
-                className="flex w-full items-center justify-between rounded-xl border border-slate-100 px-4 py-3 text-left transition hover:border-orange-100 hover:bg-orange-50/40"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-slate-700">
-                    Documentos vencidos
-                  </p>
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    Contratos e documentos para regularizar
-                  </p>
-                </div>
-                <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-bold text-orange-600">
-                  {expiredDocuments.length}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate("/documentos-administrativos")}
-                className="flex w-full items-center justify-between rounded-xl border border-slate-100 px-4 py-3 text-left transition hover:border-violet-100 hover:bg-violet-50/40"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-slate-700">
-                    Documentos vencendo
-                  </p>
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    Vencimento nos próximos 30 dias
-                  </p>
-                </div>
-                <span className="rounded-full bg-violet-50 px-3 py-1 text-sm font-bold text-violet-600">
-                  {expiringDocuments.length}
-                </span>
-              </button>
-            </div>
-          </section>
+            },
+          )}
         </div>
 
-        <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">
-              Acesso rápido
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Atalhos para as principais rotinas administrativas.
-            </p>
+        {/* ========================================= */}
+        {/* CONTEÚDO PRINCIPAL + LATERAL */}
+        {/* ========================================= */}
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="space-y-6">
+            <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  Indicadores administrativos
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Situação atual das principais rotinas administrativas.
+                </p>
+              </div>
+
+              <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {administrativeCards.map(
+                  (card) => {
+                    const Icon =
+                      card.icon;
+
+                    return (
+                      <button
+                        key={
+                          card.title
+                        }
+                        type="button"
+                        onClick={() =>
+                          navigate(
+                            card.path,
+                          )
+                        }
+                        className="rounded-xl border border-slate-100 p-4 text-left transition hover:border-slate-200 hover:bg-slate-50/70"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-medium text-slate-500">
+                              {
+                                card.title
+                              }
+                            </p>
+
+                            <p className="mt-2 text-2xl font-bold text-slate-900">
+                              {
+                                card.value
+                              }
+                            </p>
+
+                            <p className="mt-1 text-xs text-slate-400">
+                              {
+                                card.helper
+                              }
+                            </p>
+                          </div>
+
+                          <div
+                            className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.iconClass}`}
+                          >
+                            <Icon size={19} />
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  },
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    Movimentações recentes
+                  </h2>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Últimas entradas e saídas registradas.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(
+                      "/financeiro",
+                    )
+                  }
+                  className="flex items-center gap-2 text-sm font-semibold text-indigo-600 transition hover:text-indigo-700"
+                >
+                  Ver financeiro
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+
+              <div className="mt-5 overflow-hidden rounded-xl border border-slate-100">
+                {recentMovements.length >
+                0 ? (
+                  <div className="divide-y divide-slate-100">
+                    {recentMovements.map(
+                      (
+                        movement,
+                      ) => (
+                        <div
+                          key={
+                            movement.id
+                          }
+                          className="flex items-center justify-between gap-4 px-4 py-4"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`h-2 w-2 rounded-full ${
+                                  movement.type ===
+                                  "Entrada"
+                                    ? "bg-emerald-500"
+                                    : "bg-rose-500"
+                                }`}
+                              />
+
+                              <p className="truncate text-sm font-semibold text-slate-800">
+                                {
+                                  movement.title
+                                }
+                              </p>
+                            </div>
+
+                            <p className="mt-1 truncate text-xs text-slate-500">
+                              {
+                                movement.description
+                              }
+                            </p>
+                          </div>
+
+                          <div className="shrink-0 text-right">
+                            <p
+                              className={`text-sm font-bold ${
+                                movement.type ===
+                                "Entrada"
+                                  ? "text-emerald-600"
+                                  : "text-rose-600"
+                              }`}
+                            >
+                              {movement.type ===
+                              "Entrada"
+                                ? "+"
+                                : "-"}
+                              {formatCurrency(
+                                movement.value,
+                              )}
+                            </p>
+
+                            <span
+                              className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${getStatusBadgeClass(
+                                movement.status,
+                              )}`}
+                            >
+                              {
+                                movement.status
+                              }
+                            </span>
+                          </div>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                ) : (
+                  <div className="px-5 py-10 text-center text-sm text-slate-400">
+                    Nenhuma movimentação financeira registrada até o momento.
+                  </div>
+                )}
+              </div>
+            </section>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <button
-              type="button"
-              onClick={() => navigate("/financeiro")}
-              className="rounded-xl border border-slate-100 p-4 text-left transition hover:border-indigo-200 hover:bg-indigo-50/40"
-            >
-              <WalletCards className="text-indigo-600" size={22} />
-              <p className="mt-3 text-sm font-bold text-slate-800">Financeiro</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Contas a receber, despesas e movimentações.
-              </p>
-            </button>
+          {/* ========================================= */}
+          {/* LATERAL DIREITA */}
+          {/* ========================================= */}
 
-            <button
-              type="button"
-              onClick={() => navigate("/faturamento")}
-              className="rounded-xl border border-slate-100 p-4 text-left transition hover:border-emerald-200 hover:bg-emerald-50/40"
-            >
-              <CircleDollarSign className="text-emerald-600" size={22} />
-              <p className="mt-3 text-sm font-bold text-slate-800">Faturamento</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Acompanhe cobranças, recebimentos e pendências.
-              </p>
-            </button>
+          <aside className="space-y-6">
+            <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  Acesso rápido
+                </h2>
 
-            <button
-              type="button"
-              onClick={() => navigate("/repasses")}
-              className="rounded-xl border border-slate-100 p-4 text-left transition hover:border-amber-200 hover:bg-amber-50/40"
-            >
-              <HandCoins className="text-amber-600" size={22} />
-              <p className="mt-3 text-sm font-bold text-slate-800">Repasses</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Acompanhe os valores destinados aos profissionais.
-              </p>
-            </button>
+                <p className="mt-1 text-sm text-slate-500">
+                  Principais rotinas administrativas.
+                </p>
+              </div>
 
-            <button
-              type="button"
-              onClick={() => navigate("/despesas")}
-              className="rounded-xl border border-slate-100 p-4 text-left transition hover:border-rose-200 hover:bg-rose-50/40"
-            >
-              <Banknote className="text-rose-600" size={22} />
-              <p className="mt-3 text-sm font-bold text-slate-800">Despesas</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Consulte contas, vencimentos e pagamentos.
-              </p>
-            </button>
+              <div className="mt-5 space-y-2">
+                <QuickAccessButton
+                  title="Financeiro"
+                  description="Contas a receber e despesas."
+                  icon={WalletCards}
+                  iconClassName="bg-indigo-50 text-indigo-600"
+                  onClick={() =>
+                    navigate(
+                      "/financeiro",
+                    )
+                  }
+                />
 
-            <button
-              type="button"
-              onClick={() => navigate("/fornecedores")}
-              className="rounded-xl border border-slate-100 p-4 text-left transition hover:border-violet-200 hover:bg-violet-50/40"
-            >
-              <UsersRound className="text-violet-600" size={22} />
-              <p className="mt-3 text-sm font-bold text-slate-800">Fornecedores</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Consulte fornecedores ativos e cadastros administrativos.
-              </p>
-            </button>
+                <QuickAccessButton
+                  title="Faturamento"
+                  description="Cobranças e recebimentos."
+                  icon={CircleDollarSign}
+                  iconClassName="bg-emerald-50 text-emerald-600"
+                  onClick={() =>
+                    navigate(
+                      "/faturamento",
+                    )
+                  }
+                />
 
-            <button
-              type="button"
-              onClick={() => navigate("/documentos-administrativos")}
-              className="rounded-xl border border-slate-100 p-4 text-left transition hover:border-orange-200 hover:bg-orange-50/40"
-            >
-              <FileClock className="text-orange-600" size={22} />
-              <p className="mt-3 text-sm font-bold text-slate-800">Documentos</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Contratos, documentos e vencimentos administrativos.
-              </p>
-            </button>
+                <QuickAccessButton
+                  title="Repasses"
+                  description="Valores dos profissionais."
+                  icon={HandCoins}
+                  iconClassName="bg-amber-50 text-amber-600"
+                  onClick={() =>
+                    navigate(
+                      "/repasses",
+                    )
+                  }
+                />
 
-            <button
-              type="button"
-              onClick={() => navigate("/relatorios")}
-              className="rounded-xl border border-slate-100 p-4 text-left transition hover:border-sky-200 hover:bg-sky-50/40"
-            >
-              <FileBarChart className="text-sky-600" size={22} />
-              <p className="mt-3 text-sm font-bold text-slate-800">Relatórios</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Consulte relatórios financeiros e administrativos.
-              </p>
-            </button>
-          </div>
-        </section>
+                <QuickAccessButton
+                  title="Despesas"
+                  description="Contas e pagamentos."
+                  icon={Banknote}
+                  iconClassName="bg-rose-50 text-rose-600"
+                  onClick={() =>
+                    navigate(
+                      "/despesas",
+                    )
+                  }
+                />
+
+                <QuickAccessButton
+                  title="Fornecedores"
+                  description="Cadastros administrativos."
+                  icon={UsersRound}
+                  iconClassName="bg-violet-50 text-violet-600"
+                  onClick={() =>
+                    navigate(
+                      "/fornecedores",
+                    )
+                  }
+                />
+
+                <QuickAccessButton
+                  title="Documentos"
+                  description="Contratos e vencimentos."
+                  icon={FileClock}
+                  iconClassName="bg-orange-50 text-orange-600"
+                  onClick={() =>
+                    navigate(
+                      "/documentos-administrativos",
+                    )
+                  }
+                />
+
+                <QuickAccessButton
+                  title="Relatórios"
+                  description="Relatórios administrativos."
+                  icon={FileBarChart}
+                  iconClassName="bg-sky-50 text-sky-600"
+                  onClick={() =>
+                    navigate(
+                      "/relatorios",
+                    )
+                  }
+                />
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                  <AlertTriangle size={20} />
+                </div>
+
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">
+                    Pendências
+                  </h2>
+
+                  <p className="text-xs text-slate-500">
+                    Itens que precisam de atenção.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                <PendingItem
+                  title="Cobranças pendentes"
+                  value={
+                    charges.filter(
+                      (charge) =>
+                        charge.status ===
+                        "Pendente",
+                    ).length
+                  }
+                  colorClassName="bg-indigo-50 text-indigo-600"
+                  onClick={() =>
+                    navigate(
+                      "/faturamento",
+                    )
+                  }
+                />
+
+                <PendingItem
+                  title="Despesas vencidas"
+                  value={
+                    overdueExpenses.length
+                  }
+                  colorClassName="bg-rose-50 text-rose-600"
+                  onClick={() =>
+                    navigate(
+                      "/despesas",
+                    )
+                  }
+                />
+
+                <PendingItem
+                  title="Repasses pendentes"
+                  value={
+                    pendingPayoutCount
+                  }
+                  colorClassName="bg-amber-50 text-amber-600"
+                  onClick={() =>
+                    navigate(
+                      "/repasses",
+                    )
+                  }
+                />
+
+                <PendingItem
+                  title="Documentos vencidos"
+                  value={
+                    expiredDocuments.length
+                  }
+                  colorClassName="bg-orange-50 text-orange-600"
+                  onClick={() =>
+                    navigate(
+                      "/documentos-administrativos",
+                    )
+                  }
+                />
+
+                <PendingItem
+                  title="Documentos vencendo"
+                  value={
+                    expiringDocuments.length
+                  }
+                  colorClassName="bg-violet-50 text-violet-600"
+                  onClick={() =>
+                    navigate(
+                      "/documentos-administrativos",
+                    )
+                  }
+                />
+              </div>
+            </section>
+          </aside>
+        </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+function DashboardStatCard({
+  title,
+  value,
+  description,
+  icon: Icon,
+  iconClassName,
+}: {
+  title: string;
+  value: string;
+  description: string;
+  icon: typeof Landmark;
+  iconClassName: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-slate-500">
+            {title}
+          </p>
+
+          <p className="mt-2 text-2xl font-bold text-slate-900">
+            {value}
+          </p>
+
+          <p className="mt-1 text-xs text-slate-400">
+            {description}
+          </p>
+        </div>
+
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconClassName}`}
+        >
+          <Icon size={21} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuickAccessButton({
+  title,
+  description,
+  icon: Icon,
+  iconClassName,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  icon: typeof Landmark;
+  iconClassName: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-xl border border-slate-100 p-3 text-left transition hover:border-slate-200 hover:bg-slate-50"
+    >
+      <div
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClassName}`}
+      >
+        <Icon size={19} />
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-sm font-bold text-slate-800">
+          {title}
+        </p>
+
+        <p className="truncate text-xs text-slate-500">
+          {description}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+function PendingItem({
+  title,
+  value,
+  colorClassName,
+  onClick,
+}: {
+  title: string;
+  value: number;
+  colorClassName: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-100 px-3 py-3 text-left transition hover:border-slate-200 hover:bg-slate-50"
+    >
+      <span className="text-sm font-semibold text-slate-700">
+        {title}
+      </span>
+
+      <span
+        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${colorClassName}`}
+      >
+        {value}
+      </span>
+    </button>
   );
 }

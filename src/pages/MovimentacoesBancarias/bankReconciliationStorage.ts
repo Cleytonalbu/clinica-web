@@ -3,12 +3,20 @@ export type ReconciliationType =
   | "Despesa"
   | "Outro";
 
+export type ReconciliationLinkType =
+  | "charge"
+  | "expense";
+
 export interface BankReconciliation {
   transactionId: string;
   type: ReconciliationType;
   category: string;
   notes?: string;
   reconciledAt: string;
+
+  linkedType?: ReconciliationLinkType;
+  linkedId?: number;
+  linkedLabel?: string;
 }
 
 const STORAGE_KEY =
@@ -17,12 +25,15 @@ const STORAGE_KEY =
 function notify() {
   if (typeof window !== "undefined") {
     window.dispatchEvent(
-      new Event("bank-reconciliations-changed"),
+      new Event(
+        "bank-reconciliations-changed",
+      ),
     );
   }
 }
 
-export function getBankReconciliations(): BankReconciliation[] {
+export function getBankReconciliations():
+  BankReconciliation[] {
   if (typeof window === "undefined") {
     return [];
   }
@@ -33,8 +44,14 @@ export function getBankReconciliations(): BankReconciliation[] {
         STORAGE_KEY,
       );
 
-    return raw
-      ? JSON.parse(raw)
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw);
+
+    return Array.isArray(parsed)
+      ? parsed
       : [];
   } catch {
     return [];
@@ -102,8 +119,37 @@ export function reconcileBankTransaction(
 export function removeBankReconciliation(
   transactionId: string,
 ) {
+  const current =
+    getBankReconciliations();
+
+  const reconciliation =
+    current.find(
+      (item) =>
+        item.transactionId ===
+        transactionId,
+    );
+
+  /*
+   * Se já existe vínculo com uma cobrança
+   * ou despesa do Financeiro, não apagamos
+   * a conciliação.
+   *
+   * Isso evita deixar um lançamento marcado
+   * como Pago no Financeiro sem rastreabilidade
+   * com a movimentação bancária que o quitou.
+   */
+  if (
+    reconciliation?.linkedType &&
+    reconciliation.linkedId !==
+      undefined
+  ) {
+    throw new Error(
+      "Esta movimentação já está vinculada ao Financeiro e não pode ter a conciliação removida.",
+    );
+  }
+
   saveBankReconciliations(
-    getBankReconciliations().filter(
+    current.filter(
       (item) =>
         item.transactionId !==
         transactionId,
