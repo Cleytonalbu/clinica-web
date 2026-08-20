@@ -3,6 +3,10 @@ import type {
   PaymentMethod,
 } from "@/pages/Financeiro/financeRules";
 
+import {
+  getDefaultClinicUnitId,
+} from "@/pages/Configuracoes/clinicUnitStorage";
+
 export type StoredAppointmentStatus =
   | "Confirmado"
   | "Agendado"
@@ -13,6 +17,8 @@ export type StoredAppointmentStatus =
 export interface StoredAppointment {
   id: number;
   patientId: number;
+
+  unitId: number;
 
   patient: string;
   professional: string;
@@ -38,6 +44,15 @@ export interface StoredAppointment {
   paymentMethod?: PaymentMethod;
 
   serviceValue?: number;
+
+  /**
+   * Quando preenchido, este atendimento foi agendado
+   * para consumir uma sessão específica de um pacote
+   * já adquirido pelo paciente.
+   */
+  patientPackageId?: number;
+
+  patientPackageName?: string;
 }
 
 const STORAGE_KEY =
@@ -54,9 +69,72 @@ export function getSavedAppointments(): StoredAppointment[] {
       return [];
     }
 
-    return JSON.parse(
-      stored
-    ) as StoredAppointment[];
+    const parsed =
+      JSON.parse(
+        stored
+      ) as
+        Array<
+          StoredAppointment |
+          Omit<
+            StoredAppointment,
+            "unitId"
+          >
+        >;
+
+    let changed =
+      false;
+
+    const defaultUnitId =
+      getDefaultClinicUnitId();
+
+    const migrated =
+      parsed.map(
+        (
+          appointment
+        ) => {
+          if (
+            "unitId" in
+              appointment &&
+            Number.isFinite(
+              Number(
+                appointment.unitId
+              )
+            )
+          ) {
+            return {
+              ...appointment,
+
+              unitId:
+                Number(
+                  appointment.unitId
+                ),
+            } as StoredAppointment;
+          }
+
+          changed =
+            true;
+
+          return {
+            ...appointment,
+
+            unitId:
+              defaultUnitId,
+          } as StoredAppointment;
+        }
+      );
+
+    if (
+      changed
+    ) {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(
+          migrated
+        )
+      );
+    }
+
+    return migrated;
   } catch {
     return [];
   }
@@ -68,9 +146,25 @@ export function saveAppointment(
   const current =
     getSavedAppointments();
 
+  const normalizedAppointment:
+    StoredAppointment = {
+    ...appointment,
+
+    unitId:
+      Number.isFinite(
+        Number(
+          appointment.unitId
+        )
+      )
+        ? Number(
+            appointment.unitId
+          )
+        : getDefaultClinicUnitId(),
+  };
+
   const next = [
     ...current,
-    appointment,
+    normalizedAppointment,
   ];
 
   localStorage.setItem(
@@ -88,12 +182,21 @@ export function updateSavedAppointment(
 
   const next =
     current.map(
-      (appointment) =>
+      (
+        appointment
+      ) =>
         appointment.id ===
         appointmentId
           ? {
               ...appointment,
+
               ...data,
+
+              unitId:
+                data.unitId !==
+                undefined
+                  ? data.unitId
+                  : appointment.unitId,
             }
           : appointment
     );

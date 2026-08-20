@@ -5,6 +5,7 @@ import {
 } from "react";
 
 import {
+  BadgePercent,
   Bell,
   Building2,
   CalendarDays,
@@ -29,6 +30,10 @@ import {
 import {
   DashboardLayout,
 } from "@/layouts/DashboardLayout";
+
+import {
+  useUnit,
+} from "@/providers/UnitContext";
 
 import {
   Button,
@@ -62,12 +67,50 @@ import PermissionsSettingsContainer from "./PermissionsSettingsContainer";
 
 import FinancialSettingsContainer from "./FinancialSettingsContainer";
 
+import PackagePlansSettingsSection from "./PackagePlansSettingsSection";
+
 import ReportsSettingsContainer from "./ReportsSettingsContainer";
 
 import GeneralSettingsContainer from "./GeneralSettingsContainer";
 
+import ClinicUnitsSettingsSection from "./ClinicUnitsSettingsSection";
+
+import {
+  removeRoomUnitLinks,
+  roomWorksAtUnit,
+  setRoomUnit,
+} from "./roomUnitStorage";
+
+import {
+  removeSpecialtyUnitLinks,
+  setSpecialtyUnit,
+  specialtyWorksAtUnit,
+} from "./specialtyUnitStorage";
+
+import {
+  convenioWorksAtUnit,
+  removeConvenioUnitLinks,
+  setConvenioUnit,
+} from "./convenioUnitStorage";
+
+import {
+  clearUnitProfessionalValue,
+  getUnitConvenioSpecialtyValue,
+  getUnitProfessionalValue,
+  getUnitSpecialtyValue,
+  setUnitConvenioSpecialtyValue,
+  setUnitProfessionalValue,
+  setUnitSpecialtyValue,
+} from "./unitServiceValueStorage";
+
+import {
+  professionalWorksAtUnit,
+  setProfessionalUnits,
+} from "./professionalUnitStorage";
+
 type SettingsSection =
   | "clinic"
+  | "units"
   | "specialties"
   | "professionals"
   | "convenios"
@@ -79,6 +122,7 @@ type SettingsSection =
   | "app"
   | "permissions"
   | "finance"
+  | "packages"
   | "reports"
   | "general";
 
@@ -226,6 +270,15 @@ const menuItems: {
   },
 
   {
+    id: "units",
+    label: "Unidades",
+    icon:
+      <DoorOpen
+        size={18}
+      />,
+  },
+
+  {
     id: "specialties",
     label: "Especialidades",
     icon:
@@ -325,6 +378,15 @@ const menuItems: {
   },
 
   {
+    id: "packages",
+    label: "Planos e Pacotes",
+    icon:
+      <BadgePercent
+        size={18}
+      />,
+  },
+
+  {
     id: "reports",
     label: "Relatórios",
     icon:
@@ -344,6 +406,12 @@ const menuItems: {
 ];
 
 export default function Configuracoes() {
+  const {
+    activeUnit,
+    activeUnitId,
+  } =
+    useUnit();
+
   const [
     activeSection,
     setActiveSection,
@@ -627,6 +695,11 @@ export default function Configuracoes() {
         true,
     };
 
+    setSpecialtyUnit(
+      newSpecialty.id,
+      activeUnitId
+    );
+
     const nextSettings:
       SystemSettings = {
       ...systemSettings,
@@ -765,6 +838,10 @@ export default function Configuracoes() {
       return;
     }
 
+    removeSpecialtyUnitLinks(
+      id
+    );
+
     const nextSettings:
       SystemSettings = {
       ...systemSettings,
@@ -853,10 +930,6 @@ export default function Configuracoes() {
 
       active:
         true,
-
-      customValue,
-
-      customRepasseValue,
     };
 
     const nextSettings:
@@ -876,6 +949,32 @@ export default function Configuracoes() {
     saveSystemSettings(
       nextSettings
     );
+
+    setProfessionalUnits(
+      newProfessional.id,
+      [
+        activeUnitId,
+      ]
+    );
+
+    if (
+      customValue !==
+        undefined ||
+      customRepasseValue !==
+        undefined
+    ) {
+      setUnitProfessionalValue(
+        activeUnitId,
+        newProfessional.id,
+        {
+          value:
+            customValue,
+
+          repasseValue:
+            customRepasseValue,
+        }
+      );
+    }
 
     setProfessionalName(
       ""
@@ -1041,6 +1140,11 @@ export default function Configuracoes() {
         {},
     };
 
+    setConvenioUnit(
+      newConvenio.id,
+      activeUnitId
+    );
+
     const nextSettings:
       SystemSettings = {
       ...systemSettings,
@@ -1205,6 +1309,10 @@ export default function Configuracoes() {
     id:
       number
   ) {
+    removeConvenioUnitLinks(
+      id
+    );
+
     const nextSettings:
       SystemSettings = {
       ...systemSettings,
@@ -1256,6 +1364,11 @@ export default function Configuracoes() {
       active:
         true,
     };
+
+    setRoomUnit(
+      newRoom.id,
+      activeUnitId
+    );
 
     const nextSettings:
       SystemSettings = {
@@ -1353,6 +1466,10 @@ export default function Configuracoes() {
     id:
       number
   ) {
+    removeRoomUnitLinks(
+      id
+    );
+
     const nextSettings:
       SystemSettings = {
       ...systemSettings,
@@ -1514,10 +1631,27 @@ export default function Configuracoes() {
             )}
 
             {activeSection ===
+              "units" && (
+              <ClinicUnitsSettingsSection
+                onFeedback={
+                  showFeedback
+                }
+              />
+            )}
+
+            {activeSection ===
               "specialties" && (
               <SpecialtiesSettingsSection
                 settings={
                   systemSettings
+                }
+
+                activeUnitId={
+                  activeUnitId
+                }
+
+                activeUnitName={
+                  activeUnit.name
                 }
 
                 specialtyName={
@@ -1567,6 +1701,10 @@ export default function Configuracoes() {
               <ProfessionalsSettingsSection
                 settings={
                   systemSettings
+                }
+
+                activeUnitId={
+                  activeUnitId
                 }
 
                 activeSpecialties={
@@ -1638,6 +1776,14 @@ export default function Configuracoes() {
                   systemSettings
                 }
 
+                activeUnitId={
+                  activeUnitId
+                }
+
+                activeUnitName={
+                  activeUnit.name
+                }
+
                 convenioName={
                   convenioName
                 }
@@ -1681,6 +1827,14 @@ export default function Configuracoes() {
               <RoomsSettingsSection
                 settings={
                   systemSettings
+                }
+
+                activeUnitId={
+                  activeUnitId
+                }
+
+                activeUnitName={
+                  activeUnit.name
                 }
 
                 roomName={
@@ -1818,6 +1972,15 @@ export default function Configuracoes() {
                   setSystemSettings
                 }
 
+                onFeedback={
+                  showFeedback
+                }
+              />
+            )}
+
+            {activeSection ===
+              "packages" && (
+              <PackagePlansSettingsSection
                 onFeedback={
                   showFeedback
                 }
@@ -2179,6 +2342,8 @@ function ClinicSettingsSection({
 
 function SpecialtiesSettingsSection({
   settings,
+  activeUnitId,
+  activeUnitName,
   specialtyName,
   specialtyValue,
   specialtyRepasseValue,
@@ -2192,6 +2357,12 @@ function SpecialtiesSettingsSection({
 }: {
   settings:
     SystemSettings;
+
+  activeUnitId:
+    number;
+
+  activeUnitName:
+    string;
 
   specialtyName:
     string;
@@ -2244,6 +2415,16 @@ function SpecialtiesSettingsSection({
         number
     ) => void;
 }) {
+  const [
+    pricingVersion,
+    setPricingVersion,
+  ] =
+    useState(
+      0
+    );
+
+  void pricingVersion;
+
   const activeCount =
     settings.specialties.filter(
       (
@@ -2275,7 +2456,17 @@ function SpecialtiesSettingsSection({
         description="Gerencie as especialidades disponíveis na clínica."
       >
         <div className="space-y-4">
-          {settings.specialties.map(
+          {settings.specialties
+            .filter(
+              (
+                specialty
+              ) =>
+                specialtyWorksAtUnit(
+                  specialty.id,
+                  activeUnitId
+                )
+            )
+            .map(
             (
               specialty
             ) => (
@@ -2309,21 +2500,35 @@ function SpecialtiesSettingsSection({
                     <Input
                       type="number"
                       value={
-                        specialty.value
+                        getUnitSpecialtyValue(
+                          activeUnitId,
+                          specialty.id
+                        ).value
                       }
                       onChange={(
                         event
                       ) =>
-                        onUpdate(
-                          specialty.id,
-                          {
-                            value:
-                              Number(
-                                event.target.value
-                              ) ||
-                              0,
-                          }
-                        )
+                        {
+                          setUnitSpecialtyValue(
+                            activeUnitId,
+                            specialty.id,
+                            {
+                              value:
+                                Number(
+                                  event.target.value
+                                ) ||
+                                0,
+                            }
+                          );
+
+                          setPricingVersion(
+                            (
+                              current
+                            ) =>
+                              current +
+                              1
+                          );
+                        }
                       }
                     />
                   </FormField>
@@ -2332,21 +2537,35 @@ function SpecialtiesSettingsSection({
                     <Input
                       type="number"
                       value={
-                        specialty.repasseValue
+                        getUnitSpecialtyValue(
+                          activeUnitId,
+                          specialty.id
+                        ).repasseValue
                       }
                       onChange={(
                         event
                       ) =>
-                        onUpdate(
-                          specialty.id,
-                          {
-                            repasseValue:
-                              Number(
-                                event.target.value
-                              ) ||
-                              0,
-                          }
-                        )
+                        {
+                          setUnitSpecialtyValue(
+                            activeUnitId,
+                            specialty.id,
+                            {
+                              repasseValue:
+                                Number(
+                                  event.target.value
+                                ) ||
+                                0,
+                            }
+                          );
+
+                          setPricingVersion(
+                            (
+                              current
+                            ) =>
+                              current +
+                              1
+                          );
+                        }
                       }
                     />
                   </FormField>
@@ -2471,6 +2690,7 @@ function SpecialtiesSettingsSection({
 
 function ProfessionalsSettingsSection({
   settings,
+  activeUnitId,
   activeSpecialties,
   professionalName,
   professionalSpecialty,
@@ -2489,6 +2709,9 @@ function ProfessionalsSettingsSection({
 }: {
   settings:
     SystemSettings;
+
+  activeUnitId:
+    number;
 
   activeSpecialties:
     SpecialtySetting[];
@@ -2562,6 +2785,16 @@ function ProfessionalsSettingsSection({
         number
     ) => void;
 }) {
+  const [
+    pricingVersion,
+    setPricingVersion,
+  ] =
+    useState(
+      0
+    );
+
+  void pricingVersion;
+
   const selectedNewSpecialty =
     activeSpecialties.find(
       (
@@ -2572,18 +2805,26 @@ function ProfessionalsSettingsSection({
     );
 
   const inheritedChargeValue =
-    selectedNewSpecialty?.value ??
-    0;
+    selectedNewSpecialty
+      ? getUnitSpecialtyValue(
+          activeUnitId,
+          selectedNewSpecialty.id
+        ).value
+      : 0;
 
   const inheritedRepasseValue =
-    selectedNewSpecialty?.repasseValue ??
-    0;
+    selectedNewSpecialty
+      ? getUnitSpecialtyValue(
+          activeUnitId,
+          selectedNewSpecialty.id
+        ).repasseValue
+      : 0;
 
   return (
     <>
       <PageCard
         title="Profissionais"
-        description="Gerencie o valor cobrado do paciente e o repasse de cada profissional."
+        description="Gerencie o valor cobrado e o repasse dos profissionais nesta unidade."
       >
         <div className="mb-5 rounded-2xl border border-indigo-100 bg-indigo-50/60 px-4 py-3">
           <p className="text-sm font-semibold text-indigo-800">
@@ -2591,12 +2832,22 @@ function ProfessionalsSettingsSection({
           </p>
 
           <p className="mt-1 text-xs leading-5 text-indigo-600">
-            O valor cobrado é a receita do atendimento. O repasse profissional é o valor que será lançado em “Valores a receber” do profissional. Quando não houver valor específico, o sistema utiliza os valores definidos na especialidade.
+            Os valores desta tela pertencem à unidade selecionada. Quando não houver valor específico para o profissional nesta unidade, o sistema utiliza o valor e o repasse definidos na especialidade desta mesma unidade.
           </p>
         </div>
 
         <div className="space-y-4">
-          {settings.professionals.map(
+          {settings.professionals
+            .filter(
+              (
+                professional
+              ) =>
+                professionalWorksAtUnit(
+                  professional.id,
+                  activeUnitId
+                )
+            )
+            .map(
             (
               professional
             ) => {
@@ -2609,22 +2860,37 @@ function ProfessionalsSettingsSection({
                     professional.specialty
                 );
 
+              const unitProfessionalValue =
+                getUnitProfessionalValue(
+                  activeUnitId,
+                  professional.id
+                );
+
+              const unitSpecialtyValue =
+                specialtySetting
+                  ? getUnitSpecialtyValue(
+                      activeUnitId,
+                      specialtySetting.id
+                    )
+                  : {
+                      value: 0,
+                      repasseValue: 0,
+                    };
+
               const chargeValue =
-                professional.customValue ??
-                specialtySetting?.value ??
-                0;
+                unitProfessionalValue?.value ??
+                unitSpecialtyValue.value;
 
               const repasseValue =
-                professional.customRepasseValue ??
-                specialtySetting?.repasseValue ??
-                0;
+                unitProfessionalValue?.repasseValue ??
+                unitSpecialtyValue.repasseValue;
 
               const usesDefaultCharge =
-                professional.customValue ===
+                unitProfessionalValue?.value ===
                 undefined;
 
               const usesDefaultRepasse =
-                professional.customRepasseValue ===
+                unitProfessionalValue?.repasseValue ===
                 undefined;
 
               return (
@@ -2661,23 +2927,37 @@ function ProfessionalsSettingsSection({
                         }
                         onChange={(
                           event
-                        ) =>
+                        ) => {
+                          clearUnitProfessionalValue(
+                            activeUnitId,
+                            professional.id,
+                            "value"
+                          );
+
+                          clearUnitProfessionalValue(
+                            activeUnitId,
+                            professional.id,
+                            "repasseValue"
+                          );
+
                           onUpdate(
                             professional.id,
                             {
                               specialty:
                                 event.target.value,
-
-                              customValue:
-                                undefined,
-
-                              customRepasseValue:
-                                undefined,
                             }
-                          )
-                        }
+                          );
+
+                          setPricingVersion(
+                            (
+                              current
+                            ) =>
+                              current +
+                              1
+                          );
+                        }}
                       >
-                        {settings.specialties.map(
+                        {activeSpecialties.map(
                           (
                             specialty
                           ) => (
@@ -2729,20 +3009,39 @@ function ProfessionalsSettingsSection({
                           onChange={(
                             event
                           ) =>
-                            onUpdate(
-                              professional.id,
-                              {
-                                customValue:
-                                  event.target.value
-                                    ? Math.max(
+                            {
+                              if (
+                                event.target.value
+                              ) {
+                                setUnitProfessionalValue(
+                                  activeUnitId,
+                                  professional.id,
+                                  {
+                                    value:
+                                      Math.max(
                                         0,
                                         Number(
                                           event.target.value
                                         )
-                                      )
-                                    : undefined,
+                                      ),
+                                  }
+                                );
+                              } else {
+                                clearUnitProfessionalValue(
+                                  activeUnitId,
+                                  professional.id,
+                                  "value"
+                                );
                               }
-                            )
+
+                              setPricingVersion(
+                                (
+                                  current
+                                ) =>
+                                  current +
+                                  1
+                              );
+                            }
                           }
                         />
 
@@ -2766,20 +3065,39 @@ function ProfessionalsSettingsSection({
                           onChange={(
                             event
                           ) =>
-                            onUpdate(
-                              professional.id,
-                              {
-                                customRepasseValue:
-                                  event.target.value
-                                    ? Math.max(
+                            {
+                              if (
+                                event.target.value
+                              ) {
+                                setUnitProfessionalValue(
+                                  activeUnitId,
+                                  professional.id,
+                                  {
+                                    repasseValue:
+                                      Math.max(
                                         0,
                                         Number(
                                           event.target.value
                                         )
-                                      )
-                                    : undefined,
+                                      ),
+                                  }
+                                );
+                              } else {
+                                clearUnitProfessionalValue(
+                                  activeUnitId,
+                                  professional.id,
+                                  "repasseValue"
+                                );
                               }
-                            )
+
+                              setPricingVersion(
+                                (
+                                  current
+                                ) =>
+                                  current +
+                                  1
+                              );
+                            }
                           }
                         />
 
@@ -3009,6 +3327,8 @@ function ProfessionalsSettingsSection({
 
 function ConveniosSettingsSection({
   settings,
+  activeUnitId,
+  activeUnitName,
   convenioName,
   convenioDiscount,
   onNameChange,
@@ -3021,6 +3341,12 @@ function ConveniosSettingsSection({
 }: {
   settings:
     SystemSettings;
+
+  activeUnitId:
+    number;
+
+  activeUnitName:
+    string;
 
   convenioName:
     string;
@@ -3076,6 +3402,16 @@ function ConveniosSettingsSection({
         number
     ) => void;
 }) {
+  const [
+    pricingVersion,
+    setPricingVersion,
+  ] =
+    useState(
+      0
+    );
+
+  void pricingVersion;
+
   return (
     <>
       <PageCard
@@ -3083,7 +3419,17 @@ function ConveniosSettingsSection({
         description="Defina os convênios aceitos e suas regras."
       >
         <div className="space-y-5">
-          {settings.convenios.map(
+          {settings.convenios
+            .filter(
+              (
+                convenio
+              ) =>
+                convenioWorksAtUnit(
+                  convenio.id,
+                  activeUnitId
+                )
+            )
+            .map(
             (
               convenio
             ) => (
@@ -3178,7 +3524,17 @@ function ConveniosSettingsSection({
                 </div>
 
                 <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {settings.specialties.map(
+                  {settings.specialties
+                    .filter(
+                      (
+                        specialty
+                      ) =>
+                        specialtyWorksAtUnit(
+                          specialty.id,
+                          activeUnitId
+                        )
+                    )
+                    .map(
                     (
                       specialty
                     ) => (
@@ -3193,6 +3549,11 @@ function ConveniosSettingsSection({
                         <Input
                           type="number"
                           value={
+                            getUnitConvenioSpecialtyValue(
+                              activeUnitId,
+                              convenio.id,
+                              specialty.id
+                            ) ??
                             convenio
                               .specialtyValues[
                               specialty.name
@@ -3202,11 +3563,31 @@ function ConveniosSettingsSection({
                           onChange={(
                             event
                           ) =>
-                            onSpecialtyValueChange(
-                              convenio.id,
-                              specialty.name,
-                              event.target.value
-                            )
+                            {
+                              const numericValue =
+                                Number(
+                                  event.target.value
+                                );
+
+                              setUnitConvenioSpecialtyValue(
+                                activeUnitId,
+                                convenio.id,
+                                specialty.id,
+                                event.target.value &&
+                                numericValue >
+                                  0
+                                  ? numericValue
+                                  : undefined
+                              );
+
+                              setPricingVersion(
+                                (
+                                  current
+                                ) =>
+                                  current +
+                                  1
+                              );
+                            }
                           }
                         />
                       </FormField>
@@ -3221,7 +3602,7 @@ function ConveniosSettingsSection({
 
       <PageCard
         title="Novo Convênio"
-        description="Cadastre um novo convênio."
+        description="Cadastre um novo convênio para esta unidade."
       >
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_220px_auto]">
           <FormField label="Nome">
@@ -3277,6 +3658,8 @@ function ConveniosSettingsSection({
 
 function RoomsSettingsSection({
   settings,
+  activeUnitId,
+  activeUnitName,
   roomName,
   onRoomNameChange,
   onAdd,
@@ -3286,6 +3669,12 @@ function RoomsSettingsSection({
 }: {
   settings:
     SystemSettings;
+
+  activeUnitId:
+    number;
+
+  activeUnitName:
+    string;
 
   roomName:
     string;
@@ -3324,13 +3713,23 @@ function RoomsSettingsSection({
     <>
       <PageCard
         title="Salas de Atendimento"
-        description="Gerencie os ambientes disponíveis."
+        description={`Gerencie os ambientes disponíveis na unidade ${activeUnitName}.`}
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {settings.rooms.map(
-            (
-              room
-            ) => (
+          {settings.rooms
+            .filter(
+              (
+                room
+              ) =>
+                roomWorksAtUnit(
+                  room.id,
+                  activeUnitId
+                )
+            )
+            .map(
+              (
+                room
+              ) => (
               <div
                 key={
                   room.id
@@ -3407,7 +3806,7 @@ function RoomsSettingsSection({
 
       <PageCard
         title="Nova Sala"
-        description="Cadastre um novo ambiente."
+        description={`A nova sala será cadastrada na unidade ${activeUnitName}.`}
       >
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_auto]">
           <FormField label="Nome da sala">

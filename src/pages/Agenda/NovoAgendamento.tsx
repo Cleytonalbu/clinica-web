@@ -61,6 +61,32 @@ import {
   getActiveSpecialties,
 } from "@/pages/Configuracoes/settingsStorage";
 
+import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
+  professionalWorksAtUnit,
+} from "@/pages/Configuracoes/professionalUnitStorage";
+
+import {
+  roomWorksAtUnit,
+} from "@/pages/Configuracoes/roomUnitStorage";
+
+import {
+  specialtyWorksAtUnit,
+} from "@/pages/Configuracoes/specialtyUnitStorage";
+
+import {
+  convenioWorksAtUnit,
+} from "@/pages/Configuracoes/convenioUnitStorage";
+
+import {
+  getPatientPackageRemainingSessions,
+  getPatientPackagesByPatient,
+  type PatientPackage,
+} from "@/pages/Financeiro/patientPackageStorage";
+
 /* =========================================
    TIPOS
 ========================================= */
@@ -101,6 +127,8 @@ interface AppointmentFormData {
 
   paymentMethod:
     PaymentMethod;
+
+  patientPackageId: string;
 }
 
 /* =========================================
@@ -149,6 +177,9 @@ const initialValues: AppointmentFormData = {
 
   paymentMethod:
     "Pix",
+
+  patientPackageId:
+    "",
 };
 
 /* =========================================
@@ -158,6 +189,12 @@ const initialValues: AppointmentFormData = {
 export default function NovoAgendamento() {
   const navigate =
     useNavigate();
+
+  const {
+    activeUnit,
+    activeUnitId,
+  } =
+    useUnit();
 
   const [
     searchParams,
@@ -225,33 +262,74 @@ export default function NovoAgendamento() {
   const activeRooms =
     useMemo(
       () =>
-        getActiveRooms(),
+        getActiveRooms().filter(
+          (
+            room
+          ) =>
+            roomWorksAtUnit(
+              room.id,
+              activeUnitId
+            )
+        ),
 
-      []
+      [
+        activeUnitId,
+      ]
     );
 
   const activeSpecialties =
     useMemo(
       () =>
-        getActiveSpecialties(),
+        getActiveSpecialties().filter(
+          (
+            specialty
+          ) =>
+            specialtyWorksAtUnit(
+              specialty.id,
+              activeUnitId
+            )
+        ),
 
-      []
+      [
+        activeUnitId,
+      ]
     );
 
   const activeProfessionals =
     useMemo(
       () =>
-        getActiveProfessionals(),
+        getActiveProfessionals()
+          .filter(
+            (
+              professional
+            ) =>
+              professionalWorksAtUnit(
+                professional.id,
+                activeUnitId
+              )
+          ),
 
-      []
+      [
+        activeUnitId,
+      ]
     );
 
   const activeConvenios =
     useMemo(
       () =>
-        getActiveConvenios(),
+        getActiveConvenios().filter(
+          (
+            convenio
+          ) =>
+            convenioWorksAtUnit(
+              convenio.id,
+              activeUnitId
+            )
+        ),
 
-      []
+      [
+        activeUnitId,
+      ]
     );
 
   /* =======================================
@@ -351,7 +429,73 @@ export default function NovoAgendamento() {
         activeConvenios,
 
         formData.convenio,
+        activeUnitId,
       ]
+    );
+
+  /* =======================================
+     PACOTES DO PACIENTE
+  ======================================= */
+
+  const patientPackages =
+    useMemo(
+      () => {
+        if (
+          !formData.patientId
+        ) {
+          return [];
+        }
+
+        return getPatientPackagesByPatient(
+          Number(
+            formData.patientId
+          ),
+          activeUnitId
+        ).filter(
+          (
+            packageItem
+          ) =>
+            packageItem.status ===
+              "Ativo" &&
+            packageItem.items.some(
+              (
+                item
+              ) =>
+                item.specialty ===
+                  formData.specialty &&
+                item.usedSessions <
+                  item.totalSessions
+            )
+        );
+      },
+      [
+        formData.patientId,
+        formData.specialty,
+        activeUnitId,
+      ]
+    );
+
+  const selectedPatientPackage =
+    useMemo(
+      () =>
+        patientPackages.find(
+          (
+            packageItem
+          ) =>
+            String(
+              packageItem.id
+            ) ===
+            formData.patientPackageId
+        ),
+      [
+        patientPackages,
+        formData.patientPackageId,
+      ]
+    );
+
+  const usingPackage =
+    Boolean(
+      selectedPatientPackage
     );
 
   /* =======================================
@@ -361,6 +505,12 @@ export default function NovoAgendamento() {
   const serviceValue =
     useMemo(
       () => {
+        if (
+          usingPackage
+        ) {
+          return 0;
+        }
+
         if (
           !formData.professional ||
           !formData.specialty
@@ -390,6 +540,9 @@ export default function NovoAgendamento() {
             convenio:
               formData.convenio ||
               undefined,
+
+            unitId:
+              activeUnitId,
           }
         );
       },
@@ -435,6 +588,9 @@ export default function NovoAgendamento() {
             endTime:
               formData.endTime,
 
+            unitId:
+              activeUnitId,
+
             room:
               formData.room ||
               undefined,
@@ -452,6 +608,8 @@ export default function NovoAgendamento() {
         formData.endTime,
 
         formData.room,
+
+        activeUnitId,
       ]
     );
 
@@ -540,6 +698,9 @@ export default function NovoAgendamento() {
         patient:
           selected?.nome ??
           "",
+
+        patientPackageId:
+          "",
       })
     );
 
@@ -605,6 +766,9 @@ export default function NovoAgendamento() {
           specialtyAvailable
             ? specialty
             : "",
+
+        patientPackageId:
+          "",
       })
     );
 
@@ -674,6 +838,43 @@ export default function NovoAgendamento() {
           getDefaultPaymentMethod(
             billingType
           ),
+
+        patientPackageId:
+          "",
+      })
+    );
+
+    clearFeedback();
+  }
+
+  /* =======================================
+     FORMA DE COBRANÇA / PACOTE
+  ======================================= */
+
+  function handlePackageChange(
+    patientPackageId: string
+  ) {
+    setFormData(
+      (
+        current
+      ) => ({
+        ...current,
+
+        patientPackageId,
+
+        /*
+         * Pacote é uma cobertura particular já paga.
+         * Ao selecionar um pacote, limpamos convênio.
+         */
+        billingType:
+          patientPackageId
+            ? "Particular"
+            : current.billingType,
+
+        convenio:
+          patientPackageId
+            ? ""
+            : current.convenio,
       })
     );
 
@@ -759,6 +960,17 @@ export default function NovoAgendamento() {
     }
 
     if (
+      formData.patientPackageId &&
+      !selectedPatientPackage
+    ) {
+      showError(
+        "O pacote selecionado não possui sessão disponível para esta especialidade."
+      );
+
+      return false;
+    }
+
+    if (
       formData.billingType ===
         "Convênio" &&
       !formData.convenio
@@ -832,6 +1044,9 @@ export default function NovoAgendamento() {
         patientId:
           selectedPatient.id,
 
+        unitId:
+          activeUnitId,
+
         patient:
           selectedPatient.nome,
 
@@ -875,6 +1090,12 @@ export default function NovoAgendamento() {
           formData.paymentMethod,
 
         serviceValue,
+
+        patientPackageId:
+          selectedPatientPackage?.id,
+
+        patientPackageName:
+          selectedPatientPackage?.planName,
       };
 
       saveAppointment(
@@ -945,6 +1166,10 @@ export default function NovoAgendamento() {
 
           <p className="mt-2 text-sm text-slate-500">
             Cadastre o atendimento, horário e informações financeiras.
+          </p>
+
+          <p className="mt-2 text-xs font-bold text-[#6543ef]">
+            Unidade: {activeUnit.name}
           </p>
         </div>
 
@@ -1096,6 +1321,12 @@ export default function NovoAgendamento() {
                   )
                 )}
               </Select>
+              {activeProfessionals.length ===
+                0 && (
+                <p className="mt-2 text-xs font-medium text-amber-600">
+                  Nenhum profissional ativo está vinculado à unidade {activeUnit.name}.
+                </p>
+              )}
             </FormField>
 
             {/* ============================= */}
@@ -1457,6 +1688,83 @@ export default function NovoAgendamento() {
         >
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
             {/* ============================= */}
+            {/* FORMA DE COBRANÇA */}
+            {/* ============================= */}
+
+            <FormField
+              label="Forma de cobrança"
+              required
+            >
+              <Select
+                value={
+                  formData.patientPackageId
+                    ? `package:${formData.patientPackageId}`
+                    : "avulso"
+                }
+                disabled={
+                  !formData.patientId ||
+                  !formData.specialty
+                }
+                onChange={(
+                  event
+                ) => {
+                  const value =
+                    event.target.value;
+
+                  handlePackageChange(
+                    value.startsWith(
+                      "package:"
+                    )
+                      ? value.replace(
+                          "package:",
+                          ""
+                        )
+                      : ""
+                  );
+                }}
+              >
+                <option value="avulso">
+                  Avulso — sem pacote
+                </option>
+
+                {patientPackages.map(
+                  (
+                    packageItem
+                  ) => (
+                    <option
+                      key={
+                        packageItem.id
+                      }
+                      value={`package:${packageItem.id}`}
+                    >
+                      Usar pacote:{" "}
+                      {
+                        packageItem.planName
+                      }{" "}
+                      —{" "}
+                      {getPatientPackageRemainingSessions(
+                        packageItem
+                      )}{" "}
+                      sessão(ões) disponível(is)
+                    </option>
+                  )
+                )}
+              </Select>
+
+              {!formData.patientId ||
+              !formData.specialty ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  Selecione paciente e profissional para verificar os pacotes disponíveis.
+                </p>
+              ) : patientPackages.length ===
+                0 ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  Nenhum pacote ativo possui sessão disponível para esta especialidade.
+                </p>
+              ) : null}
+            </FormField>
+
+            {/* ============================= */}
             {/* TIPO DE COBRANÇA */}
             {/* ============================= */}
 
@@ -1467,6 +1775,9 @@ export default function NovoAgendamento() {
               <Select
                 value={
                   formData.billingType
+                }
+                disabled={
+                  usingPackage
                 }
                 onChange={(
                   event
@@ -1557,7 +1868,8 @@ export default function NovoAgendamento() {
                 }
                 disabled={
                   formData.billingType ===
-                  "Convênio"
+                    "Convênio" ||
+                  usingPackage
                 }
                 onChange={(
                   event
@@ -1621,8 +1933,16 @@ export default function NovoAgendamento() {
                 }
               </p>
 
-              {formData.billingType ===
-              "Particular" ? (
+              {usingPackage ? (
+                <p className="mt-1 text-xs text-indigo-600">
+                  {selectedPatientPackage
+                    ? `${getPatientPackageRemainingSessions(
+                        selectedPatientPackage
+                      )} sessão(ões) disponível(is) antes deste atendimento`
+                    : "Sessão vinculada ao pacote"}
+                </p>
+              ) : formData.billingType ===
+                "Particular" ? (
                 <p className="mt-1 text-xs text-indigo-600">
                   {selectedProfessional?.customValue
                     ? "Valor específico do profissional"
@@ -1644,6 +1964,68 @@ export default function NovoAgendamento() {
               )}
             </div>
           </div>
+
+          {selectedPatientPackage && (
+            <div className="mt-5 rounded-xl border border-violet-200 bg-violet-50 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-bold text-violet-900">
+                    Atendimento coberto por pacote
+                  </p>
+
+                  <p className="mt-1 text-sm text-violet-700">
+                    {
+                      selectedPatientPackage.planName
+                    }
+                  </p>
+                </div>
+
+                <div className="rounded-lg bg-white px-4 py-2 text-center shadow-sm">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-violet-500">
+                    Disponíveis
+                  </p>
+
+                  <p className="mt-1 text-xl font-extrabold text-violet-700">
+                    {getPatientPackageRemainingSessions(
+                      selectedPatientPackage
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {selectedPatientPackage.items.map(
+                  (
+                    item
+                  ) => (
+                    <span
+                      key={
+                        item.specialty
+                      }
+                      className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-violet-700"
+                    >
+                      {
+                        item.specialty
+                      }:{" "}
+                      {Math.max(
+                        item.totalSessions -
+                          item.usedSessions,
+                        0
+                      )}
+                      /
+                      {
+                        item.totalSessions
+                      }
+                    </span>
+                  )
+                )}
+              </div>
+
+              <p className="mt-3 text-xs text-violet-600">
+                A sessão só será descontada quando o profissional marcar este atendimento como Realizado.
+              </p>
+            </div>
+          )}
         </PageCard>
 
         {/* ================================= */}
@@ -1689,7 +2071,7 @@ export default function NovoAgendamento() {
                 className="text-indigo-500"
               />
 
-              Profissional, sala e convênios são validados automaticamente.
+              Agendamento vinculado à unidade {activeUnit.name}. Profissional, sala e convênios são validados automaticamente.
             </div>
 
             <div className="flex gap-3">

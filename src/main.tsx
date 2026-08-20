@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 
 import { AuthProvider } from "@/auth/AuthContext";
+import { UnitProvider } from "@/providers/UnitContext";
 
 import App from "./App";
 import "./index.css";
@@ -13,7 +14,9 @@ createRoot(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <App />
+        <UnitProvider>
+          <App />
+        </UnitProvider>
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>

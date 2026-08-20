@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  Building2,
   CalendarDays,
   CheckCircle2,
   Clock3,
@@ -44,6 +45,16 @@ import {
   createChargeFromAppointment,
 } from "@/pages/Financeiro/financeStorage";
 
+import {
+  consumeAvailablePatientPackageSession,
+  consumeLinkedPatientPackageSession,
+} from "@/pages/Financeiro/patientPackageStorage";
+
+import {
+  getClinicUnitById,
+  getDefaultClinicUnitId,
+} from "@/pages/Configuracoes/clinicUnitStorage";
+
 /* =========================================
    ATENDIMENTOS DE DEMONSTRAÇÃO
 ========================================= */
@@ -52,6 +63,7 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 1,
     patientId: 1,
+    unitId: getDefaultClinicUnitId(),
     patient: "Maria Oliveira",
     professional: "Dra. Ana Paula",
     specialty: "Psicologia",
@@ -68,6 +80,7 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 2,
     patientId: 2,
+    unitId: getDefaultClinicUnitId(),
     patient: "João Miguel Silva",
     professional: "Dra. Camila Soares",
     specialty: "Fonoaudiologia",
@@ -83,6 +96,7 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 3,
     patientId: 3,
+    unitId: getDefaultClinicUnitId(),
     patient: "Lucas Gabriel",
     professional: "Dra. Ana Paula",
     specialty: "Psicologia",
@@ -98,6 +112,7 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 4,
     patientId: 4,
+    unitId: getDefaultClinicUnitId(),
     patient: "Ana Clara Rodrigues",
     professional: "Dra. Larissa Lima",
     specialty: "Terapia Ocupacional",
@@ -113,6 +128,7 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 5,
     patientId: 5,
+    unitId: getDefaultClinicUnitId(),
     patient: "Pedro Henrique",
     professional: "Dr. Rafael Costa",
     specialty: "Fisioterapia",
@@ -128,6 +144,7 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 6,
     patientId: 1,
+    unitId: getDefaultClinicUnitId(),
     patient: "Maria Oliveira",
     professional: "Dra. Camila Soares",
     specialty: "Fonoaudiologia",
@@ -143,6 +160,7 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 7,
     patientId: 3,
+    unitId: getDefaultClinicUnitId(),
     patient: "Lucas Gabriel",
     professional: "Dra. Ana Paula",
     specialty: "Psicologia",
@@ -158,6 +176,7 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 8,
     patientId: 1,
+    unitId: getDefaultClinicUnitId(),
     patient: "Maria Oliveira",
     professional: "Dra. Ana Paula",
     specialty: "Psicologia",
@@ -316,6 +335,15 @@ export default function DetalheAgendamento() {
     );
   }
 
+  const appointmentUnit =
+    getClinicUnitById(
+      appointment.unitId
+    );
+
+  const appointmentUnitName =
+    appointmentUnit?.name ??
+    "Unidade Principal";
+
   /* =======================================
      VÍNCULO DO PROFISSIONAL
   ======================================= */
@@ -440,37 +468,97 @@ export default function DetalheAgendamento() {
     );
 
     /* =====================================
-       GERAÇÃO DA COBRANÇA
+       PACOTE / GERAÇÃO DA COBRANÇA
     ===================================== */
+
+    let packageSessionConsumed =
+      false;
+
+    let packageAlreadyConsumed =
+      false;
 
     if (
       status ===
       "Realizado"
     ) {
-      createChargeFromAppointment(
-        {
-          appointmentId:
-            appointment.id,
+      const packageResult =
+        appointment.patientPackageId
+          ? consumeLinkedPatientPackageSession({
+              appointmentId:
+                appointment.id,
 
-          patientId:
-            appointment.patientId,
+              patientPackageId:
+                appointment.patientPackageId,
 
-          patient:
-            appointment.patient,
+              patientId:
+                appointment.patientId,
 
-          professional:
-            appointment.professional,
+              unitId:
+                appointment.unitId,
 
-          specialty:
-            appointment.specialty,
+              specialty:
+                appointment.specialty,
+            })
+          : consumeAvailablePatientPackageSession({
+              appointmentId:
+                appointment.id,
 
-          date:
-            appointment.date,
+              patientId:
+                appointment.patientId,
 
-          amount:
-            150,
-        }
-      );
+              unitId:
+                appointment.unitId,
+
+              specialty:
+                appointment.specialty,
+            });
+
+      packageSessionConsumed =
+        packageResult.consumed;
+
+      packageAlreadyConsumed =
+        packageResult.alreadyConsumed;
+
+      /*
+       * Se existe um pacote ativo compatível,
+       * a sessão é consumida e NÃO criamos
+       * uma cobrança avulsa.
+       *
+       * Se não existe pacote disponível,
+       * preservamos o comportamento atual.
+       */
+      if (
+        !packageSessionConsumed &&
+        !packageAlreadyConsumed
+      ) {
+        createChargeFromAppointment(
+          {
+            unitId:
+              appointment.unitId,
+
+            appointmentId:
+              appointment.id,
+
+            patientId:
+              appointment.patientId,
+
+            patient:
+              appointment.patient,
+
+            professional:
+              appointment.professional,
+
+            specialty:
+              appointment.specialty,
+
+            date:
+              appointment.date,
+
+            amount:
+              150,
+          }
+        );
+      }
     }
 
     /* =====================================
@@ -495,9 +583,23 @@ export default function DetalheAgendamento() {
       status ===
       "Realizado"
     ) {
-      setFeedback(
-        "Atendimento realizado com sucesso. A cobrança foi gerada automaticamente no Financeiro."
-      );
+      if (
+        packageSessionConsumed
+      ) {
+        setFeedback(
+          "Atendimento realizado com sucesso. 1 sessão do pacote do paciente foi utilizada e nenhuma cobrança avulsa foi gerada."
+        );
+      } else if (
+        packageAlreadyConsumed
+      ) {
+        setFeedback(
+          "Atendimento realizado. Esta sessão já havia sido descontada do pacote anteriormente."
+        );
+      } else {
+        setFeedback(
+          "Atendimento realizado com sucesso. Como não havia pacote ativo compatível, a cobrança foi gerada automaticamente no Financeiro."
+        );
+      }
     } else {
       setFeedback(
         getStatusMessage(
@@ -770,6 +872,20 @@ export default function DetalheAgendamento() {
                 label="Especialidade"
                 value={
                   appointment.specialty
+                }
+              />
+
+              <Info
+                icon={
+                  <Building2
+                    size={
+                      18
+                    }
+                  />
+                }
+                label="Unidade"
+                value={
+                  appointmentUnitName
                 }
               />
 
