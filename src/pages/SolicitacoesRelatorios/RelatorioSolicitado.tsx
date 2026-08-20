@@ -1120,7 +1120,6 @@ export default function RelatorioSolicitado() {
                   editable
                 }
                 placeholder="Descreva a história do desenvolvimento e o caso clínico..."
-                minHeight="290px"
               />
 
               <SectionTitle>
@@ -1138,7 +1137,6 @@ export default function RelatorioSolicitado() {
                   editable
                 }
                 placeholder="Descreva os instrumentos, procedimentos de avaliação e os resultados encontrados..."
-                minHeight="220px"
               />
             </div>
 
@@ -1153,7 +1151,7 @@ export default function RelatorioSolicitado() {
                 OBJETIVOS TERAPÊUTICOS
               </SectionTitle>
 
-              <div className="report-box min-h-[250px]">
+              <div className="report-box">
                 {objectiveLines.length >
                 0 ? (
                   <div className="space-y-3">
@@ -1211,7 +1209,6 @@ export default function RelatorioSolicitado() {
                   editable
                 }
                 placeholder="Registre a conclusão clínica, orientações e encaminhamentos..."
-                minHeight="340px"
               />
 
               <div className="mt-10 flex justify-end">
@@ -1474,22 +1471,32 @@ export default function RelatorioSolicitado() {
           }
 
           .report-box {
+            width: 100%;
+            height: auto;
+            min-height: 0;
             border: 1px solid #111827;
             padding: 10px;
             font-size: 15px;
-            line-height: 1.85;
+            line-height: 1.55;
             white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            box-sizing: border-box;
           }
 
           .report-editor {
+            display: block;
             width: 100%;
-            resize: vertical;
+            height: auto;
+            min-height: 52px;
+            overflow: hidden;
+            resize: none;
             border: 1px solid #111827;
             padding: 10px;
             font-size: 15px;
-            line-height: 1.85;
+            line-height: 1.55;
             outline: 0;
             background: #fffdf7;
+            box-sizing: border-box;
           }
 
           @media print {
@@ -1544,7 +1551,16 @@ export default function RelatorioSolicitado() {
             }
 
             textarea {
+              height: auto !important;
+              min-height: 0 !important;
+              overflow: visible !important;
               resize: none !important;
+            }
+
+            .report-box,
+            .report-editor {
+              break-inside: avoid;
+              page-break-inside: avoid;
             }
           }
         `}</style>
@@ -1593,7 +1609,6 @@ function ReportTextField({
   onChange,
   editable,
   placeholder,
-  minHeight,
 }: {
   value:
     string;
@@ -1604,42 +1619,78 @@ function ReportTextField({
     boolean;
   placeholder:
     string;
-  minHeight:
-    string;
 }) {
+  const textareaRef =
+    useRef<HTMLTextAreaElement | null>(
+      null
+    );
+
+  function resizeTextarea() {
+    const textarea =
+      textareaRef.current;
+
+    if (!textarea) {
+      return;
+    }
+
+    textarea.style.height =
+      "auto";
+
+    textarea.style.height =
+      `${Math.max(
+        textarea.scrollHeight,
+        52
+      )}px`;
+  }
+
+  useEffect(
+    () => {
+      resizeTextarea();
+    },
+    [
+      value,
+      editable,
+    ]
+  );
+
   if (
     editable
   ) {
     return (
       <textarea
+        ref={
+          textareaRef
+        }
         value={
           value
         }
         onChange={(
           event
-        ) =>
+        ) => {
           onChange(
             event.target.value
-          )
+          );
+
+          requestAnimationFrame(
+            resizeTextarea
+          );
+        }}
+        onInput={
+          resizeTextarea
         }
         placeholder={
           placeholder
         }
+        rows={
+          1
+        }
         className="report-editor"
-        style={{
-          minHeight,
-        }}
       />
     );
   }
 
   return (
-    <div
-      className="report-box"
-      style={{
-        minHeight,
-      }}
-    >
+    <div className="report-box">
       {value ||
         "Não informado."}
     </div>
