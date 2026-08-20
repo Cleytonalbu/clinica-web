@@ -31,7 +31,7 @@ export function RecepcaoFilaAtendimento() {
       <div className="flex items-center gap-3">
         <UsersRound
           size={20}
-          className="text-indigo-600"
+          className="text-cyan-600"
         />
 
         <h2 className="text-lg font-bold text-slate-900">
@@ -50,7 +50,13 @@ export function RecepcaoFilaAtendimento() {
               }
               className="flex items-center gap-3 rounded-xl border border-slate-100 p-4"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                item.position === 1
+                  ? "bg-violet-50 text-violet-700"
+                  : item.position === 2
+                    ? "bg-amber-50 text-amber-700"
+                    : "bg-cyan-50 text-cyan-700"
+              }`}>
                 {
                   item.position
                 }
@@ -88,7 +94,7 @@ export function RecepcaoFilaAtendimento() {
 
       <button
         type="button"
-        className="mt-5 w-full text-sm font-semibold text-indigo-600"
+        className="mt-5 w-full text-sm font-semibold text-violet-600"
       >
         Ver fila completa →
       </button>

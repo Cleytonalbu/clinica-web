@@ -8,7 +8,7 @@ export function RecepcaoBuscaRapida() {
       <div className="flex items-center gap-3">
         <Search
           size={20}
-          className="text-indigo-600"
+          className="text-teal-600"
         />
 
         <h2 className="text-lg font-bold text-slate-900">
@@ -29,7 +29,7 @@ export function RecepcaoBuscaRapida() {
         <input
           type="text"
           placeholder="Buscar paciente ou responsável..."
-          className="h-11 w-full rounded-xl border border-slate-200 pl-10 pr-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+          className="h-11 w-full rounded-xl border border-slate-200 pl-10 pr-3 text-sm outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
         />
       </div>
 
@@ -49,14 +49,14 @@ export function RecepcaoBuscaRapida() {
 
       <button
         type="button"
-        className="mt-3 h-11 w-full rounded-xl bg-indigo-600 text-sm font-bold text-white transition hover:bg-indigo-700"
+        className="mt-3 h-11 w-full rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-sm font-bold text-white shadow-sm transition hover:opacity-95"
       >
         Buscar
       </button>
 
       <button
         type="button"
-        className="mt-4 text-xs font-semibold text-indigo-600"
+        className="mt-4 text-xs font-semibold text-teal-600"
       >
         Busca avançada
       </button>

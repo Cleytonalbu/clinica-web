@@ -15,6 +15,10 @@ interface Metric {
   value: string;
   description: string;
   icon: ReactNode;
+  iconClass: string;
+  progressClass: string;
+  accentClass: string;
+  progressWidth: string;
 }
 
 const metrics: Metric[] = [
@@ -27,6 +31,10 @@ const metrics: Metric[] = [
         size={22}
       />
     ),
+    iconClass: "bg-violet-50 text-violet-600",
+    progressClass: "bg-violet-500",
+    accentClass: "from-violet-500/10 via-transparent to-transparent",
+    progressWidth: "w-[69%]",
   },
 
   {
@@ -38,6 +46,10 @@ const metrics: Metric[] = [
         size={22}
       />
     ),
+    iconClass: "bg-emerald-50 text-emerald-600",
+    progressClass: "bg-emerald-500",
+    accentClass: "from-emerald-500/10 via-transparent to-transparent",
+    progressWidth: "w-[66%]",
   },
 
   {
@@ -49,6 +61,10 @@ const metrics: Metric[] = [
         size={22}
       />
     ),
+    iconClass: "bg-amber-50 text-amber-600",
+    progressClass: "bg-amber-500",
+    accentClass: "from-amber-500/10 via-transparent to-transparent",
+    progressWidth: "w-[17%]",
   },
 
   {
@@ -60,6 +76,10 @@ const metrics: Metric[] = [
         size={22}
       />
     ),
+    iconClass: "bg-sky-50 text-sky-600",
+    progressClass: "bg-sky-500",
+    accentClass: "from-sky-500/10 via-transparent to-transparent",
+    progressWidth: "w-[17%]",
   },
 
   {
@@ -71,6 +91,10 @@ const metrics: Metric[] = [
         size={22}
       />
     ),
+    iconClass: "bg-rose-50 text-rose-600",
+    progressClass: "bg-rose-500",
+    accentClass: "from-rose-500/10 via-transparent to-transparent",
+    progressWidth: "w-[20%]",
   },
 ];
 
@@ -85,9 +109,13 @@ export function RecepcaoMetricCards() {
             key={
               metric.title
             }
-            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+            className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
           >
-            <div className="flex items-start justify-between gap-4">
+            <div
+              className={`pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b ${metric.accentClass}`}
+            />
+
+            <div className="relative flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-medium text-slate-500">
                   {
@@ -102,21 +130,25 @@ export function RecepcaoMetricCards() {
                 </p>
               </div>
 
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+              <div
+                className={`flex h-11 w-11 items-center justify-center rounded-xl ${metric.iconClass}`}
+              >
                 {
                   metric.icon
                 }
               </div>
             </div>
 
-            <p className="mt-4 text-xs font-medium text-slate-400">
+            <p className="relative mt-4 text-xs font-medium text-slate-400">
               {
                 metric.description
               }
             </p>
 
-            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full w-2/3 rounded-full bg-sky-500" />
+            <div className="relative mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className={`h-full rounded-full ${metric.progressClass} ${metric.progressWidth}`}
+              />
             </div>
           </div>
         )

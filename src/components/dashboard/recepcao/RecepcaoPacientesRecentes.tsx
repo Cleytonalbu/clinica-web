@@ -3,6 +3,7 @@ interface RecentPatient {
   name: string;
   time: string;
   initials: string;
+  avatarClass: string;
 }
 
 const patients: RecentPatient[] = [
@@ -11,6 +12,7 @@ const patients: RecentPatient[] = [
     name: "João Miguel",
     time: "Hoje, 07:45",
     initials: "JM",
+    avatarClass: "bg-violet-100 text-violet-700",
   },
 
   {
@@ -18,6 +20,7 @@ const patients: RecentPatient[] = [
     name: "Ana Clara",
     time: "Hoje, 08:30",
     initials: "AC",
+    avatarClass: "bg-emerald-100 text-emerald-700",
   },
 
   {
@@ -25,6 +28,7 @@ const patients: RecentPatient[] = [
     name: "Pedro Henrique",
     time: "Hoje, 08:40",
     initials: "PH",
+    avatarClass: "bg-amber-100 text-amber-700",
   },
 
   {
@@ -32,6 +36,7 @@ const patients: RecentPatient[] = [
     name: "Maria Eduarda",
     time: "Ontem, 16:20",
     initials: "ME",
+    avatarClass: "bg-rose-100 text-rose-700",
   },
 
   {
@@ -39,6 +44,7 @@ const patients: RecentPatient[] = [
     name: "Lucas Gabriel",
     time: "Ontem, 15:10",
     initials: "LG",
+    avatarClass: "bg-sky-100 text-sky-700",
   },
 ];
 
@@ -58,7 +64,7 @@ export function RecepcaoPacientesRecentes() {
 
         <button
           type="button"
-          className="text-xs font-semibold text-indigo-600"
+          className="text-xs font-semibold text-violet-600"
         >
           Ver todos
         </button>
@@ -76,7 +82,7 @@ export function RecepcaoPacientesRecentes() {
               type="button"
               className="text-center"
             >
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
+              <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold ${patient.avatarClass}`}>
                 {
                   patient.initials
                 }

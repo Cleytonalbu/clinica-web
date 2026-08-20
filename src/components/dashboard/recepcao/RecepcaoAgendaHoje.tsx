@@ -101,7 +101,7 @@ export function RecepcaoAgendaHoje() {
         <div className="flex items-center gap-3">
           <CalendarDays
             size={21}
-            className="text-indigo-600"
+            className="text-violet-600"
           />
 
           <h2 className="text-lg font-bold text-slate-900">
@@ -117,7 +117,7 @@ export function RecepcaoAgendaHoje() {
                 "/agenda"
               )
             }
-            className="rounded-xl border border-indigo-200 px-4 py-2.5 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-50"
+            className="rounded-xl border border-violet-200 px-4 py-2.5 text-sm font-semibold text-violet-600 transition hover:bg-violet-50"
           >
             Ver agenda completa
           </button>
@@ -129,7 +129,7 @@ export function RecepcaoAgendaHoje() {
                 "/agenda/novo"
               )
             }
-            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-indigo-700"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:opacity-95"
           >
             <Plus
               size={17}
@@ -187,7 +187,7 @@ export function RecepcaoAgendaHoje() {
               </div>
 
               <div>
-                <span className="inline-flex rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-600">
+                <span className="inline-flex rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-600">
                   {
                     appointment.tag
                   }
@@ -235,7 +235,7 @@ export function RecepcaoAgendaHoje() {
               "/agenda"
             )
           }
-          className="text-sm font-semibold text-indigo-600"
+          className="text-sm font-semibold text-violet-600"
         >
           Ver todos os agendamentos do dia →
         </button>
@@ -253,11 +253,11 @@ function StatusBadge({
   const style =
     status ===
     "Em atendimento"
-      ? "bg-emerald-50 text-emerald-600"
+      ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
       : status ===
         "Aguardando"
-      ? "bg-sky-50 text-sky-600"
-      : "bg-indigo-50 text-indigo-600";
+      ? "bg-sky-50 text-sky-700 ring-1 ring-sky-100"
+      : "bg-violet-50 text-violet-700 ring-1 ring-violet-100";
 
   return (
     <span
