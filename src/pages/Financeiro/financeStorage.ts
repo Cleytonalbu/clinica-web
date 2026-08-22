@@ -16,6 +16,8 @@ export type FinancialChargeStatus =
 export interface FinancialCharge {
   id: number;
 
+  unitId: number;
+
   appointmentId: number;
 
   patientId: number;
@@ -129,6 +131,8 @@ export function saveFinancialCharge(
 }
 
 interface CreateChargeData {
+  unitId: number;
+
   appointmentId: number;
 
   patientId: number;
@@ -223,6 +227,9 @@ export function createChargeFromAppointment(
   const charge: FinancialCharge = {
     id:
       Date.now(),
+
+    unitId:
+      data.unitId,
 
     appointmentId:
       data.appointmentId,
@@ -470,4 +477,151 @@ export function getPatientFinancialHistory(
           a.createdAt
         ).getTime()
     );
+}
+
+interface CreatePaidReceiptData {
+  unitId: number;
+  patientId: number;
+  patient: string;
+  description: string;
+  date: string;
+  paymentMethod: PaymentMethod;
+  amount: number;
+  specialty?: string;
+  professional?: string;
+  observation?: string;
+  sourceId?: number;
+
+  billingType?: BillingType;
+  convenio?: string;
+
+  bankAccountId?: string;
+  bankAccountName?: string;
+
+  sourceType?: string;
+  sourceReference?: string;
+}
+
+export function createPaidFinancialReceipt(
+  data: CreatePaidReceiptData
+) {
+  const sourceAppointmentId =
+    data.sourceId !== undefined
+      ? -Math.abs(data.sourceId)
+      : -Date.now();
+
+  const existing =
+    getFinancialCharges().find(
+      (item) =>
+        item.unitId ===
+          data.unitId &&
+        (
+          item.appointmentId ===
+            sourceAppointmentId ||
+          (
+            data.sourceReference &&
+            item.sourceReference ===
+              data.sourceReference
+          )
+        )
+    );
+
+  if (existing) {
+    return existing;
+  }
+
+  const now =
+    new Date().toISOString();
+
+  const charge: FinancialCharge = {
+    id:
+      Date.now(),
+
+    unitId:
+      data.unitId,
+
+    appointmentId:
+      sourceAppointmentId,
+
+    patientId:
+      data.patientId,
+
+    patient:
+      data.patient,
+
+    professional:
+      data.professional ??
+      "Recepção",
+
+    specialty:
+      data.specialty ??
+      "Pacote",
+
+    description:
+      data.description,
+
+    date:
+      data.date,
+
+    dueDate:
+      data.date,
+
+    billingType:
+      data.billingType ??
+      "Particular",
+
+    convenio:
+      data.convenio,
+
+    paymentMethod:
+      data.paymentMethod,
+
+    originalAmount:
+      data.amount,
+
+    discount:
+      0,
+
+    surcharge:
+      0,
+
+    amount:
+      data.amount,
+
+    receivedAmount:
+      data.amount,
+
+    status:
+      "Pago",
+
+    paidAt:
+      now,
+
+    paymentDate:
+      data.date,
+
+    paymentObservation:
+      data.observation,
+
+    bankAccountId:
+      data.bankAccountId,
+
+    bankAccountName:
+      data.bankAccountName,
+
+    sourceType:
+      data.sourceType,
+
+    sourceReference:
+      data.sourceReference,
+
+    createdAt:
+      now,
+  };
+
+  saveFinancialCharge(
+    charge
+  );
+
+  return charge;
 }

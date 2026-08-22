@@ -55,6 +55,10 @@ import {
 } from "@/pages/Financeiro/financeRules";
 
 import {
+  createChargeFromAppointment,
+} from "@/pages/Financeiro/financeStorage";
+
+import {
   getActiveConvenios,
   getActiveProfessionals,
   getActiveRooms,
@@ -1102,8 +1106,68 @@ export default function NovoAgendamento() {
         appointment
       );
 
+      /*
+       * NOVA REGRA FINANCEIRA
+       *
+       * Atendimento avulso:
+       * a cobrança nasce no momento do agendamento,
+       * permitindo pagamento antes da consulta.
+       *
+       * Atendimento por pacote:
+       * não gera cobrança avulsa. A sessão só será
+       * consumida quando o atendimento for Realizado.
+       */
+      if (
+        !selectedPatientPackage &&
+        formData.billingType !==
+          "Convênio"
+      ) {
+        createChargeFromAppointment({
+          unitId:
+            activeUnitId,
+
+          appointmentId:
+            appointment.id,
+
+          patientId:
+            selectedPatient.id,
+
+          patient:
+            selectedPatient.nome,
+
+          professional:
+            formData.professional,
+
+          specialty:
+            formData.specialty,
+
+          date:
+            formData.date,
+
+          billingType:
+            formData.billingType,
+
+          convenio:
+            formData.billingType ===
+            "Convênio"
+              ? formData.convenio
+              : undefined,
+
+          paymentMethod:
+            formData.paymentMethod,
+
+          amount:
+            serviceValue,
+        });
+      }
+
       setFeedback(
-        "Agendamento criado com sucesso."
+        selectedPatientPackage
+          ? "Agendamento criado com sucesso e vinculado ao pacote."
+          : formData.billingType ===
+              "Convênio"
+            ? "Agendamento de convênio criado com sucesso. A produção será gerada quando o atendimento for realizado."
+            : "Agendamento criado com sucesso. A cobrança já está disponível para recebimento."
       );
 
       setFeedbackType(

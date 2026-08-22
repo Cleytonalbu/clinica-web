@@ -48,6 +48,7 @@ import {
 } from "@/components/ui";
 
 import {
+  createPaidFinancialReceipt,
   getFinancialCharges,
   receiveFinancialCharge,
   type FinancialCharge,
@@ -55,12 +56,20 @@ import {
 
 import {
   getFinancialExpenses,
+  saveFinancialExpense,
   type FinancialExpense,
 } from "./expenseStorage";
 
 import {
   formatCurrency,
 } from "./financeRules";
+import {
+  openReceiptPrint,
+} from "./receiptPrint";
+
+import {
+  getClinicUnitById,
+} from "@/pages/Configuracoes/clinicUnitStorage";
 
 import {
   getActivePackagePlansByUnit,
@@ -277,9 +286,25 @@ function FinanceiroRecepcao() {
     useNavigate();
 
   const {
+    user,
+  } =
+    useAuth();
+
+  const {
     activeUnitId,
   } =
     useUnit();
+
+  const activeUnit =
+    useMemo(
+      () =>
+        getClinicUnitById(
+          activeUnitId
+        ),
+      [
+        activeUnitId,
+      ]
+    );
 
   const today =
     getTodayIso();
@@ -361,6 +386,7 @@ function FinanceiroRecepcao() {
   ] =
     useState<
       | "novo"
+      | "pendentes"
       | "consultar"
     >(
       "novo"
@@ -386,6 +412,18 @@ function FinanceiroRecepcao() {
       ReceptionMovementType
     >(
       "Recebimento"
+    );
+
+  const [
+    receiptOrigin,
+    setReceiptOrigin,
+  ] =
+    useState<
+      | "charge"
+      | "package"
+      | "other"
+    >(
+      "charge"
     );
 
   const [
@@ -637,7 +675,36 @@ function FinanceiroRecepcao() {
 
   useEffect(
     () => {
+      setChargeId(
+        ""
+      );
+
+      setPackagePlanId(
+        ""
+      );
+
+      setInstallments(
+        "1"
+      );
+
+      setDescription(
+        ""
+      );
+
+      setAmount(
+        ""
+      );
+    },
+    [
+      receiptOrigin,
+    ]
+  );
+
+  useEffect(
+    () => {
       if (
+        receiptOrigin !==
+          "charge" ||
         !selectedCharge ||
         selectedPackagePlan
       ) {
@@ -683,12 +750,15 @@ function FinanceiroRecepcao() {
     [
       selectedCharge,
       selectedPackagePlan,
+      receiptOrigin,
     ]
   );
 
   useEffect(
     () => {
       if (
+        receiptOrigin !==
+          "package" ||
         !selectedPackagePlan
       ) {
         return;
@@ -719,6 +789,7 @@ function FinanceiroRecepcao() {
     },
     [
       selectedPackagePlan,
+      receiptOrigin,
     ]
   );
 
@@ -920,6 +991,9 @@ function FinanceiroRecepcao() {
     setType(
       "Recebimento"
     );
+    setReceiptOrigin(
+      "charge"
+    );
     setPatientId(
       ""
     );
@@ -950,6 +1024,57 @@ function FinanceiroRecepcao() {
     setPrintReceipt(
       true
     );
+  }
+
+  function handleReceivePendingCharge(
+    charge:
+      FinancialCharge
+  ) {
+    setActiveTab(
+      "novo"
+    );
+
+    setType(
+      "Recebimento"
+    );
+
+    setReceiptOrigin(
+      "charge"
+    );
+
+    setPatientId(
+      String(
+        charge.patientId
+      )
+    );
+
+    /*
+     * O patientId dispara a atualização do formulário.
+     * Aplicamos a cobrança logo após o React processar
+     * essa troca para que descrição e valor sejam
+     * preenchidos pelo efeito de selectedCharge.
+     */
+    window.setTimeout(
+      () => {
+        setChargeId(
+          String(
+            charge.id
+          )
+        );
+
+        setPackagePlanId(
+          ""
+        );
+      },
+      0
+    );
+
+    window.scrollTo({
+      top:
+        0,
+      behavior:
+        "smooth",
+    });
   }
 
   function handleSaveMovement() {
@@ -996,11 +1121,12 @@ function FinanceiroRecepcao() {
     if (
       type ===
         "Recebimento" &&
-      !selectedCharge &&
-      !selectedPackagePlan
+      receiptOrigin ===
+        "charge" &&
+      !selectedCharge
     ) {
       window.alert(
-        "Selecione uma cobrança avulsa ou um plano/pacote."
+        "Selecione a cobrança pendente que será recebida."
       );
 
       return;
@@ -1009,6 +1135,22 @@ function FinanceiroRecepcao() {
     if (
       type ===
         "Recebimento" &&
+      receiptOrigin ===
+        "package" &&
+      !selectedPackagePlan
+    ) {
+      window.alert(
+        "Selecione o plano/pacote que será adquirido."
+      );
+
+      return;
+    }
+
+    if (
+      type ===
+        "Recebimento" &&
+      receiptOrigin ===
+        "package" &&
       selectedPackagePlan
     ) {
       const installmentCount =
@@ -1066,6 +1208,43 @@ function FinanceiroRecepcao() {
       purchasedPatientPackageId =
         purchasedPackage.id;
 
+      /*
+       * A venda do pacote também precisa existir
+       * no financeiro central. Assim Gestor e
+       * Administrativo enxergam o mesmo recebimento
+       * registrado pela Recepção.
+       */
+      createPaidFinancialReceipt({
+        unitId:
+          activeUnitId,
+        patientId:
+          selectedPatient.id,
+        patient:
+          selectedPatient.nome,
+        description:
+          `Pacote - ${selectedPackagePlan.name}`,
+        date,
+        paymentMethod:
+          paymentMethod as any,
+        amount:
+          numericAmount,
+        specialty:
+          selectedPackagePlan.items
+            .map(
+              (item) =>
+                item.specialty
+            )
+            .join(" + "),
+        observation:
+          observation.trim(),
+        sourceId:
+          purchasedPackage.id,
+      });
+
+      setCharges(
+        getFinancialCharges()
+      );
+
       setPatientPackages(
         getPatientPackagesByPatient(
           selectedPatient.id,
@@ -1075,6 +1254,8 @@ function FinanceiroRecepcao() {
     } else if (
       type ===
         "Recebimento" &&
+      receiptOrigin ===
+        "charge" &&
       selectedCharge
     ) {
       receiveFinancialCharge(
@@ -1100,6 +1281,113 @@ function FinanceiroRecepcao() {
       setCharges(
         getFinancialCharges()
       );
+    }
+
+    /*
+     * Outros recebimentos sem atendimento também
+     * entram no financeiro central como receita paga.
+     */
+    if (
+      type ===
+        "Recebimento" &&
+      receiptOrigin ===
+        "other"
+    ) {
+      createPaidFinancialReceipt({
+        unitId:
+          activeUnitId,
+        patientId:
+          selectedPatient.id,
+        patient:
+          selectedPatient.nome,
+        description:
+          description.trim(),
+        date,
+        paymentMethod:
+          paymentMethod as any,
+        amount:
+          numericAmount,
+        specialty:
+          "Outro recebimento",
+        professional:
+          "Recepção",
+        observation:
+          observation.trim(),
+        sourceId:
+          Date.now(),
+      });
+
+      setCharges(
+        getFinancialCharges()
+      );
+    }
+
+    /*
+     * Saídas lançadas pela Recepção também são
+     * registradas no financeiro central como
+     * despesas pagas, evitando um caixa paralelo.
+     */
+    if (
+      type ===
+      "Saída"
+    ) {
+      saveFinancialExpense({
+        id:
+          Date.now(),
+
+        unitId:
+          activeUnitId,
+
+        description:
+          description.trim(),
+
+        category:
+          "Outros",
+
+        supplier:
+          selectedPatient.nome,
+
+        competenceDate:
+          date.slice(
+            0,
+            7
+          ),
+
+        dueDate:
+          date,
+
+        paymentDate:
+          date,
+
+        amount:
+          numericAmount,
+
+        originalAmount:
+          numericAmount,
+
+        paidAmount:
+          numericAmount,
+
+        discount:
+          0,
+
+        surcharge:
+          0,
+
+        status:
+          "Pago",
+
+        paymentMethod,
+
+        observation:
+          observation.trim(),
+
+        paymentObservation:
+          observation.trim(),
+
+        createdAt:
+          new Date().toISOString(),
+      });
     }
 
     const movement:
@@ -1146,20 +1434,96 @@ function FinanceiroRecepcao() {
       type ===
         "Recebimento"
     ) {
-      window.setTimeout(
-        () => {
-          window.print();
-        },
-        120
-      );
+      const receiptSpecialty =
+        receiptOrigin ===
+          "package"
+          ? selectedPackagePlan?.items
+              .map(
+                (
+                  item
+                ) =>
+                  item.specialty
+              )
+              .join(
+                " + "
+              )
+          : receiptOrigin ===
+              "charge"
+            ? selectedCharge?.specialty
+            : "Outro recebimento";
+
+      openReceiptPrint({
+        receiptNumber:
+          String(
+            movement.id
+          ),
+
+        clinicName:
+          "Clínica Integrada Entre Afetos",
+
+        unitName:
+          activeUnit?.name,
+
+        clinicAddress:
+          activeUnit?.address,
+
+        clinicCityState:
+          [
+            activeUnit?.city,
+            activeUnit?.state,
+          ]
+            .filter(
+              Boolean
+            )
+            .join(
+              " - "
+            ),
+
+        clinicPhone:
+          activeUnit?.phone,
+
+        patient:
+          selectedPatient.nome,
+
+        responsible:
+          selectedPatient.responsavelNome,
+
+        description:
+          description.trim(),
+
+        specialty:
+          receiptSpecialty,
+
+        amount:
+          numericAmount,
+
+        paymentMethod,
+
+        paymentDate:
+          date,
+
+        paymentTime:
+          movement.time,
+
+        observation:
+          observation.trim(),
+
+        receivedBy:
+          user?.name ||
+          "Recepção",
+      });
     }
 
     window.alert(
       type ===
         "Recebimento"
-        ? selectedPackagePlan
+        ? receiptOrigin ===
+            "package"
           ? "Pacote adquirido e recebimento registrado com sucesso."
-          : "Recebimento registrado com sucesso."
+          : receiptOrigin ===
+              "other"
+            ? "Outro recebimento registrado com sucesso."
+            : "Recebimento registrado com sucesso."
         : "Saída registrada com sucesso."
     );
 
@@ -1247,6 +1611,44 @@ function FinanceiroRecepcao() {
                   type="button"
                   onClick={() =>
                     setActiveTab(
+                      "pendentes"
+                    )
+                  }
+                  className={`border-b-2 px-1 pb-3 text-sm font-bold transition ${
+                    activeTab ===
+                    "pendentes"
+                      ? "border-[#6744ef] text-[#6744ef]"
+                      : "border-transparent text-[#75809d]"
+                  }`}
+                >
+                  Cobranças pendentes
+
+                  {unitCharges.filter(
+                    (
+                      charge
+                    ) =>
+                      charge.status ===
+                      "Pendente"
+                  ).length >
+                    0 && (
+                    <span className="ml-2 rounded-full bg-[#fff1db] px-2 py-0.5 text-[10px] font-extrabold text-[#d48616]">
+                      {
+                        unitCharges.filter(
+                          (
+                            charge
+                          ) =>
+                            charge.status ===
+                            "Pendente"
+                        ).length
+                      }
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActiveTab(
                       "consultar"
                     )
                   }
@@ -1319,11 +1721,23 @@ function FinanceiroRecepcao() {
                         }
                         onChange={(
                           event
-                        ) =>
+                        ) => {
+                          const nextType =
+                            event.target.value as ReceptionMovementType;
+
                           setType(
-                            event.target.value as ReceptionMovementType
-                          )
-                        }
+                            nextType
+                          );
+
+                          if (
+                            nextType ===
+                            "Recebimento"
+                          ) {
+                            setReceiptOrigin(
+                              "charge"
+                            );
+                          }
+                        }}
                         className="reception-input"
                       >
                         <option value="Recebimento">
@@ -1336,12 +1750,52 @@ function FinanceiroRecepcao() {
                       </select>
                     </ReceptionField>
 
-                    {/* PLANO / PACOTE */}
+                    {/* ORIGEM DO RECEBIMENTO */}
 
                     {type ===
                       "Recebimento" && (
                       <ReceptionField
-                        label="Plano / Pacote"
+                        label="Origem do recebimento *"
+                      >
+                        <select
+                          value={
+                            receiptOrigin
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            setReceiptOrigin(
+                              event.target.value as
+                                | "charge"
+                                | "package"
+                                | "other"
+                            )
+                          }
+                          className="reception-input"
+                        >
+                          <option value="charge">
+                            Cobrança de atendimento
+                          </option>
+
+                          <option value="package">
+                            Plano / Pacote
+                          </option>
+
+                          <option value="other">
+                            Outro recebimento
+                          </option>
+                        </select>
+                      </ReceptionField>
+                    )}
+
+                    {/* PLANO / PACOTE */}
+
+                    {type ===
+                      "Recebimento" &&
+                      receiptOrigin ===
+                        "package" && (
+                      <ReceptionField
+                        label="Plano / Pacote *"
                       >
                         <select
                           value={
@@ -1399,6 +1853,14 @@ function FinanceiroRecepcao() {
 
                     {/* COBRANÇA */}
 
+                    {(type ===
+                      "Saída" ||
+                      (
+                        type ===
+                          "Recebimento" &&
+                        receiptOrigin ===
+                          "charge"
+                      )) && (
                     <ReceptionField
                       label={
                         type ===
@@ -1473,6 +1935,7 @@ function FinanceiroRecepcao() {
                         />
                       )}
                     </ReceptionField>
+                    )}
 
                     {/* DATA */}
 
@@ -1609,6 +2072,8 @@ function FinanceiroRecepcao() {
 
                     {type ===
                       "Recebimento" &&
+                      receiptOrigin ===
+                        "package" &&
                       selectedPackagePlan && (
                         <div className="xl:col-span-2 rounded-xl border border-[#e3dcff] bg-[#faf8ff] p-4">
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1826,6 +2291,22 @@ function FinanceiroRecepcao() {
                     </div>
                   </div>
                 </div>
+              ) : activeTab ===
+                "pendentes" ? (
+                <ReceptionPendingChargesTable
+                  charges={
+                    unitCharges.filter(
+                      (
+                        charge
+                      ) =>
+                        charge.status ===
+                        "Pendente"
+                    )
+                  }
+                  onReceive={
+                    handleReceivePendingCharge
+                  }
+                />
               ) : (
                 <ReceptionMovementsTable
                   movements={
@@ -2383,6 +2864,179 @@ function ReceptionField({
 
       {children}
     </label>
+  );
+}
+
+function ReceptionPendingChargesTable({
+  charges,
+  onReceive,
+}: {
+  charges:
+    FinancialCharge[];
+  onReceive:
+    (
+      charge:
+        FinancialCharge
+    ) => void;
+}) {
+  const sorted =
+    [
+      ...charges,
+    ].sort(
+      (
+        a,
+        b
+      ) =>
+        a.dueDate.localeCompare(
+          b.dueDate
+        )
+    );
+
+  if (
+    sorted.length ===
+    0
+  ) {
+    return (
+      <div className="px-5 py-12 text-center">
+        <CheckCircle2
+          size={32}
+          className="mx-auto text-emerald-400"
+        />
+
+        <p className="mt-3 text-sm font-extrabold text-[#52607f]">
+          Nenhuma cobrança pendente
+        </p>
+
+        <p className="mt-1 text-xs text-[#9aa3b8]">
+          As cobranças dos atendimentos realizados aparecerão aqui.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <div className="border-b border-[#eef0f5] bg-[#fcfcfe] px-5 py-3">
+        <p className="text-xs font-semibold text-[#7e88a2]">
+          {sorted.length} cobrança(s) aguardando recebimento.
+        </p>
+      </div>
+
+      <table className="w-full min-w-[900px]">
+        <thead>
+          <tr className="border-b border-[#e9ecf4] bg-[#fbfbfe] text-left">
+            <TableHeader>
+              Paciente
+            </TableHeader>
+
+            <TableHeader>
+              Atendimento
+            </TableHeader>
+
+            <TableHeader>
+              Data
+            </TableHeader>
+
+            <TableHeader>
+              Vencimento
+            </TableHeader>
+
+            <TableHeader>
+              Valor
+            </TableHeader>
+
+            <TableHeader>
+              Status
+            </TableHeader>
+
+            <TableHeader>
+              Ação
+            </TableHeader>
+          </tr>
+        </thead>
+
+        <tbody>
+          {sorted.map(
+            (
+              charge
+            ) => (
+              <tr
+                key={
+                  charge.id
+                }
+                className="border-b border-[#eef0f5] last:border-b-0 hover:bg-[#fcfbff]"
+              >
+                <TableCell>
+                  <p className="font-extrabold text-[#445174]">
+                    {
+                      charge.patient
+                    }
+                  </p>
+                </TableCell>
+
+                <TableCell>
+                  <p className="font-semibold text-[#596581]">
+                    {
+                      charge.description
+                    }
+                  </p>
+
+                  <p className="mt-1 text-[10px] text-[#99a1b4]">
+                    {
+                      charge.specialty
+                    }{" "}
+                    •{" "}
+                    {
+                      charge.professional
+                    }
+                  </p>
+                </TableCell>
+
+                <TableCell>
+                  {formatDate(
+                    charge.date
+                  )}
+                </TableCell>
+
+                <TableCell>
+                  {formatDate(
+                    charge.dueDate
+                  )}
+                </TableCell>
+
+                <TableCell>
+                  <p className="font-extrabold text-[#3d496c]">
+                    {formatCurrency(
+                      charge.amount
+                    )}
+                  </p>
+                </TableCell>
+
+                <TableCell>
+                  <span className="rounded-full bg-[#fff4dd] px-2.5 py-1 text-[10px] font-extrabold text-[#c98013]">
+                    Pendente
+                  </span>
+                </TableCell>
+
+                <TableCell>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onReceive(
+                        charge
+                      )
+                    }
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#6744ef] px-3 text-[10px] font-extrabold text-white shadow-[0_5px_12px_rgba(103,68,239,0.18)] hover:bg-[#5936df]"
+                  >
+                    Receber
+                  </button>
+                </TableCell>
+              </tr>
+            )
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

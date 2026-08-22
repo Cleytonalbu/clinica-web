@@ -18,6 +18,8 @@ export type ExpenseCategory =
 export interface FinancialExpense {
   id: number;
 
+  unitId: number;
+
   description: string;
 
   category: ExpenseCategory;

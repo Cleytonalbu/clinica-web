@@ -43,10 +43,10 @@ import {
 
 import {
   createChargeFromAppointment,
+  getFinancialCharges,
 } from "@/pages/Financeiro/financeStorage";
 
 import {
-  consumeAvailablePatientPackageSession,
   consumeLinkedPatientPackageSession,
 } from "@/pages/Financeiro/patientPackageStorage";
 
@@ -54,6 +54,10 @@ import {
   getClinicUnitById,
   getDefaultClinicUnitId,
 } from "@/pages/Configuracoes/clinicUnitStorage";
+
+import {
+  createGuiaFromAppointment,
+} from "@/pages/GuiasConvenios/guideBillingStorage";
 
 /* =========================================
    ATENDIMENTOS DE DEMONSTRAÇÃO
@@ -477,62 +481,157 @@ export default function DetalheAgendamento() {
     let packageAlreadyConsumed =
       false;
 
+    let fallbackChargeCreated =
+      false;
+
     if (
       status ===
       "Realizado"
     ) {
-      const packageResult =
-        appointment.patientPackageId
-          ? consumeLinkedPatientPackageSession({
-              appointmentId:
-                appointment.id,
-
-              patientPackageId:
-                appointment.patientPackageId,
-
-              patientId:
-                appointment.patientId,
-
-              unitId:
-                appointment.unitId,
-
-              specialty:
-                appointment.specialty,
-            })
-          : consumeAvailablePatientPackageSession({
-              appointmentId:
-                appointment.id,
-
-              patientId:
-                appointment.patientId,
-
-              unitId:
-                appointment.unitId,
-
-              specialty:
-                appointment.specialty,
-            });
-
-      packageSessionConsumed =
-        packageResult.consumed;
-
-      packageAlreadyConsumed =
-        packageResult.alreadyConsumed;
-
       /*
-       * Se existe um pacote ativo compatível,
-       * a sessão é consumida e NÃO criamos
-       * uma cobrança avulsa.
+       * Se a Recepção escolheu um pacote no agendamento,
+       * consumimos EXATAMENTE aquele pacote.
        *
-       * Se não existe pacote disponível,
-       * preservamos o comportamento atual.
+       * Não procuramos mais outro pacote automaticamente:
+       * a escolha feita no agendamento é a referência.
        */
       if (
-        !packageSessionConsumed &&
-        !packageAlreadyConsumed
+        appointment.billingType ===
+          "Convênio" &&
+        appointment.convenio
       ) {
-        createChargeFromAppointment(
-          {
+        /*
+         * Convênio não gera cobrança para o paciente.
+         * Quando o atendimento é realizado, ele entra
+         * automaticamente na produção da competência.
+         */
+        createGuiaFromAppointment({
+          unitId:
+            appointment.unitId,
+          appointmentId:
+            appointment.id,
+          convenio:
+            appointment.convenio,
+          paciente:
+            appointment.patient,
+          professional:
+            appointment.professional,
+          specialty:
+            appointment.specialty,
+          dataAtendimento:
+            appointment.date,
+          valorUnitario:
+            appointment.serviceValue ?? 0,
+        });
+      } else if (
+        appointment.patientPackageId
+      ) {
+        const packageResult =
+          consumeLinkedPatientPackageSession({
+            appointmentId:
+              appointment.id,
+
+            patientPackageId:
+              appointment.patientPackageId,
+
+            patientId:
+              appointment.patientId,
+
+            unitId:
+              appointment.unitId,
+
+            specialty:
+              appointment.specialty,
+          });
+
+        packageSessionConsumed =
+          packageResult.consumed;
+
+        packageAlreadyConsumed =
+          packageResult.alreadyConsumed;
+
+        /*
+         * Segurança:
+         * se o pacote vinculado deixou de ter sessão disponível
+         * antes da realização, criamos cobrança avulsa para que
+         * o atendimento não fique sem cobertura financeira.
+         */
+        if (
+          !packageSessionConsumed &&
+          !packageAlreadyConsumed
+        ) {
+          const existingCharge =
+            getFinancialCharges().find(
+              (
+                charge
+              ) =>
+                charge.appointmentId ===
+                appointment.id
+            );
+
+          if (
+            !existingCharge
+          ) {
+            createChargeFromAppointment({
+              unitId:
+                appointment.unitId,
+
+              appointmentId:
+                appointment.id,
+
+              patientId:
+                appointment.patientId,
+
+              patient:
+                appointment.patient,
+
+              professional:
+                appointment.professional,
+
+              specialty:
+                appointment.specialty,
+
+              date:
+                appointment.date,
+
+              billingType:
+                appointment.billingType,
+
+              convenio:
+                appointment.convenio,
+
+              paymentMethod:
+                appointment.paymentMethod,
+
+              amount:
+                appointment.serviceValue,
+            });
+
+            fallbackChargeCreated =
+              true;
+          }
+        }
+      } else {
+        /*
+         * Atendimento avulso:
+         * a cobrança já deve ter sido criada no agendamento.
+         *
+         * Este trecho apenas mantém compatibilidade com
+         * agendamentos antigos, criados antes desta regra.
+         */
+        const existingCharge =
+          getFinancialCharges().find(
+            (
+              charge
+            ) =>
+              charge.appointmentId ===
+              appointment.id
+          );
+
+        if (
+          !existingCharge
+        ) {
+          createChargeFromAppointment({
             unitId:
               appointment.unitId,
 
@@ -554,10 +653,22 @@ export default function DetalheAgendamento() {
             date:
               appointment.date,
 
+            billingType:
+              appointment.billingType,
+
+            convenio:
+              appointment.convenio,
+
+            paymentMethod:
+              appointment.paymentMethod,
+
             amount:
-              150,
-          }
-        );
+              appointment.serviceValue,
+          });
+
+          fallbackChargeCreated =
+            true;
+        }
       }
     }
 
@@ -584,10 +695,18 @@ export default function DetalheAgendamento() {
       "Realizado"
     ) {
       if (
+        appointment.billingType ===
+          "Convênio" &&
+        appointment.convenio
+      ) {
+        setFeedback(
+          "Atendimento realizado com sucesso. Ele foi incluído automaticamente na produção do convênio."
+        );
+      } else if (
         packageSessionConsumed
       ) {
         setFeedback(
-          "Atendimento realizado com sucesso. 1 sessão do pacote do paciente foi utilizada e nenhuma cobrança avulsa foi gerada."
+          "Atendimento realizado com sucesso. 1 sessão do pacote vinculado foi utilizada."
         );
       } else if (
         packageAlreadyConsumed
@@ -595,9 +714,17 @@ export default function DetalheAgendamento() {
         setFeedback(
           "Atendimento realizado. Esta sessão já havia sido descontada do pacote anteriormente."
         );
+      } else if (
+        fallbackChargeCreated
+      ) {
+        setFeedback(
+          appointment.patientPackageId
+            ? "Atendimento realizado. O pacote vinculado não tinha sessão disponível, então uma cobrança avulsa foi criada."
+            : "Atendimento realizado. A cobrança deste agendamento antigo foi criada no Financeiro."
+        );
       } else {
         setFeedback(
-          "Atendimento realizado com sucesso. Como não havia pacote ativo compatível, a cobrança foi gerada automaticamente no Financeiro."
+          "Atendimento realizado com sucesso. A cobrança já estava disponível no Financeiro desde o agendamento."
         );
       }
     } else {

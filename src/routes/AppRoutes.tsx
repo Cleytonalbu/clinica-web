@@ -661,14 +661,14 @@ export function AppRoutes() {
 
 
       {/* ========================================= */}
-      {/* GUIAS E FATURAMENTO DE CONVÊNIOS */}
-      {/* SOMENTE ADMINISTRATIVO */}
+      {/* PRODUÇÃO E FATURAMENTO DE CONVÊNIOS */}
+      {/* GESTOR + ADMINISTRATIVO */}
       {/* ========================================= */}
 
       <Route
         path="/guias-convenios"
         element={
-          <ProfileRoute allowedProfiles={["Administrativo"]}>
+          <ProfileRoute allowedProfiles={["Gestor", "Administrativo"]}>
             <ProtectedRoute module="financial" action="view">
               <GuiasConvenios />
             </ProtectedRoute>

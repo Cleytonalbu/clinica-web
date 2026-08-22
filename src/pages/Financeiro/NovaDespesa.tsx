@@ -18,6 +18,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   Button,
   FormField,
   Input,
@@ -103,6 +107,11 @@ const categories:
 ========================================= */
 
 export default function NovaDespesa() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const navigate =
     useNavigate();
 
@@ -280,6 +289,9 @@ export default function NovaDespesa() {
         FinancialExpense = {
         id:
           Date.now(),
+
+        unitId:
+          activeUnitId,
 
         description:
           formData.description.trim(),
