@@ -336,3 +336,52 @@ export function createManualBankTransaction(
 
   return transaction;
 }
+
+/* =========================================
+   REMOVER MOVIMENTAÇÃO MANUAL
+   Usado para rollback de operações financeiras
+   que falharam antes da conclusão.
+========================================= */
+
+export function removeManualBankTransaction(
+  transactionId: string
+) {
+  const current =
+    getBankTransactions();
+
+  const transaction =
+    current.find(
+      (
+        item
+      ) =>
+        item.id ===
+        transactionId
+    );
+
+  if (!transaction) {
+    return;
+  }
+
+  if (
+    transaction.source !==
+    "Manual"
+  ) {
+    throw new Error(
+      "Somente movimentações manuais podem ser removidas por rollback."
+    );
+  }
+
+  saveBankTransactions(
+    current.filter(
+      (
+        item
+      ) =>
+        item.id !==
+        transactionId
+    )
+  );
+
+  recalculateBankAccountBalance(
+    transaction.accountId
+  );
+}

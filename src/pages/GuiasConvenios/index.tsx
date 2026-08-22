@@ -9,6 +9,8 @@ import {
   CircleDollarSign,
   ClipboardCheck,
   FileWarning,
+  Gavel,
+  RotateCcw,
   FolderClosed,
   PackageCheck,
   Plus,
@@ -21,14 +23,17 @@ import { useUnit } from "@/providers/UnitContext";
 import {
   closeLoteConvenio,
   createGuiaConvenio,
+  createRecursoGlosa,
   createLoteConvenio,
   getGuiasByLote,
   getGuiasConvenios,
   getLoteConvenioById,
   getLotesConvenios,
+  getRecursosGlosa,
   markLoteConvenioInAnalysis,
   registerLoteConvenioRepasse,
   registerLoteConvenioReturn,
+  registerRecursoGlosaReturn,
   reopenLoteConvenio,
   resetLoteConvenioReturn,
   sendLoteConvenio,
@@ -37,6 +42,7 @@ import {
   type GuiaConvenioStatus,
   type LoteConvenio,
   type LoteConvenioStatus,
+  type RecursoGlosa,
 } from "./guideBillingStorage";
 
 
@@ -250,6 +256,113 @@ export default function GuiasConvenios() {
       false
     );
 
+
+  const [
+    recursosGlosa,
+    setRecursosGlosa,
+  ] =
+    useState<
+      RecursoGlosa[]
+    >(
+      []
+    );
+
+  const [
+    recursoGuia,
+    setRecursoGuia,
+  ] =
+    useState<
+      GuiaConvenio |
+      null
+    >(
+      null
+    );
+
+  const [
+    recursoValor,
+    setRecursoValor,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    recursoJustificativa,
+    setRecursoJustificativa,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    recursoProtocolo,
+    setRecursoProtocolo,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    recursoDataEnvio,
+    setRecursoDataEnvio,
+  ] =
+    useState(
+      new Date()
+        .toISOString()
+        .slice(
+          0,
+          10
+        )
+    );
+
+  const [
+    retornoRecurso,
+    setRetornoRecurso,
+  ] =
+    useState<
+      RecursoGlosa |
+      null
+    >(
+      null
+    );
+
+  const [
+    retornoRecursoAprovado,
+    setRetornoRecursoAprovado,
+  ] =
+    useState(
+      true
+    );
+
+  const [
+    retornoRecursoValor,
+    setRetornoRecursoValor,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    retornoRecursoData,
+    setRetornoRecursoData,
+  ] =
+    useState(
+      new Date()
+        .toISOString()
+        .slice(
+          0,
+          10
+        )
+    );
+
+  const [
+    retornoRecursoObservacao,
+    setRetornoRecursoObservacao,
+  ] =
+    useState(
+      ""
+    );
+
   const bankAccounts =
     useMemo(
       () =>
@@ -286,6 +399,10 @@ export default function GuiasConvenios() {
     setLotes(
       getLotesConvenios()
     );
+
+    setRecursosGlosa(
+      getRecursosGlosa()
+    );
   };
 
   useEffect(() => {
@@ -303,6 +420,11 @@ export default function GuiasConvenios() {
       refresh
     );
 
+    window.addEventListener(
+      "recursos-glosa-changed",
+      refresh
+    );
+
     return () => {
       window.removeEventListener(
         "guias-convenios-changed",
@@ -311,6 +433,11 @@ export default function GuiasConvenios() {
 
       window.removeEventListener(
         "lotes-convenios-changed",
+        refresh
+      );
+
+      window.removeEventListener(
+        "recursos-glosa-changed",
         refresh
       );
     };
@@ -474,6 +601,159 @@ export default function GuiasConvenios() {
         search,
         competencia,
         activeUnitId,
+      ]
+    );
+
+  const glosasDaUnidade =
+    useMemo(
+      () =>
+        items
+          .filter(
+            (
+              item
+            ) =>
+              item.unitId ===
+                activeUnitId &&
+              (
+                (
+                  item.valorGlosado ??
+                  0
+                ) >
+                  0 ||
+                [
+                  "Glosado",
+                  "Em recurso",
+                  "Recurso aprovado",
+                  "Recurso negado",
+                ].includes(
+                  item.status
+                )
+              ) &&
+              (
+                !competencia ||
+                item.competencia ===
+                  competencia
+              )
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              b.dataAtendimento.localeCompare(
+                a.dataAtendimento
+              )
+          ),
+      [
+        items,
+        activeUnitId,
+        competencia,
+      ]
+    );
+
+  const recursosDaUnidade =
+    useMemo(
+      () =>
+        recursosGlosa.filter(
+          (
+            recurso
+          ) =>
+            recurso.unitId ===
+            activeUnitId
+        ),
+      [
+        recursosGlosa,
+        activeUnitId,
+      ]
+    );
+
+  const glosaSummary =
+    useMemo(
+      () => {
+        const totalGlosado =
+          glosasDaUnidade.reduce(
+            (
+              sum,
+              item
+            ) =>
+              sum +
+              (
+                item.valorGlosado ??
+                0
+              ),
+            0
+          );
+
+        const emRecurso =
+          recursosDaUnidade
+            .filter(
+              (
+                item
+              ) =>
+                item.status ===
+                "Em recurso"
+            )
+            .reduce(
+              (
+                sum,
+                item
+              ) =>
+                sum +
+                item.valorRecorrido,
+              0
+            );
+
+        const recuperado =
+          recursosDaUnidade
+            .filter(
+              (
+                item
+              ) =>
+                item.status ===
+                "Aprovado"
+            )
+            .reduce(
+              (
+                sum,
+                item
+              ) =>
+                sum +
+                (
+                  item.valorRecuperado ??
+                  0
+                ),
+              0
+            );
+
+        const perdido =
+          recursosDaUnidade
+            .filter(
+              (
+                item
+              ) =>
+                item.status ===
+                "Negado"
+            )
+            .reduce(
+              (
+                sum,
+                item
+              ) =>
+                sum +
+                item.valorRecorrido,
+              0
+            );
+
+        return {
+          totalGlosado,
+          emRecurso,
+          recuperado,
+          perdido,
+        };
+      },
+      [
+        glosasDaUnidade,
+        recursosDaUnidade,
       ]
     );
 
@@ -1028,6 +1308,177 @@ export default function GuiasConvenios() {
   }
 
 
+  function abrirRecurso(
+    guia: GuiaConvenio
+  ) {
+    setRecursoGuia(
+      guia
+    );
+
+    setRecursoValor(
+      String(
+        guia.valorGlosado ??
+        0
+      )
+    );
+
+    setRecursoJustificativa(
+      ""
+    );
+
+    setRecursoProtocolo(
+      ""
+    );
+
+    setRecursoDataEnvio(
+      new Date()
+        .toISOString()
+        .slice(
+          0,
+          10
+        )
+    );
+  }
+
+  function salvarRecurso() {
+    if (
+      !recursoGuia
+    ) {
+      return;
+    }
+
+    try {
+      createRecursoGlosa({
+        guiaId:
+          recursoGuia.id,
+
+        valorRecorrido:
+          Number(
+            recursoValor
+          ) ||
+          0,
+
+        justificativaRecurso:
+          recursoJustificativa,
+
+        protocolo:
+          recursoProtocolo,
+
+        dataEnvio:
+          recursoDataEnvio,
+      });
+
+      setRecursoGuia(
+        null
+      );
+
+      setRecursoValor(
+        ""
+      );
+
+      setRecursoJustificativa(
+        ""
+      );
+
+      setRecursoProtocolo(
+        ""
+      );
+    } catch (
+      error
+    ) {
+      alert(
+        error instanceof
+        Error
+          ? error.message
+          : "Não foi possível registrar o recurso."
+      );
+    }
+  }
+
+  function abrirRetornoRecurso(
+    recurso: RecursoGlosa
+  ) {
+    setRetornoRecurso(
+      recurso
+    );
+
+    setRetornoRecursoAprovado(
+      true
+    );
+
+    setRetornoRecursoValor(
+      String(
+        recurso.valorRecorrido
+      )
+    );
+
+    setRetornoRecursoData(
+      new Date()
+        .toISOString()
+        .slice(
+          0,
+          10
+        )
+    );
+
+    setRetornoRecursoObservacao(
+      ""
+    );
+  }
+
+  function salvarRetornoRecurso() {
+    if (
+      !retornoRecurso
+    ) {
+      return;
+    }
+
+    try {
+      registerRecursoGlosaReturn({
+        recursoId:
+          retornoRecurso.id,
+
+        approved:
+          retornoRecursoAprovado,
+
+        valorRecuperado:
+          retornoRecursoAprovado
+            ? Number(
+                retornoRecursoValor
+              ) ||
+              0
+            : 0,
+
+        dataRetorno:
+          retornoRecursoData,
+
+        observacaoRetorno:
+          retornoRecursoObservacao,
+      });
+
+      setRetornoRecurso(
+        null
+      );
+
+      setRetornoRecursoValor(
+        ""
+      );
+
+      setRetornoRecursoObservacao(
+        ""
+      );
+    } catch (
+      error
+    ) {
+      alert(
+        error instanceof
+        Error
+          ? error.message
+          : "Não foi possível registrar o retorno do recurso."
+      );
+    }
+  }
+
   function abrirRepasse(
     lote: LoteConvenio
   ) {
@@ -1496,6 +1947,32 @@ export default function GuiasConvenios() {
                 </span>
               )}
             </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                setActiveTab(
+                  "glosas"
+                )
+              }
+              className={`border-b-2 pb-3 text-sm font-semibold transition ${
+                activeTab ===
+                "glosas"
+                  ? "border-violet-600 text-violet-700"
+                  : "border-transparent text-slate-500"
+              }`}
+            >
+              Glosas e recursos
+
+              {glosasDaUnidade.length >
+                0 && (
+                <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
+                  {
+                    glosasDaUnidade.length
+                  }
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -1894,7 +2371,8 @@ export default function GuiasConvenios() {
               </div>
             </div>
           </>
-        ) : (
+        ) : activeTab ===
+          "lotes" ? (
           <>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <Card
@@ -2618,6 +3096,743 @@ export default function GuiasConvenios() {
               </aside>
             </div>
           </>
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <Card
+                icon={
+                  FileWarning
+                }
+                label="Total glosado"
+                value={
+                  money(
+                    glosaSummary.totalGlosado
+                  )
+                }
+              />
+
+              <Card
+                icon={
+                  Gavel
+                }
+                label="Em recurso"
+                value={
+                  money(
+                    glosaSummary.emRecurso
+                  )
+                }
+              />
+
+              <Card
+                icon={
+                  CheckCircle2
+                }
+                label="Recuperado"
+                value={
+                  money(
+                    glosaSummary.recuperado
+                  )
+                }
+              />
+
+              <Card
+                icon={
+                  RotateCcw
+                }
+                label="Recurso negado"
+                value={
+                  money(
+                    glosaSummary.perdido
+                  )
+                }
+              />
+            </div>
+
+            <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <div className="border-b border-slate-100 px-4 py-3">
+                <h2 className="text-sm font-bold text-slate-900">
+                  Atendimentos com glosa
+                </h2>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  Acompanhe a glosa e registre recurso quando a clínica decidir contestar o valor.
+                </p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1050px] divide-y divide-slate-200">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      {[
+                        "Paciente",
+                        "Convênio",
+                        "Atendimento",
+                        "Faturado",
+                        "Glosado",
+                        "Motivo",
+                        "Situação",
+                        "Ação",
+                      ].map(
+                        (
+                          title
+                        ) => (
+                          <th
+                            key={
+                              title
+                            }
+                            className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
+                          >
+                            {
+                              title
+                            }
+                          </th>
+                        )
+                      )}
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-slate-100">
+                    {glosasDaUnidade.map(
+                      (
+                        guia
+                      ) => {
+                        const recurso =
+                          recursosDaUnidade.find(
+                            (
+                              item
+                            ) =>
+                              item.guiaId ===
+                              guia.id
+                          );
+
+                        return (
+                          <tr
+                            key={
+                              guia.id
+                            }
+                            className="hover:bg-slate-50"
+                          >
+                            <td className="px-4 py-4">
+                              <p className="font-semibold text-slate-900">
+                                {
+                                  guia.paciente
+                                }
+                              </p>
+                            </td>
+
+                            <td className="px-4 py-4 text-sm text-slate-700">
+                              {
+                                guia.convenio
+                              }
+                            </td>
+
+                            <td className="px-4 py-4">
+                              <p className="text-sm text-slate-700">
+                                {
+                                  guia.specialty
+                                }
+                              </p>
+
+                              <p className="mt-1 text-[10px] text-slate-500">
+                                {formatDate(
+                                  guia.dataAtendimento
+                                )}
+                              </p>
+                            </td>
+
+                            <td className="px-4 py-4 text-sm font-bold text-slate-700">
+                              {money(
+                                guia.valorTotal
+                              )}
+                            </td>
+
+                            <td className="px-4 py-4 text-sm font-extrabold text-red-600">
+                              {money(
+                                guia.valorGlosado ??
+                                0
+                              )}
+                            </td>
+
+                            <td className="max-w-[250px] px-4 py-4 text-xs text-red-600">
+                              {guia.motivoGlosa ||
+                                "—"}
+                            </td>
+
+                            <td className="px-4 py-4">
+                              <span
+                                className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                                  guia.status ===
+                                    "Em recurso"
+                                    ? "border-violet-200 bg-violet-50 text-violet-700"
+                                    : guia.status ===
+                                        "Recurso aprovado"
+                                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                      : guia.status ===
+                                          "Recurso negado"
+                                        ? "border-slate-200 bg-slate-100 text-slate-700"
+                                        : "border-red-200 bg-red-50 text-red-700"
+                                }`}
+                              >
+                                {
+                                  guia.status
+                                }
+                              </span>
+                            </td>
+
+                            <td className="px-4 py-4">
+                              {guia.status ===
+                                "Glosado" &&
+                                !recurso && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    abrirRecurso(
+                                      guia
+                                    )
+                                  }
+                                  className="rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white"
+                                >
+                                  Recorrer
+                                </button>
+                              )}
+
+                              {recurso?.status ===
+                                "Em recurso" && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    abrirRetornoRecurso(
+                                      recurso
+                                    )
+                                  }
+                                  className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white"
+                                >
+                                  Registrar retorno
+                                </button>
+                              )}
+
+                              {recurso &&
+                                recurso.status !==
+                                  "Em recurso" && (
+                                <div className="text-xs">
+                                  <p className="font-bold text-slate-700">
+                                    {recurso.status}
+                                  </p>
+
+                                  {recurso.valorRecuperado !==
+                                    undefined && (
+                                    <p className="mt-1 text-[10px] text-emerald-600">
+                                      Recuperado:{" "}
+                                      {money(
+                                        recurso.valorRecuperado
+                                      )}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      }
+                    )}
+
+                    {glosasDaUnidade.length ===
+                      0 && (
+                      <tr>
+                        <td
+                          colSpan={
+                            8
+                          }
+                          className="px-4 py-12 text-center text-sm text-slate-500"
+                        >
+                          Nenhuma glosa registrada nesta competência.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {recursosDaUnidade.length >
+              0 && (
+              <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                <div className="border-b border-slate-100 px-4 py-3">
+                  <h2 className="text-sm font-bold text-slate-900">
+                    Histórico de recursos
+                  </h2>
+                </div>
+
+                <div className="divide-y divide-slate-100">
+                  {recursosDaUnidade.map(
+                    (
+                      recurso
+                    ) => {
+                      const guia =
+                        items.find(
+                          (
+                            item
+                          ) =>
+                            item.id ===
+                            recurso.guiaId
+                        );
+
+                      return (
+                        <div
+                          key={
+                            recurso.id
+                          }
+                          className="grid gap-3 px-4 py-4 md:grid-cols-[1.2fr_1fr_1fr_1fr]"
+                        >
+                          <div>
+                            <p className="text-sm font-bold text-slate-900">
+                              {guia?.paciente ||
+                                "Atendimento"}
+                            </p>
+
+                            <p className="mt-1 text-xs text-slate-500">
+                              {
+                                recurso.convenio
+                              }{" "}
+                              • enviado em{" "}
+                              {formatDate(
+                                recurso.dataEnvio
+                              )}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[10px] font-bold uppercase text-slate-400">
+                              Valor recorrido
+                            </p>
+
+                            <p className="mt-1 text-sm font-bold text-violet-700">
+                              {money(
+                                recurso.valorRecorrido
+                              )}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[10px] font-bold uppercase text-slate-400">
+                              Resultado
+                            </p>
+
+                            <p className="mt-1 text-sm font-bold text-slate-700">
+                              {
+                                recurso.status
+                              }
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[10px] font-bold uppercase text-slate-400">
+                              Recuperado
+                            </p>
+
+                            <p className="mt-1 text-sm font-bold text-emerald-700">
+                              {recurso.valorRecuperado !==
+                                undefined
+                                ? money(
+                                    recurso.valorRecuperado
+                                  )
+                                : "—"}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              </section>
+            )}
+          </>
+        )}
+
+        {recursoGuia && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+            <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Gavel
+                      size={20}
+                      className="text-violet-600"
+                    />
+
+                    <h2 className="text-lg font-bold text-slate-900">
+                      Recurso de glosa
+                    </h2>
+                  </div>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    {recursoGuia.paciente} • {recursoGuia.convenio}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setRecursoGuia(
+                      null
+                    )
+                  }
+                  className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+                >
+                  <X
+                    size={18}
+                  />
+                </button>
+              </div>
+
+              <div className="space-y-4 p-5">
+                <div className="grid grid-cols-2 gap-3">
+                  <MiniInfo
+                    label="Valor glosado"
+                    value={
+                      money(
+                        recursoGuia.valorGlosado ??
+                        0
+                      )
+                    }
+                  />
+
+                  <MiniInfo
+                    label="Valor aprovado"
+                    value={
+                      money(
+                        recursoGuia.valorAprovado ??
+                        0
+                      )
+                    }
+                  />
+                </div>
+
+                <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-red-500">
+                    Motivo informado pelo convênio
+                  </p>
+
+                  <p className="mt-1 text-xs leading-relaxed text-red-700">
+                    {recursoGuia.motivoGlosa ||
+                      "Não informado"}
+                  </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label>
+                    <span className="mb-1.5 block text-xs font-bold text-slate-600">
+                      Valor recorrido *
+                    </span>
+
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      max={
+                        recursoGuia.valorGlosado ??
+                        0
+                      }
+                      value={
+                        recursoValor
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setRecursoValor(
+                          event.target.value
+                        )
+                      }
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-violet-500"
+                    />
+                  </label>
+
+                  <label>
+                    <span className="mb-1.5 block text-xs font-bold text-slate-600">
+                      Data de envio *
+                    </span>
+
+                    <input
+                      type="date"
+                      value={
+                        recursoDataEnvio
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setRecursoDataEnvio(
+                          event.target.value
+                        )
+                      }
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-violet-500"
+                    />
+                  </label>
+                </div>
+
+                <label>
+                  <span className="mb-1.5 block text-xs font-bold text-slate-600">
+                    Protocolo do recurso
+                  </span>
+
+                  <input
+                    value={
+                      recursoProtocolo
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setRecursoProtocolo(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Opcional"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-violet-500"
+                  />
+                </label>
+
+                <label>
+                  <span className="mb-1.5 block text-xs font-bold text-slate-600">
+                    Justificativa do recurso *
+                  </span>
+
+                  <textarea
+                    rows={5}
+                    value={
+                      recursoJustificativa
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setRecursoJustificativa(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Explique por que a clínica está contestando a glosa..."
+                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-violet-500"
+                  />
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-slate-100 px-5 py-4">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setRecursoGuia(
+                      null
+                    )
+                  }
+                  className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={
+                    salvarRecurso
+                  }
+                  className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-bold text-white"
+                >
+                  <Gavel
+                    size={16}
+                  />
+
+                  Enviar recurso
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {retornoRecurso && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+            <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    Retorno do recurso
+                  </h2>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    {
+                      retornoRecurso.convenio
+                    }
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setRetornoRecurso(
+                      null
+                    )
+                  }
+                  className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+                >
+                  <X
+                    size={18}
+                  />
+                </button>
+              </div>
+
+              <div className="space-y-4 p-5">
+                <div className="grid grid-cols-2 gap-3">
+                  <MiniInfo
+                    label="Valor recorrido"
+                    value={
+                      money(
+                        retornoRecurso.valorRecorrido
+                      )
+                    }
+                  />
+
+                  <MiniInfo
+                    label="Glosa original"
+                    value={
+                      money(
+                        retornoRecurso.valorGlosadoOriginal
+                      )
+                    }
+                  />
+                </div>
+
+                <label>
+                  <span className="mb-1.5 block text-xs font-bold text-slate-600">
+                    Resultado *
+                  </span>
+
+                  <select
+                    value={
+                      retornoRecursoAprovado
+                        ? "aprovado"
+                        : "negado"
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setRetornoRecursoAprovado(
+                        event.target.value ===
+                          "aprovado"
+                      )
+                    }
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none"
+                  >
+                    <option value="aprovado">
+                      Recurso aprovado
+                    </option>
+
+                    <option value="negado">
+                      Recurso negado
+                    </option>
+                  </select>
+                </label>
+
+                {retornoRecursoAprovado && (
+                  <label>
+                    <span className="mb-1.5 block text-xs font-bold text-slate-600">
+                      Valor recuperado *
+                    </span>
+
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      max={
+                        retornoRecurso.valorRecorrido
+                      }
+                      value={
+                        retornoRecursoValor
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setRetornoRecursoValor(
+                          event.target.value
+                        )
+                      }
+                      className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm font-bold text-emerald-700 outline-none"
+                    />
+                  </label>
+                )}
+
+                <label>
+                  <span className="mb-1.5 block text-xs font-bold text-slate-600">
+                    Data do retorno *
+                  </span>
+
+                  <input
+                    type="date"
+                    value={
+                      retornoRecursoData
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setRetornoRecursoData(
+                        event.target.value
+                      )
+                    }
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none"
+                  />
+                </label>
+
+                <label>
+                  <span className="mb-1.5 block text-xs font-bold text-slate-600">
+                    Observação
+                  </span>
+
+                  <textarea
+                    rows={3}
+                    value={
+                      retornoRecursoObservacao
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setRetornoRecursoObservacao(
+                        event.target.value
+                      )
+                    }
+                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none"
+                  />
+                </label>
+
+                {retornoRecursoAprovado && (
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-xs leading-relaxed text-emerald-800">
+                    O valor recuperado será acrescentado ao valor aprovado do lote e passará a compor o saldo a receber do convênio.
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-slate-100 px-5 py-4">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setRetornoRecurso(
+                      null
+                    )
+                  }
+                  className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={
+                    salvarRetornoRecurso
+                  }
+                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white"
+                >
+                  <CheckCircle2
+                    size={16}
+                  />
+
+                  Salvar retorno
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {repasseLote && (

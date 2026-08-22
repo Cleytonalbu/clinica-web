@@ -89,6 +89,11 @@ import {
 } from "@/pages/Pacientes/patientStorage";
 
 import {
+  getLotesConvenios,
+  type LoteConvenio,
+} from "@/pages/GuiasConvenios/guideBillingStorage";
+
+import {
   markProfessionalPayoutAsPaid,
   markProfessionalPayoutAsPending,
   syncProfessionalPayoutsFromAppointments,
@@ -1239,6 +1244,10 @@ function FinanceiroRecepcao() {
           observation.trim(),
         sourceId:
           purchasedPackage.id,
+        sourceType:
+          "package",
+        sourceReference:
+          `package:${purchasedPackage.id}`,
       });
 
       setCharges(
@@ -1315,6 +1324,8 @@ function FinanceiroRecepcao() {
           observation.trim(),
         sourceId:
           Date.now(),
+        sourceType:
+          "other-receipt",
       });
 
       setCharges(
@@ -3417,6 +3428,91 @@ function GestorFinanceiro() {
       ]
     );
 
+  const unitConvenioLotes =
+    useMemo(
+      () =>
+        getLotesConvenios().filter(
+          (
+            lote
+          ) =>
+            lote.unitId ===
+            activeUnitId
+        ),
+      [
+        activeUnitId,
+        charges,
+      ]
+    );
+
+  const convenioReceivables =
+    useMemo(
+      () =>
+        unitConvenioLotes
+          .filter(
+            (
+              lote
+            ) =>
+              [
+                "Aprovado",
+                "Parcialmente aprovado",
+                "Parcialmente pago",
+              ].includes(
+                lote.status
+              ) &&
+              Math.max(
+                lote.saldoAReceber ??
+                  (
+                    (
+                      lote.valorAprovado ??
+                      0
+                    ) -
+                    (
+                      lote.valorRecebido ??
+                      0
+                    )
+                  ),
+                0
+              ) >
+                0.01
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              b.competencia.localeCompare(
+                a.competencia
+              )
+          ),
+      [
+        unitConvenioLotes,
+      ]
+    );
+
+  const convenioPendingAmount =
+    convenioReceivables.reduce(
+      (
+        sum,
+        lote
+      ) =>
+        sum +
+        Math.max(
+          lote.saldoAReceber ??
+            (
+              (
+                lote.valorAprovado ??
+                0
+              ) -
+              (
+                lote.valorRecebido ??
+                0
+              )
+            ),
+          0
+        ),
+      0
+    );
+
   const unitExpenses =
     useMemo(
       () =>
@@ -3814,6 +3910,110 @@ function GestorFinanceiro() {
             charge.receivedAmount ??
             charge.amount
           ),
+        0
+      );
+
+  const paidCharges =
+    unitCharges.filter(
+      (
+        charge
+      ) =>
+        charge.status ===
+        "Pago"
+    );
+
+  const receivedParticular =
+    paidCharges
+      .filter(
+        (
+          charge
+        ) =>
+          getFinancialOrigin(
+            charge
+          ) ===
+          "Particular"
+      )
+      .reduce(
+        (
+          sum,
+          charge
+        ) =>
+          sum +
+          (
+            charge.receivedAmount ??
+            charge.amount
+          ),
+        0
+      );
+
+  const receivedPackages =
+    paidCharges
+      .filter(
+        (
+          charge
+        ) =>
+          getFinancialOrigin(
+            charge
+          ) ===
+          "Pacote"
+      )
+      .reduce(
+        (
+          sum,
+          charge
+        ) =>
+          sum +
+          (
+            charge.receivedAmount ??
+            charge.amount
+          ),
+        0
+      );
+
+  const receivedConvenios =
+    paidCharges
+      .filter(
+        (
+          charge
+        ) =>
+          getFinancialOrigin(
+            charge
+          ) ===
+          "Convênio"
+      )
+      .reduce(
+        (
+          sum,
+          charge
+        ) =>
+          sum +
+          (
+            charge.receivedAmount ??
+            charge.amount
+          ),
+        0
+      );
+
+  const patientPendingRevenue =
+    unitCharges
+      .filter(
+        (
+          charge
+        ) =>
+          charge.status ===
+            "Pendente" &&
+          getFinancialOrigin(
+            charge
+          ) !==
+            "Convênio"
+      )
+      .reduce(
+        (
+          sum,
+          charge
+        ) =>
+          sum +
+          charge.amount,
         0
       );
 
@@ -4501,6 +4701,56 @@ function GestorFinanceiro() {
         </div>
 
         {/* ========================================= */}
+        {/* ORIGEM DAS RECEITAS */}
+        {/* ========================================= */}
+
+        <div className="rounded-2xl border border-[#e5e7f1] bg-white px-5 py-3.5 shadow-[0_5px_18px_rgba(40,52,100,0.035)]">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-extrabold text-[#28375f]">
+                Origem das receitas recebidas
+              </p>
+
+              <p className="mt-1 text-[10px] text-[#929bb1]">
+                Identificação dos valores efetivamente recebidos pela clínica.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:min-w-[540px]">
+              <RevenueOriginPill
+                label="Particular"
+                value={
+                  formatCurrency(
+                    receivedParticular
+                  )
+                }
+                tone="purple"
+              />
+
+              <RevenueOriginPill
+                label="Pacotes"
+                value={
+                  formatCurrency(
+                    receivedPackages
+                  )
+                }
+                tone="blue"
+              />
+
+              <RevenueOriginPill
+                label="Convênios"
+                value={
+                  formatCurrency(
+                    receivedConvenios
+                  )
+                }
+                tone="green"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================= */}
         {/* MOVIMENTAÇÕES FINANCEIRAS */}
         {/* ========================================= */}
 
@@ -4676,14 +4926,34 @@ function GestorFinanceiro() {
             <div className="min-w-0 border-b border-[#eceef5] xl:border-b-0 xl:border-r">
               {view ===
               "receivables" ? (
-                <CompactReceivablesTable
-                  items={
-                    filteredCharges
-                  }
-                  navigate={
-                    navigate
-                  }
-                />
+                <>
+                  <ReceivablesOverview
+                    patientAmount={
+                      patientPendingRevenue
+                    }
+                    convenioAmount={
+                      convenioPendingAmount
+                    }
+                    convenioCount={
+                      convenioReceivables.length
+                    }
+                  />
+
+                  <CompactReceivablesTable
+                    items={
+                      filteredCharges
+                    }
+                    navigate={
+                      navigate
+                    }
+                  />
+
+                  <CompactConvenioReceivables
+                    items={
+                      convenioReceivables
+                    }
+                  />
+                </>
               ) : view ===
                 "expenses" ? (
                 <CompactExpensesTable
@@ -4912,13 +5182,23 @@ function GestorFinanceiro() {
 
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <MiniValue
-                        label="A receber"
+                        label="Pacientes a receber"
                         value={
                           formatCurrency(
-                            pendingRevenue
+                            patientPendingRevenue
                           )
                         }
                         tone="purple"
+                      />
+
+                      <MiniValue
+                        label="Convênios a receber"
+                        value={
+                          formatCurrency(
+                            convenioPendingAmount
+                          )
+                        }
+                        tone="blue"
                       />
 
                       <MiniValue
@@ -5226,6 +5506,292 @@ function GestorFinanceiro() {
   );
 }
 
+type FinancialOrigin =
+  | "Particular"
+  | "Pacote"
+  | "Convênio";
+
+function getFinancialOrigin(
+  charge: FinancialCharge
+): FinancialOrigin {
+  if (
+    charge.billingType ===
+      "Convênio" ||
+    charge.sourceType ===
+      "convenio-repasse" ||
+    Boolean(
+      charge.convenio
+    )
+  ) {
+    return "Convênio";
+  }
+
+  const description =
+    charge.description
+      .trim()
+      .toLowerCase();
+
+  if (
+    charge.sourceType ===
+      "package" ||
+    description.startsWith(
+      "pacote -"
+    ) ||
+    description.startsWith(
+      "pacote "
+    )
+  ) {
+    return "Pacote";
+  }
+
+  return "Particular";
+}
+
+function FinancialOriginBadge({
+  origin,
+}: {
+  origin: FinancialOrigin;
+}) {
+  const styles = {
+    Particular:
+      "border-[#e5defe] bg-[#f5f2ff] text-[#6543ef]",
+    Pacote:
+      "border-[#dce8ff] bg-[#f2f6ff] text-[#3976ef]",
+    Convênio:
+      "border-[#d9f1e6] bg-[#f0fbf6] text-[#18986a]",
+  };
+
+  return (
+    <span
+      className={`inline-flex rounded-full border px-2.5 py-1 text-[9px] font-extrabold ${styles[origin]}`}
+    >
+      {origin}
+    </span>
+  );
+}
+
+function RevenueOriginPill({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone:
+    | "purple"
+    | "blue"
+    | "green";
+}) {
+  const styles = {
+    purple:
+      "border-[#e8e1ff] bg-[#faf8ff] text-[#6744ef]",
+    blue:
+      "border-[#dce8ff] bg-[#f5f8ff] text-[#3976ef]",
+    green:
+      "border-[#d9f1e6] bg-[#f3fbf7] text-[#18986a]",
+  };
+
+  return (
+    <div
+      className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 ${styles[tone]}`}
+    >
+      <span className="text-[10px] font-bold opacity-80">
+        {label}
+      </span>
+
+      <span className="text-xs font-extrabold">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function ReceivablesOverview({
+  patientAmount,
+  convenioAmount,
+  convenioCount,
+}: {
+  patientAmount: number;
+  convenioAmount: number;
+  convenioCount: number;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-2 border-b border-[#eceef5] bg-[#fcfcfe] px-5 py-3 sm:grid-cols-2">
+      <div className="rounded-xl border border-[#e8e1ff] bg-white px-3.5 py-3">
+        <p className="text-[9px] font-bold uppercase tracking-[0.06em] text-[#9186c6]">
+          Pacientes / Particular
+        </p>
+
+        <p className="mt-1 text-sm font-extrabold text-[#6543ef]">
+          {formatCurrency(
+            patientAmount
+          )}
+        </p>
+
+        <p className="mt-1 text-[9px] text-[#9aa2b7]">
+          Cobranças pendentes de pacientes e responsáveis
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-[#d9f1e6] bg-white px-3.5 py-3">
+        <p className="text-[9px] font-bold uppercase tracking-[0.06em] text-[#6ca88d]">
+          Convênios / Aguardando repasse
+        </p>
+
+        <p className="mt-1 text-sm font-extrabold text-[#18986a]">
+          {formatCurrency(
+            convenioAmount
+          )}
+        </p>
+
+        <p className="mt-1 text-[9px] text-[#9aa2b7]">
+          {convenioCount} lote(s) aprovado(s) com saldo a receber
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function CompactConvenioReceivables({
+  items,
+}: {
+  items: LoteConvenio[];
+}) {
+  if (
+    items.length ===
+    0
+  ) {
+    return null;
+  }
+
+  return (
+    <div className="border-t border-[#eceef5]">
+      <div className="flex items-center justify-between gap-3 px-5 py-3">
+        <div>
+          <h3 className="text-sm font-extrabold text-[#28375f]">
+            Convênios aguardando repasse
+          </h3>
+
+          <p className="mt-1 text-[10px] text-[#9aa2b7]">
+            Lotes já aprovados pelo convênio que ainda possuem saldo a receber.
+          </p>
+        </div>
+      </div>
+
+      <div className="max-h-[300px] overflow-auto">
+        <table className="w-full min-w-[760px]">
+          <thead className="sticky top-0 z-10 bg-[#fbfbfe]">
+            <tr className="border-y border-[#eceef5] text-left">
+              <TableHeader>
+                Convênio
+              </TableHeader>
+
+              <TableHeader>
+                Competência
+              </TableHeader>
+
+              <TableHeader>
+                Aprovado
+              </TableHeader>
+
+              <TableHeader>
+                Recebido
+              </TableHeader>
+
+              <TableHeader>
+                Saldo
+              </TableHeader>
+
+              <TableHeader>
+                Status
+              </TableHeader>
+            </tr>
+          </thead>
+
+          <tbody>
+            {items.map(
+              (
+                lote
+              ) => {
+                const approved =
+                  lote.valorAprovado ??
+                  0;
+
+                const received =
+                  lote.valorRecebido ??
+                  0;
+
+                const balance =
+                  Math.max(
+                    lote.saldoAReceber ??
+                      (
+                        approved -
+                        received
+                      ),
+                    0
+                  );
+
+                return (
+                  <tr
+                    key={
+                      lote.id
+                    }
+                    className="border-b border-[#eef0f5] last:border-b-0"
+                  >
+                    <TableCell>
+                      <p className="font-bold text-[#445174]">
+                        {
+                          lote.convenio
+                        }
+                      </p>
+                    </TableCell>
+
+                    <TableCell>
+                      {
+                        lote.competencia
+                      }
+                    </TableCell>
+
+                    <TableCell>
+                      <span className="font-bold text-[#55617f]">
+                        {formatCurrency(
+                          approved
+                        )}
+                      </span>
+                    </TableCell>
+
+                    <TableCell>
+                      <span className="font-bold text-[#18986a]">
+                        {formatCurrency(
+                          received
+                        )}
+                      </span>
+                    </TableCell>
+
+                    <TableCell>
+                      <span className="font-extrabold text-[#d48616]">
+                        {formatCurrency(
+                          balance
+                        )}
+                      </span>
+                    </TableCell>
+
+                    <TableCell>
+                      <span className="rounded-full border border-[#d9f1e6] bg-[#f0fbf6] px-2.5 py-1 text-[9px] font-extrabold text-[#18986a]">
+                        Aguardando repasse
+                      </span>
+                    </TableCell>
+                  </tr>
+                );
+              }
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 type MetricTone =
   | "purple"
   | "green"
@@ -5397,7 +5963,7 @@ function CompactReceivablesTable({
       {items.length >
       0 ? (
         <div className="max-h-[430px] overflow-auto">
-          <table className="w-full min-w-[760px]">
+          <table className="w-full min-w-[860px]">
             <thead className="sticky top-0 z-10 bg-[#fbfbfe]">
               <tr className="border-y border-[#eceef5] text-left">
                 <TableHeader>
@@ -5414,6 +5980,10 @@ function CompactReceivablesTable({
 
                 <TableHeader>
                   Valor
+                </TableHeader>
+
+                <TableHeader>
+                  Origem
                 </TableHeader>
 
                 <TableHeader>
@@ -5474,6 +6044,16 @@ function CompactReceivablesTable({
                     </TableCell>
 
                     <TableCell>
+                      <FinancialOriginBadge
+                        origin={
+                          getFinancialOrigin(
+                            charge
+                          )
+                        }
+                      />
+                    </TableCell>
+
+                    <TableCell>
                       <ChargeStatusBadge
                         status={
                           charge.status
@@ -5520,7 +6100,7 @@ function CompactReceivablesTable({
       ) : (
         <EmptyState
           title="Nenhuma cobrança encontrada"
-          description="As cobranças aparecerão quando os atendimentos forem realizados."
+          description="As cobranças particulares aparecem a partir dos agendamentos. Repasses de convênios são acompanhados separadamente abaixo."
         />
       )}
     </div>

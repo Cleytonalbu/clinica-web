@@ -7,6 +7,9 @@ export type GuiaConvenioStatus =
   | "Enviado"
   | "Aprovado"
   | "Glosado"
+  | "Em recurso"
+  | "Recurso aprovado"
+  | "Recurso negado"
   | "Pago";
 
 
@@ -19,6 +22,36 @@ export type LoteConvenioStatus =
   | "Aprovado"
   | "Parcialmente pago"
   | "Pago";
+
+export type RecursoGlosaStatus =
+  | "Em recurso"
+  | "Aprovado"
+  | "Negado";
+
+export interface RecursoGlosa {
+  id: string;
+  guiaId: string;
+  loteId: string;
+  unitId: number;
+  convenio: string;
+
+  valorGlosadoOriginal: number;
+  valorRecorrido: number;
+  valorRecuperado?: number;
+
+  motivoGlosa: string;
+  justificativaRecurso: string;
+
+  protocolo?: string;
+  dataEnvio: string;
+  dataRetorno?: string;
+
+  status: RecursoGlosaStatus;
+  observacaoRetorno?: string;
+
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface ConvenioRepasse {
   id: string;
@@ -86,6 +119,9 @@ export interface GuiaConvenio {
   valorGlosado?: number;
   motivoGlosa?: string;
 
+  recursoGlosaId?: string;
+  valorRecuperadoGlosa?: number;
+
   status: GuiaConvenioStatus;
   loteId?: string;
   dataEnvio?: string;
@@ -98,6 +134,7 @@ export interface GuiaConvenio {
 
 const STORAGE_KEY = "entreafetos_guias_convenios";
 const LOTES_STORAGE_KEY = "entreafetos_lotes_convenios";
+const RECURSOS_GLOSA_STORAGE_KEY = "entreafetos_recursos_glosa";
 
 function notify() {
   window.dispatchEvent(new Event("guias-convenios-changed"));
@@ -105,6 +142,10 @@ function notify() {
 
 function notifyLotes() {
   window.dispatchEvent(new Event("lotes-convenios-changed"));
+}
+
+function notifyRecursosGlosa() {
+  window.dispatchEvent(new Event("recursos-glosa-changed"));
 }
 
 export function getGuiasConvenios(): GuiaConvenio[] {
@@ -1020,5 +1061,404 @@ export function registerLoteConvenioRepasse({
 
   return getLoteConvenioById(
     loteId
+  );
+}
+
+
+export function getRecursosGlosa(): RecursoGlosa[] {
+  try {
+    const raw =
+      localStorage.getItem(
+        RECURSOS_GLOSA_STORAGE_KEY
+      );
+
+    if (!raw) {
+      return [];
+    }
+
+    const parsed =
+      JSON.parse(
+        raw
+      ) as RecursoGlosa[];
+
+    return Array.isArray(parsed)
+      ? parsed
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveRecursosGlosa(
+  items: RecursoGlosa[]
+) {
+  localStorage.setItem(
+    RECURSOS_GLOSA_STORAGE_KEY,
+    JSON.stringify(items)
+  );
+
+  notifyRecursosGlosa();
+}
+
+export function getRecursoGlosaById(
+  recursoId: string
+) {
+  return getRecursosGlosa().find(
+    (item) =>
+      item.id ===
+      recursoId
+  );
+}
+
+export function getRecursoGlosaByGuia(
+  guiaId: string
+) {
+  return getRecursosGlosa().find(
+    (item) =>
+      item.guiaId ===
+      guiaId
+  );
+}
+
+export function createRecursoGlosa({
+  guiaId,
+  valorRecorrido,
+  justificativaRecurso,
+  protocolo,
+  dataEnvio,
+}: {
+  guiaId: string;
+  valorRecorrido: number;
+  justificativaRecurso: string;
+  protocolo?: string;
+  dataEnvio: string;
+}) {
+  const guia =
+    getGuiasConvenios().find(
+      (item) =>
+        item.id ===
+        guiaId
+    );
+
+  if (!guia) {
+    throw new Error(
+      "Atendimento glosado não encontrado."
+    );
+  }
+
+  if (
+    guia.status !==
+    "Glosado"
+  ) {
+    throw new Error(
+      "Somente atendimentos glosados podem receber recurso."
+    );
+  }
+
+  const valorGlosado =
+    Math.max(
+      guia.valorGlosado ??
+        0,
+      0
+    );
+
+  if (
+    valorGlosado <=
+    0
+  ) {
+    throw new Error(
+      "Este atendimento não possui valor glosado."
+    );
+  }
+
+  const recorrida =
+    Math.max(
+      Number(
+        valorRecorrido
+      ) ||
+        0,
+      0
+    );
+
+  if (
+    recorrida <=
+    0 ||
+    recorrida >
+      valorGlosado +
+        0.01
+  ) {
+    throw new Error(
+      "O valor recorrido deve ser maior que zero e não pode ultrapassar o valor glosado."
+    );
+  }
+
+  if (
+    !justificativaRecurso.trim()
+  ) {
+    throw new Error(
+      "Informe a justificativa do recurso."
+    );
+  }
+
+  if (
+    guia.recursoGlosaId ||
+    getRecursoGlosaByGuia(
+      guiaId
+    )
+  ) {
+    throw new Error(
+      "Já existe um recurso registrado para este atendimento."
+    );
+  }
+
+  const now =
+    new Date().toISOString();
+
+  const recurso: RecursoGlosa = {
+    id:
+      crypto.randomUUID?.() ??
+      `${Date.now()}`,
+
+    guiaId:
+      guia.id,
+
+    loteId:
+      guia.loteId ??
+      "",
+
+    unitId:
+      guia.unitId,
+
+    convenio:
+      guia.convenio,
+
+    valorGlosadoOriginal:
+      valorGlosado,
+
+    valorRecorrido:
+      recorrida,
+
+    motivoGlosa:
+      guia.motivoGlosa ??
+      "Glosa informada pelo convênio",
+
+    justificativaRecurso:
+      justificativaRecurso.trim(),
+
+    protocolo:
+      protocolo?.trim() ||
+      undefined,
+
+    dataEnvio,
+
+    status:
+      "Em recurso",
+
+    createdAt:
+      now,
+
+    updatedAt:
+      now,
+  };
+
+  saveRecursosGlosa([
+    recurso,
+    ...getRecursosGlosa(),
+  ]);
+
+  saveGuiasConvenios(
+    getGuiasConvenios().map(
+      (item) =>
+        item.id ===
+        guia.id
+          ? {
+              ...item,
+              recursoGlosaId:
+                recurso.id,
+              status:
+                "Em recurso" as GuiaConvenioStatus,
+              updatedAt:
+                now,
+            }
+          : item
+    )
+  );
+
+  return recurso;
+}
+
+export function registerRecursoGlosaReturn({
+  recursoId,
+  approved,
+  valorRecuperado,
+  dataRetorno,
+  observacaoRetorno,
+}: {
+  recursoId: string;
+  approved: boolean;
+  valorRecuperado: number;
+  dataRetorno: string;
+  observacaoRetorno?: string;
+}) {
+  const recurso =
+    getRecursoGlosaById(
+      recursoId
+    );
+
+  if (!recurso) {
+    throw new Error(
+      "Recurso não encontrado."
+    );
+  }
+
+  if (
+    recurso.status !==
+    "Em recurso"
+  ) {
+    throw new Error(
+      "Este recurso já possui retorno registrado."
+    );
+  }
+
+  const recovered =
+    approved
+      ? Math.max(
+          Math.min(
+            Number(
+              valorRecuperado
+            ) ||
+              0,
+            recurso.valorRecorrido
+          ),
+          0
+        )
+      : 0;
+
+  if (
+    approved &&
+    recovered <=
+      0
+  ) {
+    throw new Error(
+      "Informe o valor recuperado pelo recurso."
+    );
+  }
+
+  const now =
+    new Date().toISOString();
+
+  saveRecursosGlosa(
+    getRecursosGlosa().map(
+      (item) =>
+        item.id ===
+        recurso.id
+          ? {
+              ...item,
+
+              valorRecuperado:
+                recovered,
+
+              dataRetorno,
+
+              status:
+                approved
+                  ? "Aprovado"
+                  : "Negado",
+
+              observacaoRetorno:
+                observacaoRetorno?.trim() ||
+                undefined,
+
+              updatedAt:
+                now,
+            }
+          : item
+    )
+  );
+
+  saveGuiasConvenios(
+    getGuiasConvenios().map(
+      (guia) =>
+        guia.id ===
+        recurso.guiaId
+          ? {
+              ...guia,
+
+              valorRecuperadoGlosa:
+                recovered,
+
+              status:
+                approved
+                  ? "Recurso aprovado" as GuiaConvenioStatus
+                  : "Recurso negado" as GuiaConvenioStatus,
+
+              updatedAt:
+                now,
+            }
+          : guia
+    )
+  );
+
+  const lote =
+    getLoteConvenioById(
+      recurso.loteId
+    );
+
+  if (
+    lote &&
+    approved &&
+    recovered >
+      0
+  ) {
+    const previousApproved =
+      lote.valorAprovado ??
+      0;
+
+    const previousGlosa =
+      lote.valorGlosado ??
+      0;
+
+    const nextApproved =
+      previousApproved +
+      recovered;
+
+    const nextGlosa =
+      Math.max(
+        previousGlosa -
+          recovered,
+        0
+      );
+
+    const received =
+      lote.valorRecebido ??
+      0;
+
+    updateLoteConvenio(
+      lote.id,
+      {
+        valorAprovado:
+          nextApproved,
+
+        valorGlosado:
+          nextGlosa,
+
+        saldoAReceber:
+          Math.max(
+            nextApproved -
+              received,
+            0
+          ),
+
+        status:
+          received >
+          0
+            ? "Parcialmente pago"
+            : "Parcialmente aprovado",
+      }
+    );
+  }
+
+  return getRecursoGlosaById(
+    recursoId
   );
 }

@@ -4,8 +4,17 @@ import {
 } from "@/pages/Agenda/appointmentStorage";
 
 import {
-  getProfessionalRepasseValue,
+  getSystemSettings,
 } from "@/pages/Configuracoes/settingsStorage";
+
+import {
+  getUnitProfessionalValue,
+  getUnitSpecialtyValue,
+} from "@/pages/Configuracoes/unitServiceValueStorage";
+
+import {
+  getDefaultClinicUnitId,
+} from "@/pages/Configuracoes/clinicUnitStorage";
 
 /* =========================================
    TIPOS
@@ -17,6 +26,8 @@ export type ProfessionalPayoutStatus =
 
 export interface ProfessionalPayout {
   id: string;
+
+  unitId: number;
 
   appointmentId: number;
 
@@ -38,6 +49,15 @@ export interface ProfessionalPayout {
   createdAt: string;
 
   paidAt?: string;
+
+  paymentDate?: string;
+  paymentMethod?: string;
+
+  bankAccountId?: string;
+  bankAccountName?: string;
+
+  financialExpenseId?: number;
+  bankTransactionId?: string;
 }
 
 /* =========================================
@@ -78,9 +98,77 @@ export function getProfessionalPayouts():
       return [];
     }
 
-    return parsed.filter(
-      isValidPayout
-    );
+    const appointments =
+      getSavedAppointments();
+
+    const appointmentUnitMap =
+      new Map(
+        appointments.map(
+          (
+            appointment
+          ) => [
+            appointment.id,
+            appointment.unitId,
+          ]
+        )
+      );
+
+    const defaultUnitId =
+      getDefaultClinicUnitId();
+
+    let changed =
+      false;
+
+    const normalized =
+      parsed
+        .filter(
+          isValidPayout
+        )
+        .map(
+          (
+            payout
+          ) => {
+            const savedUnitId =
+              Number(
+                payout.unitId
+              );
+
+            const unitId =
+              Number.isFinite(
+                savedUnitId
+              ) &&
+              savedUnitId >
+                0
+                ? savedUnitId
+                : appointmentUnitMap.get(
+                    payout.appointmentId
+                  ) ??
+                  defaultUnitId;
+
+            if (
+              payout.unitId !==
+              unitId
+            ) {
+              changed =
+                true;
+            }
+
+            return {
+              ...payout,
+              unitId,
+            };
+          }
+        );
+
+    if (
+      changed
+    ) {
+      saveProfessionalPayouts(
+        normalized
+      );
+    }
+
+    return normalized;
   } catch {
     return [];
   }
@@ -89,6 +177,161 @@ export function getProfessionalPayouts():
 /* =========================================
    SINCRONIZAR COM ATENDIMENTOS REALIZADOS
 ========================================= */
+
+function normalizeText(
+  value:
+    string |
+    undefined
+) {
+  return String(
+    value ??
+    ""
+  )
+    .trim()
+    .toLocaleLowerCase(
+      "pt-BR"
+    );
+}
+
+/**
+ * O valor do repasse agora respeita a hierarquia
+ * utilizada nas Configurações:
+ *
+ * 1. Valor específico do profissional NA UNIDADE;
+ * 2. Valor padrão da especialidade NA UNIDADE;
+ * 3. Valor legado específico do profissional;
+ * 4. Valor legado da especialidade;
+ * 5. Zero quando realmente não há configuração.
+ */
+function getAppointmentRepasseValue(
+  appointment:
+    StoredAppointment
+) {
+  const settings =
+    getSystemSettings();
+
+  const professional =
+    settings.professionals.find(
+      (
+        item
+      ) =>
+        normalizeText(
+          item.name
+        ) ===
+        normalizeText(
+          appointment.professional
+        )
+    );
+
+  const specialty =
+    settings.specialties.find(
+      (
+        item
+      ) =>
+        normalizeText(
+          item.name
+        ) ===
+        normalizeText(
+          appointment.specialty
+        )
+    );
+
+  if (
+    professional
+  ) {
+    const unitProfessional =
+      getUnitProfessionalValue(
+        appointment.unitId,
+        professional.id
+      );
+
+    if (
+      unitProfessional?.repasseValue !==
+        undefined &&
+      Number.isFinite(
+        Number(
+          unitProfessional.repasseValue
+        )
+      )
+    ) {
+      return Math.max(
+        Number(
+          unitProfessional.repasseValue
+        ),
+        0
+      );
+    }
+  }
+
+  if (
+    specialty
+  ) {
+    const unitSpecialty =
+      getUnitSpecialtyValue(
+        appointment.unitId,
+        specialty.id
+      );
+
+    if (
+      Number.isFinite(
+        Number(
+          unitSpecialty.repasseValue
+        )
+      ) &&
+      Number(
+        unitSpecialty.repasseValue
+      ) >
+        0
+    ) {
+      return Math.max(
+        Number(
+          unitSpecialty.repasseValue
+        ),
+        0
+      );
+    }
+  }
+
+  /*
+   * Compatibilidade com cadastros anteriores
+   * à configuração financeira por unidade.
+   */
+  if (
+    professional?.customRepasseValue !==
+      undefined &&
+    Number.isFinite(
+      Number(
+        professional.customRepasseValue
+      )
+    )
+  ) {
+    return Math.max(
+      Number(
+        professional.customRepasseValue
+      ),
+      0
+    );
+  }
+
+  if (
+    specialty?.repasseValue !==
+      undefined &&
+    Number.isFinite(
+      Number(
+        specialty.repasseValue
+      )
+    )
+  ) {
+    return Math.max(
+      Number(
+        specialty.repasseValue
+      ),
+      0
+    );
+  }
+
+  return 0;
+}
 
 export function syncProfessionalPayoutsFromAppointments() {
   const current =
@@ -151,9 +394,8 @@ export function syncProfessionalPayoutsFromAppointments() {
       appointment
     ) => {
       const amount =
-        getProfessionalRepasseValue(
-          appointment.professional,
-          appointment.specialty
+        getAppointmentRepasseValue(
+          appointment
         );
 
       const existing =
@@ -177,6 +419,9 @@ export function syncProfessionalPayoutsFromAppointments() {
             appointment.id,
             {
               ...existing,
+
+              unitId:
+                appointment.unitId,
 
               patientId:
                 appointment.patientId,
@@ -364,8 +609,21 @@ export function getProfessionalPayoutSummary(
    USO FUTURO PELO GESTOR/FINANCEIRO
 ========================================= */
 
+export interface ProfessionalPayoutPaymentData {
+  paymentDate: string;
+  paymentMethod: string;
+
+  bankAccountId: string;
+  bankAccountName: string;
+
+  financialExpenseId: number;
+  bankTransactionId: string;
+}
+
 export function markProfessionalPayoutAsPaid(
-  payoutId: string
+  payoutId: string,
+  paymentData?:
+    ProfessionalPayoutPaymentData
 ) {
   const current =
     getProfessionalPayouts();
@@ -389,6 +647,34 @@ export function markProfessionalPayoutAsPaid(
 
               paidAt:
                 now,
+
+              paymentDate:
+                paymentData?.paymentDate ??
+                payout.paymentDate ??
+                now.slice(
+                  0,
+                  10
+                ),
+
+              paymentMethod:
+                paymentData?.paymentMethod ??
+                payout.paymentMethod,
+
+              bankAccountId:
+                paymentData?.bankAccountId ??
+                payout.bankAccountId,
+
+              bankAccountName:
+                paymentData?.bankAccountName ??
+                payout.bankAccountName,
+
+              financialExpenseId:
+                paymentData?.financialExpenseId ??
+                payout.financialExpenseId,
+
+              bankTransactionId:
+                paymentData?.bankTransactionId ??
+                payout.bankTransactionId,
             }
           : payout
     );
@@ -406,6 +692,75 @@ export function markProfessionalPayoutAsPaid(
   );
 }
 
+export function markProfessionalPayoutsAsPaid(
+  payoutIds: string[],
+  paymentData:
+    ProfessionalPayoutPaymentData
+) {
+  const ids =
+    new Set(
+      payoutIds
+    );
+
+  const current =
+    getProfessionalPayouts();
+
+  const now =
+    new Date()
+      .toISOString();
+
+  const next =
+    current.map(
+      (
+        payout
+      ) =>
+        ids.has(
+          payout.id
+        )
+          ? {
+              ...payout,
+
+              status:
+                "Pago" as const,
+
+              paidAt:
+                now,
+
+              paymentDate:
+                paymentData.paymentDate,
+
+              paymentMethod:
+                paymentData.paymentMethod,
+
+              bankAccountId:
+                paymentData.bankAccountId,
+
+              bankAccountName:
+                paymentData.bankAccountName,
+
+              financialExpenseId:
+                paymentData.financialExpenseId,
+
+              bankTransactionId:
+                paymentData.bankTransactionId,
+            }
+          : payout
+    );
+
+  saveProfessionalPayouts(
+    next
+  );
+
+  return next.filter(
+    (
+      payout
+    ) =>
+      ids.has(
+        payout.id
+      )
+  );
+}
+
 /* =========================================
    VOLTAR PARA PENDENTE
 ========================================= */
@@ -415,6 +770,24 @@ export function markProfessionalPayoutAsPending(
 ) {
   const current =
     getProfessionalPayouts();
+
+  const target =
+    current.find(
+      (
+        payout
+      ) =>
+        payout.id ===
+        payoutId
+    );
+
+  if (
+    target?.financialExpenseId ||
+    target?.bankTransactionId
+  ) {
+    throw new Error(
+      "Este repasse possui pagamento financeiro e movimentação bancária vinculados. Ele não pode voltar para pendente por esta tela."
+    );
+  }
 
   const next =
     current.map(
@@ -430,6 +803,18 @@ export function markProfessionalPayoutAsPending(
                 "Pendente" as const,
 
               paidAt:
+                undefined,
+
+              paymentDate:
+                undefined,
+
+              paymentMethod:
+                undefined,
+
+              bankAccountId:
+                undefined,
+
+              bankAccountName:
                 undefined,
             }
           : payout
@@ -460,6 +845,9 @@ function createPayoutFromAppointment(
   return {
     id:
       `repasse-${appointment.id}`,
+
+    unitId:
+      appointment.unitId,
 
     appointmentId:
       appointment.id,
