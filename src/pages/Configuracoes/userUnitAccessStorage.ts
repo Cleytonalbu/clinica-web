@@ -238,7 +238,7 @@ export function clearUserUnitAccess(
 ========================================= */
 
 /*
- * Gestor:
+ * Gestor e Administrativo:
  *   acesso a todas as unidades.
  *
  * Profissional:
@@ -262,7 +262,9 @@ function createDefaultAccess(
 
   if (
     user.profile ===
-    "Gestor"
+      "Gestor" ||
+    user.profile ===
+      "Administrativo"
   ) {
     return {
       userId:

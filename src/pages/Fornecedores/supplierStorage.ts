@@ -1,7 +1,10 @@
+import { getDefaultClinicUnitId } from "@/pages/Configuracoes/clinicUnitStorage";
+
 export type SupplierStatus = "Ativo" | "Inativo";
 
 export interface Supplier {
   id: string;
+  unitId: number;
   name: string;
   document: string;
   contactName: string;
@@ -19,7 +22,27 @@ function readSuppliers(): Supplier[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+
+    const defaultUnitId = getDefaultClinicUnitId();
+    let changed = false;
+
+    const normalized = parsed.map((supplier) => {
+      const unitId = Number(supplier?.unitId);
+
+      if (Number.isFinite(unitId) && unitId > 0) {
+        return { ...supplier, unitId } as Supplier;
+      }
+
+      changed = true;
+      return { ...supplier, unitId: defaultUnitId } as Supplier;
+    });
+
+    if (changed) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    }
+
+    return normalized;
   } catch {
     return [];
   }
@@ -29,9 +52,15 @@ export function getSuppliers(): Supplier[] {
   return readSuppliers();
 }
 
-export function saveSupplier(data: Omit<Supplier, "id" | "createdAt">): Supplier {
+export function saveSupplier(
+  data: Omit<Supplier, "id" | "createdAt" | "unitId"> & { unitId?: number }
+): Supplier {
   const supplier: Supplier = {
     ...data,
+    unitId:
+      Number.isFinite(Number(data.unitId)) && Number(data.unitId) > 0
+        ? Number(data.unitId)
+        : getDefaultClinicUnitId(),
     id: `supplier-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     createdAt: new Date().toISOString(),
   };

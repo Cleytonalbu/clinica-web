@@ -1,3 +1,5 @@
+import { getDefaultClinicUnitId } from "@/pages/Configuracoes/clinicUnitStorage";
+
 export type AdministrativeLeaveType =
   | "Férias"
   | "Atestado"
@@ -14,6 +16,10 @@ export type AdministrativeLeaveStatus =
 
 export interface AdministrativeLeave {
   id: string;
+
+  /* Unidade à qual o afastamento pertence. */
+  unitId: number;
+
   collaboratorId: string;
   collaboratorName: string;
   collaboratorRole: string;
@@ -49,7 +55,47 @@ export function getAdministrativeLeaves(): AdministrativeLeave[] {
 
     const parsed = JSON.parse(raw);
 
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    const defaultUnitId =
+      getDefaultClinicUnitId();
+
+    let changed = false;
+
+    const normalized =
+      parsed.map((leave) => {
+        const unitId =
+          Number(leave?.unitId);
+
+        if (
+          Number.isFinite(unitId) &&
+          unitId > 0
+        ) {
+          return {
+            ...leave,
+            unitId,
+          } as AdministrativeLeave;
+        }
+
+        changed = true;
+
+        return {
+          ...leave,
+          unitId:
+            defaultUnitId,
+        } as AdministrativeLeave;
+      });
+
+    if (changed) {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(normalized),
+      );
+    }
+
+    return normalized;
   } catch {
     return [];
   }
@@ -71,13 +117,22 @@ export function saveAdministrativeLeaves(
 export function createAdministrativeLeave(
   input: Omit<
     AdministrativeLeave,
-    "id" | "createdAt" | "updatedAt"
-  >,
+    "id" | "createdAt" | "updatedAt" | "unitId"
+  > & {
+    unitId?: number;
+  },
 ): AdministrativeLeave {
   const now = new Date().toISOString();
 
   const leave: AdministrativeLeave = {
     ...input,
+    unitId:
+      Number.isFinite(
+        Number(input.unitId),
+      ) &&
+      Number(input.unitId) > 0
+        ? Number(input.unitId)
+        : getDefaultClinicUnitId(),
     id:
       typeof crypto !== "undefined" &&
       "randomUUID" in crypto

@@ -7,8 +7,9 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
+import { useUnit } from "@/providers/UnitContext";
 import { Button, Input, Select } from "@/components/ui";
 import {
   getAdministrativeDocumentDisplayStatus,
@@ -39,8 +40,12 @@ const emptyForm = {
 };
 
 export default function DocumentosAdministrativos() {
+  const { activeUnitId } = useUnit();
+
   const [documents, setDocuments] = useState<AdministrativeDocument[]>(() =>
-    getAdministrativeDocuments()
+    getAdministrativeDocuments().filter(
+      (document) => document.unitId === activeUnitId
+    )
   );
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Todas");
@@ -49,6 +54,14 @@ export default function DocumentosAdministrativos() {
   const [form, setForm] = useState(emptyForm);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
+
+  useEffect(() => {
+    setDocuments(
+      getAdministrativeDocuments().filter(
+        (document) => document.unitId === activeUnitId
+      )
+    );
+  }, [activeUnitId]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -100,6 +113,7 @@ export default function DocumentosAdministrativos() {
     }
 
     saveAdministrativeDocument({
+      unitId: activeUnitId,
       title: form.title.trim(),
       category: form.category,
       relatedTo: form.relatedTo.trim(),
@@ -113,7 +127,11 @@ export default function DocumentosAdministrativos() {
       fileDataUrl,
     });
 
-    setDocuments(getAdministrativeDocuments());
+    setDocuments(
+      getAdministrativeDocuments().filter(
+        (document) => document.unitId === activeUnitId
+      )
+    );
     setForm(emptyForm);
     setSelectedFile(null);
     setModalOpen(false);
@@ -122,7 +140,11 @@ export default function DocumentosAdministrativos() {
   function toggleArchive(document: AdministrativeDocument) {
     const nextStatus = document.status === "Arquivado" ? "Ativo" : "Arquivado";
     updateAdministrativeDocumentStatus(document.id, nextStatus);
-    setDocuments(getAdministrativeDocuments());
+    setDocuments(
+      getAdministrativeDocuments().filter(
+        (document) => document.unitId === activeUnitId
+      )
+    );
   }
 
   function openDocument(document: AdministrativeDocument) {

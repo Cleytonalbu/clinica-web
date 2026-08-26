@@ -26,6 +26,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   Button,
   FormField,
   Input,
@@ -240,6 +244,11 @@ const REPORT_PRINT_STYLES = `
 `;
 
 export default function RelatorioProfissionais() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const [
     searchParams,
   ] =
@@ -269,22 +278,34 @@ export default function RelatorioProfissionais() {
   const appointments =
     useMemo(
       () =>
-        getSavedAppointments(),
-      []
+        getSavedAppointments().filter(
+          (appointment) =>
+            appointment.unitId ===
+            activeUnitId
+        ),
+      [activeUnitId]
     );
 
   const charges =
     useMemo(
       () =>
-        getFinancialCharges(),
-      []
+        getFinancialCharges().filter(
+          (charge) =>
+            charge.unitId ===
+            activeUnitId
+        ),
+      [activeUnitId]
     );
 
   const payouts =
     useMemo(
       () =>
-        syncProfessionalPayoutsFromAppointments(),
-      []
+        syncProfessionalPayoutsFromAppointments().filter(
+          (payout) =>
+            payout.unitId ===
+            activeUnitId
+        ),
+      [activeUnitId]
     );
 
   const [

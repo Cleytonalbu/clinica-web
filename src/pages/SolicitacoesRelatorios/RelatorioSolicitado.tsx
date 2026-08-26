@@ -30,6 +30,10 @@ import {
   DashboardLayout,
 } from "@/layouts/DashboardLayout";
 
+import {
+  useUnit,
+} from "@/providers/UnitContext";
+
 import reportLogo from "@/assets/report-logo.png";
 import reportTopStrip from "@/assets/report-top-strip.png";
 
@@ -253,11 +257,59 @@ function professionLabel(
   return specialty;
 }
 
+function reportCoverText(
+  reportType: string
+) {
+  if (
+    reportType ===
+    "Relatório terapêutico"
+  ) {
+    return {
+      first: "Relatório",
+      main: "Terapêutico",
+      last: "da criança",
+    };
+  }
+
+  if (
+    reportType ===
+    "Declaração de acompanhamento"
+  ) {
+    return {
+      first: "Declaração de",
+      main: "Acompanhamento",
+      last: "da criança",
+    };
+  }
+
+  if (
+    reportType ===
+    "Relatório psicológico"
+  ) {
+    return {
+      first: "Relatório",
+      main: "Psicológico",
+      last: "da criança",
+    };
+  }
+
+  return {
+    first: "Relatório de",
+    main: "Acompanhamento",
+    last: "da criança",
+  };
+}
+
 export default function RelatorioSolicitado() {
   const {
     user,
   } =
     useAuth();
+
+  const {
+    activeUnitId,
+  } =
+    useUnit();
 
   const navigate =
     useNavigate();
@@ -276,10 +328,13 @@ export default function RelatorioSolicitado() {
             item
           ) =>
             item.id ===
-            requestId
+              requestId &&
+            item.unitId ===
+              activeUnitId
         ),
       [
         requestId,
+        activeUnitId,
       ]
     );
 
@@ -290,6 +345,12 @@ export default function RelatorioSolicitado() {
       ) =>
         item.id ===
         itemId
+    );
+
+  const coverText =
+    reportCoverText(
+      request?.reportType ??
+      "Relatório de acompanhamento"
     );
 
   const patient =
@@ -331,14 +392,22 @@ export default function RelatorioSolicitado() {
 
   const existingDocument =
     useMemo(
-      () =>
-        getRequestedReportDocument(
-          requestId,
-          itemId
-        ),
+      () => {
+        const document =
+          getRequestedReportDocument(
+            requestId,
+            itemId
+          );
+
+        return document?.unitId ===
+          activeUnitId
+          ? document
+          : undefined;
+      },
       [
         requestId,
         itemId,
+        activeUnitId,
       ]
     );
 
@@ -646,6 +715,9 @@ export default function RelatorioSolicitado() {
   ) {
     return saveRequestedReportDocument(
       {
+        unitId:
+          activeUnitId,
+
         requestId:
           request.id,
 
@@ -864,7 +936,7 @@ export default function RelatorioSolicitado() {
             </button>
 
             <h1 className="mt-3 text-xl font-extrabold text-[#10235f]">
-              Relatório de acompanhamento
+              {request.reportType}
             </h1>
 
             <p className="mt-1 text-sm font-medium text-slate-500">
@@ -985,15 +1057,15 @@ export default function RelatorioSolicitado() {
 
               <div className="mt-16 bg-[#42a8d1] px-12 py-10 text-white">
                 <p className="text-4xl font-light uppercase leading-none tracking-wide">
-                  Relatório de
+                  {coverText.first}
                 </p>
 
                 <p className="mt-2 text-5xl font-extrabold uppercase leading-none">
-                  Acompanhamento
+                  {coverText.main}
                 </p>
 
                 <p className="mt-2 text-4xl font-light uppercase leading-none tracking-wide">
-                  da criança
+                  {coverText.last}
                 </p>
               </div>
 

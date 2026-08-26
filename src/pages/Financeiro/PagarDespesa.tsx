@@ -22,6 +22,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   Button,
   FormField,
   Input,
@@ -52,6 +56,11 @@ const paymentMethods = [
 ];
 
 export default function PagarDespesa() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const navigate =
     useNavigate();
 
@@ -66,19 +75,35 @@ export default function PagarDespesa() {
     );
 
   const expense =
-    getFinancialExpenseById(
-      numericId
-    );
+    (() => {
+      const item =
+        getFinancialExpenseById(
+          numericId
+        );
+
+      return (
+        item?.unitId ===
+        activeUnitId
+      )
+        ? item
+        : undefined;
+    })();
 
   const bankAccounts =
     useMemo(
       () =>
         getBankAccounts().filter(
-          (account) =>
+          (
+            account
+          ) =>
             account.status ===
-            "Ativa"
+              "Ativa" &&
+            account.unitId ===
+              activeUnitId
         ),
-      []
+      [
+        activeUnitId,
+      ]
     );
 
   const [

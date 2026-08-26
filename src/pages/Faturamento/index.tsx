@@ -23,6 +23,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   formatCurrency,
 } from "@/pages/Financeiro/financeRules";
 
@@ -169,6 +173,11 @@ export default function Faturamento() {
   const navigate =
     useNavigate();
 
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const [
     charges,
   ] =
@@ -207,10 +216,26 @@ export default function Faturamento() {
       "Todos"
     );
 
-  const competenceCharges =
+  const unitCharges =
     useMemo(
       () =>
         charges.filter(
+          (
+            charge
+          ) =>
+            charge.unitId ===
+            activeUnitId
+        ),
+      [
+        charges,
+        activeUnitId,
+      ]
+    );
+
+  const competenceCharges =
+    useMemo(
+      () =>
+        unitCharges.filter(
           (
             charge
           ) =>
@@ -221,7 +246,7 @@ export default function Faturamento() {
               competence
         ),
       [
-        charges,
+        unitCharges,
         competence,
       ]
     );

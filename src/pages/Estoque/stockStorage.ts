@@ -1,7 +1,10 @@
+import { getDefaultClinicUnitId } from "@/pages/Configuracoes/clinicUnitStorage";
+
 export type StockMovementType = "Entrada" | "Saída";
 
 export interface StockItem {
   id: string;
+  unitId: number;
   name: string;
   category: string;
   unit: string;
@@ -15,6 +18,7 @@ export interface StockItem {
 
 export interface StockMovement {
   id: string;
+  unitId: number;
   itemId: string;
   itemName: string;
   type: StockMovementType;
@@ -43,7 +47,27 @@ export function getStockItems(): StockItem[] {
     if (!raw) return [];
 
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+
+    const defaultUnitId = getDefaultClinicUnitId();
+    let changed = false;
+
+    const normalized = parsed.map((item) => {
+      const unitId = Number(item?.unitId);
+
+      if (Number.isFinite(unitId) && unitId > 0) {
+        return { ...item, unitId } as StockItem;
+      }
+
+      changed = true;
+      return { ...item, unitId: defaultUnitId } as StockItem;
+    });
+
+    if (changed) {
+      window.localStorage.setItem(ITEMS_KEY, JSON.stringify(normalized));
+    }
+
+    return normalized;
   } catch {
     return [];
   }
@@ -57,12 +81,19 @@ export function saveStockItems(items: StockItem[]) {
 }
 
 export function createStockItem(
-  input: Omit<StockItem, "id" | "createdAt" | "updatedAt">,
+  input: Omit<
+    StockItem,
+    "id" | "createdAt" | "updatedAt" | "unitId"
+  > & { unitId?: number },
 ): StockItem {
   const now = new Date().toISOString();
 
   const item: StockItem = {
     ...input,
+    unitId:
+      Number.isFinite(Number(input.unitId)) && Number(input.unitId) > 0
+        ? Number(input.unitId)
+        : getDefaultClinicUnitId(),
     id:
       typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
@@ -85,7 +116,27 @@ export function getStockMovements(): StockMovement[] {
     if (!raw) return [];
 
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+
+    const defaultUnitId = getDefaultClinicUnitId();
+    let changed = false;
+
+    const normalized = parsed.map((movement) => {
+      const unitId = Number(movement?.unitId);
+
+      if (Number.isFinite(unitId) && unitId > 0) {
+        return { ...movement, unitId } as StockMovement;
+      }
+
+      changed = true;
+      return { ...movement, unitId: defaultUnitId } as StockMovement;
+    });
+
+    if (changed) {
+      window.localStorage.setItem(MOVEMENTS_KEY, JSON.stringify(normalized));
+    }
+
+    return normalized;
   } catch {
     return [];
   }
@@ -101,7 +152,10 @@ function saveStockMovements(movements: StockMovement[]) {
 }
 
 export function registerStockMovement(
-  input: Omit<StockMovement, "id" | "itemName" | "createdAt">,
+  input: Omit<
+    StockMovement,
+    "id" | "itemName" | "createdAt" | "unitId"
+  > & { unitId?: number },
 ) {
   const items = getStockItems();
   const item = items.find((current) => current.id === input.itemId);
@@ -135,6 +189,10 @@ export function registerStockMovement(
 
   const movement: StockMovement = {
     ...input,
+    unitId:
+      Number.isFinite(Number(input.unitId)) && Number(input.unitId) > 0
+        ? Number(input.unitId)
+        : item.unitId,
     id:
       typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()

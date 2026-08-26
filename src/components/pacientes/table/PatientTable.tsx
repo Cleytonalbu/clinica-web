@@ -22,6 +22,10 @@ import {
 } from "@/auth/AuthContext";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   deletePatient,
   getPatients,
   type StoredPatient,
@@ -292,6 +296,11 @@ export function PatientTable({
   statusFilter,
   convenioFilter,
 }: PatientTableProps) {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const navigate =
     useNavigate();
 
@@ -318,7 +327,11 @@ export function PatientTable({
       StoredAppointment[]
     >(
       () =>
-        getSavedAppointments()
+        getSavedAppointments().filter(
+          (appointment) =>
+            appointment.unitId ===
+            activeUnitId
+        )
     );
 
   const isGestor =

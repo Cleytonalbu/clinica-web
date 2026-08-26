@@ -1,3 +1,5 @@
+import { getDefaultClinicUnitId } from "@/pages/Configuracoes/clinicUnitStorage";
+
 export type ReportRequestStatus =
   | "Solicitado"
   | "Em andamento"
@@ -6,6 +8,48 @@ export type ReportRequestStatus =
 export type ReportRequestDisplayStatus =
   | ReportRequestStatus
   | "Em atraso";
+
+export type ReportDocumentType =
+  | "Relatório de acompanhamento"
+  | "Relatório terapêutico"
+  | "Declaração de acompanhamento"
+  | "Relatório psicológico";
+
+export interface ReportDocumentTypeDefinition {
+  value: ReportDocumentType;
+  label: string;
+  description: string;
+}
+
+export const REPORT_DOCUMENT_TYPES: ReportDocumentTypeDefinition[] = [
+  {
+    value: "Relatório de acompanhamento",
+    label: "Relatório de acompanhamento",
+    description:
+      "Relatório referente ao acompanhamento terapêutico da criança.",
+  },
+  {
+    value: "Relatório terapêutico",
+    label: "Relatório terapêutico",
+    description:
+      "Relatório solicitado para acompanhamento do desenvolvimento terapêutico.",
+  },
+  {
+    value: "Declaração de acompanhamento",
+    label: "Declaração de acompanhamento",
+    description:
+      "Declaração referente ao acompanhamento realizado na clínica.",
+  },
+  {
+    value: "Relatório psicológico",
+    label: "Relatório psicológico",
+    description:
+      "Relatório referente ao acompanhamento psicológico.",
+  },
+];
+
+export const DEFAULT_REPORT_DOCUMENT_TYPE: ReportDocumentType =
+  "Relatório de acompanhamento";
 
 export type ReportSpecialtyKey =
   | "psicologia"
@@ -36,6 +80,11 @@ export interface ReportRequestItem {
 
 export interface ReportRequest {
   id: string;
+  unitId: number;
+
+  /* Tipo solicitado pelo responsável/recepção. */
+  reportType: ReportDocumentType;
+
   patientId: number;
   patientName: string;
   responsibleName: string;
@@ -150,14 +199,57 @@ export function getReportRequests(): ReportRequest[] {
       return [];
     }
 
-    return parsed
+    const defaultUnitId = getDefaultClinicUnitId();
+    let changed = false;
+
+    const normalized = parsed
       .filter(isReportRequest)
+      .map((request) => {
+        const unitId = Number(request.unitId);
+
+        const reportType =
+          REPORT_DOCUMENT_TYPES.some(
+            (type) =>
+              type.value ===
+              request.reportType
+          )
+            ? request.reportType
+            : DEFAULT_REPORT_DOCUMENT_TYPE;
+
+        if (
+          reportType !==
+          request.reportType
+        ) {
+          changed = true;
+        }
+
+        if (Number.isFinite(unitId) && unitId > 0) {
+          return {
+            ...request,
+            unitId,
+            reportType,
+          };
+        }
+
+        changed = true;
+        return {
+          ...request,
+          unitId: defaultUnitId,
+          reportType,
+        };
+      })
       .sort((a, b) => {
         return (
           new Date(b.createdAt).getTime() -
           new Date(a.createdAt).getTime()
         );
       });
+
+    if (changed) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    }
+
+    return normalized;
   } catch {
     return [];
   }
@@ -169,6 +261,8 @@ function saveReportRequests(requests: ReportRequest[]) {
 }
 
 export interface CreateReportRequestInput {
+  unitId: number;
+  reportType: ReportDocumentType;
   patientId: number;
   patientName: string;
   responsibleName: string;
@@ -192,6 +286,9 @@ export function createReportRequest(
 
   const request: ReportRequest = {
     id: createId("report-request"),
+    unitId: input.unitId,
+    reportType:
+      input.reportType,
     patientId: input.patientId,
     patientName: input.patientName.trim(),
     responsibleName: input.responsibleName.trim(),

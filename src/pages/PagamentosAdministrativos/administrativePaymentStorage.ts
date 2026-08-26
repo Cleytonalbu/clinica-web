@@ -1,3 +1,5 @@
+import { getDefaultClinicUnitId } from "@/pages/Configuracoes/clinicUnitStorage";
+
 export type AdministrativePaymentType =
   | "Salário"
   | "Pró-labore"
@@ -13,6 +15,10 @@ export type AdministrativePaymentStatus =
 
 export interface AdministrativePayment {
   id: string;
+
+  /* Unidade responsável pelo pagamento. */
+  unitId: number;
+
   collaboratorId: string;
   collaboratorName: string;
   collaboratorRole: string;
@@ -47,7 +53,48 @@ export function getAdministrativePayments(): AdministrativePayment[] {
     if (!raw) return [];
 
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    const defaultUnitId =
+      getDefaultClinicUnitId();
+
+    let changed = false;
+
+    const normalized =
+      parsed.map((payment) => {
+        const unitId =
+          Number(payment?.unitId);
+
+        if (
+          Number.isFinite(unitId) &&
+          unitId > 0
+        ) {
+          return {
+            ...payment,
+            unitId,
+          } as AdministrativePayment;
+        }
+
+        changed = true;
+
+        return {
+          ...payment,
+          unitId:
+            defaultUnitId,
+        } as AdministrativePayment;
+      });
+
+    if (changed) {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(normalized),
+      );
+    }
+
+    return normalized;
   } catch {
     return [];
   }
@@ -69,13 +116,22 @@ export function saveAdministrativePayments(
 export function createAdministrativePayment(
   input: Omit<
     AdministrativePayment,
-    "id" | "createdAt" | "updatedAt"
-  >,
+    "id" | "createdAt" | "updatedAt" | "unitId"
+  > & {
+    unitId?: number;
+  },
 ): AdministrativePayment {
   const now = new Date().toISOString();
 
   const payment: AdministrativePayment = {
     ...input,
+    unitId:
+      Number.isFinite(
+        Number(input.unitId),
+      ) &&
+      Number(input.unitId) > 0
+        ? Number(input.unitId)
+        : getDefaultClinicUnitId(),
     id:
       typeof crypto !== "undefined" &&
       "randomUUID" in crypto

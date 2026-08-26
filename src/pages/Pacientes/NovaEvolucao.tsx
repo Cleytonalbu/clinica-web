@@ -20,6 +20,7 @@ import {
 } from "react-router-dom";
 
 import { DashboardLayout } from "@/layouts/DashboardLayout";
+import { useUnit } from "@/providers/UnitContext";
 
 import {
   useAuth,
@@ -80,6 +81,8 @@ type ValidationErrors = Partial<
 >;
 
 export default function NovaEvolucao() {
+  const { activeUnitId } = useUnit();
+
   const navigate = useNavigate();
   const { id } = useParams();
 
@@ -2041,6 +2044,9 @@ function QuickObjectiveModal({
     try {
       createObjective(
         {
+          unitId:
+            activeUnitId,
+
           patientId,
 
           generalObjective:

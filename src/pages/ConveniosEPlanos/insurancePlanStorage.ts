@@ -1,7 +1,13 @@
+import { getDefaultClinicUnitId } from "@/pages/Configuracoes/clinicUnitStorage";
+
 export type ConvenioPlanoStatus = "Ativo" | "Inativo";
 
 export interface ConvenioPlano {
   id: string;
+
+  /* Unidade responsável por esta autorização/plano. */
+  unitId: number;
+
   convenio: string;
   plano: string;
   paciente: string;
@@ -26,7 +32,56 @@ function notify() {
 export function getConveniosPlanos(): ConvenioPlano[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw);
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    const defaultUnitId =
+      getDefaultClinicUnitId();
+
+    let changed = false;
+
+    const normalized =
+      parsed.map((item) => {
+        const unitId =
+          Number(item?.unitId);
+
+        if (
+          Number.isFinite(unitId) &&
+          unitId > 0
+        ) {
+          return {
+            ...item,
+            unitId,
+          } as ConvenioPlano;
+        }
+
+        changed = true;
+
+        return {
+          ...item,
+          unitId:
+            defaultUnitId,
+        } as ConvenioPlano;
+      });
+
+    if (changed) {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(
+          normalized
+        )
+      );
+    }
+
+    return normalized;
   } catch {
     return [];
   }
@@ -38,11 +93,31 @@ export function saveConveniosPlanos(items: ConvenioPlano[]) {
 }
 
 export function createConvenioPlano(
-  data: Omit<ConvenioPlano, "id" | "createdAt" | "updatedAt">
+  data: Omit<
+    ConvenioPlano,
+    "id" | "createdAt" | "updatedAt" | "unitId"
+  > & {
+    unitId?: number;
+  }
 ) {
   const now = new Date().toISOString();
   const item: ConvenioPlano = {
     ...data,
+
+    unitId:
+      Number.isFinite(
+        Number(
+          data.unitId
+        )
+      ) &&
+      Number(
+        data.unitId
+      ) > 0
+        ? Number(
+            data.unitId
+          )
+        : getDefaultClinicUnitId(),
+
     id: crypto.randomUUID?.() ?? `${Date.now()}`,
     createdAt: now,
     updatedAt: now,

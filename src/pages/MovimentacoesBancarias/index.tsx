@@ -31,6 +31,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   getBankAccounts,
 } from "@/pages/ContasBancarias/bankAccountStorage";
 
@@ -221,6 +225,11 @@ export default function MovimentacoesBancarias() {
     useNavigate();
 
   const {
+    activeUnitId,
+  } =
+    useUnit();
+
+  const {
     accountId,
   } =
     useParams();
@@ -380,7 +389,9 @@ export default function MovimentacoesBancarias() {
       getBankAccounts().find(
         (item) =>
           item.id ===
-          accountId,
+            accountId &&
+          item.unitId ===
+            activeUnitId,
       ) ?? null,
     );
 
@@ -404,11 +415,15 @@ export default function MovimentacoesBancarias() {
     );
 
     setCharges(
-      getFinancialCharges(),
+      getFinancialCharges().filter(
+        (charge) => charge.unitId === activeUnitId,
+      ),
     );
 
     setExpenses(
-      getFinancialExpenses(),
+      getFinancialExpenses().filter(
+        (expense) => expense.unitId === activeUnitId,
+      ),
     );
   }
 
@@ -451,6 +466,7 @@ export default function MovimentacoesBancarias() {
     };
   }, [
     accountId,
+    activeUnitId,
   ]);
 
   const reconciliationMap =

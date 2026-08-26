@@ -1,3 +1,5 @@
+import { getDefaultClinicUnitId } from "@/pages/Configuracoes/clinicUnitStorage";
+
 export type RequestedReportDocumentStatus =
   | "Rascunho"
   | "Assinado"
@@ -5,6 +7,7 @@ export type RequestedReportDocumentStatus =
 
 export interface RequestedReportDocument {
   id: string;
+  unitId: number;
 
   requestId: string;
   itemId: string;
@@ -87,11 +90,51 @@ export function getRequestedReportDocuments():
         raw
       );
 
-    return Array.isArray(
-      parsed
-    )
-      ? parsed
-      : [];
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    const defaultUnitId =
+      getDefaultClinicUnitId();
+
+    let changed = false;
+
+    const normalized =
+      parsed.map(
+        (document) => {
+          const unitId =
+            Number(
+              document?.unitId
+            );
+
+          if (
+            Number.isFinite(unitId) &&
+            unitId > 0
+          ) {
+            return {
+              ...document,
+              unitId,
+            } as RequestedReportDocument;
+          }
+
+          changed = true;
+
+          return {
+            ...document,
+            unitId:
+              defaultUnitId,
+          } as RequestedReportDocument;
+        }
+      );
+
+    if (changed) {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(normalized)
+      );
+    }
+
+    return normalized;
   } catch {
     return [];
   }
@@ -119,7 +162,9 @@ export function saveRequestedReportDocument(
       | "id"
       | "createdAt"
       | "updatedAt"
+      | "unitId"
     > & {
+      unitId?: number;
       id?: string;
       createdAt?: string;
     }
@@ -145,6 +190,23 @@ export function saveRequestedReportDocument(
   const document:
     RequestedReportDocument = {
     ...data,
+
+    unitId:
+      existing?.unitId ??
+      (
+        Number.isFinite(
+          Number(
+            data.unitId
+          )
+        ) &&
+        Number(
+          data.unitId
+        ) > 0
+          ? Number(
+              data.unitId
+            )
+          : getDefaultClinicUnitId()
+      ),
 
     id:
       existing?.id ??

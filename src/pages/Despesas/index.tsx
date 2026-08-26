@@ -24,6 +24,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   Button,
   Input,
   Select,
@@ -201,6 +205,11 @@ function getStatusClass(
 ========================================= */
 
 export default function Despesas() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const navigate =
     useNavigate();
 
@@ -209,7 +218,13 @@ export default function Despesas() {
   ] =
     useState<FinancialExpense[]>(
       () =>
-        getFinancialExpenses()
+        getFinancialExpenses().filter(
+          (
+            expense
+          ) =>
+            expense.unitId ===
+            activeUnitId
+        )
     );
 
   const [

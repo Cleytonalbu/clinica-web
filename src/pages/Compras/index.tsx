@@ -21,6 +21,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   getSuppliers,
 } from "@/pages/Fornecedores/supplierStorage";
 
@@ -92,6 +96,8 @@ function statusClass(status: PurchaseStatus) {
 }
 
 export default function Compras() {
+  const { activeUnitId } = useUnit();
+
   const [requests, setRequests] = useState<PurchaseRequest[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [search, setSearch] = useState("");
@@ -100,11 +106,17 @@ export default function Compras() {
   const [form, setForm] = useState(emptyForm);
 
   function load() {
-    setRequests(getPurchaseRequests());
+    setRequests(
+      getPurchaseRequests().filter(
+        (request) => request.unitId === activeUnitId,
+      ),
+    );
 
     setSuppliers(
       getSuppliers().filter(
-        (supplier) => supplier.status === "Ativo",
+        (supplier) =>
+          supplier.status === "Ativo" &&
+          supplier.unitId === activeUnitId,
       ),
     );
   }
@@ -121,7 +133,9 @@ export default function Compras() {
         "purchase-requests-changed",
         refresh,
       );
-  }, []);
+  }, [
+    activeUnitId,
+  ]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -190,6 +204,7 @@ export default function Compras() {
     );
 
     createPurchaseRequest({
+      unitId: activeUnitId,
       description: form.description.trim(),
       supplierId: supplier?.id,
       supplierName: supplier?.name,

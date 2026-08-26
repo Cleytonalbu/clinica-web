@@ -22,6 +22,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   getFinancialCharges,
 } from "@/pages/Financeiro/financeStorage";
 
@@ -114,17 +118,53 @@ function getPeriodLabel(startDate: string, endDate: string) {
 ========================================= */
 
 export default function RelatoriosAdministrativos() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const [startDate, setStartDate] = useState(getCurrentMonthStart());
   const [endDate, setEndDate] = useState(getCurrentMonthEnd());
 
-  const charges = useMemo(() => getFinancialCharges(), []);
-  const expenses = useMemo(() => getFinancialExpenses(), []);
-  const payouts = useMemo(
-    () => syncProfessionalPayoutsFromAppointments(),
-    []
+  const charges = useMemo(
+    () =>
+      getFinancialCharges().filter(
+        (charge) => charge.unitId === activeUnitId
+      ),
+    [activeUnitId]
   );
-  const suppliers = useMemo(() => getSuppliers(), []);
-  const documents = useMemo(() => getAdministrativeDocuments(), []);
+
+  const expenses = useMemo(
+    () =>
+      getFinancialExpenses().filter(
+        (expense) => expense.unitId === activeUnitId
+      ),
+    [activeUnitId]
+  );
+
+  const payouts = useMemo(
+    () =>
+      syncProfessionalPayoutsFromAppointments().filter(
+        (payout) => payout.unitId === activeUnitId
+      ),
+    [activeUnitId]
+  );
+
+  const suppliers = useMemo(
+    () =>
+      getSuppliers().filter(
+        (supplier) => supplier.unitId === activeUnitId
+      ),
+    [activeUnitId]
+  );
+
+  const documents = useMemo(
+    () =>
+      getAdministrativeDocuments().filter(
+        (document) => document.unitId === activeUnitId
+      ),
+    [activeUnitId]
+  );
 
   const periodCharges = charges.filter((charge) =>
     isDateInPeriod(charge.date, startDate, endDate)

@@ -23,6 +23,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   Button,
   FormField,
   Input,
@@ -45,6 +49,11 @@ import {
 } from "./financeStorage";
 
 export default function ReceberCobranca() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const navigate =
     useNavigate();
 
@@ -59,19 +68,35 @@ export default function ReceberCobranca() {
     );
 
   const charge =
-    getFinancialChargeById(
-      numericId
-    );
+    (() => {
+      const item =
+        getFinancialChargeById(
+          numericId
+        );
+
+      return (
+        item?.unitId ===
+        activeUnitId
+      )
+        ? item
+        : undefined;
+    })();
 
   const bankAccounts =
     useMemo(
       () =>
         getBankAccounts().filter(
-          (account) =>
+          (
+            account
+          ) =>
             account.status ===
-            "Ativa"
+              "Ativa" &&
+            account.unitId ===
+              activeUnitId
         ),
-      []
+      [
+        activeUnitId,
+      ]
     );
 
   const [

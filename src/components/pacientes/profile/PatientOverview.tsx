@@ -40,6 +40,10 @@ import {
   type StoredAppointment,
 } from "@/pages/Agenda/appointmentStorage";
 
+import {
+  useUnit,
+} from "@/providers/UnitContext";
+
 /* =========================================
    PROPS
 ========================================= */
@@ -56,6 +60,10 @@ interface PatientOverviewProps {
 export function PatientOverview({
   patient,
 }: PatientOverviewProps) {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
   const {
     user,
   } =
@@ -127,7 +135,9 @@ export function PatientOverview({
             ) => {
               if (
                 appointment.patientId !==
-                patient.id
+                  patient.id ||
+                appointment.unitId !==
+                  activeUnitId
               ) {
                 return false;
               }
@@ -191,6 +201,7 @@ export function PatientOverview({
       },
       [
         patient.id,
+        activeUnitId,
       ]
     );
 

@@ -23,6 +23,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   Button,
   FormField,
   Input,
@@ -210,6 +214,11 @@ const REPORT_PRINT_STYLES = `
 `;
 
 export default function RelatorioFinanceiro() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const [
     searchParams,
   ] =
@@ -230,15 +239,23 @@ export default function RelatorioFinanceiro() {
   const charges =
     useMemo(
       () =>
-        getFinancialCharges(),
-      []
+        getFinancialCharges().filter(
+          (charge) =>
+            charge.unitId ===
+            activeUnitId
+        ),
+      [activeUnitId]
     );
 
   const expenses =
     useMemo(
       () =>
-        getFinancialExpenses(),
-      []
+        getFinancialExpenses().filter(
+          (expense) =>
+            expense.unitId ===
+            activeUnitId
+        ),
+      [activeUnitId]
     );
 
   const payouts =

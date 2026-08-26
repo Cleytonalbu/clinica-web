@@ -1,3 +1,5 @@
+import { getDefaultClinicUnitId } from "@/pages/Configuracoes/clinicUnitStorage";
+
 export type ObjectiveStatus =
   | "Em evolução"
   | "Atingido"
@@ -5,6 +7,8 @@ export type ObjectiveStatus =
 
 export interface TherapeuticObjective {
   id: number;
+
+  unitId: number;
 
   patientId: number;
 
@@ -54,12 +58,44 @@ export function getObjectives():
       return [];
     }
 
-    const parsed = JSON.parse(stored) as Array<TherapeuticObjective & { generalObjective?: string }>;
+    const parsed = JSON.parse(stored) as Array<
+      TherapeuticObjective & {
+        generalObjective?: string;
+        unitId?: number;
+      }
+    >;
 
-    return parsed.map((objective) => ({
-      ...objective,
-      generalObjective: objective.generalObjective?.trim() || "Objetivo terapêutico geral",
-    }));
+    const defaultUnitId = getDefaultClinicUnitId();
+    let changed = false;
+
+    const normalized = parsed.map((objective) => {
+      const savedUnitId = Number(objective.unitId);
+      const unitId =
+        Number.isFinite(savedUnitId) && savedUnitId > 0
+          ? savedUnitId
+          : defaultUnitId;
+
+      if (unitId !== objective.unitId) {
+        changed = true;
+      }
+
+      return {
+        ...objective,
+        unitId,
+        generalObjective:
+          objective.generalObjective?.trim() ||
+          "Objetivo terapêutico geral",
+      };
+    });
+
+    if (changed) {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(normalized)
+      );
+    }
+
+    return normalized;
   } catch {
     return [];
   }
@@ -125,6 +161,8 @@ export function getObjectiveById(
 ========================================= */
 
 interface CreateObjectiveData {
+  unitId: number;
+
   patientId: number;
 
   generalObjective: string;
@@ -161,6 +199,9 @@ export function createObjective(
       generateObjectiveId(
         current
       ),
+
+    unitId:
+      data.unitId,
 
     patientId:
       data.patientId,

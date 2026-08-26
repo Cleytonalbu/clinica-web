@@ -24,6 +24,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   createBankAccount,
   getBankAccounts,
   setBankAccountStatus,
@@ -83,6 +87,11 @@ function ContasBancarias() {
   const navigate =
     useNavigate();
 
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const [accounts, setAccounts] =
     useState<BankAccount[]>([]);
 
@@ -102,7 +111,9 @@ function ContasBancarias() {
 
   function load() {
     setAccounts(
-      getBankAccounts(),
+      getBankAccounts().filter(
+        (account) => account.unitId === activeUnitId,
+      ),
     );
   }
 
@@ -121,7 +132,9 @@ function ContasBancarias() {
         "bank-accounts-changed",
         refresh,
       );
-  }, []);
+  }, [
+    activeUnitId,
+  ]);
 
   const filtered = useMemo(() => {
     const term = search
@@ -213,6 +226,8 @@ function ContasBancarias() {
     }
 
     createBankAccount({
+      unitId:
+        activeUnitId,
       bankName:
         form.bankName.trim(),
       accountName:

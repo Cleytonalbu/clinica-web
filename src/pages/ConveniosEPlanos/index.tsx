@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
+import { useUnit } from "@/providers/UnitContext";
 import {
   createConvenioPlano,
   getConveniosPlanos,
@@ -76,6 +77,11 @@ function badge(item: ConvenioPlano) {
 }
 
 export default function ConveniosEPlanos() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const [items, setItems] = useState<ConvenioPlano[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"Todos" | ConvenioPlanoStatus>("Todos");
@@ -83,7 +89,13 @@ export default function ConveniosEPlanos() {
   const [form, setForm] = useState(emptyForm);
 
   function load() {
-    setItems(getConveniosPlanos());
+    setItems(
+      getConveniosPlanos().filter(
+        (item) =>
+          item.unitId ===
+          activeUnitId
+      )
+    );
   }
 
   useEffect(() => {
@@ -92,7 +104,9 @@ export default function ConveniosEPlanos() {
     window.addEventListener("convenios-planos-changed", refresh);
     return () =>
       window.removeEventListener("convenios-planos-changed", refresh);
-  }, []);
+  }, [
+    activeUnitId,
+  ]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -161,6 +175,9 @@ export default function ConveniosEPlanos() {
     }
 
     createConvenioPlano({
+      unitId:
+        activeUnitId,
+
       convenio: form.convenio.trim(),
       plano: form.plano.trim(),
       paciente: form.paciente.trim(),

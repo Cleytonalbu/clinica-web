@@ -21,6 +21,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   createStockItem,
   getStockItems,
   getStockMovements,
@@ -54,6 +58,8 @@ const emptyMovementForm = {
 };
 
 export default function Estoque() {
+  const { activeUnitId } = useUnit();
+
   const [items, setItems] = useState<StockItem[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [search, setSearch] = useState("");
@@ -64,8 +70,17 @@ export default function Estoque() {
     useState(emptyMovementForm);
 
   function load() {
-    setItems(getStockItems());
-    setMovements(getStockMovements());
+    setItems(
+      getStockItems().filter(
+        (item) => item.unitId === activeUnitId,
+      ),
+    );
+
+    setMovements(
+      getStockMovements().filter(
+        (movement) => movement.unitId === activeUnitId,
+      ),
+    );
   }
 
   useEffect(() => {
@@ -80,7 +95,9 @@ export default function Estoque() {
         "stock-changed",
         refresh,
       );
-  }, []);
+  }, [
+    activeUnitId,
+  ]);
 
   const filteredItems = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -144,6 +161,7 @@ export default function Estoque() {
     }
 
     createStockItem({
+      unitId: activeUnitId,
       name: itemForm.name.trim(),
       category: itemForm.category.trim() || "Geral",
       unit: itemForm.unit.trim() || "un",
@@ -175,6 +193,7 @@ export default function Estoque() {
 
     try {
       registerStockMovement({
+        unitId: activeUnitId,
         itemId: movementForm.itemId,
         type: movementForm.type,
         quantity,

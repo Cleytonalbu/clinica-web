@@ -1,3 +1,5 @@
+import { getDefaultClinicUnitId } from "@/pages/Configuracoes/clinicUnitStorage";
+
 export type PurchaseStatus =
   | "Solicitado"
   | "Aprovado"
@@ -7,6 +9,7 @@ export type PurchaseStatus =
 
 export interface PurchaseRequest {
   id: string;
+  unitId: number;
   description: string;
   supplierId?: string;
   supplierName?: string;
@@ -37,7 +40,27 @@ export function getPurchaseRequests(): PurchaseRequest[] {
     if (!raw) return [];
 
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+
+    const defaultUnitId = getDefaultClinicUnitId();
+    let changed = false;
+
+    const normalized = parsed.map((request) => {
+      const unitId = Number(request?.unitId);
+
+      if (Number.isFinite(unitId) && unitId > 0) {
+        return { ...request, unitId } as PurchaseRequest;
+      }
+
+      changed = true;
+      return { ...request, unitId: defaultUnitId } as PurchaseRequest;
+    });
+
+    if (changed) {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    }
+
+    return normalized;
   } catch {
     return [];
   }
@@ -51,12 +74,19 @@ export function savePurchaseRequests(requests: PurchaseRequest[]) {
 }
 
 export function createPurchaseRequest(
-  input: Omit<PurchaseRequest, "id" | "createdAt" | "updatedAt">,
+  input: Omit<
+    PurchaseRequest,
+    "id" | "createdAt" | "updatedAt" | "unitId"
+  > & { unitId?: number },
 ): PurchaseRequest {
   const now = new Date().toISOString();
 
   const request: PurchaseRequest = {
     ...input,
+    unitId:
+      Number.isFinite(Number(input.unitId)) && Number(input.unitId) > 0
+        ? Number(input.unitId)
+        : getDefaultClinicUnitId(),
     id:
       typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()

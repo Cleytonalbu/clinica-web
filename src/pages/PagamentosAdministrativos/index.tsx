@@ -21,6 +21,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   getAdministrativeCollaborators,
 } from "@/pages/ColaboradoresAdministrativos/collaboratorStorage";
 
@@ -124,6 +128,11 @@ function statusClass(payment: AdministrativePayment) {
 }
 
 export default function PagamentosAdministrativos() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const [payments, setPayments] = useState<
     AdministrativePayment[]
   >([]);
@@ -151,10 +160,20 @@ export default function PagamentosAdministrativos() {
     useState("PIX");
 
   function load() {
-    setPayments(getAdministrativePayments());
+    setPayments(
+      getAdministrativePayments().filter(
+        (payment) =>
+          payment.unitId ===
+          activeUnitId,
+      ),
+    );
+
     setCollaborators(
       getAdministrativeCollaborators().filter(
-        (item) => item.status === "Ativo",
+        (item) =>
+          item.status === "Ativo" &&
+          item.unitId ===
+            activeUnitId,
       ),
     );
   }
@@ -185,7 +204,9 @@ export default function PagamentosAdministrativos() {
         refresh,
       );
     };
-  }, []);
+  }, [
+    activeUnitId,
+  ]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -272,6 +293,8 @@ export default function PagamentosAdministrativos() {
     }
 
     createAdministrativePayment({
+      unitId:
+        activeUnitId,
       collaboratorId: collaborator.id,
       collaboratorName: collaborator.name,
       collaboratorRole: collaborator.role,

@@ -1,6 +1,7 @@
 import { Building2, Mail, Phone, Plus, Search, UserRound, X } from "lucide-react";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
+import { useUnit } from "@/providers/UnitContext";
 import { Button, Input, Select } from "@/components/ui";
 import {
   getSuppliers,
@@ -33,12 +34,22 @@ const emptyForm = {
 };
 
 export default function Fornecedores() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>(() => getSuppliers());
+  const { activeUnitId } = useUnit();
+
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() =>
+    getSuppliers().filter((supplier) => supplier.unitId === activeUnitId)
+  );
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("Todos");
   const [category, setCategory] = useState("Todas");
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
+
+  useEffect(() => {
+    setSuppliers(
+      getSuppliers().filter((supplier) => supplier.unitId === activeUnitId)
+    );
+  }, [activeUnitId]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -63,20 +74,27 @@ export default function Fornecedores() {
     if (!form.name.trim()) return;
     saveSupplier({
       ...form,
+      unitId: activeUnitId,
       name: form.name.trim(),
       document: form.document.trim(),
       contactName: form.contactName.trim(),
       phone: form.phone.trim(),
       email: form.email.trim(),
     });
-    setSuppliers(getSuppliers());
+    setSuppliers(
+      getSuppliers().filter((supplier) => supplier.unitId === activeUnitId)
+    );
     setForm(emptyForm);
     setModalOpen(false);
   }
 
   function toggleStatus(supplier: Supplier) {
     const next: SupplierStatus = supplier.status === "Ativo" ? "Inativo" : "Ativo";
-    setSuppliers(updateSupplierStatus(supplier.id, next));
+    setSuppliers(
+      updateSupplierStatus(supplier.id, next).filter(
+        (item) => item.unitId === activeUnitId
+      )
+    );
   }
 
   return (

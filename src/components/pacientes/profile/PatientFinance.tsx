@@ -23,6 +23,10 @@ import {
 } from "@/auth/AuthContext";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   Button,
   Input,
   PageCard,
@@ -58,6 +62,11 @@ type DisplayPaymentStatus =
 ========================================= */
 
 export function PatientFinance() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const navigate =
     useNavigate();
 
@@ -155,11 +164,18 @@ export function PatientFinance() {
 
         return getPatientFinancialHistory(
           patientId
+        ).filter(
+          (
+            payment
+          ) =>
+            payment.unitId ===
+            activeUnitId
         );
       },
       [
         patientId,
         refreshKey,
+        activeUnitId,
       ]
     );
 

@@ -21,6 +21,7 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { DashboardLayout } from "../../../layouts/DashboardLayout";
+import { useUnit } from "../../../providers/UnitContext";
 import {
   getAdministrativeDocumentDisplayStatus,
   getAdministrativeDocuments,
@@ -55,12 +56,39 @@ function getStatusBadgeClass(status: string) {
 export default function DashboardAdministrativo() {
   const navigate = useNavigate();
 
-  const charges = useMemo(() => getFinancialCharges(), []);
-  const expenses = useMemo(() => getFinancialExpenses(), []);
-  const payouts = useMemo(() => syncProfessionalPayoutsFromAppointments(), []);
-  const documents = useMemo(() => getAdministrativeDocuments(), []);
-  const suppliers = useMemo(() => getSuppliers(), []);
-  const bankAccounts = useMemo(() => getBankAccounts(), []);
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
+  const charges = useMemo(
+    () => getFinancialCharges().filter((charge) => charge.unitId === activeUnitId),
+    [activeUnitId]
+  );
+  const expenses = useMemo(
+    () => getFinancialExpenses().filter((expense) => expense.unitId === activeUnitId),
+    [activeUnitId]
+  );
+  const payouts = useMemo(
+    () => syncProfessionalPayoutsFromAppointments().filter(
+      (payout) => payout.unitId === activeUnitId
+    ),
+    [activeUnitId]
+  );
+  const documents = useMemo(
+    () => getAdministrativeDocuments().filter(
+      (document) => document.unitId === activeUnitId
+    ),
+    [activeUnitId]
+  );
+  const suppliers = useMemo(
+    () => getSuppliers().filter((supplier) => supplier.unitId === activeUnitId),
+    [activeUnitId]
+  );
+  const bankAccounts = useMemo(
+    () => getBankAccounts().filter((account) => account.unitId === activeUnitId),
+    [activeUnitId]
+  );
   const bankTransactions = useMemo(() => getBankTransactions(), []);
   const bankReconciliations = useMemo(() => getBankReconciliations(), []);
 

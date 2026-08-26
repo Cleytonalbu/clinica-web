@@ -21,6 +21,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   Button,
   FormField,
   Input,
@@ -43,6 +47,10 @@ import {
 import {
   getActiveProfessionals,
 } from "@/pages/Configuracoes/settingsStorage";
+
+import {
+  professionalWorksAtUnit,
+} from "@/pages/Configuracoes/professionalUnitStorage";
 
 /* =========================================
    TIPOS
@@ -94,6 +102,11 @@ const initialValues: BlockFormData = {
 ========================================= */
 
 export default function NovoBloqueio() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const navigate =
     useNavigate();
 
@@ -104,9 +117,19 @@ export default function NovoBloqueio() {
   const activeProfessionals =
     useMemo(
       () =>
-        getActiveProfessionals(),
+        getActiveProfessionals().filter(
+          (
+            professional
+          ) =>
+            professionalWorksAtUnit(
+              professional.id,
+              activeUnitId
+            )
+        ),
 
-      []
+      [
+        activeUnitId,
+      ]
     );
 
   /* =======================================
@@ -364,6 +387,9 @@ export default function NovoBloqueio() {
         ScheduleBlock = {
         id:
           Date.now(),
+
+        unitId:
+          activeUnitId,
 
         professional:
           formData.professional,

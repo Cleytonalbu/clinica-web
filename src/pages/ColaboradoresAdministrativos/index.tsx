@@ -20,6 +20,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   createAdministrativeCollaborator,
   getAdministrativeCollaborators,
   setAdministrativeCollaboratorStatus,
@@ -59,6 +63,11 @@ function statusClass(status: CollaboratorStatus) {
 }
 
 export default function ColaboradoresAdministrativos() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const [collaborators, setCollaborators] = useState<
     AdministrativeCollaborator[]
   >([]);
@@ -73,7 +82,13 @@ export default function ColaboradoresAdministrativos() {
   const [form, setForm] = useState(emptyForm);
 
   const load = () => {
-    setCollaborators(getAdministrativeCollaborators());
+    setCollaborators(
+      getAdministrativeCollaborators().filter(
+        (collaborator) =>
+          collaborator.unitId ===
+          activeUnitId,
+      ),
+    );
   };
 
   useEffect(() => {
@@ -90,7 +105,9 @@ export default function ColaboradoresAdministrativos() {
         "administrative-collaborators-changed",
         handleChange,
       );
-  }, []);
+  }, [
+    activeUnitId,
+  ]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -138,6 +155,8 @@ export default function ColaboradoresAdministrativos() {
     }
 
     createAdministrativeCollaborator({
+      unitId:
+        activeUnitId,
       name: form.name.trim(),
       type: form.type,
       role: form.role.trim(),

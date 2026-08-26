@@ -10,6 +10,14 @@ import {
 } from "@/pages/Configuracoes/settingsStorage";
 
 import {
+  professionalWorksAtUnit,
+} from "@/pages/Configuracoes/professionalUnitStorage";
+
+import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   getObjectives,
 } from "@/pages/Pacientes/objectiveStorage";
 
@@ -44,8 +52,26 @@ function formatDate(value?: string) {
 ========================================= */
 
 export function ObjetivosPorProfissional() {
-  const professionals = getActiveProfessionals();
-  const objectives = getObjectives();
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
+  const professionals =
+    getActiveProfessionals().filter(
+      (professional) =>
+        professionalWorksAtUnit(
+          professional.id,
+          activeUnitId
+        )
+    );
+
+  const objectives =
+    getObjectives().filter(
+      (objective) =>
+        objective.unitId ===
+        activeUnitId
+    );
 
   const rows = professionals
     .map((professional) => {

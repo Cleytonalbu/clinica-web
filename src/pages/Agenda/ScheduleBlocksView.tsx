@@ -13,6 +13,7 @@ type BlockType =
 
 export interface ScheduleBlock {
   id: number;
+  unitId: number;
   professional: string;
   date: string;
   startTime: string;

@@ -7,6 +7,7 @@ import {
 
 import {
   Bell,
+  Building2,
   CheckCheck,
   ChevronDown,
   Clock3,
@@ -25,6 +26,10 @@ import {
 import {
   useAuth,
 } from "@/auth/AuthContext";
+
+import {
+  useUnit,
+} from "@/providers/UnitContext";
 
 import {
   userCanAccessModule,
@@ -177,6 +182,15 @@ export function Header() {
     logout,
   } =
     useAuth();
+
+  const {
+    activeUnit,
+    activeUnitId,
+    availableUnits,
+    hasMultipleUnits,
+    setActiveUnit,
+  } =
+    useUnit();
 
   const [
     userMenuOpen,
@@ -502,6 +516,147 @@ export function Header() {
           >
             Ctrl + K
           </span>
+        </div>
+
+
+        {/* ================================= */}
+        {/* UNIDADE ATIVA */}
+        {/* ================================= */}
+
+        <div
+          className="
+            hidden
+            min-w-[210px]
+            items-center
+            gap-3
+            rounded-xl
+            border
+            border-[#dfe4f4]
+            bg-white
+            px-3
+            py-2
+            shadow-[0_3px_12px_rgba(47,63,112,0.04)]
+            lg:flex
+          "
+          title="Unidade ativa"
+        >
+          <div
+            className="
+              flex
+              h-8
+              w-8
+              shrink-0
+              items-center
+              justify-center
+              rounded-lg
+              bg-[#f3efff]
+              text-[#6543ef]
+            "
+          >
+            <Building2
+              size={17}
+            />
+          </div>
+
+          <div
+            className="
+              min-w-0
+              flex-1
+            "
+          >
+            <p
+              className="
+                text-[9px]
+                font-extrabold
+                uppercase
+                tracking-[0.08em]
+                text-[#9aa5c4]
+              "
+            >
+              Unidade
+            </p>
+
+            {hasMultipleUnits ? (
+              <div
+                className="
+                  relative
+                  mt-0.5
+                "
+              >
+                <select
+                  value={
+                    activeUnitId
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setActiveUnit(
+                      Number(
+                        event.target.value
+                      )
+                    )
+                  }
+                  className="
+                    w-full
+                    cursor-pointer
+                    appearance-none
+                    bg-transparent
+                    pr-5
+                    text-xs
+                    font-extrabold
+                    text-[#10235f]
+                    outline-none
+                  "
+                  aria-label="Selecionar unidade"
+                >
+                  {availableUnits.map(
+                    (
+                      unit
+                    ) => (
+                      <option
+                        key={
+                          unit.id
+                        }
+                        value={
+                          unit.id
+                        }
+                      >
+                        {
+                          unit.name
+                        }
+                      </option>
+                    )
+                  )}
+                </select>
+
+                <ChevronDown
+                  size={13}
+                  className="
+                    pointer-events-none
+                    absolute
+                    right-0
+                    top-1/2
+                    -translate-y-1/2
+                    text-[#7180a8]
+                  "
+                />
+              </div>
+            ) : (
+              <p
+                className="
+                  mt-0.5
+                  truncate
+                  text-xs
+                  font-extrabold
+                  text-[#10235f]
+                "
+              >
+                {
+                  activeUnit.name
+                }
+              </p>
+            )}
+          </div>
         </div>
 
         {/* ================================= */}

@@ -20,6 +20,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   getBankAccounts,
 } from "@/pages/ContasBancarias/bankAccountStorage";
 
@@ -625,6 +629,11 @@ function parseOfx(
 }
 
 export default function ImportarExtrato() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const [
     accounts,
     setAccounts,
@@ -670,7 +679,9 @@ export default function ImportarExtrato() {
       getBankAccounts().filter(
         (account) =>
           account.status ===
-          "Ativa",
+            "Ativa" &&
+          account.unitId ===
+            activeUnitId,
       );
 
     setAccounts(active);
@@ -682,7 +693,14 @@ export default function ImportarExtrato() {
         active[0].id,
       );
     }
-  }, []);
+    if (
+      active.length !== 1
+    ) {
+      setAccountId("");
+    }
+  }, [
+    activeUnitId,
+  ]);
 
   const selectedAccount =
     accounts.find(

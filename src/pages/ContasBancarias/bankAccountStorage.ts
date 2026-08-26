@@ -1,3 +1,5 @@
+import { getDefaultClinicUnitId } from "@/pages/Configuracoes/clinicUnitStorage";
+
 export type BankAccountType =
   | "Conta corrente"
   | "Conta poupança"
@@ -11,6 +13,7 @@ export type BankAccountStatus =
 
 export interface BankAccount {
   id: string;
+  unitId: number;
   bankName: string;
   accountName: string;
   accountType: BankAccountType;
@@ -52,9 +55,29 @@ export function getBankAccounts(): BankAccount[] {
 
     const parsed = JSON.parse(raw);
 
-    return Array.isArray(parsed)
-      ? parsed
-      : [];
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    const defaultUnitId = getDefaultClinicUnitId();
+    let changed = false;
+
+    const normalized = parsed.map((account) => {
+      const unitId = Number(account?.unitId);
+
+      if (Number.isFinite(unitId) && unitId > 0) {
+        return { ...account, unitId } as BankAccount;
+      }
+
+      changed = true;
+      return { ...account, unitId: defaultUnitId } as BankAccount;
+    });
+
+    if (changed) {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    }
+
+    return normalized;
   } catch {
     return [];
   }
@@ -78,13 +101,19 @@ export function saveBankAccounts(
 export function createBankAccount(
   input: Omit<
     BankAccount,
-    "id" | "createdAt" | "updatedAt" | "currentBalance"
-  >,
+    "id" | "createdAt" | "updatedAt" | "currentBalance" | "unitId"
+  > & {
+    unitId?: number;
+  },
 ): BankAccount {
   const now = new Date().toISOString();
 
   const account: BankAccount = {
     ...input,
+    unitId:
+      Number.isFinite(Number(input.unitId)) && Number(input.unitId) > 0
+        ? Number(input.unitId)
+        : getDefaultClinicUnitId(),
     id:
       typeof crypto !== "undefined" &&
       "randomUUID" in crypto

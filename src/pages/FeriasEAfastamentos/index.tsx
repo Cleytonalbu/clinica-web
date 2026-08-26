@@ -20,6 +20,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   getAdministrativeCollaborators,
 } from "@/pages/ColaboradoresAdministrativos/collaboratorStorage";
 
@@ -125,6 +129,11 @@ function daysUntil(value: string) {
 }
 
 export default function FeriasEAfastamentos() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const [leaves, setLeaves] = useState<
     AdministrativeLeave[]
   >([]);
@@ -149,11 +158,20 @@ export default function FeriasEAfastamentos() {
     useState(emptyForm);
 
   function load() {
-    setLeaves(getAdministrativeLeaves());
+    setLeaves(
+      getAdministrativeLeaves().filter(
+        (leave) =>
+          leave.unitId ===
+          activeUnitId,
+      ),
+    );
 
     setCollaborators(
       getAdministrativeCollaborators().filter(
-        (item) => item.status === "Ativo",
+        (item) =>
+          item.status === "Ativo" &&
+          item.unitId ===
+            activeUnitId,
       ),
     );
   }
@@ -184,7 +202,9 @@ export default function FeriasEAfastamentos() {
         refresh,
       );
     };
-  }, []);
+  }, [
+    activeUnitId,
+  ]);
 
   const filtered = useMemo(() => {
     const term = search
@@ -303,6 +323,8 @@ export default function FeriasEAfastamentos() {
     }
 
     createAdministrativeLeave({
+      unitId:
+        activeUnitId,
       collaboratorId:
         collaborator.id,
       collaboratorName:

@@ -24,6 +24,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   Button,
   FormField,
   Input,
@@ -199,6 +203,11 @@ const REPORT_PRINT_STYLES = `
 `;
 
 export default function RelatorioAtendimentos() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const [
     searchParams,
   ] =
@@ -231,8 +240,16 @@ export default function RelatorioAtendimentos() {
   const appointments =
     useMemo(
       () =>
-        getSavedAppointments(),
-      []
+        getSavedAppointments().filter(
+          (
+            appointment
+          ) =>
+            appointment.unitId ===
+            activeUnitId
+        ),
+      [
+        activeUnitId,
+      ]
     );
 
   const professionals =

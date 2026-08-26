@@ -17,6 +17,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   PageCard,
   Select,
 } from "@/components/ui";
@@ -135,6 +139,11 @@ const years =
 ========================================= */
 
 export default function DashboardFinanceiro() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const [
     selectedMonth,
     setSelectedMonth,
@@ -158,17 +167,29 @@ export default function DashboardFinanceiro() {
   const charges =
     useMemo(
       () =>
-        getFinancialCharges(),
+        getFinancialCharges().filter(
+          (charge) =>
+            charge.unitId ===
+            activeUnitId
+        ),
 
-      []
+      [
+        activeUnitId,
+      ]
     );
 
   const expenses =
     useMemo(
       () =>
-        getFinancialExpenses(),
+        getFinancialExpenses().filter(
+          (expense) =>
+            expense.unitId ===
+            activeUnitId
+        ),
 
-      []
+      [
+        activeUnitId,
+      ]
     );
 
   /* =======================================

@@ -1,3 +1,5 @@
+import { getDefaultClinicUnitId } from "@/pages/Configuracoes/clinicUnitStorage";
+
 import type { ScheduleBlock } from "./ScheduleBlocksView";
 
 const STORAGE_KEY =
@@ -14,9 +16,74 @@ export function getSavedBlocks(): ScheduleBlock[] {
       return [];
     }
 
-    return JSON.parse(
-      stored
-    ) as ScheduleBlock[];
+    const parsed =
+      JSON.parse(
+        stored
+      ) as Array<
+        ScheduleBlock |
+        Omit<
+          ScheduleBlock,
+          "unitId"
+        >
+      >;
+
+    const defaultUnitId =
+      getDefaultClinicUnitId();
+
+    let changed =
+      false;
+
+    const normalized =
+      parsed.map(
+        (
+          block
+        ) => {
+          const savedUnitId =
+            Number(
+              (
+                block as
+                  Partial<
+                    ScheduleBlock
+                  >
+              ).unitId
+            );
+
+          if (
+            Number.isFinite(
+              savedUnitId
+            ) &&
+            savedUnitId > 0
+          ) {
+            return {
+              ...block,
+              unitId:
+                savedUnitId,
+            } as ScheduleBlock;
+          }
+
+          changed =
+            true;
+
+          return {
+            ...block,
+            unitId:
+              defaultUnitId,
+          } as ScheduleBlock;
+        }
+      );
+
+    if (
+      changed
+    ) {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(
+          normalized
+        )
+      );
+    }
+
+    return normalized;
   } catch {
     return [];
   }

@@ -1,3 +1,5 @@
+import { getDefaultClinicUnitId } from "@/pages/Configuracoes/clinicUnitStorage";
+
 export type AdministrativeDocumentCategory =
   | "Contrato de profissional"
   | "Contrato de prestador"
@@ -12,6 +14,7 @@ export type AdministrativeDocumentStatus =
 
 export interface AdministrativeDocument {
   id: string;
+  unitId: number;
   title: string;
   category: AdministrativeDocumentCategory;
   relatedTo: string;
@@ -41,7 +44,27 @@ function read(): AdministrativeDocument[] {
     if (!raw) return [];
 
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+
+    const defaultUnitId = getDefaultClinicUnitId();
+    let changed = false;
+
+    const normalized = parsed.map((document) => {
+      const unitId = Number(document?.unitId);
+
+      if (Number.isFinite(unitId) && unitId > 0) {
+        return { ...document, unitId } as AdministrativeDocument;
+      }
+
+      changed = true;
+      return { ...document, unitId: defaultUnitId } as AdministrativeDocument;
+    });
+
+    if (changed) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    }
+
+    return normalized;
   } catch {
     return [];
   }
@@ -56,12 +79,19 @@ export function getAdministrativeDocuments() {
 }
 
 export function saveAdministrativeDocument(
-  data: Omit<AdministrativeDocument, "id" | "createdAt" | "updatedAt">
+  data: Omit<
+    AdministrativeDocument,
+    "id" | "createdAt" | "updatedAt" | "unitId"
+  > & { unitId?: number }
 ) {
   const now = new Date().toISOString();
 
   const item: AdministrativeDocument = {
     ...data,
+    unitId:
+      Number.isFinite(Number(data.unitId)) && Number(data.unitId) > 0
+        ? Number(data.unitId)
+        : getDefaultClinicUnitId(),
     id: `adm-doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     createdAt: now,
     updatedAt: now,

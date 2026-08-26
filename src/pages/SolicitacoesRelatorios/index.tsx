@@ -25,6 +25,8 @@ import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "@/auth/AuthContext";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
+import { useUnit } from "@/providers/UnitContext";
+import { professionalWorksAtUnit } from "@/pages/Configuracoes/professionalUnitStorage";
 import { getPatients } from "@/pages/Pacientes/patientStorage";
 import { getProfessionalSpecialty } from "@/pages/Pacientes/patientAccessRules";
 import { getActiveProfessionals } from "@/pages/Configuracoes/settingsStorage";
@@ -32,6 +34,8 @@ import { getActiveProfessionals } from "@/pages/Configuracoes/settingsStorage";
 import {
   REPORT_REQUESTS_CHANGED_EVENT,
   REPORT_REQUEST_SPECIALTIES,
+  REPORT_DOCUMENT_TYPES,
+  DEFAULT_REPORT_DOCUMENT_TYPE,
   calculateBusinessDeadline,
   createReportRequest,
   getReportItemDisplayStatus,
@@ -39,6 +43,7 @@ import {
   isProfessionalResponsibleForItem,
   updateReportRequestItemStatus,
   type ReportRequest,
+  type ReportDocumentType,
   type ReportRequestDisplayStatus,
   type ReportRequestItem,
   type ReportRequestStatus,
@@ -107,16 +112,23 @@ function createEmptySpecialties(): SpecialtySelectionState {
 
 export default function SolicitacoesRelatorios() {
   const { user } = useAuth();
+  const { activeUnitId } = useUnit();
 
   const [requests, setRequests] = useState<ReportRequest[]>(() =>
-    getReportRequests()
+    getReportRequests().filter(
+      (request) => request.unitId === activeUnitId
+    )
   );
 
   const [search, setSearch] = useState("");
   const [showNewRequest, setShowNewRequest] = useState(false);
 
   function refreshRequests() {
-    setRequests(getReportRequests());
+    setRequests(
+      getReportRequests().filter(
+        (request) => request.unitId === activeUnitId
+      )
+    );
   }
 
   useEffect(() => {
@@ -135,7 +147,7 @@ export default function SolicitacoesRelatorios() {
 
       window.removeEventListener("storage", refreshRequests);
     };
-  }, []);
+  }, [activeUnitId]);
 
   const isReception = user?.profile === "Recepção";
   const isProfessional = user?.profile === "Profissional";
@@ -253,6 +265,7 @@ function ManagementView({
       return [
         request.patientName,
         request.responsibleName,
+        request.reportType,
         request.purpose,
         request.requestedBy,
         ...request.items.map((item) => item.professionalName),
@@ -387,6 +400,10 @@ function ManagementView({
                       <p className="mt-1 text-[10px] font-medium text-[#a0a8bd]">
                         Solicitado por {request.requestedBy}
                       </p>
+
+                      <p className="mt-2 inline-flex rounded-lg bg-[#f3efff] px-2 py-1 text-[10px] font-extrabold text-[#6543ef]">
+                        {request.reportType}
+                      </p>
                     </td>
 
                     <td className="px-4 py-4 text-xs font-semibold text-[#667394]">
@@ -488,6 +505,7 @@ function ProfessionalView({
       [
         request.patientName,
         request.responsibleName,
+        request.reportType,
         request.purpose,
         item.specialtyLabel,
       ].some((value) =>
@@ -591,6 +609,10 @@ function ProfessionalView({
 
                         <p className="mt-1 text-[11px] font-semibold text-[#8a95b4]">
                           Responsável: {request.responsibleName || "-"}
+                        </p>
+
+                        <p className="mt-2 text-[10px] font-extrabold text-[#6543ef]">
+                          {request.reportType}
                         </p>
                       </td>
 
@@ -991,11 +1013,27 @@ function NewRequestModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
+  const { activeUnitId } = useUnit();
+
   const patients = useMemo(() => getPatients(), []);
-  const professionals = useMemo(() => getActiveProfessionals(), []);
+  const professionals = useMemo(
+    () =>
+      getActiveProfessionals().filter(
+        (professional) =>
+          professionalWorksAtUnit(
+            professional.id,
+            activeUnitId
+          )
+      ),
+    [activeUnitId]
+  );
 
   const initialDate = todayIsoDate();
 
+  const [reportType, setReportType] =
+    useState<ReportDocumentType>(
+      DEFAULT_REPORT_DOCUMENT_TYPE
+    );
   const [patientId, setPatientId] = useState("");
   const [responsibleName, setResponsibleName] = useState("");
   const [requestedAt, setRequestedAt] = useState(initialDate);
@@ -1116,6 +1154,8 @@ function NewRequestModal({
     }
 
     createReportRequest({
+      unitId: activeUnitId,
+      reportType,
       patientId: selectedPatient.id,
       patientName: selectedPatient.nome,
       responsibleName,
@@ -1161,6 +1201,37 @@ function NewRequestModal({
 
         <form onSubmit={handleSubmit}>
           <div className="max-h-[calc(94vh-154px)] space-y-6 overflow-y-auto px-6 py-5">
+            <div>
+              <FormField label="Tipo de documento" required>
+                <select
+                  value={reportType}
+                  onChange={(event) =>
+                    setReportType(
+                      event.target.value as ReportDocumentType
+                    )
+                  }
+                  className={inputClassName}
+                >
+                  {REPORT_DOCUMENT_TYPES.map((type) => (
+                    <option
+                      key={type.value}
+                      value={type.value}
+                    >
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+
+              <p className="mt-2 text-xs font-medium leading-5 text-[#8a95b4]">
+                {
+                  REPORT_DOCUMENT_TYPES.find(
+                    (type) => type.value === reportType
+                  )?.description
+                }
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <FormField label="Paciente" required>
                 <select

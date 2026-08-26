@@ -24,6 +24,10 @@ import {
 } from "@/auth/AuthContext";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   Button,
   PageCard,
 } from "@/components/ui";
@@ -39,6 +43,11 @@ import {
 ========================================= */
 
 export function PatientAgenda() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const navigate =
     useNavigate();
 
@@ -67,7 +76,13 @@ export function PatientAgenda() {
       StoredAppointment[]
     >(
       () =>
-        getSavedAppointments()
+        getSavedAppointments().filter(
+          (
+            appointment
+          ) =>
+            appointment.unitId ===
+            activeUnitId
+        )
     );
 
   /* =======================================
@@ -280,7 +295,13 @@ export function PatientAgenda() {
 
   function handleRefresh() {
     setAppointments(
-      getSavedAppointments()
+      getSavedAppointments().filter(
+        (
+          appointment
+        ) =>
+          appointment.unitId ===
+          activeUnitId
+      )
     );
   }
 

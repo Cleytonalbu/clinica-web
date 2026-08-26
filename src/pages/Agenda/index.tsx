@@ -27,6 +27,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   useAuth,
 } from "@/auth/AuthContext";
 
@@ -56,6 +60,10 @@ import {
 import {
   getSavedBlocks,
 } from "./blockStorage";
+
+import {
+  getDefaultClinicUnitId,
+} from "@/pages/Configuracoes/clinicUnitStorage";
 
 import {
   getSavedAppointments,
@@ -93,6 +101,14 @@ export default function Agenda() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
+  const defaultUnitId =
+    getDefaultClinicUnitId();
+
   const isGestor = user?.profile === "Gestor";
   const isRecepcao = user?.profile === "Recepção";
   const isProfissional = user?.profile === "Profissional";
@@ -107,8 +123,39 @@ export default function Agenda() {
   const [professional, setProfessional] = useState("Todos");
   const [specialty, setSpecialty] = useState("Todas");
   const [status, setStatus] = useState("Todos");
-  const [appointments] = useState<StoredAppointment[]>(() => [...defaultAppointments, ...getSavedAppointments()]);
-  const [scheduleBlocks] = useState<ScheduleBlock[]>(() => [...defaultScheduleBlocks, ...getSavedBlocks()]);
+  const [appointments] = useState<StoredAppointment[]>(() => [
+    ...(
+      activeUnitId ===
+      defaultUnitId
+        ? defaultAppointments
+        : []
+    ),
+    ...getSavedAppointments().filter(
+      (appointment) =>
+        appointment.unitId ===
+        activeUnitId
+    ),
+  ] as StoredAppointment[]);
+
+  const [scheduleBlocks] = useState<ScheduleBlock[]>(() => [
+    ...(
+      activeUnitId ===
+      defaultUnitId
+        ? defaultScheduleBlocks.map(
+            (block) => ({
+              ...block,
+              unitId:
+                defaultUnitId,
+            })
+          )
+        : []
+    ),
+    ...getSavedBlocks().filter(
+      (block) =>
+        block.unitId ===
+        activeUnitId
+    ),
+  ]);
 
   const profileAppointments = useMemo(() => {
     if (!isProfissional) return appointments;

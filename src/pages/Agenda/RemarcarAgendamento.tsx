@@ -21,6 +21,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   Button,
   FormField,
   Input,
@@ -43,6 +47,22 @@ import {
   getActiveRooms,
   getActiveSpecialties,
 } from "@/pages/Configuracoes/settingsStorage";
+
+import {
+  professionalWorksAtUnit,
+} from "@/pages/Configuracoes/professionalUnitStorage";
+
+import {
+  roomWorksAtUnit,
+} from "@/pages/Configuracoes/roomUnitStorage";
+
+import {
+  specialtyWorksAtUnit,
+} from "@/pages/Configuracoes/specialtyUnitStorage";
+
+import {
+  getDefaultClinicUnitId,
+} from "@/pages/Configuracoes/clinicUnitStorage";
 
 /* =========================================
    ATENDIMENTOS DE DEMONSTRAÇÃO
@@ -319,6 +339,14 @@ const defaultAppointments: StoredAppointment[] = [
 ========================================= */
 
 export default function RemarcarAgendamento() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
+  const defaultUnitId =
+    getDefaultClinicUnitId();
+
   const navigate =
     useNavigate();
 
@@ -339,25 +367,49 @@ export default function RemarcarAgendamento() {
   const activeProfessionals =
     useMemo(
       () =>
-        getActiveProfessionals(),
+        getActiveProfessionals().filter(
+          (professional) =>
+            professionalWorksAtUnit(
+              professional.id,
+              activeUnitId
+            )
+        ),
 
-      []
+      [
+        activeUnitId,
+      ]
     );
 
   const activeRooms =
     useMemo(
       () =>
-        getActiveRooms(),
+        getActiveRooms().filter(
+          (room) =>
+            roomWorksAtUnit(
+              room.id,
+              activeUnitId
+            )
+        ),
 
-      []
+      [
+        activeUnitId,
+      ]
     );
 
   const activeSpecialties =
     useMemo(
       () =>
-        getActiveSpecialties(),
+        getActiveSpecialties().filter(
+          (specialty) =>
+            specialtyWorksAtUnit(
+              specialty.id,
+              activeUnitId
+            )
+        ),
 
-      []
+      [
+        activeUnitId,
+      ]
     );
 
   /* =======================================
@@ -365,11 +417,22 @@ export default function RemarcarAgendamento() {
   ======================================= */
 
   const savedAppointments =
-    getSavedAppointments();
+    getSavedAppointments().filter(
+      (
+        item
+      ) =>
+        item.unitId ===
+        activeUnitId
+    );
 
   const appointment =
     [
-      ...defaultAppointments,
+      ...(
+        activeUnitId ===
+        defaultUnitId
+          ? defaultAppointments
+          : []
+      ),
 
       ...savedAppointments,
     ].find(

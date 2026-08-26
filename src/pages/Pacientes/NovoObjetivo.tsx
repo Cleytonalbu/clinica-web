@@ -19,6 +19,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   useAuth,
 } from "@/auth/AuthContext";
 
@@ -113,6 +117,8 @@ const initialValues:
 ========================================= */
 
 export default function NovoObjetivo() {
+  const { activeUnitId } = useUnit();
+
   const navigate =
     useNavigate();
 
@@ -560,6 +566,9 @@ export default function NovoObjetivo() {
     try {
       createObjective(
         {
+          unitId:
+            activeUnitId,
+
           patientId:
             patient.id,
 

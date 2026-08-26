@@ -1,3 +1,5 @@
+import { getDefaultClinicUnitId } from "@/pages/Configuracoes/clinicUnitStorage";
+
 export type CollaboratorType =
   | "Recepção"
   | "Administrativo"
@@ -10,6 +12,10 @@ export type CollaboratorStatus = "Ativo" | "Inativo";
 
 export interface AdministrativeCollaborator {
   id: string;
+
+  /* Unidade à qual este cadastro administrativo pertence. */
+  unitId: number;
+
   name: string;
   type: CollaboratorType;
   role: string;
@@ -40,7 +46,48 @@ export function getAdministrativeCollaborators(): AdministrativeCollaborator[] {
     if (!raw) return [];
 
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    const defaultUnitId =
+      getDefaultClinicUnitId();
+
+    let changed = false;
+
+    const normalized =
+      parsed.map((collaborator) => {
+        const unitId =
+          Number(collaborator?.unitId);
+
+        if (
+          Number.isFinite(unitId) &&
+          unitId > 0
+        ) {
+          return {
+            ...collaborator,
+            unitId,
+          } as AdministrativeCollaborator;
+        }
+
+        changed = true;
+
+        return {
+          ...collaborator,
+          unitId:
+            defaultUnitId,
+        } as AdministrativeCollaborator;
+      });
+
+    if (changed) {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(normalized),
+      );
+    }
+
+    return normalized;
   } catch {
     return [];
   }
@@ -57,13 +104,22 @@ export function saveAdministrativeCollaborators(
 export function createAdministrativeCollaborator(
   input: Omit<
     AdministrativeCollaborator,
-    "id" | "createdAt" | "updatedAt"
-  >,
+    "id" | "createdAt" | "updatedAt" | "unitId"
+  > & {
+    unitId?: number;
+  },
 ): AdministrativeCollaborator {
   const now = new Date().toISOString();
 
   const collaborator: AdministrativeCollaborator = {
     ...input,
+    unitId:
+      Number.isFinite(
+        Number(input.unitId),
+      ) &&
+      Number(input.unitId) > 0
+        ? Number(input.unitId)
+        : getDefaultClinicUnitId(),
     id:
       typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()

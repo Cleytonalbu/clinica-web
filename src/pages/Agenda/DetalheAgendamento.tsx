@@ -27,6 +27,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   Button,
   PageCard,
 } from "@/components/ui";
@@ -199,6 +203,14 @@ const defaultAppointments: StoredAppointment[] = [
 ========================================= */
 
 export default function DetalheAgendamento() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
+  const defaultUnitId =
+    getDefaultClinicUnitId();
+
   const navigate =
     useNavigate();
 
@@ -254,7 +266,11 @@ export default function DetalheAgendamento() {
   ======================================= */
 
   const savedAppointments =
-    getSavedAppointments();
+    getSavedAppointments().filter(
+      (item) =>
+        item.unitId ===
+        activeUnitId
+    );
 
   const isSavedAppointment =
     savedAppointments.some(
@@ -267,7 +283,12 @@ export default function DetalheAgendamento() {
     useMemo(
       () =>
         [
-          ...defaultAppointments,
+          ...(
+            activeUnitId ===
+            defaultUnitId
+              ? defaultAppointments
+              : []
+          ),
           ...savedAppointments,
         ].find(
           (item) =>
@@ -276,6 +297,9 @@ export default function DetalheAgendamento() {
         ),
       [
         numericId,
+        activeUnitId,
+        defaultUnitId,
+        savedAppointments,
       ]
     );
 
@@ -566,7 +590,9 @@ export default function DetalheAgendamento() {
                 charge
               ) =>
                 charge.appointmentId ===
-                appointment.id
+                  appointment.id &&
+                charge.unitId ===
+                  appointment.unitId
             );
 
           if (
