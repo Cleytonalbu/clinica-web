@@ -30,6 +30,8 @@ import Profissionais from "@/pages/Profissionais";
 
 import NovoProfissional from "@/pages/Profissionais/NovoProfissional";
 
+import EditarProfissional from "@/pages/Profissionais/EditarProfissional";
+
 import PerfilProfissional from "@/pages/Profissionais/PerfilProfissional";
 
 import Agenda from "@/pages/Agenda";
@@ -362,6 +364,15 @@ export function AppRoutes() {
         element={
           <GestorOnlyRoute>
             <PerfilProfissional />
+          </GestorOnlyRoute>
+        }
+      />
+
+      <Route
+        path="/profissionais/:id/editar"
+        element={
+          <GestorOnlyRoute>
+            <EditarProfissional />
           </GestorOnlyRoute>
         }
       />

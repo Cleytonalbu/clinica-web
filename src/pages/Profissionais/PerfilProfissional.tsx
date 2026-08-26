@@ -27,6 +27,11 @@ export default function PerfilProfissional() {
     <DashboardLayout>
       <div className="space-y-6">
         <ProfessionalProfileHeader
+          professionalId={
+            Number(
+              id
+            )
+          }
           name="Dra. Ana Paula"
           specialty="Psicologia"
           council="CRP 13/12345"

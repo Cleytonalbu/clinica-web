@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui";
 
 interface ProfessionalProfileHeaderProps {
+  professionalId: number;
   name: string;
   specialty: string;
   council: string;
@@ -18,6 +19,7 @@ interface ProfessionalProfileHeaderProps {
 }
 
 export function ProfessionalProfileHeader({
+  professionalId,
   name,
   specialty,
   council,
@@ -66,12 +68,24 @@ export function ProfessionalProfileHeader({
           <Button
             type="button"
             variant="outline"
+            onClick={() =>
+              navigate(
+                `/agenda?professionalId=${professionalId}`
+              )
+            }
           >
             <CalendarDays size={17} />
             Ver agenda
           </Button>
 
-          <Button type="button">
+          <Button
+            type="button"
+            onClick={() =>
+              navigate(
+                `/profissionais/${professionalId}/editar`
+              )
+            }
+          >
             <Edit3 size={17} />
             Editar profissional
           </Button>
