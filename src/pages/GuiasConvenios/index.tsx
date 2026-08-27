@@ -20,6 +20,28 @@ import {
 } from "lucide-react";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { useUnit } from "@/providers/UnitContext";
+
+import {
+  getPatients,
+} from "@/pages/Pacientes/patientStorage";
+
+import {
+  getActiveConvenios,
+  getActiveProfessionals,
+  getActiveSpecialties,
+} from "@/pages/Configuracoes/settingsStorage";
+
+import {
+  convenioWorksAtUnit,
+} from "@/pages/Configuracoes/convenioUnitStorage";
+
+import {
+  professionalWorksAtUnit,
+} from "@/pages/Configuracoes/professionalUnitStorage";
+
+import {
+  getConveniosPlanos,
+} from "@/pages/ConveniosEPlanos/insurancePlanStorage";
 import {
   closeLoteConvenio,
   createGuiaConvenio,
@@ -77,6 +99,8 @@ const emptyForm = {
   convenio: "",
   plano: "",
   paciente: "",
+  professional: "",
+  specialty: "",
   numeroGuia: "",
   competencia: currentMonth(),
   dataAtendimento: "",
@@ -391,6 +415,325 @@ export default function GuiasConvenios() {
         repasseBankAccountId,
       ]
     );
+
+  const patients =
+    useMemo(
+      () =>
+        getPatients()
+          .slice()
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              a.nome.localeCompare(
+                b.nome,
+                "pt-BR"
+              )
+          ),
+      []
+    );
+
+  const convenios =
+    useMemo(
+      () => {
+        const configured =
+          getActiveConvenios()
+            .filter(
+              (
+                convenio
+              ) =>
+                convenioWorksAtUnit(
+                  convenio.id,
+                  activeUnitId
+                )
+            )
+            .map(
+              (
+                convenio
+              ) =>
+                convenio.name
+            );
+
+        const fromPlans =
+          getConveniosPlanos()
+            .filter(
+              (
+                plan
+              ) =>
+                plan.unitId ===
+                  activeUnitId &&
+                plan.status ===
+                  "Ativo"
+            )
+            .map(
+              (
+                plan
+              ) =>
+                plan.convenio
+            );
+
+        return Array.from(
+          new Set(
+            [
+              ...configured,
+              ...fromPlans,
+            ].filter(
+              Boolean
+            )
+          )
+        ).sort(
+          (
+            a,
+            b
+          ) =>
+            a.localeCompare(
+              b,
+              "pt-BR"
+            )
+        );
+      },
+      [
+        activeUnitId,
+      ]
+    );
+
+  const professionals =
+    useMemo(
+      () =>
+        getActiveProfessionals()
+          .filter(
+            (
+              professional
+            ) =>
+              professionalWorksAtUnit(
+                professional.id,
+                activeUnitId
+              )
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              a.name.localeCompare(
+                b.name,
+                "pt-BR"
+              )
+          ),
+      [
+        activeUnitId,
+      ]
+    );
+
+  const specialties =
+    useMemo(
+      () =>
+        getActiveSpecialties()
+          .slice()
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              a.name.localeCompare(
+                b.name,
+                "pt-BR"
+              )
+          ),
+      []
+    );
+
+  const availablePlans =
+    useMemo(
+      () =>
+        getConveniosPlanos()
+          .filter(
+            (
+              plan
+            ) =>
+              plan.unitId ===
+                activeUnitId &&
+              plan.status ===
+                "Ativo" &&
+              (
+                !form.convenio ||
+                plan.convenio ===
+                  form.convenio
+              ) &&
+              (
+                !form.paciente ||
+                plan.paciente ===
+                  form.paciente
+              )
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              `${a.convenio} ${a.plano} ${a.paciente}`
+                .localeCompare(
+                  `${b.convenio} ${b.plano} ${b.paciente}`,
+                  "pt-BR"
+                )
+          ),
+      [
+        activeUnitId,
+        form.convenio,
+        form.paciente,
+      ]
+    );
+
+  function handleConvenioChange(
+    convenio:
+      string
+  ) {
+    setForm(
+      (
+        current
+      ) => ({
+        ...current,
+        convenio,
+        plano:
+          current.convenio ===
+            convenio
+            ? current.plano
+            : "",
+      })
+    );
+  }
+
+  function handlePatientChange(
+    paciente:
+      string
+  ) {
+    const selectedPatient =
+      patients.find(
+        (
+          item
+        ) =>
+          item.nome ===
+          paciente
+      );
+
+    const patientConvenio =
+      selectedPatient?.convenio?.trim() ??
+      "";
+
+    const convenioExists =
+      patientConvenio &&
+      patientConvenio !==
+        "Particular" &&
+      convenios.includes(
+        patientConvenio
+      );
+
+    setForm(
+      (
+        current
+      ) => ({
+        ...current,
+        paciente,
+        convenio:
+          convenioExists &&
+          !current.convenio
+            ? patientConvenio
+            : current.convenio,
+        plano:
+          current.paciente ===
+            paciente
+            ? current.plano
+            : "",
+      })
+    );
+  }
+
+  function handlePlanChange(
+    planId:
+      string
+  ) {
+    const selectedPlan =
+      getConveniosPlanos()
+        .find(
+          (
+            plan
+          ) =>
+            plan.id ===
+            planId
+        );
+
+    if (
+      !selectedPlan
+    ) {
+      setForm(
+        (
+          current
+        ) => ({
+          ...current,
+          plano:
+            "",
+        })
+      );
+
+      return;
+    }
+
+    setForm(
+      (
+        current
+      ) => ({
+        ...current,
+        convenio:
+          selectedPlan.convenio,
+        plano:
+          selectedPlan.plano,
+        paciente:
+          selectedPlan.paciente,
+        valorUnitario:
+          selectedPlan.valorSessao >
+          0
+            ? selectedPlan.valorSessao
+                .toLocaleString(
+                  "pt-BR",
+                  {
+                    minimumFractionDigits:
+                      2,
+                    maximumFractionDigits:
+                      2,
+                  }
+                )
+            : current.valorUnitario,
+      })
+    );
+  }
+
+  function handleProfessionalChange(
+    professionalName:
+      string
+  ) {
+    const selectedProfessional =
+      professionals.find(
+        (
+          professional
+        ) =>
+          professional.name ===
+          professionalName
+      );
+
+    setForm(
+      (
+        current
+      ) => ({
+        ...current,
+        professional:
+          professionalName,
+        specialty:
+          selectedProfessional?.specialty ??
+          current.specialty,
+      })
+    );
+  }
 
   const load = () => {
     setItems(
@@ -858,6 +1201,12 @@ export default function GuiasConvenios() {
       convenio: form.convenio.trim(),
       plano: form.plano.trim(),
       paciente: form.paciente.trim(),
+      professional:
+        form.professional.trim() ||
+        undefined,
+      specialty:
+        form.specialty.trim() ||
+        undefined,
       numeroGuia: form.numeroGuia.trim(),
       competencia: form.competencia,
       dataAtendimento: form.dataAtendimento,
@@ -4398,14 +4747,349 @@ export default function GuiasConvenios() {
               </div>
               <form onSubmit={submit} className="space-y-5 p-6">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Convênio *"><input required value={form.convenio} onChange={(e) => setForm({...form, convenio:e.target.value})} className="input-guide" /></Field>
-                  <Field label="Plano"><input value={form.plano} onChange={(e) => setForm({...form, plano:e.target.value})} className="input-guide" /></Field>
-                  <Field label="Paciente *"><input required value={form.paciente} onChange={(e) => setForm({...form, paciente:e.target.value})} className="input-guide" /></Field>
-                  <Field label="Número da guia"><input value={form.numeroGuia} onChange={(e) => setForm({...form, numeroGuia:e.target.value})} className="input-guide" /></Field>
-                  <Field label="Competência *"><input required type="month" value={form.competencia} onChange={(e) => setForm({...form, competencia:e.target.value})} className="input-guide" /></Field>
-                  <Field label="Data do atendimento"><input type="date" value={form.dataAtendimento} onChange={(e) => setForm({...form, dataAtendimento:e.target.value})} className="input-guide" /></Field>
-                  <Field label="Quantidade de sessões *"><input required type="number" min="1" value={form.quantidadeSessoes} onChange={(e) => setForm({...form, quantidadeSessoes:e.target.value})} className="input-guide" /></Field>
-                  <Field label="Valor por sessão *"><input required inputMode="decimal" placeholder="0,00" value={form.valorUnitario} onChange={(e) => setForm({...form, valorUnitario:e.target.value})} className="input-guide" /></Field>
+                  <Field label="Convênio *">
+                    <select
+                      required
+                      value={
+                        form.convenio
+                      }
+                      onChange={(
+                        e
+                      ) =>
+                        handleConvenioChange(
+                          e.target.value
+                        )
+                      }
+                      className="input-guide"
+                    >
+                      <option value="">
+                        Selecione o convênio
+                      </option>
+
+                      {convenios.map(
+                        (
+                          convenio
+                        ) => (
+                          <option
+                            key={
+                              convenio
+                            }
+                            value={
+                              convenio
+                            }
+                          >
+                            {
+                              convenio
+                            }
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </Field>
+
+                  <Field label="Paciente *">
+                    <select
+                      required
+                      value={
+                        form.paciente
+                      }
+                      onChange={(
+                        e
+                      ) =>
+                        handlePatientChange(
+                          e.target.value
+                        )
+                      }
+                      className="input-guide"
+                    >
+                      <option value="">
+                        Selecione o paciente
+                      </option>
+
+                      {patients.map(
+                        (
+                          patient
+                        ) => (
+                          <option
+                            key={
+                              patient.id
+                            }
+                            value={
+                              patient.nome
+                            }
+                          >
+                            {
+                              patient.nome
+                            }
+                            {patient.status ===
+                            "Inativo"
+                              ? " — Inativo"
+                              : ""}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </Field>
+
+                  <Field label="Plano">
+                    <select
+                      value={
+                        availablePlans.find(
+                          (
+                            plan
+                          ) =>
+                            plan.plano ===
+                              form.plano &&
+                            plan.convenio ===
+                              form.convenio &&
+                            (
+                              !form.paciente ||
+                              plan.paciente ===
+                                form.paciente
+                            )
+                        )?.id ??
+                        ""
+                      }
+                      onChange={(
+                        e
+                      ) =>
+                        handlePlanChange(
+                          e.target.value
+                        )
+                      }
+                      className="input-guide"
+                    >
+                      <option value="">
+                        {form.convenio ||
+                        form.paciente
+                          ? "Selecione o plano"
+                          : "Selecione convênio ou paciente primeiro"}
+                      </option>
+
+                      {availablePlans.map(
+                        (
+                          plan
+                        ) => (
+                          <option
+                            key={
+                              plan.id
+                            }
+                            value={
+                              plan.id
+                            }
+                          >
+                            {
+                              plan.plano
+                            }{" "}
+                            —{" "}
+                            {
+                              plan.paciente
+                            }{" "}
+                            •{" "}
+                            {
+                              plan.sessoesAutorizadas -
+                              plan.sessoesUtilizadas
+                            } sessão(ões) disponível(is)
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </Field>
+
+                  <Field label="Profissional">
+                    <select
+                      value={
+                        form.professional
+                      }
+                      onChange={(
+                        e
+                      ) =>
+                        handleProfessionalChange(
+                          e.target.value
+                        )
+                      }
+                      className="input-guide"
+                    >
+                      <option value="">
+                        Selecione o profissional
+                      </option>
+
+                      {professionals.map(
+                        (
+                          professional
+                        ) => (
+                          <option
+                            key={
+                              professional.id
+                            }
+                            value={
+                              professional.name
+                            }
+                          >
+                            {
+                              professional.name
+                            }{" "}
+                            —{" "}
+                            {
+                              professional.specialty
+                            }
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </Field>
+
+                  <Field label="Especialidade">
+                    <select
+                      value={
+                        form.specialty
+                      }
+                      onChange={(
+                        e
+                      ) =>
+                        setForm(
+                          {
+                            ...form,
+                            specialty:
+                              e.target.value,
+                          }
+                        )
+                      }
+                      className="input-guide"
+                    >
+                      <option value="">
+                        Selecione a especialidade
+                      </option>
+
+                      {specialties.map(
+                        (
+                          specialty
+                        ) => (
+                          <option
+                            key={
+                              specialty.id
+                            }
+                            value={
+                              specialty.name
+                            }
+                          >
+                            {
+                              specialty.name
+                            }
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </Field>
+
+                  <Field label="Número da guia">
+                    <input
+                      value={
+                        form.numeroGuia
+                      }
+                      onChange={(
+                        e
+                      ) =>
+                        setForm(
+                          {
+                            ...form,
+                            numeroGuia:
+                              e.target.value,
+                          }
+                        )
+                      }
+                      className="input-guide"
+                    />
+                  </Field>
+
+                  <Field label="Competência *">
+                    <input
+                      required
+                      type="month"
+                      value={
+                        form.competencia
+                      }
+                      onChange={(
+                        e
+                      ) =>
+                        setForm(
+                          {
+                            ...form,
+                            competencia:
+                              e.target.value,
+                          }
+                        )
+                      }
+                      className="input-guide"
+                    />
+                  </Field>
+
+                  <Field label="Data do atendimento">
+                    <input
+                      type="date"
+                      value={
+                        form.dataAtendimento
+                      }
+                      onChange={(
+                        e
+                      ) =>
+                        setForm(
+                          {
+                            ...form,
+                            dataAtendimento:
+                              e.target.value,
+                          }
+                        )
+                      }
+                      className="input-guide"
+                    />
+                  </Field>
+
+                  <Field label="Quantidade de sessões *">
+                    <input
+                      required
+                      type="number"
+                      min="1"
+                      value={
+                        form.quantidadeSessoes
+                      }
+                      onChange={(
+                        e
+                      ) =>
+                        setForm(
+                          {
+                            ...form,
+                            quantidadeSessoes:
+                              e.target.value,
+                          }
+                        )
+                      }
+                      className="input-guide"
+                    />
+                  </Field>
+
+                  <Field label="Valor por sessão *">
+                    <input
+                      required
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      value={
+                        form.valorUnitario
+                      }
+                      onChange={(
+                        e
+                      ) =>
+                        setForm(
+                          {
+                            ...form,
+                            valorUnitario:
+                              e.target.value,
+                          }
+                        )
+                      }
+                      className="input-guide"
+                    />
+                  </Field>
                 </div>
                 <Field label="Observações"><textarea rows={4} value={form.observacoes} onChange={(e) => setForm({...form, observacoes:e.target.value})} className="input-guide resize-none" /></Field>
                 <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">

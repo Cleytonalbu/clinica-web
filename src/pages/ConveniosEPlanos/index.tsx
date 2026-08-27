@@ -10,6 +10,9 @@ import {
 } from "lucide-react";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { useUnit } from "@/providers/UnitContext";
+import { getPatients } from "@/pages/Pacientes/patientStorage";
+import { getActiveConvenios } from "@/pages/Configuracoes/settingsStorage";
+import { convenioWorksAtUnit } from "@/pages/Configuracoes/convenioUnitStorage";
 import {
   createConvenioPlano,
   getConveniosPlanos,
@@ -25,7 +28,6 @@ const emptyForm = {
   paciente: "",
   valorSessao: "",
   sessoesAutorizadas: "",
-  sessoesUtilizadas: "0",
   autorizacao: "",
   inicioAutorizacao: "",
   validadeAutorizacao: "",
@@ -87,6 +89,51 @@ export default function ConveniosEPlanos() {
   const [status, setStatus] = useState<"Todos" | ConvenioPlanoStatus>("Todos");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
+
+  const patients = useMemo(
+    () =>
+      getPatients()
+        .slice()
+        .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
+    []
+  );
+
+  const convenios = useMemo(
+    () =>
+      getActiveConvenios()
+        .filter((convenio) =>
+          convenioWorksAtUnit(convenio.id, activeUnitId)
+        )
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+    [activeUnitId]
+  );
+
+  function handleConvenioChange(convenioName: string) {
+    const selected = convenios.find(
+      (convenio) => convenio.name === convenioName
+    );
+
+    const configuredValues = selected
+      ? Object.values(selected.specialtyValues || {}).filter(
+          (value) => Number.isFinite(value) && value > 0
+        )
+      : [];
+
+    const singleConfiguredValue =
+      configuredValues.length === 1 ? configuredValues[0] : null;
+
+    setForm((current) => ({
+      ...current,
+      convenio: convenioName,
+      valorSessao:
+        singleConfiguredValue !== null
+          ? singleConfiguredValue.toLocaleString("pt-BR", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })
+          : current.valorSessao,
+    }));
+  }
 
   function load() {
     setItems(
@@ -151,10 +198,10 @@ export default function ConveniosEPlanos() {
       form.valorSessao.replace(/\./g, "").replace(",", ".")
     );
     const autorizadas = Number(form.sessoesAutorizadas);
-    const utilizadas = Number(form.sessoesUtilizadas || "0");
+    const utilizadas = 0;
 
-    if (!form.convenio.trim() || !form.plano.trim()) {
-      alert("Informe o convênio e o plano.");
+    if (!form.convenio.trim() || !form.plano.trim() || !form.paciente.trim()) {
+      alert("Selecione o convênio e o paciente e informe o plano.");
       return;
     }
     if (!Number.isFinite(valorSessao) || valorSessao < 0) {
@@ -165,15 +212,6 @@ export default function ConveniosEPlanos() {
       alert("Informe as sessões autorizadas.");
       return;
     }
-    if (
-      !Number.isInteger(utilizadas) ||
-      utilizadas < 0 ||
-      utilizadas > autorizadas
-    ) {
-      alert("Quantidade de sessões utilizadas inválida.");
-      return;
-    }
-
     createConvenioPlano({
       unitId:
         activeUnitId,
@@ -209,10 +247,10 @@ export default function ConveniosEPlanos() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-slate-900">
-              Convênios e planos
+              Autorizações de convênios
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              Controle de autorizações, sessões e valores dos atendimentos por convênio.
+              Controle as autorizações de convênio vinculadas aos pacientes, sessões e validade.
             </p>
           </div>
 
@@ -221,12 +259,12 @@ export default function ConveniosEPlanos() {
             className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white"
           >
             <Plus size={18} />
-            Novo plano
+            Nova autorização
           </button>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <Card icon={ShieldCheck} label="Planos ativos" value={`${summary.ativos}`} />
+          <Card icon={ShieldCheck} label="Autorizações ativas" value={`${summary.ativos}`} />
           <Card icon={TicketCheck} label="Sessões disponíveis" value={`${summary.disponiveis}`} />
           <Card icon={CalendarClock} label="Precisam de atenção" value={`${summary.atencao}`} />
           <Card icon={CircleDollarSign} label="Valor previsto" value={money(summary.previsto)} />
@@ -352,7 +390,7 @@ export default function ConveniosEPlanos() {
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-500">
-                      Nenhum plano encontrado.
+                      Nenhuma autorização encontrada.
                     </td>
                   </tr>
                 )}
@@ -367,10 +405,10 @@ export default function ConveniosEPlanos() {
               <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">
-                    Novo plano / autorização
+                    Nova autorização / autorização
                   </h2>
                   <p className="text-sm text-slate-500">
-                    Registre o convênio e o controle de sessões autorizadas.
+                    Vincule o paciente ao convênio e registre os dados da autorização.
                   </p>
                 </div>
                 <button onClick={() => setOpen(false)} className="rounded-lg p-2 text-slate-500">
@@ -381,22 +419,82 @@ export default function ConveniosEPlanos() {
               <form onSubmit={submit} className="space-y-5 p-6">
                 <div className="grid gap-4 md:grid-cols-2">
                   <Field label="Convênio *">
-                    <input required value={form.convenio} onChange={(e) => setForm({...form, convenio:e.target.value})} className="input-convenio" />
+                    <select
+                      required
+                      value={form.convenio}
+                      onChange={(e) => handleConvenioChange(e.target.value)}
+                      className="input-convenio"
+                    >
+                      <option value="">Selecione o convênio</option>
+                      {convenios.map((convenio) => (
+                        <option key={convenio.id} value={convenio.name}>
+                          {convenio.name}
+                        </option>
+                      ))}
+                    </select>
                   </Field>
+
+                  <Field label="Paciente *">
+                    <select
+                      required
+                      value={form.paciente}
+                      onChange={(e) =>
+                        setForm({ ...form, paciente: e.target.value })
+                      }
+                      className="input-convenio"
+                    >
+                      <option value="">Selecione o paciente</option>
+                      {patients.map((patient) => (
+                        <option key={patient.id} value={patient.nome}>
+                          {patient.nome}
+                          {patient.status === "Inativo" ? " — Inativo" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
                   <Field label="Plano *">
-                    <input required value={form.plano} onChange={(e) => setForm({...form, plano:e.target.value})} className="input-convenio" />
+                    <input
+                      required
+                      value={form.plano}
+                      onChange={(e) =>
+                        setForm({ ...form, plano: e.target.value })
+                      }
+                      placeholder="Informe o nome do plano"
+                      className="input-convenio"
+                    />
                   </Field>
-                  <Field label="Paciente">
-                    <input value={form.paciente} onChange={(e) => setForm({...form, paciente:e.target.value})} className="input-convenio" />
-                  </Field>
+
                   <Field label="Valor por sessão *">
-                    <input required inputMode="decimal" placeholder="0,00" value={form.valorSessao} onChange={(e) => setForm({...form, valorSessao:e.target.value})} className="input-convenio" />
+                    <input
+                      required
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      value={form.valorSessao}
+                      onChange={(e) =>
+                        setForm({ ...form, valorSessao: e.target.value })
+                      }
+                      className="input-convenio"
+                    />
                   </Field>
+
                   <Field label="Sessões autorizadas *">
-                    <input required type="number" min="1" value={form.sessoesAutorizadas} onChange={(e) => setForm({...form, sessoesAutorizadas:e.target.value})} className="input-convenio" />
+                    <input
+                      required
+                      type="number"
+                      min="1"
+                      value={form.sessoesAutorizadas}
+                      onChange={(e) =>
+                        setForm({ ...form, sessoesAutorizadas: e.target.value })
+                      }
+                      className="input-convenio"
+                    />
                   </Field>
+
                   <Field label="Sessões já utilizadas">
-                    <input type="number" min="0" value={form.sessoesUtilizadas} onChange={(e) => setForm({...form, sessoesUtilizadas:e.target.value})} className="input-convenio" />
+                    <div className="input-convenio bg-slate-50 text-slate-500">
+                      0 — calculado automaticamente pelo sistema
+                    </div>
                   </Field>
                   <Field label="Guia / Senha / Autorização">
                     <input value={form.autorizacao} onChange={(e) => setForm({...form, autorizacao:e.target.value})} className="input-convenio" />
@@ -424,7 +522,7 @@ export default function ConveniosEPlanos() {
                     Cancelar
                   </button>
                   <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white">
-                    Salvar plano
+                    Salvar autorização
                   </button>
                 </div>
               </form>
