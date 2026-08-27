@@ -106,6 +106,28 @@ const DEMO_PROFESSIONAL_PATIENT_LINKS:
       specialty:
         "Fisioterapia",
     },
+
+    {
+      patientId:
+        1,
+
+      professional:
+        "Dra. Mariana Nutricionista",
+
+      specialty:
+        "Nutrição",
+    },
+
+    {
+      patientId:
+        1,
+
+      professional:
+        "Dr. Rafael Costa",
+
+      specialty:
+        "Fisioterapia",
+    },
   ];
 
 /* =========================================

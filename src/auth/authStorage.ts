@@ -101,6 +101,38 @@ const defaultUsers: StoredUser[] = [
 
     active: true,
   },
+
+  {
+    id: 5,
+
+    name: "Dra. Mariana Nutricionista",
+
+    email: "nutricao@entreafetos.com.br",
+
+    password: "123456",
+
+    profile: "Profissional",
+
+    professionalName: "Dra. Mariana Nutricionista",
+
+    active: true,
+  },
+
+  {
+    id: 6,
+
+    name: "Dr. Rafael Costa",
+
+    email: "fisioterapia@entreafetos.com.br",
+
+    password: "123456",
+
+    profile: "Profissional",
+
+    professionalName: "Dr. Rafael Costa",
+
+    active: true,
+  },
 ];
 
 function generateToken() {

@@ -73,6 +73,96 @@ export interface EvolutionObjectiveFormData {
   markerScore: number | null;
 }
 
+export interface EvolutionMaterialFormData {
+  id: number;
+  name: string;
+  quantity: string;
+  observation: string;
+}
+
+export type NutritionAppetite =
+  | ""
+  | "Preservado"
+  | "Aumentado"
+  | "Reduzido"
+  | "Oscilante";
+
+export type NutritionFoodAcceptance =
+  | ""
+  | "Boa"
+  | "Parcial"
+  | "Baixa"
+  | "Recusa importante";
+
+export type NutritionSelectivity =
+  | ""
+  | "Não observada"
+  | "Leve"
+  | "Moderada"
+  | "Importante";
+
+export interface NutritionEvolutionData {
+  weightKg: string;
+  heightCm: string;
+
+  appetite: NutritionAppetite;
+  foodAcceptance: NutritionFoodAcceptance;
+  foodSelectivity: NutritionSelectivity;
+
+  hydration: string;
+  acceptedTextures: string;
+  foodsPresented: string;
+  foodsAccepted: string;
+  refusalsAversions: string;
+
+  gastrointestinalSymptoms: string;
+  bowelPattern: string;
+
+  nutritionalConduct: string;
+  familyGuidance: string;
+  nextSessionPlan: string;
+}
+
+export type PhysiotherapyPainLevel =
+  | ""
+  | "Sem dor"
+  | "Leve"
+  | "Moderada"
+  | "Intensa";
+
+export type PhysiotherapyFunctionalLevel =
+  | ""
+  | "Dependente"
+  | "Assistência máxima"
+  | "Assistência moderada"
+  | "Assistência mínima"
+  | "Supervisão"
+  | "Independente";
+
+export interface PhysiotherapyEvolutionData {
+  painLevel: PhysiotherapyPainLevel;
+  painLocation: string;
+
+  mobility: string;
+  rangeOfMotion: string;
+  muscleStrength: string;
+
+  balance: string;
+  coordination: string;
+  gait: string;
+  posture: string;
+
+  functionalLevel: PhysiotherapyFunctionalLevel;
+  functionalActivities: string;
+
+  techniquesApplied: string;
+  resourcesUsed: string;
+  patientResponse: string;
+
+  familyGuidance: string;
+  nextSessionPlan: string;
+}
+
 export interface TherapeuticPlanObjective {
   id: number;
   name: string;
@@ -91,6 +181,23 @@ export interface EvolutionFormData {
   appointmentLocation: string;
 
   objectives: EvolutionObjectiveFormData[];
+
+  materials: EvolutionMaterialFormData[];
+
+  /**
+   * Dados específicos utilizados quando a especialidade
+   * selecionada é Nutrição. Para as demais especialidades,
+   * o objeto permanece salvo com valores vazios e não altera
+   * o modelo terapêutico atual.
+   */
+  nutrition: NutritionEvolutionData;
+
+  /**
+   * Dados específicos utilizados quando a especialidade
+   * selecionada é Fisioterapia. Para as demais especialidades,
+   * o objeto permanece vazio e não altera seus modelos.
+   */
+  physiotherapy: PhysiotherapyEvolutionData;
 
   writtenEvolution: string;
 

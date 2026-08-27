@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   ArrowLeft,
@@ -47,6 +47,8 @@ import type {
   EvolutionFormData,
   EvolutionMaterialFormData,
   EvolutionObjectiveStatus,
+  NutritionEvolutionData,
+  PhysiotherapyEvolutionData,
 } from "@/components/pacientes/profile/evolutions/evolutionForm.types";
 
 import {
@@ -79,6 +81,76 @@ import {
 type ValidationErrors = Partial<
   Record<keyof EvolutionFormData, string>
 >;
+
+function isNutritionSpecialty(
+  specialty: string
+) {
+  return specialty
+    .trim()
+    .toLocaleLowerCase(
+      "pt-BR"
+    )
+    .includes(
+      "nutri"
+    );
+}
+
+function isPhysiotherapySpecialty(
+  specialty: string
+) {
+  return specialty
+    .trim()
+    .toLocaleLowerCase(
+      "pt-BR"
+    )
+    .includes(
+      "fisio"
+    );
+}
+
+function calculateNutritionBmi(
+  weightKg: string,
+  heightCm: string
+) {
+  const weight =
+    Number(
+      weightKg.replace(
+        ",",
+        "."
+      )
+    );
+
+  const height =
+    Number(
+      heightCm.replace(
+        ",",
+        "."
+      )
+    ) / 100;
+
+  if (
+    !Number.isFinite(
+      weight
+    ) ||
+    !Number.isFinite(
+      height
+    ) ||
+    weight <= 0 ||
+    height <= 0
+  ) {
+    return "";
+  }
+
+  return (
+    weight /
+    (
+      height *
+      height
+    )
+  ).toFixed(
+    1
+  );
+}
 
 export default function NovaEvolucao() {
   const { activeUnitId } = useUnit();
@@ -134,9 +206,27 @@ export default function NovaEvolucao() {
       ]
     );
 
+  /*
+   * Fallback exclusivo para o login de demonstração
+   * da nutricionista. Isso evita que um localStorage
+   * antigo impeça o teste do modelo nutricional.
+   */
+  const isNutritionTestUser =
+    user?.email ===
+    "nutricao@entreafetos.com.br";
+
+  const effectiveProfessionalName =
+    isNutritionTestUser
+      ? "Dra. Mariana Nutricionista"
+      : loggedProfessionalName;
+
   const professionalSpecialty =
     loggedProfessional?.specialty ??
-    "";
+    (
+      isNutritionTestUser
+        ? "Nutrição"
+        : ""
+    );
 
   const therapeuticPlanObjectives =
     useMemo(
@@ -153,7 +243,7 @@ export default function NovaEvolucao() {
                   !isProfissional ||
                   (
                     objective.professional ===
-                      loggedProfessionalName &&
+                      effectiveProfessionalName &&
                     (
                       !professionalSpecialty ||
                       objective.specialty ===
@@ -167,27 +257,61 @@ export default function NovaEvolucao() {
         patientIdNumber,
         objectiveRefreshKey,
         isProfissional,
-        loggedProfessionalName,
+        effectiveProfessionalName,
         professionalSpecialty,
       ]
     );
 
   const activeProfessionals =
     useMemo(
-      () =>
-        isProfissional
-          ? allActiveProfessionals.filter(
-              (
-                professional
-              ) =>
-                professional.name ===
-                loggedProfessionalName
-            )
-          : allActiveProfessionals,
+      () => {
+        if (
+          !isProfissional
+        ) {
+          return allActiveProfessionals;
+        }
+
+        const ownProfessionals =
+          allActiveProfessionals.filter(
+            (
+              professional
+            ) =>
+              professional.name ===
+              effectiveProfessionalName
+          );
+
+        if (
+          ownProfessionals.length >
+          0
+        ) {
+          return ownProfessionals;
+        }
+
+        if (
+          isNutritionTestUser
+        ) {
+          return [
+            {
+              id: 5,
+              name:
+                "Dra. Mariana Nutricionista",
+              specialty:
+                "Nutrição",
+              registration:
+                "CRN TESTE",
+              active:
+                true,
+            },
+          ];
+        }
+
+        return [];
+      },
       [
         allActiveProfessionals,
+        effectiveProfessionalName,
         isProfissional,
-        loggedProfessionalName,
+        isNutritionTestUser,
       ]
     );
 
@@ -203,15 +327,44 @@ export default function NovaEvolucao() {
           return specialties;
         }
 
-        return specialties.filter(
-          (
-            specialty
-          ) =>
-            specialty.name ===
-            professionalSpecialty
-        );
+        const ownSpecialties =
+          specialties.filter(
+            (
+              specialty
+            ) =>
+              specialty.name ===
+              professionalSpecialty
+          );
+
+        if (
+          ownSpecialties.length >
+          0
+        ) {
+          return ownSpecialties;
+        }
+
+        if (
+          isNutritionTestUser
+        ) {
+          return [
+            {
+              id: 6,
+              name:
+                "Nutrição",
+              value:
+                150,
+              repasseValue:
+                100,
+              active:
+                true,
+            },
+          ];
+        }
+
+        return [];
       },
       [
+        isNutritionTestUser,
         isProfissional,
         professionalSpecialty,
       ]
@@ -233,6 +386,69 @@ export default function NovaEvolucao() {
     useState<EvolutionFormData>(() =>
       createEvolutionDefaultValues(patientId)
     );
+
+  /*
+   * Para o perfil Profissional, a evolução já deve
+   * iniciar vinculada ao próprio profissional e à
+   * especialidade cadastrada no sistema.
+   *
+   * Isso também é o que ativa automaticamente o
+   * modelo específico de Nutrição quando o login
+   * pertence a um nutricionista.
+   */
+  useEffect(
+    () => {
+      if (
+        !isProfissional
+      ) {
+        return;
+      }
+
+      const nextSpecialty =
+        professionalSpecialty;
+
+      const nextProfessional =
+        effectiveProfessionalName;
+
+      if (
+        !nextSpecialty ||
+        !nextProfessional
+      ) {
+        return;
+      }
+
+      setFormData(
+        (
+          current
+        ) => {
+
+          if (
+            current.specialty ===
+              nextSpecialty &&
+            current.professional ===
+              nextProfessional
+          ) {
+            return current;
+          }
+
+          return {
+            ...current,
+
+            specialty:
+              nextSpecialty,
+
+            professional:
+              nextProfessional,
+          };
+        }
+      );
+    },
+    [
+      effectiveProfessionalName,
+      isProfissional,
+      professionalSpecialty,
+    ]
+  );
 
   const [savedEvolutionId, setSavedEvolutionId] =
     useState<number | null>(null);
@@ -441,6 +657,66 @@ export default function NovaEvolucao() {
     );
   }
 
+  function updateNutritionField<
+    K extends keyof NutritionEvolutionData
+  >(
+    field: K,
+    value:
+      NutritionEvolutionData[K]
+  ) {
+    setFormData(
+      (
+        current
+      ) => ({
+        ...current,
+
+        nutrition: {
+          ...current.nutrition,
+          [field]:
+            value,
+        },
+      })
+    );
+
+    setFeedback(
+      null
+    );
+
+    setFeedbackType(
+      null
+    );
+  }
+
+  function updatePhysiotherapyField<
+    K extends keyof PhysiotherapyEvolutionData
+  >(
+    field: K,
+    value:
+      PhysiotherapyEvolutionData[K]
+  ) {
+    setFormData(
+      (
+        current
+      ) => ({
+        ...current,
+
+        physiotherapy: {
+          ...current.physiotherapy,
+          [field]:
+            value,
+        },
+      })
+    );
+
+    setFeedback(
+      null
+    );
+
+    setFeedbackType(
+      null
+    );
+  }
+
   /* =======================================
      MATERIAIS UTILIZADOS
   ======================================= */
@@ -577,6 +853,8 @@ export default function NovaEvolucao() {
 
       const payload = {
         patientId: patientIdNumber,
+        unitId:
+          activeUnitId,
         sessionDate: draft.sessionDate,
         startTime: draft.startTime,
         endTime: draft.endTime,
@@ -587,6 +865,10 @@ export default function NovaEvolucao() {
           draft.appointmentLocation,
         objectives: draft.objectives,
         materials: draft.materials,
+        nutrition:
+          draft.nutrition,
+        physiotherapy:
+          draft.physiotherapy,
         writtenEvolution:
           draft.writtenEvolution,
         referralSpecialty:
@@ -704,6 +986,8 @@ export default function NovaEvolucao() {
 
       const payload = {
         patientId: patientIdNumber,
+        unitId:
+          activeUnitId,
         sessionDate:
           evolution.sessionDate,
         startTime:
@@ -720,6 +1004,10 @@ export default function NovaEvolucao() {
           evolution.objectives,
         materials:
           evolution.materials,
+        nutrition:
+          evolution.nutrition,
+        physiotherapy:
+          evolution.physiotherapy,
         writtenEvolution:
           evolution.writtenEvolution,
         referralSpecialty:
@@ -957,72 +1245,272 @@ export default function NovaEvolucao() {
           />
         </div>
 
-        <div className="grid grid-cols-1 items-stretch gap-6 2xl:grid-cols-2">
-          <div className="flex h-full flex-col rounded-2xl bg-gradient-to-br from-white to-fuchsia-50/40 shadow-[0_10px_30px_rgba(168,85,247,0.06)] [&>div>div]:border-fuchsia-100">
-            <div className="flex-1 [&>*]:h-full">
+        {isNutritionSpecialty(
+          formData.specialty
+        ) ? (
+          <>
+            {/* =====================================
+                NUTRIÇÃO — LAYOUT ESPECÍFICO
+            ===================================== */}
+
+            <NutritionEvolutionSection
+              value={
+                formData.nutrition
+              }
+              onChange={
+                updateNutritionField
+              }
+            />
+
+            <div className="w-full rounded-2xl bg-gradient-to-br from-white to-fuchsia-50/40 shadow-[0_10px_30px_rgba(168,85,247,0.06)] [&>div>div]:border-fuchsia-100">
               <EvolutionWrittenSection
-                value={formData.writtenEvolution}
-                onChange={(value) =>
+                value={
+                  formData.writtenEvolution
+                }
+                onChange={(
+                  value
+                ) =>
                   updateField(
                     "writtenEvolution",
                     value
                   )
                 }
               />
+
+              {errors.writtenEvolution && (
+                <p className="mt-2 px-1 text-sm font-medium text-red-600">
+                  {
+                    errors.writtenEvolution
+                  }
+                </p>
+              )}
             </div>
 
-            {errors.writtenEvolution && (
-              <p className="mt-2 text-sm font-medium text-red-600">
-                {errors.writtenEvolution}
-              </p>
-            )}
-          </div>
+            <div className="grid grid-cols-1 items-stretch gap-6 rounded-3xl bg-gradient-to-r from-orange-50/35 via-white/30 to-sky-50/45 p-1 2xl:grid-cols-2">
+              <div className="h-full rounded-2xl bg-gradient-to-br from-white to-orange-50/45 shadow-[0_10px_30px_rgba(249,115,22,0.06)] [&>*]:h-full [&>div]:border-orange-100">
+                <ReferralSection
+                  formData={
+                    formData
+                  }
+                  updateField={
+                    updateField
+                  }
+                />
+              </div>
 
-          <div className="h-full rounded-2xl bg-gradient-to-br from-white to-orange-50/45 shadow-[0_10px_30px_rgba(249,115,22,0.06)] [&>*]:h-full [&>div]:border-orange-100">
-            <ReferralSection
-              formData={formData}
-              updateField={updateField}
+              <div className="h-full [&>*]:h-full">
+                <SessionResultSection
+                  value={
+                    formData.sessionResult
+                  }
+                  observation={
+                    formData.sessionResultObservation
+                  }
+                  onChange={(
+                    value
+                  ) =>
+                    updateField(
+                      "sessionResult",
+                      value
+                    )
+                  }
+                  onObservationChange={(
+                    value
+                  ) =>
+                    updateField(
+                      "sessionResultObservation",
+                      value
+                    )
+                  }
+                />
+              </div>
+            </div>
+          </>
+        ) : isPhysiotherapySpecialty(
+          formData.specialty
+        ) ? (
+          <>
+            {/* =====================================
+                FISIOTERAPIA — LAYOUT ESPECÍFICO
+            ===================================== */}
+
+            <PhysiotherapyEvolutionSection
+              value={
+                formData.physiotherapy
+              }
+              onChange={
+                updatePhysiotherapyField
+              }
             />
-          </div>
-        </div>
 
-        <MaterialsUsedSection
-          materials={formData.materials}
-          onAdd={addMaterial}
-          onUpdate={updateMaterial}
-          onRemove={removeMaterial}
-        />
+            <div className="w-full rounded-2xl bg-gradient-to-br from-white to-fuchsia-50/40 shadow-[0_10px_30px_rgba(168,85,247,0.06)] [&>div>div]:border-fuchsia-100">
+              <EvolutionWrittenSection
+                value={
+                  formData.writtenEvolution
+                }
+                onChange={(
+                  value
+                ) =>
+                  updateField(
+                    "writtenEvolution",
+                    value
+                  )
+                }
+              />
 
-        <div className="grid grid-cols-1 gap-6 rounded-3xl bg-gradient-to-r from-emerald-50/45 via-white/30 to-sky-50/55 p-1 2xl:grid-cols-2 [&>div]:shadow-[0_10px_30px_rgba(15,118,110,0.05)]">
-          <ObservedImpactsSection
-            value={formData.observedImpacts}
-            onChange={(value) =>
-              updateField(
-                "observedImpacts",
-                value
-              )
-            }
-          />
+              {errors.writtenEvolution && (
+                <p className="mt-2 px-1 text-sm font-medium text-red-600">
+                  {
+                    errors.writtenEvolution
+                  }
+                </p>
+              )}
+            </div>
 
-          <SessionResultSection
-            value={formData.sessionResult}
-            observation={
-              formData.sessionResultObservation
-            }
-            onChange={(value) =>
-              updateField(
-                "sessionResult",
-                value
-              )
-            }
-            onObservationChange={(value) =>
-              updateField(
-                "sessionResultObservation",
-                value
-              )
-            }
-          />
-        </div>
+            <div className="grid grid-cols-1 items-stretch gap-6 rounded-3xl bg-gradient-to-r from-orange-50/35 via-white/30 to-sky-50/45 p-1 2xl:grid-cols-2">
+              <div className="h-full rounded-2xl bg-gradient-to-br from-white to-orange-50/45 shadow-[0_10px_30px_rgba(249,115,22,0.06)] [&>*]:h-full [&>div]:border-orange-100">
+                <ReferralSection
+                  formData={
+                    formData
+                  }
+                  updateField={
+                    updateField
+                  }
+                />
+              </div>
+
+              <div className="h-full [&>*]:h-full">
+                <SessionResultSection
+                  value={
+                    formData.sessionResult
+                  }
+                  observation={
+                    formData.sessionResultObservation
+                  }
+                  onChange={(
+                    value
+                  ) =>
+                    updateField(
+                      "sessionResult",
+                      value
+                    )
+                  }
+                  onObservationChange={(
+                    value
+                  ) =>
+                    updateField(
+                      "sessionResultObservation",
+                      value
+                    )
+                  }
+                />
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* =====================================
+                MODELO TERAPÊUTICO ATUAL
+                Psicologia / Fono / TO / demais
+                NÃO ALTERAR
+            ===================================== */}
+
+            <div className="grid grid-cols-1 items-stretch gap-6 2xl:grid-cols-2">
+              <div className="flex h-full flex-col rounded-2xl bg-gradient-to-br from-white to-fuchsia-50/40 shadow-[0_10px_30px_rgba(168,85,247,0.06)] [&>div>div]:border-fuchsia-100">
+                <div className="flex-1 [&>*]:h-full">
+                  <EvolutionWrittenSection
+                    value={
+                      formData.writtenEvolution
+                    }
+                    onChange={(
+                      value
+                    ) =>
+                      updateField(
+                        "writtenEvolution",
+                        value
+                      )
+                    }
+                  />
+                </div>
+
+                {errors.writtenEvolution && (
+                  <p className="mt-2 text-sm font-medium text-red-600">
+                    {
+                      errors.writtenEvolution
+                    }
+                  </p>
+                )}
+              </div>
+
+              <div className="h-full rounded-2xl bg-gradient-to-br from-white to-orange-50/45 shadow-[0_10px_30px_rgba(249,115,22,0.06)] [&>*]:h-full [&>div]:border-orange-100">
+                <ReferralSection
+                  formData={
+                    formData
+                  }
+                  updateField={
+                    updateField
+                  }
+                />
+              </div>
+            </div>
+
+            <MaterialsUsedSection
+              materials={
+                formData.materials
+              }
+              onAdd={
+                addMaterial
+              }
+              onUpdate={
+                updateMaterial
+              }
+              onRemove={
+                removeMaterial
+              }
+            />
+
+            <div className="grid grid-cols-1 gap-6 rounded-3xl bg-gradient-to-r from-emerald-50/45 via-white/30 to-sky-50/55 p-1 2xl:grid-cols-2 [&>div]:shadow-[0_10px_30px_rgba(15,118,110,0.05)]">
+              <ObservedImpactsSection
+                value={
+                  formData.observedImpacts
+                }
+                onChange={(
+                  value
+                ) =>
+                  updateField(
+                    "observedImpacts",
+                    value
+                  )
+                }
+              />
+
+              <SessionResultSection
+                value={
+                  formData.sessionResult
+                }
+                observation={
+                  formData.sessionResultObservation
+                }
+                onChange={(
+                  value
+                ) =>
+                  updateField(
+                    "sessionResult",
+                    value
+                  )
+                }
+                onObservationChange={(
+                  value
+                ) =>
+                  updateField(
+                    "sessionResultObservation",
+                    value
+                  )
+                }
+              />
+            </div>
+          </>
+        )}
 
         <div className="grid grid-cols-1 gap-6 rounded-3xl bg-gradient-to-r from-sky-50/50 via-white/30 to-indigo-50/55 p-1 2xl:grid-cols-2 [&>div]:shadow-[0_10px_30px_rgba(59,130,246,0.05)]">
           <EvolutionAttachmentsSection
@@ -2469,6 +2957,793 @@ function QuickObjectiveModal({
   );
 }
 
+
+/* =========================================
+   EVOLUÇÃO FISIOTERAPÊUTICA
+========================================= */
+
+interface PhysiotherapyEvolutionSectionProps {
+  value:
+    PhysiotherapyEvolutionData;
+
+  onChange:
+    <
+      K extends keyof PhysiotherapyEvolutionData
+    >(
+      field: K,
+      value:
+        PhysiotherapyEvolutionData[K]
+    ) => void;
+}
+
+function PhysiotherapyEvolutionSection({
+  value,
+  onChange,
+}: PhysiotherapyEvolutionSectionProps) {
+  return (
+    <PageCard
+      title="Avaliação fisioterapêutica"
+      description="Registre os principais achados funcionais e motores observados nesta sessão."
+    >
+      <div className="space-y-6">
+        <div>
+          <div className="mb-3">
+            <h3 className="text-sm font-bold text-slate-800">
+              Dor e mobilidade
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FormField label="Dor">
+              <Select
+                value={
+                  value.painLevel
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "painLevel",
+                    event.target.value as PhysiotherapyEvolutionData["painLevel"]
+                  )
+                }
+              >
+                <option value="">
+                  Selecione
+                </option>
+                <option value="Sem dor">
+                  Sem dor
+                </option>
+                <option value="Leve">
+                  Leve
+                </option>
+                <option value="Moderada">
+                  Moderada
+                </option>
+                <option value="Intensa">
+                  Intensa
+                </option>
+              </Select>
+            </FormField>
+
+            <FormField label="Localização da dor">
+              <Input
+                value={
+                  value.painLocation
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "painLocation",
+                    event.target.value
+                  )
+                }
+                placeholder="Ex.: membro inferior direito..."
+              />
+            </FormField>
+
+            <FormField label="Mobilidade">
+              <Input
+                value={
+                  value.mobility
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "mobility",
+                    event.target.value
+                  )
+                }
+                placeholder="Descreva mobilidade global e segmentar..."
+              />
+            </FormField>
+
+            <FormField label="Amplitude de movimento">
+              <Input
+                value={
+                  value.rangeOfMotion
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "rangeOfMotion",
+                    event.target.value
+                  )
+                }
+                placeholder="Ex.: preservada, reduzida, limitada..."
+              />
+            </FormField>
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100 pt-5">
+          <div className="mb-3">
+            <h3 className="text-sm font-bold text-slate-800">
+              Avaliação motora e funcional
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FormField label="Força muscular">
+              <Input
+                value={
+                  value.muscleStrength
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "muscleStrength",
+                    event.target.value
+                  )
+                }
+                placeholder="Registre força muscular observada..."
+              />
+            </FormField>
+
+            <FormField label="Equilíbrio">
+              <Input
+                value={
+                  value.balance
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "balance",
+                    event.target.value
+                  )
+                }
+                placeholder="Estático, dinâmico, reações de equilíbrio..."
+              />
+            </FormField>
+
+            <FormField label="Coordenação">
+              <Input
+                value={
+                  value.coordination
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "coordination",
+                    event.target.value
+                  )
+                }
+                placeholder="Descreva coordenação motora..."
+              />
+            </FormField>
+
+            <FormField label="Marcha">
+              <Input
+                value={
+                  value.gait
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "gait",
+                    event.target.value
+                  )
+                }
+                placeholder="Descreva padrão de marcha..."
+              />
+            </FormField>
+
+            <FormField label="Postura">
+              <Input
+                value={
+                  value.posture
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "posture",
+                    event.target.value
+                  )
+                }
+                placeholder="Registre alinhamento e controle postural..."
+              />
+            </FormField>
+
+            <FormField label="Nível funcional">
+              <Select
+                value={
+                  value.functionalLevel
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "functionalLevel",
+                    event.target.value as PhysiotherapyEvolutionData["functionalLevel"]
+                  )
+                }
+              >
+                <option value="">
+                  Selecione
+                </option>
+                <option value="Dependente">
+                  Dependente
+                </option>
+                <option value="Assistência máxima">
+                  Assistência máxima
+                </option>
+                <option value="Assistência moderada">
+                  Assistência moderada
+                </option>
+                <option value="Assistência mínima">
+                  Assistência mínima
+                </option>
+                <option value="Supervisão">
+                  Supervisão
+                </option>
+                <option value="Independente">
+                  Independente
+                </option>
+              </Select>
+            </FormField>
+          </div>
+
+          <div className="mt-4">
+            <FormField label="Atividades funcionais observadas">
+              <textarea
+                value={
+                  value.functionalActivities
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "functionalActivities",
+                    event.target.value
+                  )
+                }
+                placeholder="Ex.: sentar, levantar, transferências, subir degraus, alcance funcional..."
+                className="min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+            </FormField>
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100 pt-5">
+          <div className="mb-3">
+            <h3 className="text-sm font-bold text-slate-800">
+              Conduta fisioterapêutica
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            <FormField label="Técnicas / condutas aplicadas">
+              <textarea
+                value={
+                  value.techniquesApplied
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "techniquesApplied",
+                    event.target.value
+                  )
+                }
+                placeholder="Descreva técnicas e condutas realizadas..."
+                className="min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+            </FormField>
+
+            <FormField label="Recursos utilizados">
+              <textarea
+                value={
+                  value.resourcesUsed
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "resourcesUsed",
+                    event.target.value
+                  )
+                }
+                placeholder="Ex.: bola, faixa elástica, prancha, circuito motor..."
+                className="min-h-20 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+            </FormField>
+
+            <FormField label="Resposta ao atendimento">
+              <textarea
+                value={
+                  value.patientResponse
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "patientResponse",
+                    event.target.value
+                  )
+                }
+                placeholder="Descreva tolerância, participação e resposta às intervenções..."
+                className="min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+            </FormField>
+
+            <FormField label="Orientações à família / responsável">
+              <textarea
+                value={
+                  value.familyGuidance
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "familyGuidance",
+                    event.target.value
+                  )
+                }
+                placeholder="Registre orientações fornecidas ao responsável..."
+                className="min-h-20 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+            </FormField>
+
+            <FormField label="Plano para a próxima sessão">
+              <textarea
+                value={
+                  value.nextSessionPlan
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "nextSessionPlan",
+                    event.target.value
+                  )
+                }
+                placeholder="Registre o planejamento para continuidade do atendimento..."
+                className="min-h-20 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+            </FormField>
+          </div>
+        </div>
+      </div>
+    </PageCard>
+  );
+}
+
+/* =========================================
+   EVOLUÇÃO NUTRICIONAL
+========================================= */
+
+interface NutritionEvolutionSectionProps {
+  value:
+    NutritionEvolutionData;
+
+  onChange:
+    <
+      K extends keyof NutritionEvolutionData
+    >(
+      field: K,
+      value:
+        NutritionEvolutionData[K]
+    ) => void;
+}
+
+function NutritionEvolutionSection({
+  value,
+  onChange,
+}: NutritionEvolutionSectionProps) {
+  const bmi =
+    calculateNutritionBmi(
+      value.weightKg,
+      value.heightCm
+    );
+
+  return (
+    <PageCard
+      title="Avaliação nutricional"
+      description="Registre os dados específicos do acompanhamento nutricional desta sessão."
+    >
+      <div className="space-y-6">
+        <div>
+          <div className="mb-3">
+            <h3 className="text-sm font-bold text-slate-800">
+              Antropometria
+            </h3>
+
+            <p className="mt-1 text-xs text-slate-500">
+              Registre as medidas coletadas nesta sessão quando aplicável.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <FormField label="Peso (kg)">
+              <Input
+                inputMode="decimal"
+                value={
+                  value.weightKg
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "weightKg",
+                    event.target.value
+                  )
+                }
+                placeholder="Ex.: 28,5"
+              />
+            </FormField>
+
+            <FormField label="Altura (cm)">
+              <Input
+                inputMode="decimal"
+                value={
+                  value.heightCm
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "heightCm",
+                    event.target.value
+                  )
+                }
+                placeholder="Ex.: 132"
+              />
+            </FormField>
+
+            <FormField label="IMC">
+              <Input
+                value={
+                  bmi
+                }
+                readOnly
+                placeholder="Calculado automaticamente"
+              />
+            </FormField>
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100 pt-5">
+          <div className="mb-3">
+            <h3 className="text-sm font-bold text-slate-800">
+              Alimentação e aceitação
+            </h3>
+
+            <p className="mt-1 text-xs text-slate-500">
+              Registre os principais achados alimentares observados ou relatados.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <FormField label="Apetite">
+              <Select
+                value={
+                  value.appetite
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "appetite",
+                    event.target.value as NutritionEvolutionData["appetite"]
+                  )
+                }
+              >
+                <option value="">
+                  Selecione
+                </option>
+                <option value="Preservado">
+                  Preservado
+                </option>
+                <option value="Aumentado">
+                  Aumentado
+                </option>
+                <option value="Reduzido">
+                  Reduzido
+                </option>
+                <option value="Oscilante">
+                  Oscilante
+                </option>
+              </Select>
+            </FormField>
+
+            <FormField label="Aceitação alimentar">
+              <Select
+                value={
+                  value.foodAcceptance
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "foodAcceptance",
+                    event.target.value as NutritionEvolutionData["foodAcceptance"]
+                  )
+                }
+              >
+                <option value="">
+                  Selecione
+                </option>
+                <option value="Boa">
+                  Boa
+                </option>
+                <option value="Parcial">
+                  Parcial
+                </option>
+                <option value="Baixa">
+                  Baixa
+                </option>
+                <option value="Recusa importante">
+                  Recusa importante
+                </option>
+              </Select>
+            </FormField>
+
+            <FormField label="Seletividade alimentar">
+              <Select
+                value={
+                  value.foodSelectivity
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "foodSelectivity",
+                    event.target.value as NutritionEvolutionData["foodSelectivity"]
+                  )
+                }
+              >
+                <option value="">
+                  Selecione
+                </option>
+                <option value="Não observada">
+                  Não observada
+                </option>
+                <option value="Leve">
+                  Leve
+                </option>
+                <option value="Moderada">
+                  Moderada
+                </option>
+                <option value="Importante">
+                  Importante
+                </option>
+              </Select>
+            </FormField>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FormField label="Hidratação">
+              <Input
+                value={
+                  value.hydration
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "hydration",
+                    event.target.value
+                  )
+                }
+                placeholder="Ex.: aceitação de água, volume referido..."
+              />
+            </FormField>
+
+            <FormField label="Texturas / consistências aceitas">
+              <Input
+                value={
+                  value.acceptedTextures
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "acceptedTextures",
+                    event.target.value
+                  )
+                }
+                placeholder="Ex.: pastosa, sólida, crocante..."
+              />
+            </FormField>
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100 pt-5">
+          <div className="mb-3">
+            <h3 className="text-sm font-bold text-slate-800">
+              Experiência alimentar na sessão
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FormField label="Alimentos apresentados">
+              <textarea
+                value={
+                  value.foodsPresented
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "foodsPresented",
+                    event.target.value
+                  )
+                }
+                placeholder="Registre os alimentos apresentados durante a sessão..."
+                className="min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+            </FormField>
+
+            <FormField label="Alimentos aceitos / experimentados">
+              <textarea
+                value={
+                  value.foodsAccepted
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "foodsAccepted",
+                    event.target.value
+                  )
+                }
+                placeholder="Registre novos alimentos aceitos ou experimentados..."
+                className="min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+            </FormField>
+
+            <FormField label="Recusas / aversões observadas">
+              <textarea
+                value={
+                  value.refusalsAversions
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "refusalsAversions",
+                    event.target.value
+                  )
+                }
+                placeholder="Registre recusas, aversões, reações sensoriais ou comportamentais..."
+                className="min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+            </FormField>
+
+            <FormField label="Sintomas gastrointestinais">
+              <textarea
+                value={
+                  value.gastrointestinalSymptoms
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "gastrointestinalSymptoms",
+                    event.target.value
+                  )
+                }
+                placeholder="Ex.: dor abdominal, refluxo, distensão, náusea..."
+                className="min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+            </FormField>
+          </div>
+
+          <div className="mt-4">
+            <FormField label="Padrão intestinal / evacuação">
+              <Input
+                value={
+                  value.bowelPattern
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "bowelPattern",
+                    event.target.value
+                  )
+                }
+                placeholder="Ex.: frequência e características referidas..."
+              />
+            </FormField>
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100 pt-5">
+          <div className="mb-3">
+            <h3 className="text-sm font-bold text-slate-800">
+              Conduta nutricional
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            <FormField label="Conduta / intervenção realizada">
+              <textarea
+                value={
+                  value.nutritionalConduct
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "nutritionalConduct",
+                    event.target.value
+                  )
+                }
+                placeholder="Descreva a intervenção nutricional realizada nesta sessão..."
+                className="min-h-28 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+            </FormField>
+
+            <FormField label="Orientações à família / responsável">
+              <textarea
+                value={
+                  value.familyGuidance
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "familyGuidance",
+                    event.target.value
+                  )
+                }
+                placeholder="Registre as orientações fornecidas ao responsável..."
+                className="min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+            </FormField>
+
+            <FormField label="Plano para a próxima sessão">
+              <textarea
+                value={
+                  value.nextSessionPlan
+                }
+                onChange={(
+                  event
+                ) =>
+                  onChange(
+                    "nextSessionPlan",
+                    event.target.value
+                  )
+                }
+                placeholder="Registre o planejamento para continuidade do acompanhamento..."
+                className="min-h-24 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+            </FormField>
+          </div>
+        </div>
+      </div>
+    </PageCard>
+  );
+}
 
 /* =========================================
    MATERIAIS UTILIZADOS

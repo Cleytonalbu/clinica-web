@@ -1854,6 +1854,14 @@ const defaultSettings: SystemSettings = {
       registration: "CREFITO 00002",
       active: true,
     },
+
+    {
+      id: 5,
+      name: "Dra. Mariana Nutricionista",
+      specialty: "Nutrição",
+      registration: "CRN TESTE",
+      active: true,
+    },
   ],
 
   convenios: [
@@ -2060,10 +2068,38 @@ export function getSystemSettings(): SystemSettings {
         defaultSettings.rooms,
 
       professionals:
-        (
-          parsed.professionals ??
-          defaultSettings.professionals
-        ).map(
+        [
+          ...(
+            parsed.professionals ??
+            []
+          ),
+
+          ...defaultSettings.professionals.filter(
+            (
+              defaultProfessional
+            ) =>
+              !(
+                parsed.professionals ??
+                []
+              ).some(
+                (
+                  professional
+                ) =>
+                  professional.id ===
+                    defaultProfessional.id ||
+                  professional.name
+                    .trim()
+                    .toLocaleLowerCase(
+                      "pt-BR"
+                    ) ===
+                    defaultProfessional.name
+                      .trim()
+                      .toLocaleLowerCase(
+                        "pt-BR"
+                      )
+              )
+          ),
+        ].map(
           (
             professional
           ) => ({

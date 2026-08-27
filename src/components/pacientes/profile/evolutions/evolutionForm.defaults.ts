@@ -43,6 +43,60 @@ export function createEvolutionDefaultValues(
     materials: [],
 
     /* =====================================
+       EVOLUÇÃO NUTRICIONAL
+    ===================================== */
+
+    nutrition: {
+      weightKg: "",
+      heightCm: "",
+
+      appetite: "",
+      foodAcceptance: "",
+      foodSelectivity: "",
+
+      hydration: "",
+      acceptedTextures: "",
+      foodsPresented: "",
+      foodsAccepted: "",
+      refusalsAversions: "",
+
+      gastrointestinalSymptoms: "",
+      bowelPattern: "",
+
+      nutritionalConduct: "",
+      familyGuidance: "",
+      nextSessionPlan: "",
+    },
+
+    /* =====================================
+       EVOLUÇÃO FISIOTERAPÊUTICA
+    ===================================== */
+
+    physiotherapy: {
+      painLevel: "",
+      painLocation: "",
+
+      mobility: "",
+      rangeOfMotion: "",
+      muscleStrength: "",
+
+      balance: "",
+      coordination: "",
+      gait: "",
+      posture: "",
+
+      functionalLevel: "",
+      functionalActivities: "",
+
+      techniquesApplied: "",
+      resourcesUsed: "",
+      patientResponse: "",
+
+      familyGuidance: "",
+      nextSessionPlan: "",
+    },
+
+    /* =====================================
        EVOLUÇÃO ESCRITA
     ===================================== */
 
