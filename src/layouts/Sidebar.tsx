@@ -45,6 +45,7 @@ import type {
 } from "@/pages/Configuracoes/settingsStorage";
 
 import logoAcSoftware from "@/assets/logo-ac-software.png";
+import logoDash from "@/assets/logo-dash.png";
 
 /* =========================================
    TIPOS
@@ -475,28 +476,29 @@ export function Sidebar() {
             text-left
           "
         >
-          {/* Logo provisória */}
+          {/* Logo Entre Afetos */}
 
           <div
             className="
               flex
-              h-12
-              w-12
+              h-16
+              w-16
               shrink-0
               items-center
               justify-center
-              rounded-2xl
-              bg-gradient-to-br
-              from-[#8b5cf6]
-              via-[#6d5dfc]
-              to-[#3b82f6]
-              text-lg
-              font-bold
-              text-white
-              shadow-[0_8px_20px_rgba(109,93,252,0.22)]
             "
           >
-            EA
+            <img
+              src={logoDash}
+              alt="Entre Afetos"
+              className="
+                block
+                h-full
+                w-full
+                scale-125
+                object-contain
+              "
+            />
           </div>
 
           <div className="min-w-0">
