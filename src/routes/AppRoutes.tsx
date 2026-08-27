@@ -36,6 +36,8 @@ import PerfilProfissional from "@/pages/Profissionais/PerfilProfissional";
 
 import Agenda from "@/pages/Agenda";
 
+import Salas from "@/pages/Salas";
+
 import NovoAgendamento from "@/pages/Agenda/NovoAgendamento";
 
 import DetalheAgendamento from "@/pages/Agenda/DetalheAgendamento";
@@ -397,6 +399,30 @@ export function AppRoutes() {
               action="view"
             >
               <Agenda />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+      {/* ========================================= */}
+      {/* SALAS */}
+      {/* GESTOR + RECEPÇÃO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/salas"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Gestor",
+              "Recepção",
+            ]}
+          >
+            <ProtectedRoute
+              module="agenda"
+              action="view"
+            >
+              <Salas />
             </ProtectedRoute>
           </ProfileRoute>
         }

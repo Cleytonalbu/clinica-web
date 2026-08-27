@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Clock3,
   Filter,
+  Inbox,
   Lock,
   Plus,
   Search,
@@ -70,9 +71,18 @@ import {
   type StoredAppointment,
 } from "./appointmentStorage";
 
+import {
+  AppointmentRequestsPanel,
+} from "./AppointmentRequestsPanel";
+
+import {
+  getAppointmentRequestsByUnit,
+} from "./appointmentRequestStorage";
+
 type CalendarView =
   | "day"
   | "professionals"
+  | "requests"
   | "week"
   | "month";
 
@@ -123,7 +133,7 @@ export default function Agenda() {
   const [professional, setProfessional] = useState("Todos");
   const [specialty, setSpecialty] = useState("Todas");
   const [status, setStatus] = useState("Todos");
-  const [appointments] = useState<StoredAppointment[]>(() => [
+  const [appointments, setAppointments] = useState<StoredAppointment[]>(() => [
     ...(
       activeUnitId ===
       defaultUnitId
@@ -156,6 +166,49 @@ export default function Agenda() {
         activeUnitId
     ),
   ]);
+
+  const [
+    pendingRequestCount,
+    setPendingRequestCount,
+  ] =
+    useState(
+      () =>
+        getAppointmentRequestsByUnit(
+          activeUnitId
+        ).filter(
+          (
+            request
+          ) =>
+            request.status ===
+            "Pendente"
+        ).length
+    );
+
+  function handleAppointmentConfirmedFromApp(
+    appointment:
+      StoredAppointment
+  ) {
+    setAppointments(
+      (
+        current
+      ) => [
+        ...current,
+        appointment,
+      ]
+    );
+
+    setPendingRequestCount(
+      getAppointmentRequestsByUnit(
+        activeUnitId
+      ).filter(
+        (
+          request
+        ) =>
+          request.status ===
+          "Pendente"
+      ).length
+    );
+  }
 
   const profileAppointments = useMemo(() => {
     if (!isProfissional) return appointments;
@@ -240,6 +293,33 @@ export default function Agenda() {
                   <Lock size={17} /> Solicitar bloqueio
                 </Button>
               )}
+              {canManageSchedule && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setPendingRequestCount(
+                      getAppointmentRequestsByUnit(
+                        activeUnitId
+                      ).filter(
+                        (request) =>
+                          request.status === "Pendente"
+                      ).length
+                    );
+                    setView("requests");
+                  }}
+                  className="border-[#dfe3f2] bg-white text-[#263765] hover:bg-[#fafaff]"
+                >
+                  <Inbox size={17} />
+                  Solicitações
+                  {pendingRequestCount > 0 && (
+                    <span className="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-[#6847f5] px-1.5 py-0.5 text-[10px] font-extrabold text-white">
+                      {pendingRequestCount}
+                    </span>
+                  )}
+                </Button>
+              )}
+
               {canCreateBlock && (
                 <Button type="button" variant="outline" onClick={() => navigate("/agenda/bloqueio/novo")} className="border-[#dfe3f2] bg-white text-[#263765] hover:bg-[#fafaff]">
                   <Lock size={17} /> Novo bloqueio
@@ -294,6 +374,7 @@ export default function Agenda() {
           </div>
         </section>
 
+        {view !== "requests" && (
         <section className="rounded-2xl border border-[#e8eaf3] bg-white p-5 shadow-[0_4px_16px_rgba(51,65,120,0.04)]">
           <div className={`grid grid-cols-1 gap-3 ${isProfissional ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}>
             <div className="relative xl:col-span-2">
@@ -323,6 +404,14 @@ export default function Agenda() {
             </Select>
           </div>
         </section>
+        )}
+
+        {view === "requests" && canManageSchedule && (
+          <AppointmentRequestsPanel
+            unitId={activeUnitId}
+            onAppointmentConfirmed={handleAppointmentConfirmedFromApp}
+          />
+        )}
 
         {view === "day" && (
           <>

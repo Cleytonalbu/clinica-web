@@ -19,6 +19,7 @@ import {
   FileSpreadsheet,
   FileText,
   ClipboardList,
+  DoorOpen,
   Gauge,
   Home,
   Settings,
@@ -107,6 +108,14 @@ const menuItems: MenuItem[] = [
     label: "Agenda",
     icon: CalendarDays,
     path: "/agenda",
+    module: "agenda",
+  },
+
+  {
+    id: "salas",
+    label: "Salas",
+    icon: DoorOpen,
+    path: "/salas",
     module: "agenda",
   },
 
@@ -305,6 +314,7 @@ const profileMenuAccess: Record<
   Gestor: [
     "dashboard",
     "agenda",
+    "salas",
     "pacientes",
     "solicitacoes-relatorios",
     "profissionais",
@@ -317,6 +327,7 @@ const profileMenuAccess: Record<
   "Recepção": [
     "dashboard",
     "agenda",
+    "salas",
     "pacientes",
     "solicitacoes-relatorios",
     "financeiro",

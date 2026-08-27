@@ -395,6 +395,8 @@ const defaultBlocks: ScheduleBlock[] = [
 ========================================= */
 
 interface CheckScheduleConflictParams {
+  unitId?: number;
+
   professional: string;
 
   date: string;
@@ -413,6 +415,8 @@ interface CheckScheduleConflictParams {
 ========================================= */
 
 export function checkScheduleConflict({
+  unitId,
+
   professional,
 
   date,
@@ -461,6 +465,14 @@ export function checkScheduleConflict({
       ) =>
         appointment.id !==
           ignoreAppointmentId &&
+        (
+          unitId ===
+            undefined ||
+          appointment.unitId ===
+            undefined ||
+          appointment.unitId ===
+            unitId
+        ) &&
         appointment.professional ===
           professional &&
         appointment.date ===
@@ -509,6 +521,14 @@ export function checkScheduleConflict({
         ) =>
           appointment.id !==
             ignoreAppointmentId &&
+          (
+            unitId ===
+              undefined ||
+            appointment.unitId ===
+              undefined ||
+            appointment.unitId ===
+              unitId
+          ) &&
           appointment.room ===
             room &&
           appointment.date ===
@@ -559,6 +579,14 @@ export function checkScheduleConflict({
       (
         block
       ) =>
+        (
+          unitId ===
+            undefined ||
+          block.unitId ===
+            undefined ||
+          block.unitId ===
+            unitId
+        ) &&
         block.professional ===
           professional &&
         block.date ===
