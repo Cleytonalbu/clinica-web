@@ -11,7 +11,6 @@ import {
   CalendarDays,
   ChevronRight,
   CircleDollarSign,
-  ClipboardList,
   DoorOpen,
   FileBarChart,
   LayoutList,
@@ -56,8 +55,6 @@ import {
 import AgendaSettingsSection from "./AgendaSettingsSection";
 
 import ObjectivesSettingsContainer from "./ObjectivesSettingsContainer";
-
-import EvolutionModelsSettingsContainer from "./EvolutionModelsSettingsContainer";
 
 import NotificationsSettingsContainer from "./NotificationsSettingsContainer";
 
@@ -104,9 +101,14 @@ import {
 } from "./unitServiceValueStorage";
 
 import {
+  getProfessionalUnitIds,
   professionalWorksAtUnit,
   setProfessionalUnits,
 } from "./professionalUnitStorage";
+
+import {
+  ProfessionalTable,
+} from "@/components/profissionais/table/ProfessionalTable";
 
 type SettingsSection =
   | "clinic"
@@ -117,7 +119,6 @@ type SettingsSection =
   | "rooms"
   | "agenda"
   | "objectives"
-  | "evolution"
   | "notifications"
   | "app"
   | "permissions"
@@ -328,15 +329,6 @@ const menuItems: {
     label: "Objetivos Terapêuticos",
     icon:
       <Target
-        size={18}
-      />,
-  },
-
-  {
-    id: "evolution",
-    label: "Modelos de Evolução",
-    icon:
-      <ClipboardList
         size={18}
       />,
   },
@@ -900,7 +892,7 @@ export default function Configuracoes() {
       !name
     ) {
       showFeedback(
-        "Informe o nome do profissional."
+        "Selecione um profissional já cadastrado."
       );
 
       return;
@@ -910,7 +902,125 @@ export default function Configuracoes() {
       !professionalSpecialty
     ) {
       showFeedback(
-        "Selecione a especialidade."
+        "O profissional selecionado não possui especialidade."
+      );
+
+      return;
+    }
+
+    /*
+     * O profissional é cadastrado na tela Profissionais.
+     * Aqui apenas vinculamos/configuramos os valores dele.
+     */
+    const existingProfessional =
+      systemSettings.professionals.find(
+        (
+          professional
+        ) =>
+          professional.name
+            .trim()
+            .toLocaleLowerCase(
+              "pt-BR"
+            ) ===
+          name
+            .toLocaleLowerCase(
+              "pt-BR"
+            )
+      );
+
+    if (
+      existingProfessional
+    ) {
+      const currentUnitIds =
+        getProfessionalUnitIds(
+          existingProfessional.id
+        );
+
+      const nextUnitIds =
+        currentUnitIds.includes(
+          activeUnitId
+        )
+          ? currentUnitIds
+          : [
+              ...currentUnitIds,
+              activeUnitId,
+            ];
+
+      setProfessionalUnits(
+        existingProfessional.id,
+        nextUnitIds
+      );
+
+      const nextSettings:
+        SystemSettings = {
+        ...systemSettings,
+
+        professionals:
+          systemSettings.professionals.map(
+            (
+              professional
+            ) =>
+              professional.id ===
+              existingProfessional.id
+                ? {
+                    ...professional,
+
+                    name,
+
+                    specialty:
+                      professionalSpecialty,
+
+                    registration,
+
+                    active:
+                      true,
+                  }
+                : professional
+          ),
+      };
+
+      setSystemSettings(
+        nextSettings
+      );
+
+      saveSystemSettings(
+        nextSettings
+      );
+
+      setUnitProfessionalValue(
+        activeUnitId,
+        existingProfessional.id,
+        {
+          value:
+            customValue,
+
+          repasseValue:
+            customRepasseValue,
+        }
+      );
+
+      setProfessionalName(
+        ""
+      );
+
+      setProfessionalSpecialty(
+        ""
+      );
+
+      setProfessionalRegistration(
+        ""
+      );
+
+      setProfessionalValue(
+        ""
+      );
+
+      setProfessionalRepasseValue(
+        ""
+      );
+
+      showFeedback(
+        "Valores do profissional configurados com sucesso."
       );
 
       return;
@@ -957,24 +1067,17 @@ export default function Configuracoes() {
       ]
     );
 
-    if (
-      customValue !==
-        undefined ||
-      customRepasseValue !==
-        undefined
-    ) {
-      setUnitProfessionalValue(
-        activeUnitId,
-        newProfessional.id,
-        {
-          value:
-            customValue,
+    setUnitProfessionalValue(
+      activeUnitId,
+      newProfessional.id,
+      {
+        value:
+          customValue,
 
-          repasseValue:
-            customRepasseValue,
-        }
-      );
-    }
+        repasseValue:
+          customRepasseValue,
+      }
+    );
 
     setProfessionalName(
       ""
@@ -997,7 +1100,7 @@ export default function Configuracoes() {
     );
 
     showFeedback(
-      "Profissional adicionado com sucesso."
+      "Profissional vinculado às configurações com sucesso."
     );
   }
 
@@ -1879,23 +1982,6 @@ export default function Configuracoes() {
             {activeSection ===
               "objectives" && (
               <ObjectivesSettingsContainer
-                settings={
-                  systemSettings
-                }
-
-                onSettingsChange={
-                  setSystemSettings
-                }
-
-                onFeedback={
-                  showFeedback
-                }
-              />
-            )}
-
-            {activeSection ===
-              "evolution" && (
-              <EvolutionModelsSettingsContainer
                 settings={
                   systemSettings
                 }
@@ -2795,6 +2881,20 @@ function ProfessionalsSettingsSection({
 
   void pricingVersion;
 
+  const registeredProfessionals =
+    ProfessionalTable.data
+      .slice()
+      .sort(
+        (
+          a,
+          b
+        ) =>
+          a.name.localeCompare(
+            b.name,
+            "pt-BR"
+          )
+      );
+
   const selectedNewSpecialty =
     activeSpecialties.find(
       (
@@ -3158,35 +3258,63 @@ function ProfessionalsSettingsSection({
       </PageCard>
 
       <PageCard
-        title="Novo Profissional"
-        description="Cadastre um novo profissional e, se necessário, personalize os valores."
+        title="Configurar profissional"
+        description="Selecione um profissional já cadastrado em Profissionais. Nome, especialidade e registro são importados automaticamente; aqui você define apenas valor e repasse."
       >
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-[1.2fr_1fr_1fr_170px_180px_auto]">
-          <FormField label="Nome">
-            <Input
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-[1.3fr_1fr_1fr_170px_180px_auto]">
+          <FormField label="Profissional">
+            <Select
               value={
                 professionalName
               }
               onChange={(
                 event
-              ) =>
-                onNameChange(
-                  event.target.value
-                )
-              }
-            />
-          </FormField>
-
-          <FormField label="Especialidade">
-            <Select
-              value={
-                professionalSpecialty
-              }
-              onChange={(
-                event
               ) => {
+                const selected =
+                  registeredProfessionals.find(
+                    (
+                      professional
+                    ) =>
+                      professional.name ===
+                      event.target.value
+                  );
+
+                if (
+                  !selected
+                ) {
+                  onNameChange(
+                    ""
+                  );
+
+                  onSpecialtyChange(
+                    ""
+                  );
+
+                  onRegistrationChange(
+                    ""
+                  );
+
+                  onValueChange(
+                    ""
+                  );
+
+                  onRepasseValueChange(
+                    ""
+                  );
+
+                  return;
+                }
+
+                onNameChange(
+                  selected.name
+                );
+
                 onSpecialtyChange(
-                  event.target.value
+                  selected.specialty
+                );
+
+                onRegistrationChange(
+                  selected.council
                 );
 
                 onValueChange(
@@ -3199,23 +3327,23 @@ function ProfessionalsSettingsSection({
               }}
             >
               <option value="">
-                Selecione
+                Selecione o profissional
               </option>
 
-              {activeSpecialties.map(
+              {registeredProfessionals.map(
                 (
-                  specialty
+                  professional
                 ) => (
                   <option
                     key={
-                      specialty.id
+                      professional.id
                     }
                     value={
-                      specialty.name
+                      professional.name
                     }
                   >
                     {
-                      specialty.name
+                      professional.name
                     }
                   </option>
                 )
@@ -3223,18 +3351,25 @@ function ProfessionalsSettingsSection({
             </Select>
           </FormField>
 
+          <FormField label="Especialidade">
+            <Input
+              value={
+                professionalSpecialty
+              }
+              readOnly
+              placeholder="Preenchida automaticamente"
+              className="bg-slate-50"
+            />
+          </FormField>
+
           <FormField label="Registro">
             <Input
               value={
                 professionalRegistration
               }
-              onChange={(
-                event
-              ) =>
-                onRegistrationChange(
-                  event.target.value
-                )
-              }
+              readOnly
+              placeholder="Preenchido automaticamente"
+              className="bg-slate-50"
             />
           </FormField>
 
@@ -3245,14 +3380,7 @@ function ProfessionalsSettingsSection({
                 min="0"
                 step="0.01"
                 value={
-                  professionalValue ||
-                  (
-                    professionalSpecialty
-                      ? String(
-                          inheritedChargeValue
-                        )
-                      : ""
-                  )
+                  professionalValue
                 }
                 onChange={(
                   event
@@ -3261,11 +3389,18 @@ function ProfessionalsSettingsSection({
                     event.target.value
                   )
                 }
+                placeholder={
+                  professionalSpecialty
+                    ? String(
+                        inheritedChargeValue
+                      )
+                    : "0,00"
+                }
               />
 
               {professionalSpecialty && (
                 <p className="mt-1 text-[10px] font-medium text-slate-400">
-                  Padrão: R$ {inheritedChargeValue.toFixed(2).replace(".", ",")}
+                  Padrão da especialidade: R$ {inheritedChargeValue.toFixed(2).replace(".", ",")}
                 </p>
               )}
             </div>
@@ -3278,14 +3413,7 @@ function ProfessionalsSettingsSection({
                 min="0"
                 step="0.01"
                 value={
-                  professionalRepasseValue ||
-                  (
-                    professionalSpecialty
-                      ? String(
-                          inheritedRepasseValue
-                        )
-                      : ""
-                  )
+                  professionalRepasseValue
                 }
                 onChange={(
                   event
@@ -3294,11 +3422,18 @@ function ProfessionalsSettingsSection({
                     event.target.value
                   )
                 }
+                placeholder={
+                  professionalSpecialty
+                    ? String(
+                        inheritedRepasseValue
+                      )
+                    : "0,00"
+                }
               />
 
               {professionalSpecialty && (
                 <p className="mt-1 text-[10px] font-medium text-slate-400">
-                  Padrão: R$ {inheritedRepasseValue.toFixed(2).replace(".", ",")}
+                  Padrão da especialidade: R$ {inheritedRepasseValue.toFixed(2).replace(".", ",")}
                 </p>
               )}
             </div>
@@ -3310,12 +3445,15 @@ function ProfessionalsSettingsSection({
               onClick={
                 onAdd
               }
+              disabled={
+                !professionalName
+              }
             >
               <Plus
                 size={17}
               />
 
-              Adicionar
+              Configurar
             </Button>
           </div>
         </div>

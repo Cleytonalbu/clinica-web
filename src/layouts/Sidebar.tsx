@@ -8,7 +8,6 @@ import {
   CalendarDays,
   CalendarRange,
   CircleDollarSign,
-  Clock3,
   ReceiptText,
   ShoppingCart,
   HandCoins,
@@ -263,14 +262,6 @@ const menuItems: MenuItem[] = [
 
 
   {
-    id: "ponto-frequencia",
-    label: "Ponto e frequência",
-    icon: Clock3,
-    path: "/ponto-frequencia",
-    module: "financial",
-  },
-
-  {
     id: "documentos-administrativos",
     label: "Documentos",
     icon: FileText,
@@ -355,9 +346,9 @@ const profileMenuAccess: Record<
     "colaboradores-administrativos",
     "pagamentos-administrativos",
     "ferias-afastamentos",
-    "ponto-frequencia",
     "documentos-administrativos",
     "relatorios-administrativos",
+    "configuracoes",
   ],
 };
 

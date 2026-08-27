@@ -1344,7 +1344,7 @@ const defaultPermissionsSettings: PermissionsSettings = {
         },
 
         settings: {
-          ...noPermission,
+          ...fullPermission,
         },
       },
     },
@@ -2018,12 +2018,42 @@ export function getSystemSettings(): SystemSettings {
               )
           );
 
-        return savedProfiles.length > 0
-          ? [
-              ...savedProfiles,
-              ...missingSystemProfiles,
-            ]
-          : defaultPermissionsSettings.profiles;
+        const mergedProfiles =
+          savedProfiles.length > 0
+            ? [
+                ...savedProfiles,
+                ...missingSystemProfiles,
+              ]
+            : defaultPermissionsSettings.profiles;
+
+        /*
+         * MIGRAÇÃO DE PERFIL — ADMINISTRATIVO
+         *
+         * Configurações passou a fazer parte oficialmente
+         * do perfil Administrativo. Esta normalização garante
+         * que instalações que já possuíam as permissões salvas
+         * no localStorage recebam o novo acesso sem apagar
+         * as demais permissões personalizadas.
+         */
+        return mergedProfiles.map(
+          (
+            profile
+          ) =>
+            profile.name ===
+            "Administrativo"
+              ? {
+                  ...profile,
+
+                  modules: {
+                    ...profile.modules,
+
+                    settings: {
+                      ...fullPermission,
+                    },
+                  },
+                }
+              : profile
+        );
       })(),
     };
 

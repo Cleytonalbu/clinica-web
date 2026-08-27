@@ -80,8 +80,6 @@ import PagamentosAdministrativos from "@/pages/PagamentosAdministrativos";
 
 import FeriasEAfastamentos from "@/pages/FeriasEAfastamentos";
 
-import PontoEFrequencia from "@/pages/PontoEFrequencia";
-
 import DashboardFinanceiro from "@/pages/Financeiro/DashboardFinanceiro";
 
 import HistoricoPaciente from "@/pages/Financeiro/HistoricoPaciente";
@@ -1031,29 +1029,6 @@ export function AppRoutes() {
 
 
       {/* ========================================= */}
-      {/* PONTO E FREQUÊNCIA */}
-      {/* SOMENTE ADMINISTRATIVO */}
-      {/* ========================================= */}
-
-      <Route
-        path="/ponto-frequencia"
-        element={
-          <ProfileRoute
-            allowedProfiles={[
-              "Administrativo",
-            ]}
-          >
-            <ProtectedRoute
-              module="financial"
-              action="view"
-            >
-              <PontoEFrequencia />
-            </ProtectedRoute>
-          </ProfileRoute>
-        }
-      />
-
-      {/* ========================================= */}
 
       <Route
         path="/documentos-administrativos"
@@ -1249,15 +1224,25 @@ export function AppRoutes() {
 
       {/* ========================================= */}
       {/* CONFIGURAÇÕES */}
-      {/* SOMENTE GESTOR */}
+      {/* GESTOR + ADMINISTRATIVO */}
       {/* ========================================= */}
 
       <Route
         path="/configuracoes"
         element={
-          <GestorOnlyRoute>
-            <Configuracoes />
-          </GestorOnlyRoute>
+          <ProfileRoute
+            allowedProfiles={[
+              "Gestor",
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="settings"
+              action="view"
+            >
+              <Configuracoes />
+            </ProtectedRoute>
+          </ProfileRoute>
         }
       />
 
