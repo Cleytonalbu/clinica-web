@@ -516,6 +516,57 @@ export function getPayoutsByProfessional(
   );
 }
 
+export function getPayoutsByProfessionalId(
+  professionalId: number
+) {
+  if (
+    !Number.isFinite(
+      professionalId
+    ) ||
+    professionalId <=
+      0
+  ) {
+    return [];
+  }
+
+  return syncProfessionalPayoutsFromAppointments().filter(
+    (
+      payout
+    ) =>
+      payout.professionalId ===
+      professionalId
+  );
+}
+
+export function getPayoutsByProfessionalReference({
+  professionalId,
+  professionalName,
+}: {
+  professionalId?: number;
+  professionalName: string;
+}) {
+  if (
+    professionalId !==
+    undefined
+  ) {
+    const byId =
+      getPayoutsByProfessionalId(
+        professionalId
+      );
+
+    if (
+      byId.length >
+      0
+    ) {
+      return byId;
+    }
+  }
+
+  return getPayoutsByProfessional(
+    professionalName
+  );
+}
+
 /* =========================================
    RESUMO DO PROFISSIONAL
 ========================================= */

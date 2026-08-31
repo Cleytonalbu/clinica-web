@@ -52,6 +52,7 @@ interface AvailabilityParams {
 
 interface AvailableSlotsParams {
   unitId: number;
+  professionalId?: number;
   professional: string;
   date: string;
   durationMinutes?: number;
@@ -155,8 +156,12 @@ export function isAppointmentSlotAvailable({
         (
           item
         ) =>
-          item.name ===
-          professional
+          professionalId !==
+            undefined
+            ? item.id ===
+              professionalId
+            : item.name ===
+              professional
       );
 
   if (
@@ -215,6 +220,8 @@ export function isAppointmentSlotAvailable({
   const conflict =
     checkScheduleConflict(
       {
+        professionalId:
+          professionalSetting.id,
         professional,
         date,
         startTime,
@@ -252,6 +259,7 @@ export function isAppointmentSlotAvailable({
  */
 export function getAvailableAppointmentSlots({
   unitId,
+  professionalId,
   professional,
   date,
   durationMinutes,

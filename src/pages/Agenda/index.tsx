@@ -104,21 +104,21 @@ type CalendarView =
   | "month";
 
 const defaultAppointments: StoredAppointment[] = [
-  { id: 1, patientId: 1, patient: "Maria Oliveira", professional: "Dra. Ana Paula", specialty: "Psicologia", date: "2026-08-07", time: "08:00", endTime: "08:50", room: "Sala 01", type: "Individual", status: "Realizado" },
-  { id: 2, patientId: 2, patient: "João Miguel Silva", professional: "Dra. Camila Soares", specialty: "Fonoaudiologia", date: "2026-08-07", time: "08:00", endTime: "08:50", room: "Sala 02", type: "Individual", status: "Confirmado" },
-  { id: 3, patientId: 3, patient: "Lucas Gabriel", professional: "Dra. Ana Paula", specialty: "Psicologia", date: "2026-08-07", time: "09:00", endTime: "09:50", room: "Sala 01", type: "Individual", status: "Confirmado" },
-  { id: 4, patientId: 4, patient: "Ana Clara Rodrigues", professional: "Dra. Larissa Lima", specialty: "Terapia Ocupacional", date: "2026-08-07", time: "10:00", endTime: "10:50", room: "Sala 03", type: "Individual", status: "Agendado" },
-  { id: 5, patientId: 5, patient: "Pedro Henrique", professional: "Dr. Rafael Costa", specialty: "Fisioterapia", date: "2026-08-07", time: "11:00", endTime: "11:50", room: "Sala 04", type: "Avaliação", status: "Cancelado" },
-  { id: 6, patientId: 1, patient: "Maria Oliveira", professional: "Dra. Camila Soares", specialty: "Fonoaudiologia", date: "2026-08-07", time: "14:00", endTime: "14:50", room: "Sala 02", type: "Individual", status: "Agendado" },
-  { id: 7, patientId: 3, patient: "Lucas Gabriel", professional: "Dra. Ana Paula", specialty: "Psicologia", date: "2026-08-08", time: "09:00", endTime: "09:50", room: "Sala 01", type: "Individual", status: "Agendado" },
-  { id: 8, patientId: 1, patient: "Maria Oliveira", professional: "Dra. Ana Paula", specialty: "Psicologia", date: "2026-08-10", time: "10:30", endTime: "11:20", room: "Sala 01", type: "Individual", status: "Confirmado" },
+  { id: 1, unitId: getDefaultClinicUnitId(), patientId: 1, patient: "Maria Oliveira", professional: "Dra. Ana Paula", specialty: "Psicologia", date: "2026-08-07", time: "08:00", endTime: "08:50", room: "Sala 01", type: "Individual", status: "Realizado" },
+  { id: 2, unitId: getDefaultClinicUnitId(), patientId: 2, patient: "João Miguel Silva", professional: "Dra. Camila Soares", specialty: "Fonoaudiologia", date: "2026-08-07", time: "08:00", endTime: "08:50", room: "Sala 02", type: "Individual", status: "Confirmado" },
+  { id: 3, unitId: getDefaultClinicUnitId(), patientId: 3, patient: "Lucas Gabriel", professional: "Dra. Ana Paula", specialty: "Psicologia", date: "2026-08-07", time: "09:00", endTime: "09:50", room: "Sala 01", type: "Individual", status: "Confirmado" },
+  { id: 4, unitId: getDefaultClinicUnitId(), patientId: 4, patient: "Ana Clara Rodrigues", professional: "Dra. Larissa Lima", specialty: "Terapia Ocupacional", date: "2026-08-07", time: "10:00", endTime: "10:50", room: "Sala 03", type: "Individual", status: "Agendado" },
+  { id: 5, unitId: getDefaultClinicUnitId(), patientId: 5, patient: "Pedro Henrique", professional: "Dr. Rafael Costa", specialty: "Fisioterapia", date: "2026-08-07", time: "11:00", endTime: "11:50", room: "Sala 04", type: "Avaliação", status: "Cancelado" },
+  { id: 6, unitId: getDefaultClinicUnitId(), patientId: 1, patient: "Maria Oliveira", professional: "Dra. Camila Soares", specialty: "Fonoaudiologia", date: "2026-08-07", time: "14:00", endTime: "14:50", room: "Sala 02", type: "Individual", status: "Agendado" },
+  { id: 7, unitId: getDefaultClinicUnitId(), patientId: 3, patient: "Lucas Gabriel", professional: "Dra. Ana Paula", specialty: "Psicologia", date: "2026-08-08", time: "09:00", endTime: "09:50", room: "Sala 01", type: "Individual", status: "Agendado" },
+  { id: 8, unitId: getDefaultClinicUnitId(), patientId: 1, patient: "Maria Oliveira", professional: "Dra. Ana Paula", specialty: "Psicologia", date: "2026-08-10", time: "10:30", endTime: "11:20", room: "Sala 01", type: "Individual", status: "Confirmado" },
 ];
 
 const defaultScheduleBlocks: ScheduleBlock[] = [
-  { id: 1, professional: "Dra. Ana Paula", date: "2026-08-07", startTime: "12:00", endTime: "13:00", type: "Almoço", reason: "Intervalo de almoço" },
-  { id: 2, professional: "Dra. Camila Soares", date: "2026-08-07", startTime: "11:00", endTime: "12:00", type: "Reunião", reason: "Reunião da equipe clínica" },
-  { id: 3, professional: "Dra. Larissa Lima", date: "2026-08-07", startTime: "14:00", endTime: "17:00", type: "Indisponível", reason: "Atividade externa" },
-  { id: 4, professional: "Dr. Rafael Costa", date: "2026-08-08", startTime: "08:00", endTime: "17:00", type: "Férias", reason: "Período de férias" },
+  { id: 1, unitId: getDefaultClinicUnitId(), professional: "Dra. Ana Paula", date: "2026-08-07", startTime: "12:00", endTime: "13:00", type: "Almoço", reason: "Intervalo de almoço" },
+  { id: 2, unitId: getDefaultClinicUnitId(), professional: "Dra. Camila Soares", date: "2026-08-07", startTime: "11:00", endTime: "12:00", type: "Reunião", reason: "Reunião da equipe clínica" },
+  { id: 3, unitId: getDefaultClinicUnitId(), professional: "Dra. Larissa Lima", date: "2026-08-07", startTime: "14:00", endTime: "17:00", type: "Indisponível", reason: "Atividade externa" },
+  { id: 4, unitId: getDefaultClinicUnitId(), professional: "Dr. Rafael Costa", date: "2026-08-08", startTime: "08:00", endTime: "17:00", type: "Férias", reason: "Período de férias" },
 ];
 
 export default function Agenda() {

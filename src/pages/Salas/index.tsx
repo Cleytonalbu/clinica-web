@@ -36,6 +36,7 @@ import {
 } from "@/pages/Configuracoes/roomUnitStorage";
 
 import {
+  APPOINTMENTS_CHANGED_EVENT,
   getSavedAppointments,
   type StoredAppointment,
 } from "@/pages/Agenda/appointmentStorage";
@@ -214,6 +215,55 @@ export default function Salas() {
     [
       selectedDate,
     ]
+  );
+
+  useEffect(
+    () => {
+      const refresh =
+        () =>
+          setRefreshKey(
+            (
+              current
+            ) =>
+              current + 1
+          );
+
+      window.addEventListener(
+        APPOINTMENTS_CHANGED_EVENT,
+        refresh
+      );
+
+      const handleStorage =
+        (
+          event:
+            StorageEvent
+        ) => {
+          if (
+            event.key ===
+            "entre-afetos-appointments"
+          ) {
+            refresh();
+          }
+        };
+
+      window.addEventListener(
+        "storage",
+        handleStorage
+      );
+
+      return () => {
+        window.removeEventListener(
+          APPOINTMENTS_CHANGED_EVENT,
+          refresh
+        );
+
+        window.removeEventListener(
+          "storage",
+          handleStorage
+        );
+      };
+    },
+    []
   );
 
   const rooms =

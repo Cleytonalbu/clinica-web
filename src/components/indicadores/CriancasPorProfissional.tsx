@@ -1,41 +1,111 @@
-const professionals = [
-  {
-    name: "Dra. Juliana Santos",
-    value: 32,
-    badge:
-      "bg-[#eeeaff] text-[#6847f5]",
-  },
+import {
+  useMemo,
+} from "react";
 
-  {
-    name: "Dra. Camila Soares",
-    value: 28,
-    badge:
-      "bg-[#eaf4ff] text-[#3984dc]",
-  },
+import {
+  useUnit,
+} from "@/providers/UnitContext";
 
-  {
-    name: "Dra. Larissa Lima",
-    value: 26,
-    badge:
-      "bg-[#e8f8f1] text-[#269d75]",
-  },
+import {
+  getSavedAppointments,
+} from "@/pages/Agenda/appointmentStorage";
 
-  {
-    name: "Dr. Rafael Almeida",
-    value: 24,
-    badge:
-      "bg-[#fff3e4] text-[#df8a27]",
-  },
+import {
+  getActiveProfessionals,
+} from "@/pages/Configuracoes/settingsStorage";
 
-  {
-    name: "Dra. Fernanda Lima",
-    value: 22,
-    badge:
-      "bg-[#f8eaff] text-[#a04ed7]",
-  },
+import {
+  professionalWorksAtUnit,
+} from "@/pages/Configuracoes/professionalUnitStorage";
+
+const badges = [
+  "bg-[#eeeaff] text-[#6847f5]",
+  "bg-[#eaf4ff] text-[#3984dc]",
+  "bg-[#e8f8f1] text-[#269d75]",
+  "bg-[#fff3e4] text-[#df8a27]",
+  "bg-[#f8eaff] text-[#a04ed7]",
 ];
 
 export function CriancasPorProfissional() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
+  const professionals =
+    useMemo(
+      () =>
+        getActiveProfessionals()
+          .filter(
+            (
+              item
+            ) =>
+              professionalWorksAtUnit(
+                item.id,
+                activeUnitId
+              )
+          )
+          .map(
+            (
+              professional
+            ) => {
+              const patientIds =
+                new Set(
+                  getSavedAppointments()
+                    .filter(
+                      (
+                        appointment
+                      ) =>
+                        appointment.unitId ===
+                          activeUnitId &&
+                        (
+                          appointment.professionalId !==
+                            undefined
+                            ? appointment.professionalId ===
+                              professional.id
+                            : appointment.professional ===
+                              professional.name
+                        ) &&
+                        appointment.status !==
+                          "Cancelado"
+                    )
+                    .map(
+                      (
+                        appointment
+                      ) =>
+                        appointment.patientId
+                    )
+                );
+
+              return {
+                id:
+                  professional.id,
+
+                name:
+                  professional.name,
+
+                value:
+                  patientIds.size,
+              };
+            }
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              b.value -
+                a.value ||
+              a.name.localeCompare(
+                b.name,
+                "pt-BR"
+              )
+          ),
+      [
+        activeUnitId,
+      ]
+    );
+
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="text-lg font-bold text-slate-900">
@@ -50,12 +120,17 @@ export function CriancasPorProfissional() {
           ) => (
             <div
               key={
-                professional.name
+                professional.id
               }
               className="flex items-center gap-3 rounded-xl border border-slate-100 p-3"
             >
               <div
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${professional.badge}`}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  badges[
+                    index %
+                    badges.length
+                  ]
+                }`}
               >
                 {
                   index +
@@ -76,6 +151,13 @@ export function CriancasPorProfissional() {
               </span>
             </div>
           )
+        )}
+
+        {professionals.length ===
+          0 && (
+          <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+            Nenhum profissional ativo nesta unidade.
+          </p>
         )}
       </div>
     </section>

@@ -32,6 +32,23 @@ import {
   DashboardLayout,
 } from "@/layouts/DashboardLayout";
 
+import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
+  getPatients,
+} from "@/pages/Pacientes/patientStorage";
+
+
+import {
+  getActiveProfessionals,
+} from "@/pages/Configuracoes/settingsStorage";
+
+import {
+  professionalWorksAtUnit,
+} from "@/pages/Configuracoes/professionalUnitStorage";
+
 /* =========================================
    TIPOS
 ========================================= */
@@ -228,7 +245,45 @@ function parsePeriod(
   };
 }
 
+function getCurrentMonthPeriod() {
+  const now =
+    new Date();
+
+  const firstDay =
+    new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1
+    );
+
+  const lastDay =
+    new Date(
+      now.getFullYear(),
+      now.getMonth() +
+        1,
+      0
+    );
+
+  const format =
+    (
+      date:
+        Date
+    ) =>
+      new Intl.DateTimeFormat(
+        "pt-BR"
+      ).format(
+        date
+      );
+
+  return `${format(firstDay)} até ${format(lastDay)}`;
+}
+
 export default function Relatorios() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const navigate =
     useNavigate();
 
@@ -237,7 +292,8 @@ export default function Relatorios() {
     setPeriod,
   ] =
     useState(
-      "01/08/2026 até 31/08/2026"
+      () =>
+        getCurrentMonthPeriod()
     );
 
   const [
@@ -280,9 +336,63 @@ export default function Relatorios() {
       ]
     );
 
+  const unitPatients =
+    useMemo(
+      () =>
+        getPatients()
+          .filter(
+            (
+              item
+            ) =>
+              item.status ===
+                "Ativo"
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              a.nome.localeCompare(
+                b.nome,
+                "pt-BR"
+              )
+          ),
+      [
+        activeUnitId,
+      ]
+    );
+
+  const unitProfessionals =
+    useMemo(
+      () =>
+        getActiveProfessionals()
+          .filter(
+            (
+              item
+            ) =>
+              professionalWorksAtUnit(
+                item.id,
+                activeUnitId
+              )
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              a.name.localeCompare(
+                b.name,
+                "pt-BR"
+              )
+          ),
+      [
+        activeUnitId,
+      ]
+    );
+
   function handleClearFilters() {
     setPeriod(
-      "01/08/2026 até 31/08/2026"
+      getCurrentMonthPeriod()
     );
 
     setPatient(
@@ -427,17 +537,24 @@ export default function Relatorios() {
                   Todos os pacientes
                 </option>
 
-                <option value="Maria Oliveira">
-                  Maria Oliveira
-                </option>
-
-                <option value="João Pedro">
-                  João Pedro
-                </option>
-
-                <option value="Fernanda Souza">
-                  Fernanda Souza
-                </option>
+                {unitPatients.map(
+                  (
+                    item
+                  ) => (
+                    <option
+                      key={
+                        item.id
+                      }
+                      value={
+                        item.nome
+                      }
+                    >
+                      {
+                        item.nome
+                      }
+                    </option>
+                  )
+                )}
               </select>
             </FilterField>
 
@@ -462,17 +579,24 @@ export default function Relatorios() {
                   Todos os profissionais
                 </option>
 
-                <option value="Dra. Ana Paula">
-                  Dra. Ana Paula
-                </option>
-
-                <option value="Dra. Camila Soares">
-                  Dra. Camila Soares
-                </option>
-
-                <option value="Dra. Larissa Lima">
-                  Dra. Larissa Lima
-                </option>
+                {unitProfessionals.map(
+                  (
+                    item
+                  ) => (
+                    <option
+                      key={
+                        item.id
+                      }
+                      value={
+                        item.name
+                      }
+                    >
+                      {
+                        item.name
+                      }
+                    </option>
+                  )
+                )}
               </select>
             </FilterField>
 

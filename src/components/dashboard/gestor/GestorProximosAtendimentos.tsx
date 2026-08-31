@@ -1,4 +1,8 @@
 import {
+  useMemo,
+} from "react";
+
+import {
   Clock3,
 } from "lucide-react";
 
@@ -6,47 +10,13 @@ import {
   useNavigate,
 } from "react-router-dom";
 
-interface Appointment {
-  id: number;
-  time: string;
-  patient: string;
-  professional: string;
-  specialty: string;
-}
+import {
+  useUnit,
+} from "@/providers/UnitContext";
 
-const appointments: Appointment[] = [
-  {
-    id: 1,
-    time: "08:00",
-    patient: "Ana Clara",
-    professional: "Dra. Ana Paula",
-    specialty: "Psicologia",
-  },
-
-  {
-    id: 2,
-    time: "09:00",
-    patient: "João Miguel",
-    professional: "Dra. Camila Soares",
-    specialty: "Fonoaudiologia",
-  },
-
-  {
-    id: 3,
-    time: "10:00",
-    patient: "Beatriz Lima",
-    professional: "Dra. Larissa Lima",
-    specialty: "Terapia Ocupacional",
-  },
-
-  {
-    id: 4,
-    time: "11:00",
-    patient: "Lucas Gabriel",
-    professional: "Dr. Rafael Costa",
-    specialty: "Fisioterapia",
-  },
-];
+import {
+  getSavedAppointments,
+} from "@/pages/Agenda/appointmentStorage";
 
 const appointmentStyles = [
   {
@@ -55,21 +25,18 @@ const appointmentStyles = [
     time:
       "text-[#6847f5]",
   },
-
   {
     avatar:
       "bg-[#eaf7ff] text-[#2b9bd8]",
     time:
       "text-[#2b9bd8]",
   },
-
   {
     avatar:
       "bg-[#eafbf6] text-[#27ae83]",
     time:
       "text-[#27ae83]",
   },
-
   {
     avatar:
       "bg-[#fff5df] text-[#e7a229]",
@@ -78,9 +45,78 @@ const appointmentStyles = [
   },
 ];
 
+function todayValue() {
+  const now =
+    new Date();
+
+  const year =
+    now.getFullYear();
+
+  const month =
+    String(
+      now.getMonth() +
+        1
+    ).padStart(
+      2,
+      "0"
+    );
+
+  const day =
+    String(
+      now.getDate()
+    ).padStart(
+      2,
+      "0"
+    );
+
+  return `${year}-${month}-${day}`;
+}
+
 export function GestorProximosAtendimentos() {
   const navigate =
     useNavigate();
+
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
+  const appointments =
+    useMemo(
+      () =>
+        getSavedAppointments()
+          .filter(
+            (
+              appointment
+            ) =>
+              appointment.unitId ===
+                activeUnitId &&
+              appointment.date ===
+                todayValue() &&
+              (
+                appointment.status ===
+                  "Agendado" ||
+                appointment.status ===
+                  "Confirmado"
+              )
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              a.time.localeCompare(
+                b.time
+              )
+          )
+          .slice(
+            0,
+            4
+          ),
+      [
+        activeUnitId,
+      ]
+    );
 
   return (
     <section
@@ -93,8 +129,6 @@ export function GestorProximosAtendimentos() {
         shadow-[0_4px_16px_rgba(51,65,120,0.04)]
       "
     >
-      {/* CABEÇALHO */}
-
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-[17px] font-extrabold text-[#10235f]">
@@ -106,22 +140,10 @@ export function GestorProximosAtendimentos() {
           </p>
         </div>
 
-        <span
-          className="
-            rounded-lg
-            bg-[#f0edff]
-            px-3
-            py-1.5
-            text-[10px]
-            font-bold
-            text-[#6743ef]
-          "
-        >
+        <span className="rounded-lg bg-[#f0edff] px-3 py-1.5 text-[10px] font-bold text-[#6743ef]">
           Hoje
         </span>
       </div>
-
-      {/* LISTA */}
 
       <div className="mt-5 space-y-2">
         {appointments.map(
@@ -140,39 +162,16 @@ export function GestorProximosAtendimentos() {
                 key={
                   appointment.id
                 }
-                className="
-                  rounded-xl
-                  border
-                  border-[#f0f1f6]
-                  px-3.5
-                  py-3
-                  transition
-                  duration-200
-                  hover:border-[#ded9ff]
-                  hover:bg-[#fbfaff]
-                "
+                className="rounded-xl border border-[#f0f1f6] px-3.5 py-3 transition duration-200 hover:border-[#ded9ff] hover:bg-[#fbfaff]"
               >
                 <div className="flex items-center gap-3">
-                  {/* ÍCONE */}
-
                   <div
-                    className={`
-                      flex
-                      h-9
-                      w-9
-                      shrink-0
-                      items-center
-                      justify-center
-                      rounded-xl
-                      ${style.avatar}
-                    `}
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${style.avatar}`}
                   >
                     <Clock3
                       size={16}
                     />
                   </div>
-
-                  {/* DADOS */}
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-3">
@@ -183,12 +182,7 @@ export function GestorProximosAtendimentos() {
                       </p>
 
                       <span
-                        className={`
-                          shrink-0
-                          text-xs
-                          font-extrabold
-                          ${style.time}
-                        `}
+                        className={`shrink-0 text-xs font-extrabold ${style.time}`}
                       >
                         {
                           appointment.time
@@ -213,9 +207,14 @@ export function GestorProximosAtendimentos() {
             );
           }
         )}
-      </div>
 
-      {/* VER AGENDA */}
+        {appointments.length ===
+          0 && (
+          <div className="rounded-xl border border-dashed border-[#e7e8f2] px-4 py-8 text-center text-xs font-semibold text-[#8a95b4]">
+            Nenhum atendimento agendado para hoje.
+          </div>
+        )}
+      </div>
 
       <button
         type="button"
@@ -224,21 +223,7 @@ export function GestorProximosAtendimentos() {
             "/agenda"
           )
         }
-        className="
-          mt-5
-          w-full
-          rounded-xl
-          border
-          border-[#e7e8f2]
-          bg-white
-          py-2.5
-          text-xs
-          font-bold
-          text-[#6743ef]
-          transition
-          hover:border-[#d8d2ff]
-          hover:bg-[#faf9ff]
-        "
+        className="mt-5 w-full rounded-xl border border-[#e7e8f2] bg-white py-2.5 text-xs font-bold text-[#6743ef] transition hover:border-[#d8d2ff] hover:bg-[#faf9ff]"
       >
         Ver agenda completa
       </button>

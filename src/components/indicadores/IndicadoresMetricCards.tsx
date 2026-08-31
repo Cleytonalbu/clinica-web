@@ -5,13 +5,37 @@ import type {
 import {
   CircleCheckBig,
   CircleX,
-  Goal,
   Target,
   Trophy,
   TrendingDown,
   TrendingUp,
   UsersRound,
 } from "lucide-react";
+
+import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
+  getPatients,
+} from "@/pages/Pacientes/patientStorage";
+
+
+import {
+  getActiveProfessionals,
+} from "@/pages/Configuracoes/settingsStorage";
+
+import {
+  professionalWorksAtUnit,
+} from "@/pages/Configuracoes/professionalUnitStorage";
+
+import {
+  getObjectives,
+} from "@/pages/Pacientes/objectiveStorage";
+
+import {
+  getSavedAppointments,
+} from "@/pages/Agenda/appointmentStorage";
 
 interface Metric {
   title: string;
@@ -28,116 +52,221 @@ interface Metric {
     | "pink";
 }
 
-const metrics: Metric[] = [
-  {
-    title: "Crianças cadastradas",
-    value: "156",
-    description: "+8% em relação ao mês anterior",
-    icon: (
-      <UsersRound
-        size={21}
-      />
-    ),
-    tone: "indigo",
-  },
-
-  {
-    title: "Profissionais ativos",
-    value: "18",
-    description: "Sem alteração",
-    icon: (
-      <CircleCheckBig
-        size={21}
-      />
-    ),
-    tone: "blue",
-  },
-
-  {
-    title: "Objetivos ativos",
-    value: "842",
-    description: "+12% em relação ao mês anterior",
-    icon: (
-      <Target
-        size={21}
-      />
-    ),
-    tone: "violet",
-  },
-
-  {
-    title: "Objetivos alcançados",
-    value: "324",
-    description: "+12% em relação ao mês anterior",
-    icon: (
-      <Trophy
-        size={21}
-      />
-    ),
-    tone: "green",
-  },
-
-  {
-    title: "Objetivos em evolução",
-    value: "472",
-    description: "+10% em relação ao mês anterior",
-    icon: (
-      <TrendingUp
-        size={21}
-      />
-    ),
-    tone: "orange",
-  },
-
-  {
-    title: "Objetivos com regressão",
-    value: "46",
-    description: "-5% em relação ao mês anterior",
-    icon: (
-      <TrendingDown
-        size={21}
-      />
-    ),
-    tone: "red",
-  },
-
-  {
-    title: "Faltas registradas",
-    value: "18",
-    description: "-8% em relação ao mês anterior",
-    icon: (
-      <CircleX
-        size={21}
-      />
-    ),
-    tone: "pink",
-  },
-];
-
 const toneClasses = {
   indigo:
     "bg-indigo-50 text-indigo-600",
-
   blue:
     "bg-sky-50 text-sky-600",
-
   violet:
     "bg-violet-50 text-violet-600",
-
   green:
     "bg-emerald-50 text-emerald-600",
-
   orange:
     "bg-orange-50 text-orange-600",
-
   red:
     "bg-red-50 text-red-600",
-
   pink:
     "bg-pink-50 text-pink-600",
 };
 
 export function IndicadoresMetricCards() {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
+  const patients =
+    getPatients().filter(
+      (
+        patient
+      ) =>
+        patient.status ===
+          "Ativo"
+    );
+
+  const professionals =
+    getActiveProfessionals().filter(
+      (
+        professional
+      ) =>
+        professionalWorksAtUnit(
+          professional.id,
+          activeUnitId
+        )
+    );
+
+  const objectives =
+    getObjectives().filter(
+      (
+        objective
+      ) =>
+        objective.unitId ===
+          activeUnitId
+    );
+
+  const appointments =
+    getSavedAppointments().filter(
+      (
+        appointment
+      ) =>
+        appointment.unitId ===
+          activeUnitId
+    );
+
+  const metrics:
+    Metric[] = [
+    {
+      title:
+        "Crianças cadastradas",
+      value:
+        String(
+          patients.length
+        ),
+      description:
+        "Pacientes ativos nesta unidade",
+      icon:
+        <UsersRound
+          size={21}
+        />,
+      tone:
+        "indigo",
+    },
+
+    {
+      title:
+        "Profissionais ativos",
+      value:
+        String(
+          professionals.length
+        ),
+      description:
+        "Profissionais vinculados à unidade",
+      icon:
+        <CircleCheckBig
+          size={21}
+        />,
+      tone:
+        "blue",
+    },
+
+    {
+      title:
+        "Objetivos ativos",
+      value:
+        String(
+          objectives.filter(
+            (
+              item
+            ) =>
+              item.status ===
+                "Em evolução" ||
+              item.status ===
+                "Com regressão"
+          ).length
+        ),
+      description:
+        "Objetivos ainda em acompanhamento",
+      icon:
+        <Target
+          size={21}
+        />,
+      tone:
+        "violet",
+    },
+
+    {
+      title:
+        "Objetivos alcançados",
+      value:
+        String(
+          objectives.filter(
+            (
+              item
+            ) =>
+              item.status ===
+                "Atingido"
+          ).length
+        ),
+      description:
+        "Objetivos registrados como atingidos",
+      icon:
+        <Trophy
+          size={21}
+        />,
+      tone:
+        "green",
+    },
+
+    {
+      title:
+        "Objetivos em evolução",
+      value:
+        String(
+          objectives.filter(
+            (
+              item
+            ) =>
+              item.status ===
+                "Em evolução"
+          ).length
+        ),
+      description:
+        "Objetivos com progresso em andamento",
+      icon:
+        <TrendingUp
+          size={21}
+        />,
+      tone:
+        "orange",
+    },
+
+    {
+      title:
+        "Objetivos com regressão",
+      value:
+        String(
+          objectives.filter(
+            (
+              item
+            ) =>
+              item.status ===
+                "Com regressão"
+          ).length
+        ),
+      description:
+        "Objetivos que exigem atenção",
+      icon:
+        <TrendingDown
+          size={21}
+        />,
+      tone:
+        "red",
+    },
+
+    {
+      title:
+        "Faltas registradas",
+      value:
+        String(
+          appointments.filter(
+            (
+              item
+            ) =>
+              item.status ===
+                "Faltou"
+          ).length
+        ),
+      description:
+        "Faltas registradas nesta unidade",
+      icon:
+        <CircleX
+          size={21}
+        />,
+      tone:
+        "pink",
+    },
+  ];
+
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-7">
       {metrics.map(

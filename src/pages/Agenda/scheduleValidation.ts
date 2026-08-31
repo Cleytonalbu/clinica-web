@@ -11,6 +11,10 @@ import type {
   ScheduleBlock,
 } from "./ScheduleBlocksView";
 
+import {
+  getDefaultClinicUnitId,
+} from "@/pages/Configuracoes/clinicUnitStorage";
+
 /* =========================================
    TIPOS
 ========================================= */
@@ -33,6 +37,9 @@ export interface ScheduleConflict {
 const defaultAppointments: StoredAppointment[] = [
   {
     id: 1,
+
+    unitId:
+      getDefaultClinicUnitId(),
 
     patientId: 1,
 
@@ -67,6 +74,9 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 2,
 
+    unitId:
+      getDefaultClinicUnitId(),
+
     patientId: 2,
 
     patient:
@@ -99,6 +109,9 @@ const defaultAppointments: StoredAppointment[] = [
 
   {
     id: 3,
+
+    unitId:
+      getDefaultClinicUnitId(),
 
     patientId: 3,
 
@@ -133,6 +146,9 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 4,
 
+    unitId:
+      getDefaultClinicUnitId(),
+
     patientId: 4,
 
     patient:
@@ -165,6 +181,9 @@ const defaultAppointments: StoredAppointment[] = [
 
   {
     id: 5,
+
+    unitId:
+      getDefaultClinicUnitId(),
 
     patientId: 5,
 
@@ -199,6 +218,9 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 6,
 
+    unitId:
+      getDefaultClinicUnitId(),
+
     patientId: 1,
 
     patient:
@@ -232,6 +254,9 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 7,
 
+    unitId:
+      getDefaultClinicUnitId(),
+
     patientId: 3,
 
     patient:
@@ -264,6 +289,9 @@ const defaultAppointments: StoredAppointment[] = [
 
   {
     id: 8,
+
+    unitId:
+      getDefaultClinicUnitId(),
 
     patientId: 1,
 
@@ -304,6 +332,9 @@ const defaultBlocks: ScheduleBlock[] = [
   {
     id: 1,
 
+    unitId:
+      getDefaultClinicUnitId(),
+
     professional:
       "Dra. Ana Paula",
 
@@ -325,6 +356,9 @@ const defaultBlocks: ScheduleBlock[] = [
 
   {
     id: 2,
+
+    unitId:
+      getDefaultClinicUnitId(),
 
     professional:
       "Dra. Camila Soares",
@@ -348,6 +382,9 @@ const defaultBlocks: ScheduleBlock[] = [
   {
     id: 3,
 
+    unitId:
+      getDefaultClinicUnitId(),
+
     professional:
       "Dra. Larissa Lima",
 
@@ -369,6 +406,9 @@ const defaultBlocks: ScheduleBlock[] = [
 
   {
     id: 4,
+
+    unitId:
+      getDefaultClinicUnitId(),
 
     professional:
       "Dr. Rafael Costa",
@@ -397,6 +437,8 @@ const defaultBlocks: ScheduleBlock[] = [
 interface CheckScheduleConflictParams {
   unitId?: number;
 
+  professionalId?: number;
+
   professional: string;
 
   date: string;
@@ -416,6 +458,8 @@ interface CheckScheduleConflictParams {
 
 export function checkScheduleConflict({
   unitId,
+
+  professionalId,
 
   professional,
 
@@ -473,8 +517,16 @@ export function checkScheduleConflict({
           appointment.unitId ===
             unitId
         ) &&
-        appointment.professional ===
-          professional &&
+        (
+          professionalId !==
+            undefined &&
+          appointment.professionalId !==
+            undefined
+            ? appointment.professionalId ===
+              professionalId
+            : appointment.professional ===
+              professional
+        ) &&
         appointment.date ===
           date &&
         appointment.status !==

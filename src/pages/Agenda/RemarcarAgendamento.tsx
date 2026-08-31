@@ -84,6 +84,9 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 1,
 
+    unitId:
+      getDefaultClinicUnitId(),
+
     patientId: 1,
 
     patient:
@@ -116,6 +119,9 @@ const defaultAppointments: StoredAppointment[] = [
 
   {
     id: 2,
+
+    unitId:
+      getDefaultClinicUnitId(),
 
     patientId: 2,
 
@@ -150,6 +156,9 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 3,
 
+    unitId:
+      getDefaultClinicUnitId(),
+
     patientId: 3,
 
     patient:
@@ -182,6 +191,9 @@ const defaultAppointments: StoredAppointment[] = [
 
   {
     id: 4,
+
+    unitId:
+      getDefaultClinicUnitId(),
 
     patientId: 4,
 
@@ -216,6 +228,9 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 5,
 
+    unitId:
+      getDefaultClinicUnitId(),
+
     patientId: 5,
 
     patient:
@@ -248,6 +263,9 @@ const defaultAppointments: StoredAppointment[] = [
 
   {
     id: 6,
+
+    unitId:
+      getDefaultClinicUnitId(),
 
     patientId: 1,
 
@@ -282,6 +300,9 @@ const defaultAppointments: StoredAppointment[] = [
   {
     id: 7,
 
+    unitId:
+      getDefaultClinicUnitId(),
+
     patientId: 3,
 
     patient:
@@ -314,6 +335,9 @@ const defaultAppointments: StoredAppointment[] = [
 
   {
     id: 8,
+
+    unitId:
+      getDefaultClinicUnitId(),
 
     patientId: 1,
 

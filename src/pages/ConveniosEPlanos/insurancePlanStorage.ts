@@ -271,6 +271,9 @@ export interface ConsumeAuthorizationSessionParams {
   patientName:
     string;
 
+  convenioId?:
+    number;
+
   convenio:
     string;
 
@@ -311,6 +314,7 @@ export function consumeConvenioAuthorizationSessionForAppointment({
   unitId,
   patientId,
   patientName,
+  convenioId,
   convenio,
   appointmentDate,
 }: ConsumeAuthorizationSessionParams):
@@ -384,13 +388,22 @@ export function consumeConvenioAuthorizationSessionForAppointment({
             return false;
           }
 
+          const sameConvenio =
+            convenioId !==
+              undefined &&
+            authorization.convenioId !==
+              undefined
+              ? authorization.convenioId ===
+                convenioId
+              : authorization.convenio
+                  .trim()
+                  .toLocaleLowerCase(
+                    "pt-BR"
+                  ) ===
+                normalizedConvenio;
+
           if (
-            authorization.convenio
-              .trim()
-              .toLocaleLowerCase(
-                "pt-BR"
-              ) !==
-            normalizedConvenio
+            !sameConvenio
           ) {
             return false;
           }
