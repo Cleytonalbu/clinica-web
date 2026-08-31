@@ -1,13 +1,11 @@
 import {
   Bell,
   CalendarDays,
-  CircleDollarSign,
   ClipboardList,
   FileText,
   HeartPulse,
   Smartphone,
   UserRound,
-  WalletCards,
 } from "lucide-react";
 
 import {
@@ -65,33 +63,7 @@ const moduleItems: {
       />,
   },
 
-  {
-    key: "financial",
 
-    title: "Financeiro",
-
-    description:
-      "Cobranças, pagamentos e pendências.",
-
-    icon:
-      <CircleDollarSign
-        size={20}
-      />,
-  },
-
-  {
-    key: "digitalWallet",
-
-    title: "Carteira digital",
-
-    description:
-      "Saldo e movimentações da carteira do responsável.",
-
-    icon:
-      <WalletCards
-        size={20}
-      />,
-  },
 
   {
     key: "documents",
@@ -229,49 +201,9 @@ const permissionItems: {
       "Permite baixar materiais e anexos disponibilizados.",
   },
 
-  {
-    key:
-      "viewPaymentHistory",
 
-    title:
-      "Visualizar histórico de pagamentos",
 
-    description:
-      "Exibe pagamentos já realizados.",
-  },
 
-  {
-    key:
-      "viewPendingPayments",
-
-    title:
-      "Visualizar pendências",
-
-    description:
-      "Exibe cobranças em aberto.",
-  },
-
-  {
-    key:
-      "addWalletCredit",
-
-    title:
-      "Adicionar saldo à carteira",
-
-    description:
-      "Permite ao responsável adicionar crédito à carteira digital.",
-  },
-
-  {
-    key:
-      "viewWalletHistory",
-
-    title:
-      "Visualizar movimentações da carteira",
-
-    description:
-      "Exibe depósitos, débitos e saldo da carteira.",
-  },
 
   {
     key:

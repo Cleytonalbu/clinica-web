@@ -16,7 +16,6 @@ import { convenioWorksAtUnit } from "@/pages/Configuracoes/convenioUnitStorage";
 import {
   createConvenioPlano,
   getConveniosPlanos,
-  registrarSessao,
   updateConvenioPlano,
   type ConvenioPlano,
   type ConvenioPlanoStatus,
@@ -25,6 +24,7 @@ import {
 const emptyForm = {
   convenio: "",
   plano: "",
+  pacienteId: "",
   paciente: "",
   valorSessao: "",
   sessoesAutorizadas: "",
@@ -218,6 +218,12 @@ export default function ConveniosEPlanos() {
 
       convenio: form.convenio.trim(),
       plano: form.plano.trim(),
+      patientId:
+        form.pacienteId
+          ? Number(
+              form.pacienteId
+            )
+          : undefined,
       paciente: form.paciente.trim(),
       valorSessao,
       sessoesAutorizadas: autorizadas,
@@ -233,13 +239,6 @@ export default function ConveniosEPlanos() {
     setOpen(false);
   }
 
-  function usarSessao(item: ConvenioPlano) {
-    try {
-      registrarSessao(item.id);
-    } catch (error) {
-      alert(error instanceof Error ? error.message : "Erro ao registrar sessão.");
-    }
-  }
 
   return (
     <DashboardLayout>
@@ -250,7 +249,7 @@ export default function ConveniosEPlanos() {
               Autorizações de convênios
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              Controle as autorizações de convênio vinculadas aos pacientes, sessões e validade.
+              Controle as autorizações de convênio vinculadas aos pacientes, sessões e validade. As sessões utilizadas são descontadas automaticamente quando um atendimento de convênio é marcado como Realizado.
             </p>
           </div>
 
@@ -363,14 +362,6 @@ export default function ConveniosEPlanos() {
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex gap-2">
-                          {(s === "Regular" || s === "Vence em breve") && (
-                            <button
-                              onClick={() => usarSessao(item)}
-                              className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-medium text-white"
-                            >
-                              Usar sessão
-                            </button>
-                          )}
                           <button
                             onClick={() =>
                               updateConvenioPlano(item.id, {
@@ -437,15 +428,29 @@ export default function ConveniosEPlanos() {
                   <Field label="Paciente *">
                     <select
                       required
-                      value={form.paciente}
-                      onChange={(e) =>
-                        setForm({ ...form, paciente: e.target.value })
-                      }
+                      value={form.pacienteId}
+                      onChange={(e) => {
+                        const selectedPatient =
+                          patients.find(
+                            (patient) =>
+                              String(patient.id) ===
+                              e.target.value
+                          );
+
+                        setForm({
+                          ...form,
+                          pacienteId:
+                            e.target.value,
+                          paciente:
+                            selectedPatient?.nome ??
+                            "",
+                        });
+                      }}
                       className="input-convenio"
                     >
                       <option value="">Selecione o paciente</option>
                       {patients.map((patient) => (
-                        <option key={patient.id} value={patient.nome}>
+                        <option key={patient.id} value={String(patient.id)}>
                           {patient.nome}
                           {patient.status === "Inativo" ? " — Inativo" : ""}
                         </option>

@@ -20,7 +20,9 @@ export interface AppointmentRequest {
   patientId: number;
   patient: string;
 
+  professionalId?: number;
   professional: string;
+
   specialty: string;
 
   date: string;
@@ -36,6 +38,7 @@ export interface AppointmentRequest {
   status: AppointmentRequestStatus;
 
   billingType?: BillingType;
+  convenioId?: number;
   convenio?: string;
   paymentMethod?: PaymentMethod;
 
@@ -59,7 +62,9 @@ export interface CreateAppointmentRequestData {
   patientId: number;
   patient: string;
 
+  professionalId?: number;
   professional: string;
+
   specialty: string;
 
   date: string;
@@ -73,6 +78,7 @@ export interface CreateAppointmentRequestData {
     | "Retorno";
 
   billingType?: BillingType;
+  convenioId?: number;
   convenio?: string;
   paymentMethod?: PaymentMethod;
 
@@ -81,6 +87,17 @@ export interface CreateAppointmentRequestData {
 
 const STORAGE_KEY =
   "entre-afetos-appointment-requests";
+
+export const APPOINTMENT_REQUESTS_CHANGED_EVENT =
+  "entre-afetos:appointment-requests-changed";
+
+function notifyAppointmentRequestsChanged() {
+  window.dispatchEvent(
+    new CustomEvent(
+      APPOINTMENT_REQUESTS_CHANGED_EVENT
+    )
+  );
+}
 
 function normalizeRequest(
   request:
@@ -192,6 +209,44 @@ export function createAppointmentRequest(
   data:
     CreateAppointmentRequestData
 ) {
+  const current =
+    getAppointmentRequests();
+
+  /*
+   * Impede duas solicitações pendentes idênticas para o mesmo
+   * paciente, profissional, unidade, data e horário.
+   */
+  const duplicatePendingRequest =
+    current.find(
+      (
+        item
+      ) =>
+        item.status ===
+          "Pendente" &&
+        item.unitId ===
+          data.unitId &&
+        item.patientId ===
+          data.patientId &&
+        (
+          data.professionalId !==
+            undefined
+            ? item.professionalId ===
+              data.professionalId
+            : item.professional ===
+              data.professional
+        ) &&
+        item.date ===
+          data.date &&
+        item.time ===
+          data.time
+    );
+
+  if (
+    duplicatePendingRequest
+  ) {
+    return duplicatePendingRequest;
+  }
+
   const request:
     AppointmentRequest = {
     id:
@@ -205,6 +260,9 @@ export function createAppointmentRequest(
 
     patient:
       data.patient,
+
+    professionalId:
+      data.professionalId,
 
     professional:
       data.professional,
@@ -232,6 +290,9 @@ export function createAppointmentRequest(
       data.billingType ??
       "Particular",
 
+    convenioId:
+      data.convenioId,
+
     convenio:
       data.convenio,
 
@@ -249,9 +310,6 @@ export function createAppointmentRequest(
         .toISOString(),
   };
 
-  const current =
-    getAppointmentRequests();
-
   localStorage.setItem(
     STORAGE_KEY,
     JSON.stringify(
@@ -261,6 +319,8 @@ export function createAppointmentRequest(
       ]
     )
   );
+
+  notifyAppointmentRequestsChanged();
 
   return request;
 }
@@ -299,6 +359,8 @@ export function updateAppointmentRequest(
       next
     )
   );
+
+  notifyAppointmentRequestsChanged();
 
   return next.find(
     (

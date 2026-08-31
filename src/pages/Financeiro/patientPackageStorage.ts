@@ -880,3 +880,97 @@ export function findPlanFromPatientPackage(
     packageItem.planId
   );
 }
+
+/**
+ * Reverte uma sessão consumida por um atendimento específico.
+ * Usado quando um atendimento realizado é reaberto/cancelado.
+ * É idempotente: sem registro de consumo, nada é alterado.
+ */
+export function reversePatientPackageSessionForAppointment(
+  appointmentId: number
+) {
+  const usages =
+    getPatientPackageSessionUsages();
+
+  const usage =
+    usages.find(
+      (item) =>
+        item.appointmentId ===
+        appointmentId
+    );
+
+  if (!usage) {
+    return false;
+  }
+
+  const nextPackages =
+    getPatientPackages().map(
+      (packageItem) => {
+        if (
+          packageItem.id !==
+            usage.patientPackageId
+        ) {
+          return packageItem;
+        }
+
+        let reverted =
+          false;
+
+        const items =
+          packageItem.items.map(
+            (item) => {
+              if (
+                !reverted &&
+                item.specialty ===
+                  usage.specialty &&
+                item.usedSessions >
+                  0
+              ) {
+                reverted =
+                  true;
+
+                return {
+                  ...item,
+                  usedSessions:
+                    Math.max(
+                      item.usedSessions -
+                        1,
+                      0
+                    ),
+                };
+              }
+
+              return item;
+            }
+          );
+
+        return normalizePackage({
+          ...packageItem,
+          items,
+          updatedAt:
+            new Date()
+              .toISOString(),
+        });
+      }
+    );
+
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify(
+      nextPackages
+    )
+  );
+
+  localStorage.setItem(
+    USAGE_STORAGE_KEY,
+    JSON.stringify(
+      usages.filter(
+        (item) =>
+          item.appointmentId !==
+          appointmentId
+      )
+    )
+  );
+
+  return true;
+}

@@ -103,9 +103,21 @@ export interface GuiaConvenio {
   id: string;
   unitId: number;
   appointmentId?: number;
+
+  /**
+   * Referências da autorização que originou a produção.
+   */
+  authorizationId?: string;
+  authorizationNumber?: string;
+  patientId?: number;
+
+  convenioId?: number;
   convenio: string;
+
   plano: string;
   paciente: string;
+
+  professionalId?: number;
   professional?: string;
   specialty?: string;
   numeroGuia: string;
@@ -195,8 +207,14 @@ export function createGuiaConvenio(
 export function createGuiaFromAppointment(data: {
   unitId: number;
   appointmentId: number;
+  authorizationId?: string;
+  authorizationNumber?: string;
+  patientId?: number;
+  convenioId?: number;
   convenio: string;
+  plano?: string;
   paciente: string;
+  professionalId?: number;
   professional: string;
   specialty: string;
   dataAtendimento: string;
@@ -210,18 +228,41 @@ export function createGuiaFromAppointment(data: {
   return createGuiaConvenio({
     unitId: data.unitId,
     appointmentId: data.appointmentId,
+
+    authorizationId:
+      data.authorizationId,
+
+    authorizationNumber:
+      data.authorizationNumber,
+
+    patientId:
+      data.patientId,
+
+    convenioId:
+      data.convenioId,
+
     convenio: data.convenio,
-    plano: "",
+    plano:
+      data.plano ?? "",
     paciente: data.paciente,
+
+    professionalId:
+      data.professionalId,
+
     professional: data.professional,
     specialty: data.specialty,
-    numeroGuia: "",
+    numeroGuia:
+      data.authorizationNumber ??
+      "",
     competencia: data.dataAtendimento.slice(0, 7),
     dataAtendimento: data.dataAtendimento,
     quantidadeSessoes: 1,
     valorUnitario: data.valorUnitario,
     status: "Pendente de envio",
-    observacoes: "Gerado automaticamente após a realização do atendimento.",
+    observacoes:
+      data.authorizationId
+        ? "Gerado automaticamente após a realização do atendimento e vinculado à autorização do paciente."
+        : "Gerado automaticamente após a realização do atendimento.",
   });
 }
 
@@ -1461,4 +1502,106 @@ export function registerRecursoGlosaReturn({
   return getRecursoGlosaById(
     recursoId
   );
+}
+
+/**
+ * Remove/cancela a produção ainda não enviada de um atendimento cancelado.
+ * Se a guia já estiver em lote enviado/pago, não altera automaticamente:
+ * o ajuste deve ocorrer pelo fluxo de convênio/glosa.
+ */
+export function cancelPendingGuiaByAppointment(
+  appointmentId: number
+) {
+  const guia =
+    getGuiasConvenios().find(
+      (item) =>
+        item.appointmentId ===
+        appointmentId
+    );
+
+  if (!guia) {
+    return {
+      cancelled:
+        false,
+      requiresManualAdjustment:
+        false,
+    };
+  }
+
+  const lote =
+    guia.loteId
+      ? getLoteConvenioById(
+          guia.loteId
+        )
+      : undefined;
+
+  const loteAlreadyProcessed =
+    Boolean(
+      lote &&
+      lote.status !==
+        "Aberto"
+    );
+
+  if (
+    loteAlreadyProcessed ||
+    guia.status ===
+      "Pago"
+  ) {
+    return {
+      cancelled:
+        false,
+      requiresManualAdjustment:
+        true,
+    };
+  }
+
+  saveGuiasConvenios(
+    getGuiasConvenios().filter(
+      (item) =>
+        item.id !==
+        guia.id
+    )
+  );
+
+  if (
+    lote &&
+    lote.status ===
+      "Aberto"
+  ) {
+    const nextGuiaIds =
+      lote.guiaIds.filter(
+        (id) =>
+          id !==
+          guia.id
+      );
+
+    updateLoteConvenio(
+      lote.id,
+      {
+        guiaIds:
+          nextGuiaIds,
+
+        quantidadeAtendimentos:
+          Math.max(
+            lote.quantidadeAtendimentos -
+              guia.quantidadeSessoes,
+            0
+          ),
+
+        valorTotal:
+          Math.max(
+            lote.valorTotal -
+              guia.valorTotal,
+            0
+          ),
+      }
+    );
+  }
+
+  return {
+    cancelled:
+      true,
+    requiresManualAdjustment:
+      false,
+  };
 }

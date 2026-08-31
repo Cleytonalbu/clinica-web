@@ -21,7 +21,15 @@ export interface StoredAppointment {
   unitId: number;
 
   patient: string;
+
+  /**
+   * IDs são as referências canônicas dos cadastros.
+   * Os nomes continuam salvos para exibição e compatibilidade
+   * com registros antigos do protótipo.
+   */
+  professionalId?: number;
   professional: string;
+
   specialty: string;
 
   date: string;
@@ -39,6 +47,7 @@ export interface StoredAppointment {
 
   billingType?: BillingType;
 
+  convenioId?: number;
   convenio?: string;
 
   paymentMethod?: PaymentMethod;
@@ -57,6 +66,17 @@ export interface StoredAppointment {
 
 const STORAGE_KEY =
   "entre-afetos-appointments";
+
+export const APPOINTMENTS_CHANGED_EVENT =
+  "entre-afetos:appointments-changed";
+
+function notifyAppointmentsChanged() {
+  window.dispatchEvent(
+    new CustomEvent(
+      APPOINTMENTS_CHANGED_EVENT
+    )
+  );
+}
 
 export function getSavedAppointments(): StoredAppointment[] {
   try {
@@ -162,6 +182,31 @@ export function saveAppointment(
         : getDefaultClinicUnitId(),
   };
 
+  /*
+   * Evita duplicidade do mesmo agendamento quando uma ação
+   * é disparada duas vezes pela interface.
+   */
+  const alreadyExists =
+    current.some(
+      (
+        item
+      ) =>
+        item.id ===
+        normalizedAppointment.id
+    );
+
+  if (
+    alreadyExists
+  ) {
+    return current.find(
+      (
+        item
+      ) =>
+        item.id ===
+        normalizedAppointment.id
+    );
+  }
+
   const next = [
     ...current,
     normalizedAppointment,
@@ -171,6 +216,10 @@ export function saveAppointment(
     STORAGE_KEY,
     JSON.stringify(next)
   );
+
+  notifyAppointmentsChanged();
+
+  return normalizedAppointment;
 }
 
 export function updateSavedAppointment(
@@ -205,6 +254,8 @@ export function updateSavedAppointment(
     STORAGE_KEY,
     JSON.stringify(next)
   );
+
+  notifyAppointmentsChanged();
 }
 
 export function removeSavedAppointment(
@@ -224,4 +275,6 @@ export function removeSavedAppointment(
     STORAGE_KEY,
     JSON.stringify(next)
   );
+
+  notifyAppointmentsChanged();
 }

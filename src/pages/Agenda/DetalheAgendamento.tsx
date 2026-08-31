@@ -46,12 +46,14 @@ import {
 } from "./appointmentStorage";
 
 import {
+  cancelPendingFinancialChargeByAppointment,
   createChargeFromAppointment,
   getFinancialCharges,
 } from "@/pages/Financeiro/financeStorage";
 
 import {
   consumeLinkedPatientPackageSession,
+  reversePatientPackageSessionForAppointment,
 } from "@/pages/Financeiro/patientPackageStorage";
 
 import {
@@ -60,8 +62,15 @@ import {
 } from "@/pages/Configuracoes/clinicUnitStorage";
 
 import {
+  cancelPendingGuiaByAppointment,
   createGuiaFromAppointment,
 } from "@/pages/GuiasConvenios/guideBillingStorage";
+
+import {
+  consumeConvenioAuthorizationSessionForAppointment,
+  findAvailableConvenioAuthorization,
+  reverseConvenioAuthorizationSessionForAppointment,
+} from "@/pages/ConveniosEPlanos/insurancePlanStorage";
 
 /* =========================================
    ATENDIMENTOS DE DEMONSTRAÇÃO
@@ -485,6 +494,156 @@ export default function DetalheAgendamento() {
     }
 
     /* =====================================
+       VALIDAÇÃO DA AUTORIZAÇÃO DE CONVÊNIO
+    ===================================== */
+
+    if (
+      status ===
+        "Realizado" &&
+      appointment.billingType ===
+        "Convênio" &&
+      appointment.convenio
+    ) {
+      const alreadyHasGuide =
+        false;
+
+      void alreadyHasGuide;
+
+      const authorization =
+        findAvailableConvenioAuthorization(
+          {
+            unitId:
+              appointment.unitId,
+
+            patientId:
+              appointment.patientId,
+
+            patientName:
+              appointment.patient,
+
+            convenio:
+              appointment.convenio,
+
+            appointmentDate:
+              appointment.date,
+          }
+        );
+
+      /*
+       * Se este atendimento ainda não consumiu uma autorização,
+       * exigimos cobertura válida antes de concluí-lo.
+       * A própria função de consumo é idempotente e protege
+       * contra desconto duplicado em novas tentativas.
+       */
+      if (
+        !authorization
+      ) {
+        try {
+          const existingConsumption =
+            consumeConvenioAuthorizationSessionForAppointment(
+              {
+                appointmentId:
+                  appointment.id,
+
+                unitId:
+                  appointment.unitId,
+
+                patientId:
+                  appointment.patientId,
+
+                patientName:
+                  appointment.patient,
+
+                convenio:
+                  appointment.convenio,
+
+                appointmentDate:
+                  appointment.date,
+              }
+            );
+
+          if (
+            existingConsumption.alreadyConsumed
+          ) {
+            /*
+             * Já consumido em tentativa anterior:
+             * podemos prosseguir com segurança.
+             */
+          }
+        } catch {
+          setFeedback(
+            "Não é possível concluir este atendimento: não existe autorização ativa com sessão disponível para este paciente, convênio e data."
+          );
+
+          setFeedbackType(
+            "error"
+          );
+
+          return;
+        }
+      }
+    }
+
+    /* =====================================
+       CANCELAMENTO / REVERSÕES
+    ===================================== */
+
+    if (
+      status ===
+      "Cancelado"
+    ) {
+      /*
+       * Cobrança ainda pendente:
+       * cancela junto com o atendimento.
+       * Cobrança já paga não é estornada automaticamente.
+       */
+      cancelPendingFinancialChargeByAppointment(
+        appointment.id
+      );
+
+      /*
+       * Se o atendimento já havia sido realizado, devolvemos
+       * a sessão do pacote ou da autorização apenas quando
+       * existe um consumo vinculado a este appointmentId.
+       */
+      if (
+        appointment.patientPackageId
+      ) {
+        reversePatientPackageSessionForAppointment(
+          appointment.id
+        );
+      }
+
+      if (
+        appointment.billingType ===
+          "Convênio"
+      ) {
+        const guideCancellation =
+          cancelPendingGuiaByAppointment(
+            appointment.id
+          );
+
+        if (
+          !guideCancellation.requiresManualAdjustment
+        ) {
+          reverseConvenioAuthorizationSessionForAppointment(
+            appointment.id
+          );
+        } else {
+          setFeedback(
+            "Este atendimento possui produção de convênio já enviada/processada. O status não foi alterado automaticamente para evitar inconsistência financeira."
+          );
+
+          setFeedbackType(
+            "error"
+          );
+
+          return;
+        }
+      }
+    }
+
+    /* =====================================
        ATUALIZAÇÃO
     ===================================== */
 
@@ -525,28 +684,114 @@ export default function DetalheAgendamento() {
         appointment.convenio
       ) {
         /*
-         * Convênio não gera cobrança para o paciente.
-         * Quando o atendimento é realizado, ele entra
-         * automaticamente na produção da competência.
+         * CONVÊNIO:
+         *
+         * 1. localiza a autorização ativa do paciente;
+         * 2. consome exatamente 1 sessão (idempotente);
+         * 3. gera a guia já vinculada à autorização/plano.
          */
-        createGuiaFromAppointment({
-          unitId:
-            appointment.unitId,
-          appointmentId:
-            appointment.id,
-          convenio:
-            appointment.convenio,
-          paciente:
-            appointment.patient,
-          professional:
-            appointment.professional,
-          specialty:
-            appointment.specialty,
-          dataAtendimento:
-            appointment.date,
-          valorUnitario:
-            appointment.serviceValue ?? 0,
-        });
+        try {
+          const authorizationResult =
+            consumeConvenioAuthorizationSessionForAppointment(
+              {
+                appointmentId:
+                  appointment.id,
+
+                unitId:
+                  appointment.unitId,
+
+                patientId:
+                  appointment.patientId,
+
+                patientName:
+                  appointment.patient,
+
+                convenio:
+                  appointment.convenio,
+
+                appointmentDate:
+                  appointment.date,
+              }
+            );
+
+          const authorization =
+            authorizationResult.authorization;
+
+          createGuiaFromAppointment(
+            {
+              unitId:
+                appointment.unitId,
+
+              appointmentId:
+                appointment.id,
+
+              authorizationId:
+                authorization.id,
+
+              authorizationNumber:
+                authorization.autorizacao ||
+                undefined,
+
+              patientId:
+                appointment.patientId,
+
+              convenioId:
+                appointment.convenioId,
+
+              convenio:
+                appointment.convenio,
+
+              plano:
+                authorization.plano,
+
+              paciente:
+                appointment.patient,
+
+              professionalId:
+                appointment.professionalId,
+
+              professional:
+                appointment.professional,
+
+              specialty:
+                appointment.specialty,
+
+              dataAtendimento:
+                appointment.date,
+
+              /*
+               * O valor da autorização é a referência do
+               * faturamento do convênio. Se não houver,
+               * mantém o valor já calculado no agendamento.
+               */
+              valorUnitario:
+                authorization.valorSessao >
+                0
+                  ? authorization.valorSessao
+                  : appointment.serviceValue ??
+                    0,
+            }
+          );
+        } catch (
+          error
+        ) {
+          /*
+           * Esta proteção é adicional. A autorização já foi
+           * validada antes da mudança de status.
+           */
+          setFeedback(
+            error instanceof
+              Error
+              ? error.message
+              : "Não foi possível consumir a autorização do convênio."
+          );
+
+          setFeedbackType(
+            "error"
+          );
+
+          return;
+        }
       } else if (
         appointment.patientPackageId
       ) {
@@ -611,6 +856,9 @@ export default function DetalheAgendamento() {
               patient:
                 appointment.patient,
 
+              professionalId:
+                appointment.professionalId,
+
               professional:
                 appointment.professional,
 
@@ -622,6 +870,9 @@ export default function DetalheAgendamento() {
 
               billingType:
                 appointment.billingType,
+
+              convenioId:
+                appointment.convenioId,
 
               convenio:
                 appointment.convenio,

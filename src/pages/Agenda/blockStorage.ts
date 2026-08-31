@@ -5,6 +5,17 @@ import type { ScheduleBlock } from "./ScheduleBlocksView";
 const STORAGE_KEY =
   "entre-afetos-schedule-blocks";
 
+export const SCHEDULE_BLOCKS_CHANGED_EVENT =
+  "entre-afetos:schedule-blocks-changed";
+
+function notifyScheduleBlocksChanged() {
+  window.dispatchEvent(
+    new CustomEvent(
+      SCHEDULE_BLOCKS_CHANGED_EVENT
+    )
+  );
+}
+
 export function getSavedBlocks(): ScheduleBlock[] {
   try {
     const stored =
@@ -104,6 +115,8 @@ export function saveBlock(
     STORAGE_KEY,
     JSON.stringify(next)
   );
+
+  notifyScheduleBlocksChanged();
 }
 
 export function removeSavedBlock(
@@ -122,4 +135,6 @@ export function removeSavedBlock(
     STORAGE_KEY,
     JSON.stringify(next)
   );
+
+  notifyScheduleBlocksChanged();
 }

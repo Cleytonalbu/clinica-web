@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -60,6 +61,7 @@ import {
 
 import {
   getSavedBlocks,
+  SCHEDULE_BLOCKS_CHANGED_EVENT,
 } from "./blockStorage";
 
 import {
@@ -67,6 +69,7 @@ import {
 } from "@/pages/Configuracoes/clinicUnitStorage";
 
 import {
+  APPOINTMENTS_CHANGED_EVENT,
   getSavedAppointments,
   type StoredAppointment,
 } from "./appointmentStorage";
@@ -76,8 +79,22 @@ import {
 } from "./AppointmentRequestsPanel";
 
 import {
+  APPOINTMENT_REQUESTS_CHANGED_EVENT,
   getAppointmentRequestsByUnit,
 } from "./appointmentRequestStorage";
+
+import {
+  getActiveProfessionals,
+  getActiveSpecialties,
+} from "@/pages/Configuracoes/settingsStorage";
+
+import {
+  professionalWorksAtUnit,
+} from "@/pages/Configuracoes/professionalUnitStorage";
+
+import {
+  specialtyWorksAtUnit,
+} from "@/pages/Configuracoes/specialtyUnitStorage";
 
 type CalendarView =
   | "day"
@@ -104,9 +121,6 @@ const defaultScheduleBlocks: ScheduleBlock[] = [
   { id: 4, professional: "Dr. Rafael Costa", date: "2026-08-08", startTime: "08:00", endTime: "17:00", type: "Férias", reason: "Período de férias" },
 ];
 
-const professionals = ["Todos", "Dra. Ana Paula", "Dra. Camila Soares", "Dra. Larissa Lima", "Dr. Rafael Costa"];
-const specialties = ["Todas", "Psicologia", "Fonoaudiologia", "Terapia Ocupacional", "Fisioterapia"];
-
 export default function Agenda() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -128,7 +142,16 @@ export default function Agenda() {
   const canCreateBlock = isGestor || isRecepcao;
 
   const [view, setView] = useState<CalendarView>("day");
-  const [selectedDate, setSelectedDate] = useState("2026-08-07");
+  const [
+    selectedDate,
+    setSelectedDate,
+  ] =
+    useState(
+      () =>
+        formatDateForInput(
+          new Date()
+        )
+    );
   const [search, setSearch] = useState("");
   const [professional, setProfessional] = useState("Todos");
   const [specialty, setSpecialty] = useState("Todas");
@@ -147,7 +170,7 @@ export default function Agenda() {
     ),
   ] as StoredAppointment[]);
 
-  const [scheduleBlocks] = useState<ScheduleBlock[]>(() => [
+  const [scheduleBlocks, setScheduleBlocks] = useState<ScheduleBlock[]>(() => [
     ...(
       activeUnitId ===
       defaultUnitId
@@ -183,6 +206,271 @@ export default function Agenda() {
             "Pendente"
         ).length
     );
+
+  const unitProfessionals =
+    useMemo(
+      () =>
+        getActiveProfessionals()
+          .filter(
+            (
+              item
+            ) =>
+              professionalWorksAtUnit(
+                item.id,
+                activeUnitId
+              )
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              a.name.localeCompare(
+                b.name,
+                "pt-BR"
+              )
+          ),
+      [
+        activeUnitId,
+      ]
+    );
+
+  const unitSpecialties =
+    useMemo(
+      () =>
+        getActiveSpecialties()
+          .filter(
+            (
+              item
+            ) =>
+              specialtyWorksAtUnit(
+                item.id,
+                activeUnitId
+              )
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              a.name.localeCompare(
+                b.name,
+                "pt-BR"
+              )
+          ),
+      [
+        activeUnitId,
+      ]
+    );
+
+  /*
+   * MULTIUNIDADES
+   *
+   * A Agenda precisa reagir à troca feita no seletor global.
+   * O estado inicial do useState não é executado novamente
+   * quando activeUnitId muda, por isso recarregamos todos os
+   * dados operacionais da unidade aqui.
+   */
+  useEffect(
+    () => {
+      setAppointments(
+        [
+          ...(
+            activeUnitId ===
+            defaultUnitId
+              ? defaultAppointments.map(
+                  (
+                    appointment
+                  ) => ({
+                    ...appointment,
+                    unitId:
+                      defaultUnitId,
+                  })
+                )
+              : []
+          ),
+
+          ...getSavedAppointments()
+            .filter(
+              (
+                appointment
+              ) =>
+                appointment.unitId ===
+                activeUnitId
+            ),
+        ] as StoredAppointment[]
+      );
+
+      setScheduleBlocks(
+        [
+          ...(
+            activeUnitId ===
+            defaultUnitId
+              ? defaultScheduleBlocks.map(
+                  (
+                    block
+                  ) => ({
+                    ...block,
+                    unitId:
+                      defaultUnitId,
+                  })
+                )
+              : []
+          ),
+
+          ...getSavedBlocks()
+            .filter(
+              (
+                block
+              ) =>
+                block.unitId ===
+                activeUnitId
+            ),
+        ]
+      );
+
+      setPendingRequestCount(
+        getAppointmentRequestsByUnit(
+          activeUnitId
+        ).filter(
+          (
+            request
+          ) =>
+            request.status ===
+            "Pendente"
+        ).length
+      );
+
+      /*
+       * Não carregamos filtros da unidade anterior.
+       */
+      setProfessional(
+        "Todos"
+      );
+
+      setSpecialty(
+        "Todas"
+      );
+    },
+    [
+      activeUnitId,
+      defaultUnitId,
+    ]
+  );
+
+  useEffect(
+    () => {
+      function reloadAppointments() {
+        setAppointments(
+          [
+            ...(
+              activeUnitId ===
+              defaultUnitId
+                ? defaultAppointments.map(
+                    (
+                      appointment
+                    ) => ({
+                      ...appointment,
+                      unitId:
+                        defaultUnitId,
+                    })
+                  )
+                : []
+            ),
+
+            ...getSavedAppointments()
+              .filter(
+                (
+                  appointment
+                ) =>
+                  appointment.unitId ===
+                  activeUnitId
+              ),
+          ] as StoredAppointment[]
+        );
+      }
+
+      function reloadBlocks() {
+        setScheduleBlocks(
+          [
+            ...(
+              activeUnitId ===
+              defaultUnitId
+                ? defaultScheduleBlocks.map(
+                    (
+                      block
+                    ) => ({
+                      ...block,
+                      unitId:
+                        defaultUnitId,
+                    })
+                  )
+                : []
+            ),
+
+            ...getSavedBlocks()
+              .filter(
+                (
+                  block
+                ) =>
+                  block.unitId ===
+                  activeUnitId
+              ),
+          ]
+        );
+      }
+
+      function reloadRequests() {
+        setPendingRequestCount(
+          getAppointmentRequestsByUnit(
+            activeUnitId
+          ).filter(
+            (
+              request
+            ) =>
+              request.status ===
+              "Pendente"
+          ).length
+        );
+      }
+
+      window.addEventListener(
+        APPOINTMENTS_CHANGED_EVENT,
+        reloadAppointments
+      );
+
+      window.addEventListener(
+        SCHEDULE_BLOCKS_CHANGED_EVENT,
+        reloadBlocks
+      );
+
+      window.addEventListener(
+        APPOINTMENT_REQUESTS_CHANGED_EVENT,
+        reloadRequests
+      );
+
+      return () => {
+        window.removeEventListener(
+          APPOINTMENTS_CHANGED_EVENT,
+          reloadAppointments
+        );
+
+        window.removeEventListener(
+          SCHEDULE_BLOCKS_CHANGED_EVENT,
+          reloadBlocks
+        );
+
+        window.removeEventListener(
+          APPOINTMENT_REQUESTS_CHANGED_EVENT,
+          reloadRequests
+        );
+      };
+    },
+    [
+      activeUnitId,
+      defaultUnitId,
+    ]
+  );
 
   function handleAppointmentConfirmedFromApp(
     appointment:
@@ -386,12 +674,54 @@ export default function Agenda() {
               <div className="flex h-11 items-center rounded-xl border border-[#e1e4f1] bg-[#fbfbfe] px-4 text-sm font-semibold text-[#5f6e93]">{loggedProfessionalName || "Profissional"}</div>
             ) : (
               <Select value={professional} onChange={(event) => setProfessional(event.target.value)} className="border-[#e1e4f1] bg-[#fbfbfe]">
-                {professionals.map((item) => <option key={item} value={item}>{item === "Todos" ? "Todos os profissionais" : item}</option>)}
+                <option value="Todos">
+                  Todos os profissionais
+                </option>
+
+                {unitProfessionals.map(
+                  (
+                    item
+                  ) => (
+                    <option
+                      key={
+                        item.id
+                      }
+                      value={
+                        item.name
+                      }
+                    >
+                      {
+                        item.name
+                      }
+                    </option>
+                  )
+                )}
               </Select>
             )}
 
             <Select value={specialty} onChange={(event) => setSpecialty(event.target.value)} className="border-[#e1e4f1] bg-[#fbfbfe]">
-              {specialties.map((item) => <option key={item} value={item}>{item === "Todas" ? "Todas as especialidades" : item}</option>)}
+              <option value="Todas">
+                Todas as especialidades
+              </option>
+
+              {unitSpecialties.map(
+                (
+                  item
+                ) => (
+                  <option
+                    key={
+                      item.id
+                    }
+                    value={
+                      item.name
+                    }
+                  >
+                    {
+                      item.name
+                    }
+                  </option>
+                )
+              )}
             </Select>
 
             <Select value={status} onChange={(event) => setStatus(event.target.value)} className="border-[#e1e4f1] bg-[#fbfbfe]">
@@ -435,7 +765,47 @@ export default function Agenda() {
         )}
 
         {!isProfissional && view === "professionals" && (
-          <ProfessionalColumnsView appointments={filteredAppointments} blocks={filteredBlocks} selectedDate={selectedDate} onPatient={(patientId: number) => navigate(`/pacientes/${patientId}`)} onDetails={(appointmentId: number) => navigate(`/agenda/${appointmentId}`)} />
+          <ProfessionalColumnsView
+            appointments={
+              filteredAppointments
+            }
+            blocks={
+              filteredBlocks
+            }
+            selectedDate={
+              selectedDate
+            }
+            professionals={
+              unitProfessionals.map(
+                (
+                  item
+                ) => ({
+                  id:
+                    item.id,
+                  name:
+                    item.name,
+                  specialty:
+                    item.specialty,
+                })
+              )
+            }
+            onPatient={(
+              patientId:
+                number
+            ) =>
+              navigate(
+                `/pacientes/${patientId}`
+              )
+            }
+            onDetails={(
+              appointmentId:
+                number
+            ) =>
+              navigate(
+                `/agenda/${appointmentId}`
+              )
+            }
+          />
         )}
 
         {view === "week" && <WeekView appointments={filteredAppointments} selectedDate={selectedDate} />}

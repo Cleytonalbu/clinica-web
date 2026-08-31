@@ -14,6 +14,20 @@ import {
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 
 import {
+  getSystemSettings,
+  saveSystemSettings,
+  type ProfessionalSetting,
+} from "@/pages/Configuracoes/settingsStorage";
+
+import {
+  setProfessionalUnits,
+} from "@/pages/Configuracoes/professionalUnitStorage";
+
+import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   Button,
   FormField,
   Input,
@@ -66,6 +80,10 @@ const initialValues: ProfessionalFormData = {
 export default function NovoProfissional() {
   const navigate = useNavigate();
 
+  const {
+    activeUnitId,
+  } = useUnit();
+
   const [formData, setFormData] =
     useState<ProfessionalFormData>(
       initialValues
@@ -96,24 +114,114 @@ export default function NovoProfissional() {
   }
 
   async function handleSave() {
+    const name =
+      formData.name.trim();
+
+    if (!name) {
+      setFeedback(
+        "Informe o nome do profissional."
+      );
+      return;
+    }
+
+    if (!formData.specialty) {
+      setFeedback(
+        "Selecione a especialidade."
+      );
+      return;
+    }
+
     setSaving(true);
 
     try {
-      console.log(
-        "Novo profissional:",
-        formData
-      );
+      const settings =
+        getSystemSettings();
 
-      // Futuramente:
-      // await professionalService.create(formData);
+      const duplicated =
+        settings.professionals.some(
+          (professional) =>
+            professional.name
+              .trim()
+              .toLocaleLowerCase("pt-BR") ===
+            name.toLocaleLowerCase("pt-BR")
+        );
+
+      if (duplicated) {
+        setFeedback(
+          "Já existe um profissional cadastrado com esse nome."
+        );
+        return;
+      }
+
+      const nextId =
+        settings.professionals.length > 0
+          ? Math.max(
+              ...settings.professionals.map(
+                (professional) => professional.id
+              )
+            ) + 1
+          : 1;
+
+      const registration =
+        [
+          formData.councilType.trim(),
+          formData.councilNumber.trim(),
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+      const professional:
+        ProfessionalSetting = {
+        id: nextId,
+        name,
+        specialty: formData.specialty,
+        registration,
+        status:
+          formData.status as ProfessionalSetting["status"],
+        active:
+          formData.status !== "Inativo",
+        birthDate:
+          formData.birthDate.trim(),
+        cpf:
+          formData.cpf.trim(),
+        rg:
+          formData.rg.trim(),
+        phone:
+          formData.phone.trim(),
+        email:
+          formData.email.trim(),
+        councilType:
+          formData.councilType.trim(),
+        councilNumber:
+          formData.councilNumber.trim(),
+        employmentType:
+          formData.employmentType.trim(),
+        admissionDate:
+          formData.admissionDate.trim(),
+        observations:
+          formData.observations.trim(),
+      };
+
+      saveSystemSettings({
+        ...settings,
+        professionals: [
+          ...settings.professionals,
+          professional,
+        ],
+      });
+
+      setProfessionalUnits(
+        professional.id,
+        [activeUnitId]
+      );
 
       setFeedback(
         "Profissional cadastrado com sucesso."
       );
 
-      setTimeout(() => {
+      window.setTimeout(() => {
         navigate("/profissionais");
-      }, 800);
+      }, 500);
     } finally {
       setSaving(false);
     }

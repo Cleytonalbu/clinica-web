@@ -1,4 +1,7 @@
-import { useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import {
   Clock3,
@@ -11,120 +14,232 @@ import {
   PageCard,
 } from "@/components/ui";
 
-interface ScheduleDay {
-  id: number;
-  day: string;
-  enabled: boolean;
-  start: string;
-  end: string;
-  breakStart: string;
-  breakEnd: string;
+import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
+  getProfessionalScheduleDays,
+  saveProfessionalSchedule,
+  type ProfessionalScheduleDay,
+} from "@/pages/Profissionais/professionalScheduleStorage";
+
+interface ProfessionalScheduleProps {
+  professionalId:
+    number;
 }
 
-const initialSchedule: ScheduleDay[] = [
-  {
-    id: 1,
-    day: "Segunda-feira",
-    enabled: true,
-    start: "08:00",
-    end: "17:00",
-    breakStart: "12:00",
-    breakEnd: "13:00",
-  },
-  {
-    id: 2,
-    day: "Terça-feira",
-    enabled: true,
-    start: "08:00",
-    end: "17:00",
-    breakStart: "12:00",
-    breakEnd: "13:00",
-  },
-  {
-    id: 3,
-    day: "Quarta-feira",
-    enabled: true,
-    start: "08:00",
-    end: "12:00",
-    breakStart: "",
-    breakEnd: "",
-  },
-  {
-    id: 4,
-    day: "Quinta-feira",
-    enabled: true,
-    start: "08:00",
-    end: "17:00",
-    breakStart: "12:00",
-    breakEnd: "13:00",
-  },
-  {
-    id: 5,
-    day: "Sexta-feira",
-    enabled: true,
-    start: "08:00",
-    end: "12:00",
-    breakStart: "",
-    breakEnd: "",
-  },
-  {
-    id: 6,
-    day: "Sábado",
-    enabled: false,
-    start: "",
-    end: "",
-    breakStart: "",
-    breakEnd: "",
-  },
-  {
-    id: 7,
-    day: "Domingo",
-    enabled: false,
-    start: "",
-    end: "",
-    breakStart: "",
-    breakEnd: "",
-  },
-];
+export function ProfessionalSchedule({
+  professionalId,
+}: ProfessionalScheduleProps) {
+  const {
+    activeUnit,
+    activeUnitId,
+  } =
+    useUnit();
 
-export function ProfessionalSchedule() {
-  const [schedule, setSchedule] =
-    useState<ScheduleDay[]>(initialSchedule);
-
-  const [saved, setSaved] = useState(false);
-
-  function updateDay(
-    dayId: number,
-    field: keyof Omit<
-      ScheduleDay,
-      "id" | "day"
-    >,
-    value: string | boolean
-  ) {
-    setSchedule((current) =>
-      current.map((day) =>
-        day.id === dayId
-          ? {
-              ...day,
-              [field]: value,
-            }
-          : day
-      )
+  const [
+    schedule,
+    setSchedule,
+  ] =
+    useState<
+      ProfessionalScheduleDay[]
+    >(
+      () =>
+        getProfessionalScheduleDays(
+          professionalId,
+          activeUnitId
+        )
     );
 
-    setSaved(false);
+  const [
+    saved,
+    setSaved,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    error,
+    setError,
+  ] =
+    useState<
+      string |
+      null
+    >(
+      null
+    );
+
+  /*
+   * Ao trocar a unidade pelo seletor global,
+   * carregamos automaticamente a jornada específica
+   * daquele profissional naquela unidade.
+   */
+  useEffect(
+    () => {
+      setSchedule(
+        getProfessionalScheduleDays(
+          professionalId,
+          activeUnitId
+        )
+      );
+
+      setSaved(
+        false
+      );
+
+      setError(
+        null
+      );
+    },
+    [
+      professionalId,
+      activeUnitId,
+    ]
+  );
+
+  function updateDay(
+    dayId:
+      number,
+
+    field:
+      keyof Omit<
+        ProfessionalScheduleDay,
+        "id" |
+        "day"
+      >,
+
+    value:
+      string |
+      boolean
+  ) {
+    setSchedule(
+      (
+        current
+      ) =>
+        current.map(
+          (
+            day
+          ) =>
+            day.id ===
+            dayId
+              ? {
+                  ...day,
+
+                  [field]:
+                    value,
+                }
+              : day
+        )
+    );
+
+    setSaved(
+      false
+    );
+
+    setError(
+      null
+    );
+  }
+
+  function validateSchedule() {
+    for (
+      const day of
+      schedule
+    ) {
+      if (
+        !day.enabled
+      ) {
+        continue;
+      }
+
+      if (
+        !day.start ||
+        !day.end
+      ) {
+        return `${day.day}: informe o horário de início e fim.`;
+      }
+
+      if (
+        day.start >=
+        day.end
+      ) {
+        return `${day.day}: o horário final deve ser posterior ao inicial.`;
+      }
+
+      const hasAnyBreak =
+        Boolean(
+          day.breakStart ||
+          day.breakEnd
+        );
+
+      if (
+        hasAnyBreak &&
+        (
+          !day.breakStart ||
+          !day.breakEnd
+        )
+      ) {
+        return `${day.day}: informe início e fim do intervalo.`;
+      }
+
+      if (
+        day.breakStart &&
+        day.breakEnd
+      ) {
+        if (
+          day.breakStart >=
+          day.breakEnd
+        ) {
+          return `${day.day}: o fim do intervalo deve ser posterior ao início.`;
+        }
+
+        if (
+          day.breakStart <
+            day.start ||
+          day.breakEnd >
+            day.end
+        ) {
+          return `${day.day}: o intervalo precisa estar dentro da jornada configurada.`;
+        }
+      }
+    }
+
+    return null;
   }
 
   function handleSave() {
-    console.log(
-      "Horários do profissional:",
+    const validationError =
+      validateSchedule();
+
+    if (
+      validationError
+    ) {
+      setError(
+        validationError
+      );
+
+      setSaved(
+        false
+      );
+
+      return;
+    }
+
+    saveProfessionalSchedule(
+      professionalId,
+      activeUnitId,
       schedule
     );
 
-    // Futuramente:
-    // await professionalService.updateSchedule(schedule);
+    setError(
+      null
+    );
 
-    setSaved(true);
+    setSaved(
+      true
+    );
   }
 
   return (
@@ -136,72 +251,110 @@ export function ProfessionalSchedule() {
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            Configure a disponibilidade semanal do profissional.
+            Configure a disponibilidade semanal do profissional na unidade selecionada.
+          </p>
+
+          <p className="mt-2 text-xs font-bold text-[#6543ef]">
+            Unidade: {
+              activeUnit.name
+            }
           </p>
         </div>
 
         <Button
           type="button"
-          onClick={handleSave}
+          onClick={
+            handleSave
+          }
         >
-          <Save size={18} />
+          <Save
+            size={
+              18
+            }
+          />
           Salvar horários
         </Button>
       </div>
 
       {saved && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-          Horários salvos com sucesso.
+          Horários salvos com sucesso para {
+            activeUnit.name
+          }.
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          {
+            error
+          }
         </div>
       )}
 
       <PageCard
         title="Disponibilidade semanal"
-        description="Defina os dias e horários em que o profissional estará disponível."
+        description="Esses horários passam a ser usados pela Agenda e pelo aplicativo para bloquear períodos em que o profissional não atende."
       >
         <div className="space-y-4">
-          {schedule.map((day) => (
-            <ScheduleRow
-              key={day.id}
-              day={day}
-              onChange={(
-                field,
-                value
-              ) =>
-                updateDay(
-                  day.id,
+          {schedule.map(
+            (
+              day
+            ) => (
+              <ScheduleRow
+                key={
+                  day.id
+                }
+                day={
+                  day
+                }
+                onChange={(
                   field,
                   value
-                )
-              }
-            />
-          ))}
+                ) =>
+                  updateDay(
+                    day.id,
+                    field,
+                    value
+                  )
+                }
+              />
+            )
+          )}
         </div>
       </PageCard>
 
       <PageCard
         title="Resumo da jornada"
-        description="Carga horária semanal configurada."
+        description="Carga horária semanal configurada para esta unidade."
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <SummaryCard
             title="Dias ativos"
-            value={String(
-              schedule.filter(
-                (day) =>
-                  day.enabled
-              ).length
-            )}
+            value={
+              String(
+                schedule.filter(
+                  (
+                    day
+                  ) =>
+                    day.enabled
+                ).length
+              )
+            }
           />
 
           <SummaryCard
             title="Dias indisponíveis"
-            value={String(
-              schedule.filter(
-                (day) =>
-                  !day.enabled
-              ).length
-            )}
+            value={
+              String(
+                schedule.filter(
+                  (
+                    day
+                  ) =>
+                    !day.enabled
+                ).length
+              )
+            }
           />
 
           <SummaryCard
@@ -217,15 +370,22 @@ export function ProfessionalSchedule() {
 }
 
 interface ScheduleRowProps {
-  day: ScheduleDay;
+  day:
+    ProfessionalScheduleDay;
 
-  onChange: (
-    field: keyof Omit<
-      ScheduleDay,
-      "id" | "day"
-    >,
-    value: string | boolean
-  ) => void;
+  onChange:
+    (
+      field:
+        keyof Omit<
+          ProfessionalScheduleDay,
+          "id" |
+          "day"
+        >,
+
+      value:
+        string |
+        boolean
+    ) => void;
 }
 
 function ScheduleRow({
@@ -245,8 +405,12 @@ function ScheduleRow({
           <label className="relative inline-flex cursor-pointer items-center">
             <input
               type="checkbox"
-              checked={day.enabled}
-              onChange={(event) =>
+              checked={
+                day.enabled
+              }
+              onChange={(
+                event
+              ) =>
                 onChange(
                   "enabled",
                   event.target.checked
@@ -268,7 +432,9 @@ function ScheduleRow({
 
           <div>
             <p className="font-semibold text-slate-800">
-              {day.day}
+              {
+                day.day
+              }
             </p>
 
             <p className="mt-1 text-xs text-slate-400">
@@ -282,9 +448,15 @@ function ScheduleRow({
         <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <ScheduleField
             label="Início"
-            value={day.start}
-            disabled={!day.enabled}
-            onChange={(value) =>
+            value={
+              day.start
+            }
+            disabled={
+              !day.enabled
+            }
+            onChange={(
+              value
+            ) =>
               onChange(
                 "start",
                 value
@@ -294,9 +466,15 @@ function ScheduleRow({
 
           <ScheduleField
             label="Fim"
-            value={day.end}
-            disabled={!day.enabled}
-            onChange={(value) =>
+            value={
+              day.end
+            }
+            disabled={
+              !day.enabled
+            }
+            onChange={(
+              value
+            ) =>
               onChange(
                 "end",
                 value
@@ -306,9 +484,15 @@ function ScheduleRow({
 
           <ScheduleField
             label="Início intervalo"
-            value={day.breakStart}
-            disabled={!day.enabled}
-            onChange={(value) =>
+            value={
+              day.breakStart
+            }
+            disabled={
+              !day.enabled
+            }
+            onChange={(
+              value
+            ) =>
               onChange(
                 "breakStart",
                 value
@@ -318,9 +502,15 @@ function ScheduleRow({
 
           <ScheduleField
             label="Fim intervalo"
-            value={day.breakEnd}
-            disabled={!day.enabled}
-            onChange={(value) =>
+            value={
+              day.breakEnd
+            }
+            disabled={
+              !day.enabled
+            }
+            onChange={(
+              value
+            ) =>
               onChange(
                 "breakEnd",
                 value
@@ -334,12 +524,20 @@ function ScheduleRow({
 }
 
 interface ScheduleFieldProps {
-  label: string;
-  value: string;
-  disabled: boolean;
-  onChange: (
-    value: string
-  ) => void;
+  label:
+    string;
+
+  value:
+    string;
+
+  disabled:
+    boolean;
+
+  onChange:
+    (
+      value:
+        string
+    ) => void;
 }
 
 function ScheduleField({
@@ -351,20 +549,30 @@ function ScheduleField({
   return (
     <div>
       <label className="mb-2 block text-xs font-medium text-slate-500">
-        {label}
+        {
+          label
+        }
       </label>
 
       <div className="relative">
         <Clock3
-          size={15}
+          size={
+            15
+          }
           className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
         />
 
         <Input
           type="time"
-          value={value}
-          disabled={disabled}
-          onChange={(event) =>
+          value={
+            value
+          }
+          disabled={
+            disabled
+          }
+          onChange={(
+            event
+          ) =>
             onChange(
               event.target.value
             )
@@ -377,8 +585,11 @@ function ScheduleField({
 }
 
 interface SummaryCardProps {
-  title: string;
-  value: string;
+  title:
+    string;
+
+  value:
+    string;
 }
 
 function SummaryCard({
@@ -388,18 +599,23 @@ function SummaryCard({
   return (
     <div className="rounded-xl bg-slate-50 p-4">
       <p className="text-sm text-slate-500">
-        {title}
+        {
+          title
+        }
       </p>
 
       <p className="mt-2 text-2xl font-bold text-slate-900">
-        {value}
+        {
+          value
+        }
       </p>
     </div>
   );
 }
 
 function calculateWeeklyHours(
-  schedule: ScheduleDay[]
+  schedule:
+    ProfessionalScheduleDay[]
 ) {
   const totalMinutes =
     schedule.reduce(
@@ -426,7 +642,8 @@ function calculateWeeklyHours(
           );
 
         let minutes =
-          end - start;
+          end -
+          start;
 
         if (
           day.breakStart &&
@@ -453,14 +670,21 @@ function calculateWeeklyHours(
     );
 
   return (
-    totalMinutes / 60
-  ).toFixed(1);
+    totalMinutes /
+    60
+  ).toFixed(
+    1
+  );
 }
 
 function timeToMinutes(
-  time: string
+  time:
+    string
 ) {
-  const [hours, minutes] =
+  const [
+    hours,
+    minutes,
+  ] =
     time
       .split(":")
       .map(Number);

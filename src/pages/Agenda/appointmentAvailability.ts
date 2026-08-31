@@ -26,6 +26,10 @@ import {
   getSavedBlocks,
 } from "./blockStorage";
 
+import {
+  checkProfessionalScheduleAvailability,
+} from "@/pages/Profissionais/professionalScheduleStorage";
+
 const WEEK_DAY_NAMES = [
   "Domingo",
   "Segunda",
@@ -181,6 +185,27 @@ export function isAppointmentSlotAvailable({
 
       reason:
         "Este horário está fora da agenda disponível da clínica.",
+    };
+  }
+
+  const professionalSchedule =
+    checkProfessionalScheduleAvailability(
+      professionalSetting.id,
+      unitId,
+      date,
+      startTime,
+      endTime
+    );
+
+  if (
+    !professionalSchedule.available
+  ) {
+    return {
+      available:
+        false,
+
+      reason:
+        professionalSchedule.reason,
     };
   }
 

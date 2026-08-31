@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -40,6 +41,7 @@ import {
 } from "./appointmentAvailability";
 
 import {
+  APPOINTMENT_REQUESTS_CHANGED_EVENT,
   getAppointmentRequestsByUnit,
   markAppointmentRequestAsScheduled,
   rejectAppointmentRequest,
@@ -93,6 +95,31 @@ export function AppointmentRequestsPanel({
     >(
       null
     );
+
+  useEffect(
+    () => {
+      function handleRequestsChanged() {
+        setRefreshKey(
+          (
+            current
+          ) =>
+            current + 1
+        );
+      }
+
+      window.addEventListener(
+        APPOINTMENT_REQUESTS_CHANGED_EVENT,
+        handleRequestsChanged
+      );
+
+      return () =>
+        window.removeEventListener(
+          APPOINTMENT_REQUESTS_CHANGED_EVENT,
+          handleRequestsChanged
+        );
+    },
+    []
+  );
 
   const requests =
     useMemo(
@@ -305,6 +332,9 @@ export function AppointmentRequestsPanel({
         patient:
           request.patient,
 
+        professionalId:
+          request.professionalId,
+
         professional:
           request.professional,
 
@@ -335,6 +365,9 @@ export function AppointmentRequestsPanel({
             : "Solicitado pelo app.",
 
         billingType,
+
+        convenioId:
+          request.convenioId,
 
         convenio:
           request.convenio,
@@ -369,6 +402,9 @@ export function AppointmentRequestsPanel({
             patient:
               request.patient,
 
+            professionalId:
+              request.professionalId,
+
             professional:
               request.professional,
 
@@ -379,6 +415,9 @@ export function AppointmentRequestsPanel({
               request.date,
 
             billingType,
+
+            convenioId:
+              request.convenioId,
 
             convenio:
               request.convenio,

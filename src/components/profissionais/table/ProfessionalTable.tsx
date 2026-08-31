@@ -15,6 +15,18 @@ import {
   useNavigate,
 } from "react-router-dom";
 
+import {
+  getSystemSettings,
+} from "@/pages/Configuracoes/settingsStorage";
+
+import {
+  getSavedAppointments,
+} from "@/pages/Agenda/appointmentStorage";
+
+import {
+  getProfessionalAccessiblePatientIds,
+} from "@/pages/Pacientes/patientAccessRules";
+
 export type ProfessionalStatus =
   | "Ativo"
   | "Inativo"
@@ -58,75 +70,58 @@ export interface ProfessionalFilterState {
 }
 
 /* =========================================
-   DADOS EXISTENTES
+   FONTE ÚNICA DE PROFISSIONAIS
 ========================================= */
 
-const professionals:
-  Professional[] = [
-  {
-    id: 1,
-    name:
-      "Dra. Ana Paula",
-    specialty:
-      "Psicologia",
-    council:
-      "CRP 13/12345",
-    phone:
-      "(83) 99999-1111",
-    patients: 32,
-    appointmentsToday: 8,
-    status:
-      "Ativo",
-  },
+function localDateKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
-  {
-    id: 2,
-    name:
-      "Dra. Camila Soares",
-    specialty:
-      "Fonoaudiologia",
-    council:
-      "CREFONO 4-12345",
-    phone:
-      "(83) 99999-2222",
-    patients: 28,
-    appointmentsToday: 6,
-    status:
-      "Ativo",
-  },
+export function getProfessionalTableData():
+  Professional[] {
+  const today = localDateKey();
 
-  {
-    id: 3,
-    name:
-      "Dra. Larissa Lima",
-    specialty:
-      "Terapia Ocupacional",
-    council:
-      "CREFITO 1/123456",
-    phone:
-      "(83) 99999-3333",
-    patients: 21,
-    appointmentsToday: 5,
-    status:
-      "Férias",
-  },
+  const appointments =
+    getSavedAppointments();
 
-  {
-    id: 4,
-    name:
-      "Dr. Rafael Costa",
-    specialty:
-      "Fisioterapia",
-    council:
-      "CREFITO 1/654321",
-    phone:
-      "(83) 99999-4444",
-    patients: 18,
-    appointmentsToday: 4,
-    status:
-      "Inativo",
-  },
-];
+  return getSystemSettings()
+    .professionals
+    .map((professional) => {
+      const status:
+        ProfessionalStatus =
+          professional.status ??
+          (professional.active
+            ? "Ativo"
+            : "Inativo");
+
+      return {
+        id: professional.id,
+        name: professional.name,
+        specialty: professional.specialty,
+        council: professional.registration,
+        phone: professional.phone ?? "—",
+        patients:
+          getProfessionalAccessiblePatientIds(
+            professional.name
+          ).length,
+        appointmentsToday:
+          appointments.filter(
+            (appointment) =>
+              appointment.professional === professional.name &&
+              appointment.date === today &&
+              appointment.status !== "Cancelado"
+          ).length,
+        status,
+      };
+    })
+    .sort((a, b) =>
+      a.name.localeCompare(b.name, "pt-BR")
+    );
+}
 
 /* =========================================
    COMPONENTE PRINCIPAL
@@ -140,6 +135,9 @@ function ProfessionalTableBase({
 }) {
   const navigate =
     useNavigate();
+
+  const professionals =
+    getProfessionalTableData();
 
   const filteredProfessionals =
     useMemo(
@@ -897,6 +895,16 @@ export const ProfessionalTable = Object.assign(
   ProfessionalTableBase,
   {
     Summary: ProfessionalSummary,
-    data: professionals,
+
+    /**
+     * Compatibilidade com as telas que ainda usam
+     * ProfessionalTable.data.
+     *
+     * O getter sempre consulta a fonte única atualizada,
+     * portanto não volta a criar uma lista fixa.
+     */
+    get data() {
+      return getProfessionalTableData();
+    },
   }
 );

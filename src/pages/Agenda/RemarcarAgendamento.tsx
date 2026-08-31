@@ -64,6 +64,14 @@ import {
   getDefaultClinicUnitId,
 } from "@/pages/Configuracoes/clinicUnitStorage";
 
+import {
+  syncPendingFinancialChargeWithAppointment,
+} from "@/pages/Financeiro/financeStorage";
+
+import {
+  isAppointmentSlotAvailable,
+} from "./appointmentAvailability";
+
 /* =========================================
    ATENDIMENTOS DE DEMONSTRAÇÃO
 ========================================= */
@@ -823,6 +831,40 @@ export default function RemarcarAgendamento() {
       return;
     }
 
+    const professionalAvailability =
+      isAppointmentSlotAvailable(
+        {
+          unitId:
+            activeUnitId,
+
+          professionalId:
+            selectedProfessional?.id ??
+            0,
+
+          professional,
+
+          date,
+
+          startTime,
+
+          endTime,
+
+          ignoreAppointmentId:
+            numericId,
+        }
+      );
+
+    if (
+      !professionalAvailability.available
+    ) {
+      showError(
+        professionalAvailability.reason ??
+          "O profissional não está disponível neste horário."
+      );
+
+      return;
+    }
+
     setSaving(
       true
     );
@@ -839,21 +881,50 @@ export default function RemarcarAgendamento() {
 
           endTime,
 
+          professionalId:
+            selectedProfessional?.id,
+
           professional,
 
           specialty,
 
           room,
+
+          observations:
+            reason.trim()
+              ? [
+                  appointment.observations,
+                  `Remarcação: ${reason.trim()}`,
+                ]
+                  .filter(Boolean)
+                  .join("\n\n")
+              : appointment.observations,
+        }
+      );
+
+      syncPendingFinancialChargeWithAppointment(
+        {
+          appointmentId:
+            numericId,
+
+          professionalId:
+            selectedProfessional?.id,
+
+          professional,
+
+          specialty,
+
+          date,
         }
       );
 
       /*
        * Enquanto ainda não temos API,
-       * registramos o motivo apenas no
-       * console.
+       * o motivo também é mantido nas observações do
+       * agendamento e registrado no console.
        *
-       * Posteriormente teremos um
-       * histórico real de remarcações.
+       * Posteriormente a API poderá ter um histórico
+       * estruturado de remarcações.
        */
 
       console.log(

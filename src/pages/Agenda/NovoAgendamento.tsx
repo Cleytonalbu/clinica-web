@@ -38,6 +38,10 @@ import {
 } from "./scheduleValidation";
 
 import {
+  isAppointmentSlotAvailable,
+} from "./appointmentAvailability";
+
+import {
   saveAppointment,
   type StoredAppointment,
 } from "./appointmentStorage";
@@ -63,6 +67,7 @@ import {
   getActiveProfessionals,
   getActiveRooms,
   getActiveSpecialties,
+  shouldCreateChargeOnAppointmentCreation,
 } from "@/pages/Configuracoes/settingsStorage";
 
 import {
@@ -618,6 +623,50 @@ export default function NovoAgendamento() {
     );
 
   /* =======================================
+     DISPONIBILIDADE DA JORNADA PROFISSIONAL
+  ======================================= */
+
+  const professionalAvailability =
+    useMemo(
+      () => {
+        if (
+          !formData.professional ||
+          !formData.date ||
+          !formData.startTime ||
+          !formData.endTime
+        ) {
+          return null;
+        }
+
+        return isAppointmentSlotAvailable(
+          {
+            unitId:
+              activeUnitId,
+
+            professional:
+              formData.professional,
+
+            date:
+              formData.date,
+
+            startTime:
+              formData.startTime,
+
+            endTime:
+              formData.endTime,
+          }
+        );
+      },
+      [
+        activeUnitId,
+        formData.professional,
+        formData.date,
+        formData.startTime,
+        formData.endTime,
+      ]
+    );
+
+  /* =======================================
      ATUALIZAR CAMPO
   ======================================= */
 
@@ -954,6 +1003,17 @@ export default function NovoAgendamento() {
     }
 
     if (
+      professionalAvailability &&
+      !professionalAvailability.available
+    ) {
+      showError(
+        professionalAvailability.reason
+      );
+
+      return false;
+    }
+
+    if (
       !formData.room
     ) {
       showError(
@@ -1054,6 +1114,9 @@ export default function NovoAgendamento() {
         patient:
           selectedPatient.nome,
 
+        professionalId:
+          selectedProfessional?.id,
+
         professional:
           formData.professional,
 
@@ -1083,6 +1146,12 @@ export default function NovoAgendamento() {
 
         billingType:
           formData.billingType,
+
+        convenioId:
+          formData.billingType ===
+            "Convênio"
+            ? selectedConvenio?.id
+            : undefined,
 
         convenio:
           formData.billingType ===
@@ -1118,9 +1187,17 @@ export default function NovoAgendamento() {
        * consumida quando o atendimento for Realizado.
        */
       if (
-        !selectedPatientPackage &&
-        formData.billingType !==
-          "Convênio"
+        shouldCreateChargeOnAppointmentCreation(
+          {
+            billingType:
+              formData.billingType,
+
+            hasPatientPackage:
+              Boolean(
+                selectedPatientPackage
+              ),
+          }
+        )
       ) {
         createChargeFromAppointment({
           unitId:
@@ -1135,6 +1212,9 @@ export default function NovoAgendamento() {
           patient:
             selectedPatient.nome,
 
+          professionalId:
+            selectedProfessional?.id,
+
           professional:
             formData.professional,
 
@@ -1146,6 +1226,12 @@ export default function NovoAgendamento() {
 
           billingType:
             formData.billingType,
+
+          convenioId:
+            formData.billingType ===
+              "Convênio"
+              ? selectedConvenio?.id
+              : undefined,
 
           convenio:
             formData.billingType ===

@@ -25,6 +25,7 @@ import {
 
 import {
   ProfessionalTable,
+  getProfessionalTableData,
   type ProfessionalFilterState,
 } from "@/components/profissionais/table/ProfessionalTable";
 
@@ -33,6 +34,9 @@ import {
 ========================================= */
 
 export default function Profissionais() {
+  const professionals =
+    getProfessionalTableData();
+
   const [
     filters,
     setFilters,
@@ -55,7 +59,7 @@ export default function Profissionais() {
                 "Total de profissionais",
 
               value:
-                ProfessionalTable.data.length,
+                professionals.length,
 
               description:
                 "Vinculados à clínica",
@@ -75,7 +79,7 @@ export default function Profissionais() {
                 "Ativos",
 
               value:
-                ProfessionalTable.data.filter(
+                professionals.filter(
                   (
                     professional
                   ) =>
@@ -101,7 +105,7 @@ export default function Profissionais() {
                 "Em férias",
 
               value:
-                ProfessionalTable.data.filter(
+                professionals.filter(
                   (
                     professional
                   ) =>
@@ -127,7 +131,7 @@ export default function Profissionais() {
                 "Inativos",
 
               value:
-                ProfessionalTable.data.filter(
+                professionals.filter(
                   (
                     professional
                   ) =>
@@ -153,7 +157,7 @@ export default function Profissionais() {
                 "Atendimentos hoje",
 
               value:
-                ProfessionalTable.data.reduce(
+                professionals.reduce(
                   (
                     total,
                     professional

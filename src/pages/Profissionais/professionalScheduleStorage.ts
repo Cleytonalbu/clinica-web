@@ -208,3 +208,220 @@ export function saveProfessionalSchedule(
 
   return record;
 }
+
+/* =========================================
+   DISPONIBILIDADE DO PROFISSIONAL
+========================================= */
+
+const WEEK_DAY_TO_SCHEDULE_NAME = [
+  "Domingo",
+  "Segunda-feira",
+  "Terça-feira",
+  "Quarta-feira",
+  "Quinta-feira",
+  "Sexta-feira",
+  "Sábado",
+] as const;
+
+export interface ProfessionalScheduleAvailability {
+  available: boolean;
+  reason: string;
+  day:
+    ProfessionalScheduleDay |
+    null;
+}
+
+/**
+ * Verifica se um profissional está dentro da sua jornada
+ * semanal configurada para uma unidade específica.
+ *
+ * Esta função é usada pela Agenda e também pelo cálculo de
+ * horários disponíveis para o aplicativo dos responsáveis.
+ */
+export function checkProfessionalScheduleAvailability(
+  professionalId: number,
+  unitId: number,
+  date: string,
+  startTime: string,
+  endTime: string
+): ProfessionalScheduleAvailability {
+  const parsedDate =
+    new Date(
+      `${date}T12:00:00`
+    );
+
+  if (
+    Number.isNaN(
+      parsedDate.getTime()
+    )
+  ) {
+    return {
+      available:
+        false,
+
+      reason:
+        "Data inválida.",
+
+      day:
+        null,
+    };
+  }
+
+  if (
+    !startTime ||
+    !endTime ||
+    startTime >=
+      endTime
+  ) {
+    return {
+      available:
+        false,
+
+      reason:
+        "Horário inválido.",
+
+      day:
+        null,
+    };
+  }
+
+  const dayName =
+    WEEK_DAY_TO_SCHEDULE_NAME[
+      parsedDate.getDay()
+    ];
+
+  const scheduleDay =
+    getProfessionalScheduleDays(
+      professionalId,
+      unitId
+    ).find(
+      (
+        day
+      ) =>
+        day.day ===
+        dayName
+    ) ??
+    null;
+
+  if (
+    !scheduleDay ||
+    !scheduleDay.enabled
+  ) {
+    return {
+      available:
+        false,
+
+      reason:
+        "O profissional não atende neste dia da semana.",
+
+      day:
+        scheduleDay,
+    };
+  }
+
+  if (
+    !scheduleDay.start ||
+    !scheduleDay.end
+  ) {
+    return {
+      available:
+        false,
+
+      reason:
+        "O profissional não possui horário de atendimento configurado para este dia.",
+
+      day:
+        scheduleDay,
+    };
+  }
+
+  if (
+    startTime <
+      scheduleDay.start ||
+    endTime >
+      scheduleDay.end
+  ) {
+    return {
+      available:
+        false,
+
+      reason:
+        `O profissional atende neste dia das ${scheduleDay.start} às ${scheduleDay.end}.`,
+
+      day:
+        scheduleDay,
+    };
+  }
+
+  if (
+    scheduleDay.breakStart &&
+    scheduleDay.breakEnd &&
+    periodsOverlapLocal(
+      startTime,
+      endTime,
+      scheduleDay.breakStart,
+      scheduleDay.breakEnd
+    )
+  ) {
+    return {
+      available:
+        false,
+
+      reason:
+        `O profissional possui intervalo das ${scheduleDay.breakStart} às ${scheduleDay.breakEnd}.`,
+
+      day:
+        scheduleDay,
+    };
+  }
+
+  return {
+    available:
+      true,
+
+    reason:
+      "",
+
+    day:
+      scheduleDay,
+  };
+}
+
+function periodsOverlapLocal(
+  startA: string,
+  endA: string,
+  startB: string,
+  endB: string
+) {
+  return (
+    timeToMinutesLocal(
+      startA
+    ) <
+      timeToMinutesLocal(
+        endB
+      ) &&
+    timeToMinutesLocal(
+      endA
+    ) >
+      timeToMinutesLocal(
+        startB
+      )
+  );
+}
+
+function timeToMinutesLocal(
+  value: string
+) {
+  const [
+    hours,
+    minutes,
+  ] =
+    value
+      .split(":")
+      .map(Number);
+
+  return (
+    hours * 60 +
+    minutes
+  );
+}

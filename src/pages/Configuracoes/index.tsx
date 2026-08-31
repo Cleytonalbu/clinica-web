@@ -106,10 +106,6 @@ import {
   setProfessionalUnits,
 } from "./professionalUnitStorage";
 
-import {
-  ProfessionalTable,
-} from "@/components/profissionais/table/ProfessionalTable";
-
 type SettingsSection =
   | "clinic"
   | "units"
@@ -2882,7 +2878,10 @@ function ProfessionalsSettingsSection({
   void pricingVersion;
 
   const registeredProfessionals =
-    ProfessionalTable.data
+    settings.professionals
+      .filter(
+        (professional) => professional.active
+      )
       .slice()
       .sort(
         (
@@ -3314,7 +3313,7 @@ function ProfessionalsSettingsSection({
                 );
 
                 onRegistrationChange(
-                  selected.council
+                  selected.registration
                 );
 
                 onValueChange(

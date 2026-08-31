@@ -3,6 +3,10 @@ import { useParams } from "react-router-dom";
 
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 
+import {
+  getProfessionalById,
+} from "@/pages/Configuracoes/settingsStorage";
+
 import { ProfessionalAgenda } from "@/components/profissionais/profile/ProfessionalAgenda";
 import { ProfessionalOverview } from "@/components/profissionais/profile/ProfessionalOverview";
 import { ProfessionalPatients } from "@/components/profissionais/profile/ProfessionalPatients";
@@ -18,6 +22,14 @@ import {
 export default function PerfilProfissional() {
   const { id } = useParams();
 
+  const professionalId =
+    Number(id);
+
+  const professional =
+    getProfessionalById(
+      professionalId
+    );
+
   const [activeTab, setActiveTab] =
     useState<ProfessionalProfileTab>(
       "resumo"
@@ -28,14 +40,26 @@ export default function PerfilProfissional() {
       <div className="space-y-6">
         <ProfessionalProfileHeader
           professionalId={
-            Number(
-              id
-            )
+            professionalId
           }
-          name="Dra. Ana Paula"
-          specialty="Psicologia"
-          council="CRP 13/12345"
-          status="Ativo"
+          name={
+            professional?.name ??
+            "Profissional não encontrado"
+          }
+          specialty={
+            professional?.specialty ??
+            "—"
+          }
+          council={
+            professional?.registration ??
+            "—"
+          }
+          status={
+            professional?.status ??
+            (professional?.active
+              ? "Ativo"
+              : "Inativo")
+          }
         />
 
         <ProfessionalProfileNav
@@ -69,7 +93,11 @@ export default function PerfilProfissional() {
 
         {activeTab ===
           "horarios" && (
-          <ProfessionalSchedule />
+          <ProfessionalSchedule
+            professionalId={
+              professionalId
+            }
+          />
         )}
 
         {![

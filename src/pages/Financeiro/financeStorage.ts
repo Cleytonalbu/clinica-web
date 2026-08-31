@@ -23,7 +23,9 @@ export interface FinancialCharge {
   patientId: number;
   patient: string;
 
+  professionalId?: number;
   professional: string;
+
   specialty: string;
 
   description: string;
@@ -33,6 +35,7 @@ export interface FinancialCharge {
 
   billingType: BillingType;
 
+  convenioId?: number;
   convenio?: string;
 
   paymentMethod: PaymentMethod;
@@ -64,6 +67,17 @@ export interface FinancialCharge {
 
 const STORAGE_KEY =
   "entre-afetos-financial-charges";
+
+export const FINANCIAL_CHARGES_CHANGED_EVENT =
+  "entre-afetos:financial-charges-changed";
+
+function notifyFinancialChargesChanged() {
+  window.dispatchEvent(
+    new CustomEvent(
+      FINANCIAL_CHARGES_CHANGED_EVENT
+    )
+  );
+}
 
 export function getFinancialCharges(): FinancialCharge[] {
   try {
@@ -128,6 +142,8 @@ export function saveFinancialCharge(
       next
     )
   );
+
+  notifyFinancialChargesChanged();
 }
 
 interface CreateChargeData {
@@ -138,13 +154,16 @@ interface CreateChargeData {
   patientId: number;
   patient: string;
 
+  professionalId?: number;
   professional: string;
+
   specialty: string;
 
   date: string;
 
   billingType?: BillingType;
 
+  convenioId?: number;
   convenio?: string;
 
   paymentMethod?: PaymentMethod;
@@ -240,6 +259,9 @@ export function createChargeFromAppointment(
     patient:
       data.patient,
 
+    professionalId:
+      data.professionalId,
+
     professional:
       data.professional,
 
@@ -256,6 +278,9 @@ export function createChargeFromAppointment(
       data.date,
 
     billingType,
+
+    convenioId:
+      data.convenioId,
 
     convenio:
       data.convenio,
@@ -317,6 +342,8 @@ export function updateFinancialCharge(
       next
     )
   );
+
+  notifyFinancialChargesChanged();
 }
 
 interface ReceiveChargeData {
@@ -624,4 +651,102 @@ export function createPaidFinancialReceipt(
   );
 
   return charge;
+}
+
+/**
+ * Cancela somente uma cobrança ainda pendente.
+ * Uma cobrança já paga nunca é estornada automaticamente por
+ * cancelamento do atendimento: isso exige um fluxo financeiro
+ * explícito de estorno/devolução.
+ */
+export function cancelPendingFinancialChargeByAppointment(
+  appointmentId: number
+) {
+  const charge =
+    getFinancialCharges().find(
+      (item) =>
+        item.appointmentId ===
+        appointmentId
+    );
+
+  if (
+    !charge ||
+    charge.status !==
+      "Pendente"
+  ) {
+    return charge;
+  }
+
+  updateFinancialCharge(
+    charge.id,
+    {
+      status:
+        "Cancelado",
+    }
+  );
+
+  return {
+    ...charge,
+    status:
+      "Cancelado" as const,
+  };
+}
+
+/**
+ * Mantém a cobrança pendente coerente quando o atendimento é
+ * remarcado. Cobranças pagas preservam os dados históricos.
+ */
+export function syncPendingFinancialChargeWithAppointment({
+  appointmentId,
+  professionalId,
+  professional,
+  specialty,
+  date,
+}: {
+  appointmentId: number;
+  professionalId?: number;
+  professional: string;
+  specialty: string;
+  date: string;
+}) {
+  const charge =
+    getFinancialCharges().find(
+      (item) =>
+        item.appointmentId ===
+        appointmentId
+    );
+
+  if (
+    !charge ||
+    charge.status !==
+      "Pendente"
+  ) {
+    return charge;
+  }
+
+  updateFinancialCharge(
+    charge.id,
+    {
+      professionalId,
+      professional,
+      specialty,
+      date,
+      dueDate:
+        date,
+      description:
+        `Atendimento - ${specialty}`,
+    }
+  );
+
+  return {
+    ...charge,
+    professionalId,
+    professional,
+    specialty,
+    date,
+    dueDate:
+      date,
+    description:
+      `Atendimento - ${specialty}`,
+  };
 }

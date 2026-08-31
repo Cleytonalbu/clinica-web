@@ -12,12 +12,30 @@ export interface RoomSetting {
   active: boolean;
 }
 
+export type ProfessionalStatus =
+  | "Ativo"
+  | "Inativo"
+  | "Férias";
+
 export interface ProfessionalSetting {
   id: number;
   name: string;
   specialty: string;
   registration: string;
   active: boolean;
+
+  /** Dados do cadastro principal do profissional. */
+  status?: ProfessionalStatus;
+  birthDate?: string;
+  cpf?: string;
+  rg?: string;
+  phone?: string;
+  email?: string;
+  councilType?: string;
+  councilNumber?: string;
+  employmentType?: string;
+  admissionDate?: string;
+  observations?: string;
 
   /**
    * Valor específico cobrado do paciente para este profissional.
@@ -1039,9 +1057,14 @@ const defaultResponsibleAppSettings: ResponsibleAppSettings = {
   modules: {
     agenda: true,
 
-    financial: true,
+    /*
+     * O app dos responsáveis não possui módulo financeiro.
+     * Planos e sessões disponíveis continuam no app, mas sem
+     * expor cobranças, caixa ou carteira da clínica.
+     */
+    financial: false,
 
-    digitalWallet: true,
+    digitalWallet: false,
 
     documents: true,
 
@@ -1065,13 +1088,13 @@ const defaultResponsibleAppSettings: ResponsibleAppSettings = {
 
     downloadAttachments: true,
 
-    viewPaymentHistory: true,
+    viewPaymentHistory: false,
 
-    viewPendingPayments: true,
+    viewPendingPayments: false,
 
-    addWalletCredit: true,
+    addWalletCredit: false,
 
-    viewWalletHistory: true,
+    viewWalletHistory: false,
 
     viewProfessionalName: true,
 
@@ -1428,9 +1451,21 @@ const defaultFinancialSettings: FinancialSettings = {
 
   generateChargeAutomatically: true,
 
-  chargeOnAppointmentCreation: false,
+  /*
+   * REGRA FINANCEIRA OFICIAL:
+   *
+   * Atendimentos particulares avulsos geram a cobrança
+   * no momento do agendamento. Isso permite receber antes
+   * da consulta e mantém o financeiro da Recepção alinhado
+   * ao fluxo operacional atual.
+   *
+   * Pacotes não geram cobrança avulsa.
+   * Convênios entram na produção quando o atendimento
+   * é realizado.
+   */
+  chargeOnAppointmentCreation: true,
 
-  chargeAfterAppointment: true,
+  chargeAfterAppointment: false,
 
   allowPartialPayment: true,
 
@@ -1987,6 +2022,16 @@ export function getSystemSettings(): SystemSettings {
 
         ...(parsed.responsibleApp?.modules ??
           {}),
+
+        /*
+         * MIGRAÇÃO DO APP DOS RESPONSÁVEIS:
+         * financeiro e carteira não fazem parte do app.
+         */
+        financial:
+          false,
+
+        digitalWallet:
+          false,
       },
 
       permissions: {
@@ -1994,7 +2039,22 @@ export function getSystemSettings(): SystemSettings {
 
         ...(parsed.responsibleApp?.permissions ??
           {}),
+
+        viewPaymentHistory:
+          false,
+
+        viewPendingPayments:
+          false,
+
+        addWalletCredit:
+          false,
+
+        viewWalletHistory:
+          false,
       },
+
+      showFinancialValuesOnHome:
+        false,
     };
 
     const normalizedPermissions: PermissionsSettings = {
@@ -2065,6 +2125,26 @@ export function getSystemSettings(): SystemSettings {
       paymentMethods:
         parsed.financial?.paymentMethods ??
         defaultFinancialSettings.paymentMethods,
+
+      /*
+       * MIGRAÇÃO DA REGRA DE COBRANÇA
+       *
+       * Esta regra não fica mais dependente de configurações
+       * antigas salvas no navegador. O comportamento oficial
+       * do sistema é:
+       *
+       * - Particular avulso: cobrança nasce no agendamento;
+       * - Pacote: sem cobrança avulsa;
+       * - Convênio: produção nasce ao realizar atendimento.
+       */
+      generateChargeAutomatically:
+        true,
+
+      chargeOnAppointmentCreation:
+        true,
+
+      chargeAfterAppointment:
+        false,
     };
 
     const normalizedReports: ReportsSettings = {
@@ -2146,6 +2226,12 @@ export function getSystemSettings(): SystemSettings {
               professional.customRepasseValue >= 0
                 ? professional.customRepasseValue
                 : undefined,
+
+            status:
+              professional.status ??
+              (professional.active
+                ? "Ativo"
+                : "Inativo"),
           })
         ),
 
@@ -2227,10 +2313,10 @@ export function getActiveRooms() {
 
 export function getActiveProfessionals() {
   return getSystemSettings().professionals.filter(
-    (
-      professional
-    ) =>
-      professional.active
+    (professional) =>
+      professional.active &&
+      professional.status !== "Inativo" &&
+      professional.status !== "Férias"
   );
 }
 
@@ -2369,6 +2455,38 @@ export function getFinancialSettings() {
   return getSystemSettings().financial;
 }
 
+/**
+ * Regra oficial de geração de cobrança para atendimentos.
+ * Centraliza a decisão para evitar que módulos diferentes
+ * adotem comportamentos contraditórios.
+ */
+export function shouldCreateChargeOnAppointmentCreation({
+  billingType,
+  hasPatientPackage,
+}: {
+  billingType:
+    "Particular" |
+    "Convênio";
+
+  hasPatientPackage:
+    boolean;
+}) {
+  if (
+    hasPatientPackage
+  ) {
+    return false;
+  }
+
+  if (
+    billingType ===
+    "Convênio"
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 export function getActivePaymentMethods() {
   return getSystemSettings().financial.paymentMethods.filter(
     (
@@ -2393,6 +2511,15 @@ export function getActiveReportTypes() {
 
 export function getGeneralSettings() {
   return getSystemSettings().general;
+}
+
+export function getProfessionalById(
+  professionalId: number
+) {
+  return getSystemSettings().professionals.find(
+    (professional) =>
+      professional.id === professionalId
+  );
 }
 
 export function getProfessionalByName(

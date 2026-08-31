@@ -49,6 +49,7 @@ import {
 
 import {
   createPaidFinancialReceipt,
+  FINANCIAL_CHARGES_CHANGED_EVENT,
   getFinancialCharges,
   receiveFinancialCharge,
   type FinancialCharge,
@@ -373,6 +374,28 @@ function FinanceiroRecepcao() {
       () =>
         getFinancialCharges()
     );
+
+  useEffect(
+    () => {
+      function handleChargesChanged() {
+        setCharges(
+          getFinancialCharges()
+        );
+      }
+
+      window.addEventListener(
+        FINANCIAL_CHARGES_CHANGED_EVENT,
+        handleChargesChanged
+      );
+
+      return () =>
+        window.removeEventListener(
+          FINANCIAL_CHARGES_CHANGED_EVENT,
+          handleChargesChanged
+        );
+    },
+    []
+  );
 
   const [
     movements,

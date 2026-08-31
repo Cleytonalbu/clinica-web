@@ -13,9 +13,23 @@ import type {
   StoredAppointment,
 } from "./appointmentStorage";
 
+interface AgendaProfessionalColumn {
+  id:
+    number;
+
+  name:
+    string;
+
+  specialty:
+    string;
+}
+
 interface ProfessionalColumnsViewProps {
   appointments:
     StoredAppointment[];
+
+  professionals:
+    AgendaProfessionalColumn[];
 
   blocks:
     ScheduleBlock[];
@@ -32,40 +46,6 @@ interface ProfessionalColumnsViewProps {
   ) => void;
 }
 
-const professionals = [
-  {
-    name:
-      "Dra. Ana Paula",
-
-    specialty:
-      "Psicologia",
-  },
-
-  {
-    name:
-      "Dra. Camila Soares",
-
-    specialty:
-      "Fonoaudiologia",
-  },
-
-  {
-    name:
-      "Dra. Larissa Lima",
-
-    specialty:
-      "Terapia Ocupacional",
-  },
-
-  {
-    name:
-      "Dr. Rafael Costa",
-
-    specialty:
-      "Fisioterapia",
-  },
-];
-
 const timeSlots = [
   "08:00",
   "09:00",
@@ -81,6 +61,7 @@ const timeSlots = [
 
 export function ProfessionalColumnsView({
   appointments,
+  professionals,
   blocks,
   selectedDate,
   onPatient,
@@ -102,8 +83,28 @@ export function ProfessionalColumnsView({
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="min-w-[1100px]">
-        <div className="grid grid-cols-[90px_repeat(4,minmax(220px,1fr))] border-b border-slate-200 bg-slate-50">
+      <div
+        className="min-w-[900px]"
+        style={{
+          minWidth:
+            `${Math.max(
+              900,
+              90 +
+                professionals.length *
+                  220
+            )}px`,
+        }}
+      >
+        <div
+          className="grid border-b border-slate-200 bg-slate-50"
+          style={{
+            gridTemplateColumns:
+              `90px repeat(${Math.max(
+                professionals.length,
+                1
+              )}, minmax(220px, 1fr))`,
+          }}
+        >
           <div className="border-r border-slate-200 p-4" />
 
           {professionals.map(
@@ -132,13 +133,29 @@ export function ProfessionalColumnsView({
           )}
         </div>
 
-        {timeSlots.map(
+        {professionals.length ===
+          0 && (
+          <div className="flex min-h-48 items-center justify-center px-6 text-center text-sm font-medium text-slate-400">
+            Nenhum profissional ativo está vinculado a esta unidade.
+          </div>
+        )}
+
+        {professionals.length >
+          0 &&
+          timeSlots.map(
           (time) => (
             <div
               key={
                 time
               }
-              className="grid grid-cols-[90px_repeat(4,minmax(220px,1fr))] border-b border-slate-100 last:border-b-0"
+              className="grid border-b border-slate-100 last:border-b-0"
+              style={{
+                gridTemplateColumns:
+                  `90px repeat(${Math.max(
+                    professionals.length,
+                    1
+                  )}, minmax(220px, 1fr))`,
+              }}
             >
               <div className="border-r border-slate-200 bg-slate-50/60 p-4 text-center text-sm font-semibold text-slate-500">
                 {
