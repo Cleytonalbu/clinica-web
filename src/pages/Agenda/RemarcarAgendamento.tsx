@@ -39,6 +39,10 @@ import {
 } from "./appointmentStorage";
 
 import {
+  appointmentCanBeRescheduled,
+} from "./appointmentStatusRules";
+
+import {
   checkScheduleConflict,
 } from "./scheduleValidation";
 
@@ -735,6 +739,18 @@ export default function RemarcarAgendamento() {
   ======================================= */
 
   function validate() {
+    if (
+      !appointmentCanBeRescheduled(
+        appointment.status
+      )
+    ) {
+      showError(
+        "Somente atendimentos agendados ou confirmados podem ser remarcados."
+      );
+
+      return false;
+    }
+
     if (
       !date
     ) {

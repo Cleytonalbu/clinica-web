@@ -13,6 +13,7 @@ import {
   CircleDollarSign,
   DoorOpen,
   FileBarChart,
+  KeyRound,
   LayoutList,
   Plus,
   Save,
@@ -72,6 +73,8 @@ import GeneralSettingsContainer from "./GeneralSettingsContainer";
 
 import ClinicUnitsSettingsSection from "./ClinicUnitsSettingsSection";
 
+import UserLoginsSettingsSection from "./UserLoginsSettingsSection";
+
 import {
   removeRoomUnitLinks,
   roomWorksAtUnit,
@@ -111,6 +114,7 @@ type SettingsSection =
   | "units"
   | "specialties"
   | "professionals"
+  | "user-logins"
   | "convenios"
   | "rooms"
   | "agenda"
@@ -289,6 +293,15 @@ const menuItems: {
     label: "Profissionais",
     icon:
       <UserCog
+        size={18}
+      />,
+  },
+
+  {
+    id: "user-logins",
+    label: "Logins de Usuários",
+    icon:
+      <KeyRound
         size={18}
       />,
   },
@@ -1864,6 +1877,19 @@ export default function Configuracoes() {
 
                 onRemove={
                   removeProfessional
+                }
+              />
+            )}
+
+            {activeSection ===
+              "user-logins" && (
+              <UserLoginsSettingsSection
+                professionals={
+                  systemSettings.professionals
+                }
+
+                onFeedback={
+                  showFeedback
                 }
               />
             )}

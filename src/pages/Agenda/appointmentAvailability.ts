@@ -42,10 +42,12 @@ const WEEK_DAY_NAMES = [
 
 interface AvailabilityParams {
   unitId: number;
+  professionalId?: number;
   professional: string;
   date: string;
   startTime: string;
   endTime: string;
+  ignoreAppointmentId?: number;
 }
 
 interface AvailableSlotsParams {
@@ -145,6 +147,7 @@ export function isAppointmentSlotAvailable({
   date,
   startTime,
   endTime,
+  ignoreAppointmentId,
 }: AvailabilityParams) {
   const professionalSetting =
     getActiveProfessionals()
@@ -217,6 +220,7 @@ export function isAppointmentSlotAvailable({
         startTime,
         endTime,
         unitId,
+        ignoreAppointmentId,
       }
     );
 

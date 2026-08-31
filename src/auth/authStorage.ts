@@ -1,5 +1,7 @@
 import {
   getPermissionProfileByName,
+  getProfessionalById,
+  getProfessionalByName,
   type PermissionModuleKey,
 } from "@/pages/Configuracoes/settingsStorage";
 
@@ -17,6 +19,12 @@ export interface AuthUser {
   email: string;
 
   profile: UserProfile;
+
+  /**
+   * Referência canônica ao cadastro do profissional.
+   * professionalName permanece para exibição e compatibilidade.
+   */
+  professionalId?: number;
 
   professionalName?: string;
 
@@ -83,6 +91,8 @@ const defaultUsers: StoredUser[] = [
 
     profile: "Profissional",
 
+    professionalId: 1,
+
     professionalName: "Dra. Ana Paula",
 
     active: true,
@@ -113,6 +123,8 @@ const defaultUsers: StoredUser[] = [
 
     profile: "Profissional",
 
+    professionalId: 5,
+
     professionalName: "Dra. Mariana Nutricionista",
 
     active: true,
@@ -128,6 +140,8 @@ const defaultUsers: StoredUser[] = [
     password: "123456",
 
     profile: "Profissional",
+
+    professionalId: 4,
 
     professionalName: "Dr. Rafael Costa",
 
@@ -156,26 +170,24 @@ export function getStoredUsers(): StoredUser[] {
         USERS_STORAGE_KEY
       );
 
-    if (!stored) {
-      localStorage.setItem(
-        USERS_STORAGE_KEY,
-        JSON.stringify(
-          defaultUsers
-        )
-      );
-
-      return defaultUsers;
-    }
-
     const parsed =
-      JSON.parse(
-        stored
-      ) as StoredUser[];
+      stored
+        ? JSON.parse(
+            stored
+          ) as StoredUser[]
+        : [];
+
+    const baseUsers =
+      Array.isArray(
+        parsed
+      )
+        ? parsed
+        : [];
 
     const missingDefaults =
       defaultUsers.filter(
         (defaultUser) =>
-          !parsed.some(
+          !baseUsers.some(
             (user) =>
               user.email
                 .trim()
@@ -186,23 +198,70 @@ export function getStoredUsers(): StoredUser[] {
           )
       );
 
-    if (missingDefaults.length > 0) {
-      const normalized = [
-        ...parsed,
-        ...missingDefaults,
-      ];
+    const withDefaults = [
+      ...baseUsers,
+      ...missingDefaults,
+    ];
 
-      localStorage.setItem(
-        USERS_STORAGE_KEY,
-        JSON.stringify(
-          normalized
-        )
+    /*
+     * Migração compatível:
+     * logins profissionais antigos que guardavam apenas
+     * professionalName passam a receber professionalId.
+     */
+    const normalized =
+      withDefaults.map(
+        (user) => {
+          if (
+            user.profile !==
+            "Profissional"
+          ) {
+            return user;
+          }
+
+          const linkedProfessional =
+            user.professionalId !==
+              undefined
+              ? getProfessionalById(
+                  user.professionalId
+                )
+              : getProfessionalByName(
+                  user.professionalName ??
+                    user.name
+                );
+
+          if (
+            !linkedProfessional
+          ) {
+            return user;
+          }
+
+          return {
+            ...user,
+
+            professionalId:
+              linkedProfessional.id,
+
+            /*
+             * O cadastro profissional é a fonte oficial
+             * do nome exibido pelo sistema.
+             */
+            name:
+              linkedProfessional.name,
+
+            professionalName:
+              linkedProfessional.name,
+          };
+        }
       );
 
-      return normalized;
-    }
+    localStorage.setItem(
+      USERS_STORAGE_KEY,
+      JSON.stringify(
+        normalized
+      )
+    );
 
-    return parsed;
+    return normalized;
   } catch {
     return defaultUsers;
   }
@@ -216,6 +275,239 @@ export function saveStoredUsers(
     JSON.stringify(
       users
     )
+  );
+}
+
+
+export interface CreateProfessionalLoginData {
+  professionalId: number;
+  email: string;
+  password: string;
+  active?: boolean;
+}
+
+export function getProfessionalLoginByProfessionalId(
+  professionalId: number
+) {
+  return getStoredUsers().find(
+    (user) =>
+      user.profile ===
+        "Profissional" &&
+      user.professionalId ===
+        professionalId
+  );
+}
+
+export function createProfessionalLogin({
+  professionalId,
+  email,
+  password,
+  active = true,
+}: CreateProfessionalLoginData) {
+  const professional =
+    getProfessionalById(
+      professionalId
+    );
+
+  if (!professional) {
+    throw new Error(
+      "Profissional não encontrado."
+    );
+  }
+
+  const normalizedEmail =
+    email
+      .trim()
+      .toLowerCase();
+
+  if (!normalizedEmail) {
+    throw new Error(
+      "Informe o e-mail do usuário."
+    );
+  }
+
+  if (
+    password.length <
+    6
+  ) {
+    throw new Error(
+      "A senha deve possuir pelo menos 6 caracteres."
+    );
+  }
+
+  const users =
+    getStoredUsers();
+
+  const existingProfessional =
+    users.find(
+      (user) =>
+        user.profile ===
+          "Profissional" &&
+        (
+          user.professionalId ===
+            professionalId ||
+          (
+            user.professionalId ===
+              undefined &&
+            user.professionalName ===
+              professional.name
+          )
+        )
+    );
+
+  if (
+    existingProfessional
+  ) {
+    throw new Error(
+      "Este profissional já possui um login cadastrado."
+    );
+  }
+
+  const existingEmail =
+    users.some(
+      (user) =>
+        user.email
+          .trim()
+          .toLowerCase() ===
+        normalizedEmail
+    );
+
+  if (
+    existingEmail
+  ) {
+    throw new Error(
+      "Já existe um usuário utilizando este e-mail."
+    );
+  }
+
+  const nextId =
+    users.reduce(
+      (
+        highest,
+        user
+      ) =>
+        Math.max(
+          highest,
+          user.id
+        ),
+      0
+    ) + 1;
+
+  const user:
+    StoredUser = {
+    id:
+      nextId,
+
+    name:
+      professional.name,
+
+    email:
+      normalizedEmail,
+
+    password,
+
+    profile:
+      "Profissional",
+
+    professionalId:
+      professional.id,
+
+    professionalName:
+      professional.name,
+
+    active,
+  };
+
+  saveStoredUsers(
+    [
+      ...users,
+      user,
+    ]
+  );
+
+  return user;
+}
+
+export function setStoredUserActive(
+  userId: number,
+  active: boolean
+) {
+  const users =
+    getStoredUsers();
+
+  const next =
+    users.map(
+      (user) =>
+        user.id ===
+          userId
+          ? {
+              ...user,
+              active,
+            }
+          : user
+    );
+
+  saveStoredUsers(
+    next
+  );
+
+  return next.find(
+    (user) =>
+      user.id ===
+      userId
+  );
+}
+
+export function resetStoredUserPassword(
+  userId: number,
+  newPassword: string
+) {
+  if (
+    newPassword.length <
+    6
+  ) {
+    throw new Error(
+      "A nova senha deve possuir pelo menos 6 caracteres."
+    );
+  }
+
+  const users =
+    getStoredUsers();
+
+  const target =
+    users.find(
+      (user) =>
+        user.id ===
+        userId
+    );
+
+  if (!target) {
+    throw new Error(
+      "Usuário não encontrado."
+    );
+  }
+
+  const next =
+    users.map(
+      (user) =>
+        user.id ===
+          userId
+          ? {
+              ...user,
+              password:
+                newPassword,
+            }
+          : user
+    );
+
+  saveStoredUsers(
+    next
+  );
+
+  return next.find(
+    (user) =>
+      user.id ===
+      userId
   );
 }
 
@@ -299,11 +591,28 @@ export function authenticateUser(
     };
   }
 
+  const linkedProfessional =
+    user.profile ===
+      "Profissional"
+      ? (
+          user.professionalId !==
+            undefined
+            ? getProfessionalById(
+                user.professionalId
+              )
+            : getProfessionalByName(
+                user.professionalName ??
+                  user.name
+              )
+        )
+      : undefined;
+
   const authUser: AuthUser = {
     id:
       user.id,
 
     name:
+      linkedProfessional?.name ??
       user.name,
 
     email:
@@ -312,7 +621,12 @@ export function authenticateUser(
     profile:
       user.profile,
 
+    professionalId:
+      linkedProfessional?.id ??
+      user.professionalId,
+
     professionalName:
+      linkedProfessional?.name ??
       user.professionalName,
 
     avatar:

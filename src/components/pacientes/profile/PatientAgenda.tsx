@@ -38,6 +38,11 @@ import {
   type StoredAppointmentStatus,
 } from "@/pages/Agenda/appointmentStorage";
 
+import {
+  isActiveAppointmentStatus,
+  isFinalAppointmentStatus,
+} from "@/pages/Agenda/appointmentStatusRules";
+
 /* =========================================
    COMPONENTE PRINCIPAL
 ========================================= */
@@ -137,12 +142,9 @@ export function PatientAgenda() {
               appointment
             ) => {
               if (
-                appointment.status ===
-                  "Realizado" ||
-                appointment.status ===
-                  "Cancelado" ||
-                appointment.status ===
-                  "Faltou"
+                !isActiveAppointmentStatus(
+                  appointment.status
+                )
               ) {
                 return false;
               }
@@ -194,12 +196,9 @@ export function PatientAgenda() {
                 );
 
               const isFinishedStatus =
-                appointment.status ===
-                  "Realizado" ||
-                appointment.status ===
-                  "Cancelado" ||
-                appointment.status ===
-                  "Faltou";
+                isFinalAppointmentStatus(
+                  appointment.status
+                );
 
               const isPast =
                 appointmentDate

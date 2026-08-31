@@ -46,6 +46,10 @@ import {
 } from "./appointmentStorage";
 
 import {
+  appointmentCanBeRescheduled,
+} from "./appointmentStatusRules";
+
+import {
   cancelPendingFinancialChargeByAppointment,
   createChargeFromAppointment,
   getFinancialCharges,
@@ -1024,7 +1028,9 @@ export default function DetalheAgendamento() {
   function handleReschedule() {
     if (
       !canManageSchedule ||
-      finished
+      !appointmentCanBeRescheduled(
+        appointment.status
+      )
     ) {
       return;
     }

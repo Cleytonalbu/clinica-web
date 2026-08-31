@@ -35,6 +35,7 @@ export interface ProfessionalPayout {
 
   patient: string;
 
+  professionalId?: number;
   professional: string;
 
   specialty: string;
@@ -212,15 +213,17 @@ function getAppointmentRepasseValue(
 
   const professional =
     settings.professionals.find(
-      (
-        item
-      ) =>
-        normalizeText(
-          item.name
-        ) ===
-        normalizeText(
-          appointment.professional
-        )
+      (item) =>
+        appointment.professionalId !==
+          undefined
+          ? item.id ===
+            appointment.professionalId
+          : normalizeText(
+              item.name
+            ) ===
+            normalizeText(
+              appointment.professional
+            )
     );
 
   const specialty =
@@ -428,6 +431,9 @@ export function syncProfessionalPayoutsFromAppointments() {
 
               patient:
                 appointment.patient,
+
+              professionalId:
+                appointment.professionalId,
 
               professional:
                 appointment.professional,
@@ -857,6 +863,9 @@ function createPayoutFromAppointment(
 
     patient:
       appointment.patient,
+
+    professionalId:
+      appointment.professionalId,
 
     professional:
       appointment.professional,
