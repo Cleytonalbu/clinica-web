@@ -7,6 +7,11 @@ import {
   XCircle,
 } from "lucide-react";
 
+import {
+  useEffect,
+  useState,
+} from "react";
+
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -14,102 +19,82 @@ import {
   PageCard,
 } from "@/components/ui";
 
-type AppointmentStatus =
-  | "Confirmado"
-  | "Agendado"
-  | "Realizado"
-  | "Cancelado";
+import {
+  listarAgendamentos,
+  type ApiAgendamento,
+  type ApiStatusAgendamento,
+} from "@/services/agenda";
 
-interface Appointment {
-  id: number;
-  patientId: number;
-  patient: string;
-  time: string;
-  endTime: string;
-  specialty: string;
-  type: string;
-  status: AppointmentStatus;
+interface ProfessionalAgendaProps {
+  profissionalId: string;
 }
 
-const appointments: Appointment[] = [
-  {
-    id: 1,
-    patientId: 1,
-    patient: "Maria Oliveira",
-    time: "08:00",
-    endTime: "08:50",
-    specialty: "Psicologia",
-    type: "Individual",
-    status: "Realizado",
-  },
-  {
-    id: 2,
-    patientId: 2,
-    patient: "João Miguel Silva",
-    time: "09:00",
-    endTime: "09:50",
-    specialty: "Psicologia",
-    type: "Individual",
-    status: "Confirmado",
-  },
-  {
-    id: 3,
-    patientId: 3,
-    patient: "Lucas Gabriel",
-    time: "10:30",
-    endTime: "11:20",
-    specialty: "Psicologia",
-    type: "Individual",
-    status: "Agendado",
-  },
-  {
-    id: 4,
-    patientId: 4,
-    patient: "Ana Clara Rodrigues",
-    time: "14:00",
-    endTime: "14:50",
-    specialty: "Psicologia",
-    type: "Individual",
-    status: "Confirmado",
-  },
-  {
-    id: 5,
-    patientId: 5,
-    patient: "Pedro Henrique",
-    time: "15:30",
-    endTime: "16:20",
-    specialty: "Psicologia",
-    type: "Avaliação",
-    status: "Cancelado",
-  },
-];
+function hojeISO() {
+  return new Date().toISOString().slice(0, 10);
+}
 
-export function ProfessionalAgenda() {
+function formatarHora(iso: string) {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+const LABELS: Record<ApiStatusAgendamento, string> = {
+  AGENDADO: "Agendado",
+  AGUARDANDO: "Aguardando",
+  EM_ATENDIMENTO: "Em atendimento",
+  CONCLUIDO: "Realizado",
+  CANCELADO: "Cancelado",
+  FALTOU: "Faltou",
+};
+
+export function ProfessionalAgenda({
+  profissionalId,
+}: ProfessionalAgendaProps) {
   const navigate = useNavigate();
 
-  const realized = appointments.filter(
-    (item) => item.status === "Realizado"
-  ).length;
+  const [agendamentos, setAgendamentos] = useState<ApiAgendamento[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const confirmed = appointments.filter(
-    (item) => item.status === "Confirmado"
-  ).length;
+  useEffect(() => {
+    let cancelado = false;
 
-  const cancelled = appointments.filter(
-    (item) => item.status === "Cancelado"
-  ).length;
+    listarAgendamentos({ profissionalId, data: hojeISO(), porPagina: 100 })
+      .then((resposta) => {
+        if (cancelado) return;
+        setAgendamentos(
+          resposta.dados
+            .filter((a) => a.tipo === "ATENDIMENTO")
+            .sort((a, b) => a.dataHora.localeCompare(b.dataHora))
+        );
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (cancelado) return;
+        setLoading(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [profissionalId]);
+
+  const realizados = agendamentos.filter((a) => a.status === "CONCLUIDO").length;
+  const confirmados = agendamentos.filter((a) => a.status === "AGUARDANDO" || a.status === "AGENDADO").length;
+  const cancelados = agendamentos.filter((a) => a.status === "CANCELADO" || a.status === "FALTOU").length;
 
   function handlePatient(
-    patientId: number
+    patientId: string
   ) {
     navigate(`/pacientes/${patientId}`);
   }
 
   function handleEvolution(
-    patientId: number
+    patientId: string,
+    appointmentId: string
   ) {
     navigate(
-      `/pacientes/${patientId}/evolucoes/nova`
+      `/pacientes/${patientId}/evolucoes/nova?appointmentId=${appointmentId}`
     );
   }
 
@@ -125,17 +110,12 @@ export function ProfessionalAgenda() {
             Atendimentos programados e realizados no dia.
           </p>
         </div>
-
-        <Button type="button">
-          <CalendarDays size={18} />
-          Novo agendamento
-        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <AgendaMetric
           label="Hoje"
-          value={String(appointments.length)}
+          value={loading ? "…" : String(agendamentos.length)}
           description="Atendimentos"
           icon={<CalendarDays size={21} />}
           className="bg-indigo-100 text-indigo-600"
@@ -143,7 +123,7 @@ export function ProfessionalAgenda() {
 
         <AgendaMetric
           label="Realizados"
-          value={String(realized)}
+          value={loading ? "…" : String(realizados)}
           description="Concluídos"
           icon={<CheckCircle2 size={21} />}
           className="bg-emerald-100 text-emerald-600"
@@ -151,15 +131,15 @@ export function ProfessionalAgenda() {
 
         <AgendaMetric
           label="Confirmados"
-          value={String(confirmed)}
+          value={loading ? "…" : String(confirmados)}
           description="Aguardando horário"
           icon={<Clock3 size={21} />}
           className="bg-blue-100 text-blue-600"
         />
 
         <AgendaMetric
-          label="Cancelados"
-          value={String(cancelled)}
+          label="Cancelados/Faltas"
+          value={loading ? "…" : String(cancelados)}
           description="No dia"
           icon={<XCircle size={21} />}
           className="bg-red-100 text-red-600"
@@ -168,35 +148,42 @@ export function ProfessionalAgenda() {
 
       <PageCard
         title="Agenda de Hoje"
-        description="Sexta-feira, 07 de agosto de 2026."
+        description={new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }).format(new Date())}
       >
-        <div className="space-y-3">
-          {appointments.map(
-            (appointment) => (
-              <AppointmentCard
-                key={appointment.id}
-                appointment={appointment}
-                onPatient={() =>
-                  handlePatient(
-                    appointment.patientId
-                  )
-                }
-                onEvolution={() =>
-                  handleEvolution(
-                    appointment.patientId
-                  )
-                }
-              />
-            )
-          )}
-        </div>
+        {loading ? (
+          <p className="text-sm text-slate-400">Carregando…</p>
+        ) : agendamentos.length === 0 ? (
+          <p className="text-sm text-slate-400">Nenhum atendimento agendado para hoje.</p>
+        ) : (
+          <div className="space-y-3">
+            {agendamentos.map(
+              (appointment) => (
+                <AppointmentCard
+                  key={appointment.id}
+                  appointment={appointment}
+                  onPatient={() =>
+                    appointment.paciente && handlePatient(
+                      appointment.paciente.id
+                    )
+                  }
+                  onEvolution={() =>
+                    appointment.paciente && handleEvolution(
+                      appointment.paciente.id,
+                      appointment.id
+                    )
+                  }
+                />
+              )
+            )}
+          </div>
+        )}
       </PageCard>
     </div>
   );
 }
 
 interface AppointmentCardProps {
-  appointment: Appointment;
+  appointment: ApiAgendamento;
   onPatient: () => void;
   onEvolution: () => void;
 }
@@ -212,12 +199,14 @@ function AppointmentCard({
         <div className="flex items-start gap-4">
           <div className="flex min-w-20 flex-col items-center justify-center rounded-xl bg-indigo-50 px-3 py-3 text-indigo-700">
             <span className="text-lg font-bold">
-              {appointment.time}
+              {formatarHora(appointment.dataHora)}
             </span>
 
-            <span className="mt-1 text-xs">
-              {appointment.endTime}
-            </span>
+            {appointment.dataFim && (
+              <span className="mt-1 text-xs">
+                {formatarHora(appointment.dataFim)}
+              </span>
+            )}
           </div>
 
           <div>
@@ -227,7 +216,7 @@ function AppointmentCard({
                 onClick={onPatient}
                 className="text-left font-semibold text-slate-900 transition hover:text-indigo-600"
               >
-                {appointment.patient}
+                {appointment.paciente?.nome ?? "-"}
               </button>
 
               <AppointmentStatusBadge
@@ -238,11 +227,13 @@ function AppointmentCard({
             <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-500">
               <span className="flex items-center gap-2">
                 <UserRound size={15} />
-                {appointment.specialty}
+                {appointment.especialidade?.nome ??
+                  appointment.profissional?.especialidades[0]?.especialidade.nome ??
+                  ""}
               </span>
 
               <span>
-                {appointment.type}
+                {appointment.servico?.nome ?? ""}
               </span>
             </div>
           </div>
@@ -259,8 +250,8 @@ function AppointmentCard({
             Paciente
           </Button>
 
-          {appointment.status !==
-            "Cancelado" && (
+          {appointment.status !== "CANCELADO" &&
+            appointment.status !== "FALTOU" && (
             <Button
               type="button"
               size="sm"
@@ -319,26 +310,32 @@ function AgendaMetric({
 }
 
 interface AppointmentStatusBadgeProps {
-  status: AppointmentStatus;
+  status: ApiStatusAgendamento;
 }
 
 function AppointmentStatusBadge({
   status,
 }: AppointmentStatusBadgeProps) {
   const styles: Record<
-    AppointmentStatus,
+    ApiStatusAgendamento,
     string
   > = {
-    Confirmado:
+    AGUARDANDO:
       "bg-blue-100 text-blue-700",
 
-    Agendado:
+    AGENDADO:
       "bg-amber-100 text-amber-700",
 
-    Realizado:
+    EM_ATENDIMENTO:
+      "bg-blue-100 text-blue-700",
+
+    CONCLUIDO:
       "bg-emerald-100 text-emerald-700",
 
-    Cancelado:
+    CANCELADO:
+      "bg-red-100 text-red-700",
+
+    FALTOU:
       "bg-red-100 text-red-700",
   };
 
@@ -346,7 +343,7 @@ function AppointmentStatusBadge({
     <span
       className={`rounded-full px-2.5 py-1 text-xs font-semibold ${styles[status]}`}
     >
-      {status}
+      {LABELS[status]}
     </span>
   );
 }

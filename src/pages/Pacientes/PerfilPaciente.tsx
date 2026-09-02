@@ -7,6 +7,7 @@ import {
 import {
   useNavigate,
   useParams,
+  useSearchParams,
 } from "react-router-dom";
 
 import {
@@ -59,11 +60,13 @@ import {
 } from "@/components/pacientes/profile/PatientProfileNav";
 
 import {
-  getPatientById,
-} from "./patientStorage";
+  buscarPaciente,
+  paraStoredPatient,
+  type RealPatient,
+} from "@/services/pacientes";
+import type { StoredPatient } from "./patientStorage";
 
 import {
-  canProfessionalAccessPatient,
   getProfessionalSpecialty,
 } from "./patientAccessRules";
 
@@ -86,21 +89,76 @@ export default function PerfilPaciente() {
     useAuth();
 
   const patientId =
-    Number(
-      id
+    id ?? "";
+
+  const [
+    patient,
+    setPatient,
+  ] =
+    useState<RealPatient | null>(
+      null
     );
 
-  const patient =
-    getPatientById(
-      patientId
+  const [
+    fetching,
+    setFetching,
+  ] =
+    useState(
+      true
     );
+
+  // 403 real do backend (paciente sem vínculo com este profissional) —
+  // distinto de "não encontrado" para mostrar a mensagem certa.
+  const [accessDenied, setAccessDenied] = useState(false);
+
+  useEffect(() => {
+    if (!patientId) {
+      setFetching(false);
+      return;
+    }
+
+    let cancelado = false;
+    setAccessDenied(false);
+
+    buscarPaciente(patientId)
+      .then((dados) => {
+        if (cancelado) return;
+        setPatient(paraStoredPatient(dados));
+      })
+      .catch((error) => {
+        if (cancelado) return;
+        if (error?.response?.status === 403) {
+          setAccessDenied(true);
+        }
+        setPatient(null);
+      })
+      .finally(() => {
+        if (cancelado) return;
+        setFetching(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [patientId]);
+
+  const [searchParams] = useSearchParams();
+
+  const TABS_VALIDAS: PatientProfileTab[] = [
+    "resumo", "agenda", "objetivos", "evolucoes", "documentos", "financeiro", "relatorios",
+  ];
 
   const [
     activeTab,
     setActiveTab,
   ] =
     useState<PatientProfileTab>(
-      "resumo"
+      () => {
+        const tabDaUrl = searchParams.get("tab");
+        return TABS_VALIDAS.includes(tabDaUrl as PatientProfileTab)
+          ? (tabDaUrl as PatientProfileTab)
+          : "resumo";
+      }
     );
 
   /* =========================================
@@ -130,13 +188,6 @@ export default function PerfilPaciente() {
           loggedProfessionalName
         )
       : "";
-
-  const hasPatientAccess =
-    !isProfissional ||
-    canProfessionalAccessPatient(
-      loggedProfessionalName,
-      patientId
-    );
 
   const canEdit =
     isGestor ||
@@ -223,34 +274,16 @@ export default function PerfilPaciente() {
   );
 
   /* =========================================
-     PACIENTE NÃO ENCONTRADO
+     CARREGANDO
   ========================================= */
 
   if (
-    !patient
+    fetching
   ) {
     return (
       <DashboardLayout>
-        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-          <h1 className="text-xl font-bold text-slate-900">
-            Paciente não encontrado
-          </h1>
-
-          <p className="mt-2 text-sm text-slate-500">
-            O paciente pode ter sido removido ou o cadastro não existe.
-          </p>
-
-          <Button
-            type="button"
-            className="mt-6"
-            onClick={() =>
-              navigate(
-                "/pacientes"
-              )
-            }
-          >
-            Voltar para pacientes
-          </Button>
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
+          Carregando paciente…
         </div>
       </DashboardLayout>
     );
@@ -260,10 +293,7 @@ export default function PerfilPaciente() {
      ACESSO DO PROFISSIONAL AO PACIENTE
   ========================================= */
 
-  if (
-    isProfissional &&
-    !hasPatientAccess
-  ) {
+  if (accessDenied) {
     return (
       <DashboardLayout>
         <div className="rounded-2xl border border-violet-100 bg-white p-10 text-center shadow-sm">
@@ -294,7 +324,41 @@ export default function PerfilPaciente() {
               )
             }
           >
-            Voltar para meus pacientes
+            Voltar para pacientes
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  /* =========================================
+     PACIENTE NÃO ENCONTRADO
+  ========================================= */
+
+  if (
+    !patient
+  ) {
+    return (
+      <DashboardLayout>
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+          <h1 className="text-xl font-bold text-slate-900">
+            Paciente não encontrado
+          </h1>
+
+          <p className="mt-2 text-sm text-slate-500">
+            O paciente pode ter sido removido ou o cadastro não existe.
+          </p>
+
+          <Button
+            type="button"
+            className="mt-6"
+            onClick={() =>
+              navigate(
+                "/pacientes"
+              )
+            }
+          >
+            Voltar para pacientes
           </Button>
         </div>
       </DashboardLayout>
@@ -334,6 +398,9 @@ export default function PerfilPaciente() {
         {/* ================================= */}
 
         <PatientProfileHeader
+          patientId={
+            patient.id
+          }
           nome={
             patient.nome
           }
@@ -404,8 +471,13 @@ export default function PerfilPaciente() {
             "resumo"
           ) && (
             <PatientOverview
+              // `PatientOverview` ainda espera o tipo `StoredPatient` do
+              // mock (id numérico) — estruturalmente compatível exceto
+              // pelo id, que aqui é o UUID real. Módulos internos que essa
+              // tela usa (agenda/objetivos do paciente) ainda são mock e
+              // não vão casar com esse id até serem migrados também.
               patient={
-                patient
+                patient as unknown as StoredPatient
               }
             />
           )}

@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -33,16 +34,17 @@ import type {
 } from "./ScheduleBlocksView";
 
 import {
-  saveBlock,
-} from "./blockStorage";
-
-import {
   checkScheduleConflict,
 } from "./scheduleValidation";
 
 import {
-  getActiveProfessionals,
-} from "@/pages/Configuracoes/settingsStorage";
+  criarBloqueio,
+} from "@/services/agenda";
+
+import {
+  listarProfissionais,
+  type ApiProfissional,
+} from "@/services/referencias";
 
 /* =========================================
    TIPOS
@@ -101,12 +103,23 @@ export default function NovoBloqueio() {
      PROFISSIONAIS ATIVOS
   ======================================= */
 
+  const [apiProfissionais, setApiProfissionais] = useState<ApiProfissional[]>([]);
+
+  useEffect(() => {
+    listarProfissionais().then(setApiProfissionais).catch(() => {});
+  }, []);
+
   const activeProfessionals =
     useMemo(
       () =>
-        getActiveProfessionals(),
+        apiProfissionais.map((p) => ({
+          id: p.id,
+          name: p.usuario.nome,
+          specialty: p.especialidades[0]?.especialidade.nome ?? "",
+          registration: p.registro ?? "",
+        })),
 
-      []
+      [apiProfissionais]
     );
 
   /* =======================================
@@ -360,37 +373,28 @@ export default function NovoBloqueio() {
     );
 
     try {
-      const block:
-        ScheduleBlock = {
-        id:
-          Date.now(),
+      const professionalReal =
+        activeProfessionals.find(
+          (item) => item.name === formData.professional
+        );
 
-        professional:
-          formData.professional,
+      if (!professionalReal) {
+        showError("Profissional inválido.");
+        setSaving(false);
+        return;
+      }
 
-        date:
-          formData.date,
-
-        startTime:
-          formData.startTime,
-
-        endTime:
-          formData.endTime,
-
-        type:
-          formData.type,
-
-        reason:
+      await criarBloqueio({
+        profissionalId: professionalReal.id,
+        dataHora: `${formData.date}T${formData.startTime}:00`,
+        dataFim: `${formData.date}T${formData.endTime}:00`,
+        motivo:
           formData.reason
             .trim() ||
           getDefaultReason(
             formData.type
           ),
-      };
-
-      saveBlock(
-        block
-      );
+      });
 
       setFeedback(
         "Bloqueio criado com sucesso."
@@ -409,9 +413,10 @@ export default function NovoBloqueio() {
 
         700
       );
-    } catch {
+    } catch (error: any) {
       showError(
-        "Não foi possível criar o bloqueio."
+        error?.response?.data?.mensagem ??
+          "Não foi possível criar o bloqueio."
       );
     } finally {
       setSaving(

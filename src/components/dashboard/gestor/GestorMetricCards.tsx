@@ -10,81 +10,89 @@ import {
   XCircle,
 } from "lucide-react";
 
-interface MetricCard {
-  title: string;
-  value: string;
-  subtitle: string;
+import type { ApiDashboardGestor } from "@/services/dashboardGestor";
 
-  icon: ComponentType<{
-    size?: number;
-    className?: string;
-  }>;
-
-  iconStyle: string;
-  valueStyle: string;
-  subtitleStyle?: string;
+interface GestorMetricCardsProps {
+  dados: ApiDashboardGestor;
 }
 
-const cards: MetricCard[] = [
-  {
-    title: "Atendimentos hoje",
-    value: "24",
-    subtitle: "+12% em relação a ontem",
-    icon: CalendarCheck2,
-    iconStyle:
-      "bg-[#eeeaff] text-[#6847f5]",
-    valueStyle:
-      "text-[#6241ed]",
-    subtitleStyle:
-      "text-[#23a875]",
-  },
+function formatarMoeda(valor: number) {
+  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
-  {
-    title: "Novos pacientes",
-    value: "18",
-    subtitle: "Neste mês",
-    icon: UserPlus,
-    iconStyle:
-      "bg-[#eaf7ff] text-[#2b9bd8]",
-    valueStyle:
-      "text-[#258dca]",
-  },
+function variacaoTexto(atual: number, anterior: number) {
+  if (anterior === 0) {
+    return atual > 0 ? "Sem dados do mês anterior" : "Sem dados no período";
+  }
+  const percentual = Math.round(((atual - anterior) / anterior) * 100);
+  const sinal = percentual >= 0 ? "+" : "";
+  return `${sinal}${percentual}% em relação ao mês anterior`;
+}
 
-  {
-    title: "Sessões realizadas",
-    value: "156",
-    subtitle: "Neste mês",
-    icon: UsersRound,
-    iconStyle:
-      "bg-[#eafbf6] text-[#27ae83]",
-    valueStyle:
-      "text-[#249b77]",
-  },
+export function GestorMetricCards({
+  dados,
+}: GestorMetricCardsProps) {
+  const atendimentosMes = dados.atendimentosPorMes[new Date().getMonth()];
+  const atendimentosRealizados = atendimentosMes?.realizados ?? 0;
 
-  {
-    title: "Faturamento",
-    value: "R$ 28.450",
-    subtitle: "Neste mês",
-    icon: CircleDollarSign,
-    iconStyle:
-      "bg-[#fff5df] text-[#e7a229]",
-    valueStyle:
-      "text-[#db951d]",
-  },
+  interface MetricCard {
+    title: string;
+    value: string;
+    subtitle: string;
+    icon: ComponentType<{ size?: number; className?: string }>;
+    iconStyle: string;
+    valueStyle: string;
+    subtitleStyle?: string;
+  }
 
-  {
-    title: "Cancelamentos",
-    value: "7",
-    subtitle: "Neste mês",
-    icon: XCircle,
-    iconStyle:
-      "bg-[#fff0f1] text-[#ec6571]",
-    valueStyle:
-      "text-[#e85d69]",
-  },
-];
+  const cards: MetricCard[] = [
+    {
+      title: "Atendimentos realizados",
+      value: String(atendimentosRealizados),
+      subtitle: "Neste mês",
+      icon: CalendarCheck2,
+      iconStyle: "bg-[#eeeaff] text-[#6847f5]",
+      valueStyle: "text-[#6241ed]",
+    },
 
-export function GestorMetricCards() {
+    {
+      title: "Novos pacientes",
+      value: String(dados.novosPacientesMes),
+      subtitle: "Neste mês",
+      icon: UserPlus,
+      iconStyle: "bg-[#eaf7ff] text-[#2b9bd8]",
+      valueStyle: "text-[#258dca]",
+    },
+
+    {
+      title: "Objetivos em evolução",
+      value: String(dados.contadores.objetivosEmEvolucao),
+      subtitle: "Ativos agora",
+      icon: UsersRound,
+      iconStyle: "bg-[#eafbf6] text-[#27ae83]",
+      valueStyle: "text-[#249b77]",
+    },
+
+    {
+      title: "Faturamento",
+      value: formatarMoeda(dados.faturamentoMes),
+      subtitle: variacaoTexto(dados.faturamentoMes, dados.faturamentoMesAnterior),
+      icon: CircleDollarSign,
+      iconStyle: "bg-[#fff5df] text-[#e7a229]",
+      valueStyle: "text-[#db951d]",
+      subtitleStyle: dados.faturamentoMes >= dados.faturamentoMesAnterior ? "text-[#23a875]" : "text-[#e85d69]",
+    },
+
+    {
+      title: "Cancelamentos",
+      value: String(dados.cancelamentosMes),
+      subtitle: "Neste mês",
+      icon: XCircle,
+      iconStyle: "bg-[#fff0f1] text-[#ec6571]",
+      valueStyle: "text-[#e85d69]",
+    },
+  ];
+
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
       {cards.map(

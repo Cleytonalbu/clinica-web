@@ -5,27 +5,13 @@ import {
   Users,
 } from "lucide-react";
 
-import {
-  getActiveProfessionals,
-} from "@/pages/Configuracoes/settingsStorage";
-
-import {
-  getObjectives,
-} from "@/pages/Pacientes/objectiveStorage";
+import type { ApiIndicadoresGerais } from "@/services/indicadores";
 
 /* =========================================
    UTILITÁRIOS
 ========================================= */
 
-function normalizeName(value: string) {
-  return value
-    .trim()
-    .toLocaleLowerCase("pt-BR")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-function formatDate(value?: string) {
+function formatDate(value?: string | null) {
   if (!value) {
     return "—";
   }
@@ -43,66 +29,43 @@ function formatDate(value?: string) {
    INDICADORES DE OBJETIVOS POR PROFISSIONAL
 ========================================= */
 
-export function ObjetivosPorProfissional() {
-  const professionals = getActiveProfessionals();
-  const objectives = getObjectives();
+interface ObjetivosPorProfissionalProps {
+  dados: ApiIndicadoresGerais["objetivosPorProfissional"];
+}
 
-  const rows = professionals
-    .map((professional) => {
-      const professionalName = normalizeName(professional.name);
+export function ObjetivosPorProfissional({
+  dados,
+}: ObjetivosPorProfissionalProps) {
+  const rows = [...dados].sort((a, b) => {
+    const aTem = a.totalObjetivos > 0;
+    const bTem = b.totalObjetivos > 0;
 
-      const professionalObjectives = objectives.filter(
-        (objective) =>
-          normalizeName(objective.professional) === professionalName
-      );
+    if (aTem !== bTem) {
+      return Number(aTem) - Number(bTem) ? -1 : 1;
+    }
 
-      const patientIds = new Set(
-        professionalObjectives.map((objective) => objective.patientId)
-      );
+    if (a.totalObjetivos !== b.totalObjetivos) {
+      return b.totalObjetivos - a.totalObjetivos;
+    }
 
-      const lastObjective = [...professionalObjectives].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() -
-          new Date(a.createdAt).getTime()
-      )[0];
+    return a.nome.localeCompare(b.nome, "pt-BR");
+  });
 
-      return {
-        id: professional.id,
-        name: professional.name,
-        specialty: professional.specialty,
-        patients: patientIds.size,
-        objectives: professionalObjectives.length,
-        lastCreatedAt: lastObjective?.createdAt,
-        hasObjectives: professionalObjectives.length > 0,
-      };
-    })
-    .sort((a, b) => {
-      if (a.hasObjectives !== b.hasObjectives) {
-        return Number(a.hasObjectives) - Number(b.hasObjectives);
-      }
-
-      if (a.objectives !== b.objectives) {
-        return b.objectives - a.objectives;
-      }
-
-      return a.name.localeCompare(b.name, "pt-BR");
-    });
-
-  const professionalsWithObjectives = rows.filter(
-    (row) => row.hasObjectives
+  const profissionaisComObjetivos = rows.filter(
+    (row) => row.totalObjetivos > 0
   ).length;
 
-  const professionalsWithoutObjectives =
-    rows.length - professionalsWithObjectives;
+  const profissionaisSemObjetivos = rows.length - profissionaisComObjetivos;
 
-  const totalObjectives = rows.reduce(
-    (total, row) => total + row.objectives,
+  const totalObjetivos = rows.reduce(
+    (total, row) => total + row.totalObjetivos,
     0
   );
 
-  const totalPatients = new Set(
-    objectives.map((objective) => objective.patientId)
-  ).size;
+  const totalPacientes = rows.reduce(
+    (total, row) => total + row.pacientesComObjetivos,
+    0
+  );
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -119,7 +82,7 @@ export function ObjetivosPorProfissional() {
 
         <div className="flex items-center gap-2 rounded-xl bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700">
           <Target size={16} />
-          {totalObjectives} objetivos cadastrados
+          {totalObjetivos} objetivos cadastrados
         </div>
       </div>
 
@@ -133,21 +96,21 @@ export function ObjetivosPorProfissional() {
 
         <SummaryCard
           label="Criando objetivos"
-          value={professionalsWithObjectives}
+          value={profissionaisComObjetivos}
           icon={CheckCircle2}
           iconClassName="bg-emerald-50 text-emerald-600"
         />
 
         <SummaryCard
           label="Sem objetivos"
-          value={professionalsWithoutObjectives}
+          value={profissionaisSemObjetivos}
           icon={AlertCircle}
           iconClassName="bg-amber-50 text-amber-600"
         />
 
         <SummaryCard
           label="Pacientes com objetivos"
-          value={totalPatients}
+          value={totalPacientes}
           icon={Target}
           iconClassName="bg-violet-50 text-violet-600"
         />
@@ -174,41 +137,41 @@ export function ObjetivosPorProfissional() {
             <tbody className="divide-y divide-slate-100 bg-white">
               {rows.map((row) => (
                 <tr
-                  key={row.id}
+                  key={row.profissionalId}
                   className="transition hover:bg-slate-50/70"
                 >
                   <TableCell>
                     <p className="font-semibold text-slate-800">
-                      {row.name}
+                      {row.nome}
                     </p>
                   </TableCell>
 
                   <TableCell>
                     <span className="text-slate-600">
-                      {row.specialty || "—"}
+                      {row.especialidade || "—"}
                     </span>
                   </TableCell>
 
                   <TableCell className="text-center">
                     <span className="font-bold text-slate-800">
-                      {row.patients}
+                      {row.pacientesComObjetivos}
                     </span>
                   </TableCell>
 
                   <TableCell className="text-center">
                     <span className="font-bold text-slate-800">
-                      {row.objectives}
+                      {row.totalObjetivos}
                     </span>
                   </TableCell>
 
                   <TableCell>
                     <span className="text-slate-600">
-                      {formatDate(row.lastCreatedAt)}
+                      {formatDate(row.ultimoCriadoEm)}
                     </span>
                   </TableCell>
 
                   <TableCell>
-                    {row.hasObjectives ? (
+                    {row.totalObjetivos > 0 ? (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
                         <CheckCircle2 size={14} />
                         Criando objetivos
@@ -238,7 +201,7 @@ export function ObjetivosPorProfissional() {
         </div>
       </div>
 
-      {professionalsWithoutObjectives > 0 && (
+      {profissionaisSemObjetivos > 0 && (
         <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
           <AlertCircle
             size={18}
@@ -246,8 +209,8 @@ export function ObjetivosPorProfissional() {
           />
 
           <p className="text-sm leading-5 text-amber-800">
-            <strong>{professionalsWithoutObjectives}</strong>{" "}
-            {professionalsWithoutObjectives === 1
+            <strong>{profissionaisSemObjetivos}</strong>{" "}
+            {profissionaisSemObjetivos === 1
               ? "profissional ativo ainda não possui objetivo terapêutico cadastrado."
               : "profissionais ativos ainda não possuem objetivos terapêuticos cadastrados."}
           </p>

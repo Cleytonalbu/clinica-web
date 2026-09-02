@@ -1,4 +1,9 @@
 import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
   DashboardLayout,
 } from "../../../layouts/DashboardLayout";
 
@@ -34,53 +39,95 @@ import {
   GestorSolicitacoesBloqueio,
 } from "../../../components/dashboard/gestor/GestorSolicitacoesBloqueio";
 
+import {
+  buscarDashboardGestor,
+  type ApiDashboardGestor,
+} from "@/services/dashboardGestor";
+
 /* =========================================
    DASHBOARD GESTOR
 ========================================= */
 
 export default function DashboardGestor() {
+  const [dados, setDados] = useState<ApiDashboardGestor | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelado = false;
+
+    buscarDashboardGestor()
+      .then((resposta) => {
+        if (cancelado) return;
+        setDados(resposta);
+      })
+      .catch(() => {
+        if (cancelado) return;
+        setErro("Não foi possível carregar os dados do painel.");
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* ================================= */}
-        {/* MÉTRICAS */}
-        {/* ================================= */}
+        {erro && (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm font-semibold text-rose-700">
+            {erro}
+          </div>
+        )}
 
-        <GestorMetricCards />
+        {!dados && !erro && (
+          <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-500">
+            Carregando painel…
+          </div>
+        )}
 
-        {/* ================================= */}
-        {/* VISÃO GERAL + PRÓXIMOS */}
-        {/* ================================= */}
+        {dados && (
+          <>
+            {/* ================================= */}
+            {/* MÉTRICAS */}
+            {/* ================================= */}
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,0.85fr)]">
-          <GestorVisaoGeral />
+            <GestorMetricCards dados={dados} />
 
-          <GestorProximosAtendimentos />
-        </div>
+            {/* ================================= */}
+            {/* VISÃO GERAL + PRÓXIMOS */}
+            {/* ================================= */}
 
-        {/* ================================= */}
-        {/* DESEMPENHO / FAIXA / PENDÊNCIAS */}
-        {/* ================================= */}
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,0.85fr)]">
+              <GestorVisaoGeral atendimentosPorMes={dados.atendimentosPorMes} />
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-          <GestorDesempenho />
+              <GestorProximosAtendimentos />
+            </div>
 
-          <GestorFaixaEtaria />
+            {/* ================================= */}
+            {/* DESEMPENHO / FAIXA / PENDÊNCIAS */}
+            {/* ================================= */}
 
-          <GestorPendencias />
-        </div>
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+              <GestorDesempenho dados={dados.desempenhoPorEspecialidade} />
 
-        {/* ================================= */}
-        {/* SOLICITAÇÕES DE BLOQUEIO */}
-        {/* ================================= */}
+              <GestorFaixaEtaria dados={dados.faixaEtaria} />
 
-        <GestorSolicitacoesBloqueio />
+              <GestorPendencias dados={dados.pendencias} />
+            </div>
 
-        {/* ================================= */}
-        {/* INSIGHTS */}
-        {/* ================================= */}
+            {/* ================================= */}
+            {/* SOLICITAÇÕES DE BLOQUEIO */}
+            {/* ================================= */}
 
-        <GestorInsights />
+            <GestorSolicitacoesBloqueio />
+
+            {/* ================================= */}
+            {/* INSIGHTS */}
+            {/* ================================= */}
+
+            <GestorInsights dados={dados.insightSemana} />
+          </>
+        )}
       </div>
     </DashboardLayout>
   );

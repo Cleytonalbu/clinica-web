@@ -5,49 +5,40 @@ export interface LoginRequest {
   senha: string;
 }
 
-export interface User {
+// Espelha o enum Papel do backend (prisma/schema.prisma). RESPONSAVEL ainda
+// não existe na API — será adicionado quando o portal de responsáveis for
+// implementado (ver relatório de integração, Fase 6).
+export type Papel =
+  | "GESTOR"
+  | "PROFISSIONAL"
+  | "RECEPCIONISTA"
+  | "ADMINISTRATIVO";
+
+export interface Usuario {
   id: string;
   nome: string;
   email: string;
-  papel: "GESTOR" | "PROFISSIONAL" | "RESPONSAVEL";
+  papel: Papel;
   foto?: string | null;
 }
 
 interface MeResponse {
-  usuario: User;
+  usuario: Usuario;
 }
 
 export interface LoginResponse {
-  usuario: User;
+  usuario: Usuario;
   token: string;
 }
 
 export async function login(
   data: LoginRequest
 ): Promise<LoginResponse> {
-  const response = await api.post<LoginResponse>(
-    "/auth/login",
-    data
-  );
-
+  const response = await api.post<LoginResponse>("/auth/login", data);
   return response.data;
 }
 
-export async function me(): Promise<User> {
-  const response =
-    await api.get<MeResponse>("/auth/me");
-
+export async function me(): Promise<Usuario> {
+  const response = await api.get<MeResponse>("/auth/me");
   return response.data.usuario;
-}
-
-export function salvarToken(token: string) {
-  localStorage.setItem("@entreafetos:token", token);
-}
-
-export function removerToken() {
-  localStorage.removeItem("@entreafetos:token");
-}
-
-export function obterToken() {
-  return localStorage.getItem("@entreafetos:token");
 }

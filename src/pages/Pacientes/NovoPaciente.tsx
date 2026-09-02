@@ -27,8 +27,8 @@ import type {
 } from "@/components/pacientes/form";
 
 import {
-  createPatient,
-} from "./patientStorage";
+  criarPaciente,
+} from "@/services/pacientes";
 
 /* =========================================
    COMPONENTE
@@ -91,7 +91,7 @@ export default function NovoPaciente() {
 
     try {
       const patient =
-        createPatient(
+        await criarPaciente(
           data
         );
 
@@ -113,13 +113,11 @@ export default function NovoPaciente() {
         700
       );
     } catch (
-      error
+      error: any
     ) {
       setFeedback(
-        error instanceof
-          Error
-          ? error.message
-          : "Não foi possível cadastrar o paciente."
+        error?.response?.data?.mensagem ??
+          "Não foi possível cadastrar o paciente."
       );
 
       setFeedbackType(

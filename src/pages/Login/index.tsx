@@ -36,7 +36,7 @@ export default function Login() {
   const [error, setError] =
     useState("");
 
-  function handleSubmit(
+  async function handleSubmit(
     event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
@@ -54,7 +54,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const result = login(
+      const result = await login(
         email.trim(),
         password,
       );

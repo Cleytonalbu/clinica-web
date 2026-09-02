@@ -3,6 +3,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 
 import {
@@ -10,10 +11,13 @@ import {
   CheckCheck,
   ChevronDown,
   Clock3,
+  Loader2,
   LogOut,
   Mail,
   Search,
   Settings,
+  Stethoscope,
+  User,
   UserRound,
   X,
 } from "lucide-react";
@@ -30,13 +34,73 @@ import {
   userCanAccessModule,
 } from "@/auth/permissions";
 
+import {
+  listarNotificacoes,
+  marcarNotificacaoLida,
+  marcarTodasNotificacoesLidas,
+  type ApiNotificacao,
+} from "@/services/notificacoes";
+
+import {
+  contarMensagensNaoLidas,
+} from "@/services/mensagens";
+
+import {
+  listarPacientes,
+  type ApiPaciente,
+} from "@/services/pacientes";
+
+import {
+  listarProfissionais,
+  type ApiProfissional,
+} from "@/services/referencias";
+
+/* =========================================
+   BUSCA GLOBAL
+========================================= */
+
+interface SearchResultItem {
+  kind: "paciente" | "profissional";
+  id: string;
+  label: string;
+  sublabel: string;
+}
+
+function paraResultadoPaciente(
+  paciente: ApiPaciente
+): SearchResultItem {
+  return {
+    kind: "paciente",
+    id: paciente.id,
+    label: paciente.nome,
+    sublabel:
+      paciente.cpf ??
+      paciente.telefone ??
+      paciente.responsavel ??
+      "Paciente",
+  };
+}
+
+function paraResultadoProfissional(
+  profissional: ApiProfissional
+): SearchResultItem {
+  return {
+    kind: "profissional",
+    id: profissional.id,
+    label: profissional.usuario.nome,
+    sublabel:
+      profissional.especialidades[0]?.especialidade.nome ??
+      "Profissional",
+  };
+}
+
 /* =========================================
    TIPOS
 ========================================= */
 
 interface HeaderNotification {
   id:
-    number;
+    string;
 
   title:
     string;
@@ -61,108 +125,52 @@ interface HeaderNotification {
    NOTIFICAÇÕES
 ========================================= */
 
-const initialNotifications:
-  HeaderNotification[] = [
-  {
-    id:
-      1,
+// Tipo (enum do backend) → categoria de ícone usada aqui no dropdown.
+function tipoParaCategoria(
+  tipo: ApiNotificacao["tipo"]
+): HeaderNotification["type"] {
+  switch (tipo) {
+    case "lembrete_consulta":
+    case "confirmacao_consulta":
+    case "novo_agendamento":
+    case "faltas_ausencias":
+      return "appointment";
+    case "pagamento_recebido":
+      return "payment";
+    case "novos_objetivos":
+    case "encaminhamento":
+      return "patient";
+    default:
+      return "system";
+  }
+}
 
-    title:
-      "Consulta cancelada",
+function formatarTempoRelativo(iso: string) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const diffMin = Math.round(diffMs / 60000);
 
-    description:
-      "Maria Oliveira cancelou a consulta das 14:00.",
+  if (diffMin < 1) return "agora mesmo";
+  if (diffMin < 60) return `há ${diffMin} min`;
 
-    time:
-      "há 5 min",
+  const diffHoras = Math.round(diffMin / 60);
+  if (diffHoras < 24) return `há ${diffHoras} h`;
 
-    read:
-      false,
+  const diffDias = Math.round(diffHoras / 24);
+  return `há ${diffDias} d`;
+}
 
-    type:
-      "appointment",
-  },
-
-  {
-    id:
-      2,
-
-    title:
-      "Novo paciente",
-
-    description:
-      "João Pedro foi cadastrado no sistema.",
-
-    time:
-      "há 18 min",
-
-    read:
-      false,
-
-    type:
-      "patient",
-  },
-
-  {
-    id:
-      3,
-
-    title:
-      "Pagamento recebido",
-
-    description:
-      "O pagamento da consulta de Ana Souza foi confirmado.",
-
-    time:
-      "há 32 min",
-
-    read:
-      false,
-
-    type:
-      "payment",
-  },
-
-  {
-    id:
-      4,
-
-    title:
-      "Agendamento confirmado",
-
-    description:
-      "Fernanda Souza confirmou o atendimento das 16:00.",
-
-    time:
-      "há 1 h",
-
-    read:
-      true,
-
-    type:
-      "appointment",
-  },
-
-  {
-    id:
-      5,
-
-    title:
-      "Atualização do sistema",
-
-    description:
-      "As configurações gerais foram atualizadas.",
-
-    time:
-      "há 2 h",
-
-    read:
-      true,
-
-    type:
-      "system",
-  },
-];
+function paraHeaderNotification(
+  api: ApiNotificacao
+): HeaderNotification {
+  return {
+    id: api.id,
+    title: api.texto,
+    description: "",
+    time: formatarTempoRelativo(api.criadoEm),
+    read: api.lida,
+    type: tipoParaCategoria(api.tipo),
+  };
+}
 
 /* =========================================
    COMPONENTE
@@ -201,8 +209,172 @@ export function Header() {
     useState<
       HeaderNotification[]
     >(
-      initialNotifications
+      []
     );
+
+  /* =======================================
+     BUSCA GLOBAL
+  ======================================= */
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  const canSearchPacientes = userCanAccessModule(user, "patients");
+  const canSearchProfissionais = user?.profile === "Gestor";
+
+  useEffect(() => {
+    const termo = searchQuery.trim();
+
+    if (termo.length < 2) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+
+    let cancelado = false;
+    setSearchLoading(true);
+
+    const timeout = window.setTimeout(() => {
+      Promise.all([
+        canSearchPacientes
+          ? listarPacientes({ busca: termo, porPagina: 5 }).then(
+              (resposta) => resposta.dados.map(paraResultadoPaciente)
+            )
+          : Promise.resolve<SearchResultItem[]>([]),
+
+        canSearchProfissionais
+          ? listarProfissionais({ busca: termo, ativo: null }).then(
+              (dados) => dados.slice(0, 5).map(paraResultadoProfissional)
+            )
+          : Promise.resolve<SearchResultItem[]>([]),
+      ])
+        .then(([pacientes, profissionais]) => {
+          if (cancelado) return;
+          setSearchResults([...pacientes, ...profissionais]);
+          setHighlightedIndex(0);
+        })
+        .catch(() => {
+          if (!cancelado) setSearchResults([]);
+        })
+        .finally(() => {
+          if (!cancelado) setSearchLoading(false);
+        });
+    }, 300);
+
+    return () => {
+      cancelado = true;
+      window.clearTimeout(timeout);
+    };
+  }, [searchQuery, canSearchPacientes, canSearchProfissionais]);
+
+  // Atalho Ctrl+K / Cmd+K foca a busca de qualquer lugar da tela.
+  useEffect(() => {
+    function handleShortcut(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleShortcut);
+    return () => document.removeEventListener("keydown", handleShortcut);
+  }, []);
+
+  function handleSelectResult(item: SearchResultItem) {
+    setSearchOpen(false);
+    setSearchQuery("");
+    setSearchResults([]);
+    searchInputRef.current?.blur();
+
+    navigate(
+      item.kind === "paciente"
+        ? `/pacientes/${item.id}`
+        : `/profissionais/${item.id}`
+    );
+  }
+
+  function handleSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      setSearchOpen(false);
+      searchInputRef.current?.blur();
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setHighlightedIndex((current) =>
+        Math.min(current + 1, searchResults.length - 1)
+      );
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setHighlightedIndex((current) => Math.max(current - 1, 0));
+      return;
+    }
+
+    if (event.key === "Enter") {
+      const item = searchResults[highlightedIndex];
+      if (item) handleSelectResult(item);
+    }
+  }
+
+  useEffect(() => {
+    let cancelado = false;
+
+    function carregar() {
+      listarNotificacoes()
+        .then((resposta) => {
+          if (cancelado) return;
+          setNotifications(resposta.notificacoes.map(paraHeaderNotification));
+        })
+        .catch(() => {});
+    }
+
+    carregar();
+
+    // Atualiza a cada minuto para refletir novas notificações sem exigir reload.
+    const interval = window.setInterval(carregar, 60000);
+
+    return () => {
+      cancelado = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  /* =======================================
+     MENSAGENS NÃO LIDAS
+  ======================================= */
+
+  const [unreadMessages, setUnreadMessages] = useState(0);
+
+  useEffect(() => {
+    let cancelado = false;
+
+    function carregar() {
+      contarMensagensNaoLidas()
+        .then((total) => {
+          if (!cancelado) setUnreadMessages(total);
+        })
+        .catch(() => {});
+    }
+
+    carregar();
+
+    const interval = window.setInterval(carregar, 30000);
+
+    return () => {
+      cancelado = true;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   const userMenuRef =
     useRef<HTMLDivElement>(
@@ -245,6 +417,17 @@ export function Header() {
           )
         ) {
           setNotificationsOpen(
+            false
+          );
+        }
+
+        if (
+          searchRef.current &&
+          !searchRef.current.contains(
+            target
+          )
+        ) {
+          setSearchOpen(
             false
           );
         }
@@ -354,11 +537,13 @@ export function Header() {
           })
         )
     );
+
+    marcarTodasNotificacoesLidas().catch(() => {});
   }
 
   function handleMarkAsRead(
     id:
-      number
+      string
   ) {
     setNotifications(
       (
@@ -379,6 +564,8 @@ export function Header() {
               : notification
         )
     );
+
+    marcarNotificacaoLida(id).catch(() => {});
   }
 
   /* =======================================
@@ -452,56 +639,190 @@ export function Header() {
         {/* ================================= */}
 
         <div
-          className="
-            hidden
-            h-11
-            w-[320px]
-            items-center
-            rounded-xl
-            border
-            border-[#dfe4f4]
-            bg-white
-            px-4
-            shadow-[0_3px_12px_rgba(47,63,112,0.04)]
-            xl:flex
-          "
+          ref={searchRef}
+          className="relative hidden xl:block"
         >
-          <Search
-            size={17}
-            className="shrink-0 text-[#596dc0]"
-          />
-
-          <input
-            type="text"
-            placeholder="Buscar paciente, responsável, profissional..."
+          <div
             className="
-              ml-3
-              min-w-0
-              flex-1
-              bg-transparent
-              text-xs
-              font-medium
-              text-slate-700
-              outline-none
-              placeholder:text-[#8792b3]
-            "
-          />
-
-          <span
-            className="
-              ml-2
-              shrink-0
-              rounded-md
-              bg-[#f5f6fb]
-              px-2
-              py-1
-              text-[9px]
-              font-semibold
-              text-[#7580a2]
+              flex
+              h-11
+              w-[320px]
+              items-center
+              rounded-xl
+              border
+              border-[#dfe4f4]
+              bg-white
+              px-4
+              shadow-[0_3px_12px_rgba(47,63,112,0.04)]
             "
           >
-            Ctrl + K
-          </span>
+            {searchLoading ? (
+              <Loader2
+                size={17}
+                className="shrink-0 animate-spin text-[#596dc0]"
+              />
+            ) : (
+              <Search
+                size={17}
+                className="shrink-0 text-[#596dc0]"
+              />
+            )}
+
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
+                setSearchOpen(true);
+              }}
+              onFocus={() => setSearchOpen(true)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Buscar paciente, responsável, profissional..."
+              className="
+                ml-3
+                min-w-0
+                flex-1
+                bg-transparent
+                text-xs
+                font-medium
+                text-slate-700
+                outline-none
+                placeholder:text-[#8792b3]
+              "
+            />
+
+            {searchQuery ? (
+              <button
+                type="button"
+                title="Limpar busca"
+                onClick={() => {
+                  setSearchQuery("");
+                  setSearchResults([]);
+                  searchInputRef.current?.focus();
+                }}
+                className="ml-2 shrink-0 text-[#8792b3] transition hover:text-slate-500"
+              >
+                <X size={15} />
+              </button>
+            ) : (
+              <span
+                className="
+                  ml-2
+                  shrink-0
+                  rounded-md
+                  bg-[#f5f6fb]
+                  px-2
+                  py-1
+                  text-[9px]
+                  font-semibold
+                  text-[#7580a2]
+                "
+              >
+                Ctrl + K
+              </span>
+            )}
+          </div>
+
+          {/* ================================= */}
+          {/* DROPDOWN DE RESULTADOS */}
+          {/* ================================= */}
+
+          {searchOpen && searchQuery.trim().length >= 2 && (
+            <div
+              className="
+                absolute
+                left-0
+                top-[calc(100%+10px)]
+                z-50
+                w-full
+                overflow-hidden
+                rounded-2xl
+                border
+                border-[#e8ebf4]
+                bg-white
+                shadow-[0_20px_50px_rgba(44,57,105,0.14)]
+              "
+            >
+              {searchResults.length > 0 ? (
+                <div className="max-h-[380px] overflow-y-auto py-2">
+                  {searchResults.map((item, index) => (
+                    <button
+                      key={`${item.kind}-${item.id}`}
+                      type="button"
+                      onMouseEnter={() => setHighlightedIndex(index)}
+                      onClick={() => handleSelectResult(item)}
+                      className={`
+                        flex
+                        w-full
+                        items-center
+                        gap-3
+                        px-4
+                        py-2.5
+                        text-left
+                        transition
+
+                        ${
+                          index === highlightedIndex
+                            ? "bg-[#f6f7ff]"
+                            : "bg-white"
+                        }
+                      `}
+                    >
+                      <div
+                        className={`
+                          flex
+                          h-9
+                          w-9
+                          shrink-0
+                          items-center
+                          justify-center
+                          rounded-xl
+
+                          ${
+                            item.kind === "paciente"
+                              ? "bg-[#eef1ff] text-[#5d3df5]"
+                              : "bg-[#eafaf1] text-[#1a9a63]"
+                          }
+                        `}
+                      >
+                        {item.kind === "paciente" ? (
+                          <User size={16} />
+                        ) : (
+                          <Stethoscope size={16} />
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold text-slate-700">
+                          {item.label}
+                        </p>
+                        <p className="truncate text-xs text-slate-400">
+                          {item.kind === "paciente" ? "Paciente" : "Profissional"}
+                          {" · "}
+                          {item.sublabel}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : !searchLoading ? (
+                <div className="px-5 py-8 text-center">
+                  <Search size={22} className="mx-auto text-slate-300" />
+                  <p className="mt-2 text-sm font-semibold text-slate-600">
+                    Nenhum resultado encontrado
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Tente buscar por nome, CPF ou telefone.
+                  </p>
+                </div>
+              ) : (
+                <div className="px-5 py-8 text-center text-xs text-slate-400">
+                  Buscando...
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ================================= */}
@@ -919,6 +1240,7 @@ export function Header() {
             )
           }
           className="
+            relative
             flex
             h-10
             w-10
@@ -934,6 +1256,31 @@ export function Header() {
           <Mail
             size={20}
           />
+
+          {unreadMessages > 0 && (
+            <span
+              className="
+                absolute
+                -right-0.5
+                -top-0.5
+                flex
+                min-h-[18px]
+                min-w-[18px]
+                items-center
+                justify-center
+                rounded-full
+                bg-[#ff3b55]
+                px-1
+                text-[9px]
+                font-extrabold
+                text-white
+                ring-2
+                ring-white
+              "
+            >
+              {unreadMessages}
+            </span>
+          )}
         </button>
 
         {/* ================================= */}

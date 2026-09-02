@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -22,19 +23,16 @@ import {
 } from "@/auth/AuthContext";
 
 import {
-  deletePatient,
-  getPatients,
-  type StoredPatient,
-} from "@/pages/Pacientes/patientStorage";
+  excluirPaciente,
+  listarPacientes,
+  paraStoredPatient,
+  type RealPatient as StoredPatient,
+} from "@/services/pacientes";
 
 import {
   getSavedAppointments,
   type StoredAppointment,
 } from "@/pages/Agenda/appointmentStorage";
-
-import {
-  getProfessionalAccessiblePatientIds,
-} from "@/pages/Pacientes/patientAccessRules";
 
 interface PatientTableProps {
   search:
@@ -155,7 +153,7 @@ function getLastAppointment(
         (
           appointment
         ) =>
-          appointment.patientId ===
+          String(appointment.patientId) ===
             patient.id &&
           appointment.status ===
             "Realizado"
@@ -224,7 +222,7 @@ function getNextAppointment(
           appointment
         ) => {
           if (
-            appointment.patientId !==
+            String(appointment.patientId) !==
             patient.id ||
             appointment.status ===
               "Realizado" ||
@@ -307,9 +305,18 @@ export function PatientTable({
     useState<
       StoredPatient[]
     >(
-      () =>
-        getPatients()
+      []
     );
+
+  function reloadPatients() {
+    listarPacientes({ porPagina: 200 }).then((resposta) => {
+      setPatients(resposta.dados.map(paraStoredPatient));
+    });
+  }
+
+  useEffect(() => {
+    reloadPatients();
+  }, []);
 
   const [
     appointments,
@@ -337,22 +344,6 @@ export function PatientTable({
     user?.professionalName ??
     user?.name ??
     "";
-
-  const accessiblePatientIds =
-    useMemo(
-      () =>
-        isProfissional
-          ? new Set(
-              getProfessionalAccessiblePatientIds(
-                loggedProfessionalName
-              )
-            )
-          : null,
-      [
-        isProfissional,
-        loggedProfessionalName,
-      ]
-    );
 
   const canEdit =
     isGestor ||
@@ -383,14 +374,8 @@ export function PatientTable({
                 patient.telefone ||
                 "";
 
-              const matchesProfessionalAccess =
-                !isProfissional ||
-                Boolean(
-                  accessiblePatientIds?.has(
-                    patient.id
-                  )
-                );
-
+              // O backend já filtra a listagem por vínculo real quando
+              // quem pede é PROFISSIONAL — `patients` aqui já vem restrito.
               const matchesSearch =
                 !normalizedSearch ||
                 patient.nome
@@ -435,7 +420,6 @@ export function PatientTable({
                   convenioFilter;
 
               return (
-                matchesProfessionalAccess &&
                 matchesSearch &&
                 matchesStatus &&
                 matchesConvenio
@@ -458,14 +442,12 @@ export function PatientTable({
         search,
         statusFilter,
         convenioFilter,
-        isProfissional,
-        accessiblePatientIds,
       ]
     );
 
   function handleViewPatient(
     patientId:
-      number
+      string
   ) {
     navigate(
       `/pacientes/${patientId}`
@@ -474,7 +456,7 @@ export function PatientTable({
 
   function handleEditPatient(
     patientId:
-      number
+      string
   ) {
     if (
       !canEdit
@@ -487,7 +469,10 @@ export function PatientTable({
     );
   }
 
-  function handleDeletePatient(
+  // DELETE /pacientes/:id é soft-delete no backend (o cadastro é mantido,
+  // só o status vira Inativo) — por isso, após excluir, o paciente ainda
+  // pode reaparecer na lista se o filtro de status incluir "Inativo".
+  async function handleDeletePatient(
     patient:
       StoredPatient
   ) {
@@ -508,13 +493,11 @@ export function PatientTable({
       return;
     }
 
-    deletePatient(
+    await excluirPaciente(
       patient.id
     );
 
-    setPatients(
-      getPatients()
-    );
+    reloadPatients();
   }
 
   return (
@@ -840,12 +823,7 @@ export function PatientTable({
           de{" "}
           <strong className="text-[#526080]">
             {
-              isProfissional
-                ? (
-                    accessiblePatientIds?.size ??
-                    0
-                  )
-                : patients.length
+              patients.length
             }
           </strong>{" "}
           pacientes

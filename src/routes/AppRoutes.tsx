@@ -29,6 +29,7 @@ import NovoObjetivo from "@/pages/Pacientes/NovoObjetivo";
 import Profissionais from "@/pages/Profissionais";
 
 import NovoProfissional from "@/pages/Profissionais/NovoProfissional";
+import EditarProfissional from "@/pages/Profissionais/EditarProfissional";
 
 import PerfilProfissional from "@/pages/Profissionais/PerfilProfissional";
 
@@ -103,6 +104,8 @@ import RelatorioProfissionais from "@/pages/Relatorios/RelatorioProfissionais";
 import SolicitacoesRelatorios from "@/pages/SolicitacoesRelatorios";
 
 import RelatorioSolicitado from "@/pages/SolicitacoesRelatorios/RelatorioSolicitado";
+
+import Mensagens from "@/pages/Mensagens";
 
 import Configuracoes from "@/pages/Configuracoes";
 
@@ -353,6 +356,15 @@ export function AppRoutes() {
         element={
           <GestorOnlyRoute>
             <NovoProfissional />
+          </GestorOnlyRoute>
+        }
+      />
+
+      <Route
+        path="/profissionais/:id/editar"
+        element={
+          <GestorOnlyRoute>
+            <EditarProfissional />
           </GestorOnlyRoute>
         }
       />
@@ -1207,6 +1219,20 @@ export function AppRoutes() {
               <RelatorioProfissionais />
             </ProtectedRoute>
           </ProfileRoute>
+        }
+      />
+
+      {/* ========================================= */}
+      {/* MENSAGENS */}
+      {/* TODOS OS PERFIS AUTENTICADOS */}
+      {/* ========================================= */}
+
+      <Route
+        path="/mensagens"
+        element={
+          <ProtectedRoute>
+            <Mensagens />
+          </ProtectedRoute>
         }
       />
 

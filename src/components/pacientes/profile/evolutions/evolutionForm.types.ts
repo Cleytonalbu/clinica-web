@@ -51,7 +51,7 @@ export type ReferralPriority =
   | "Urgente";
 
 export interface EvolutionObjectiveFormData {
-  id: number;
+  id: number | string;
   name: string;
   status: EvolutionObjectiveStatus;
 

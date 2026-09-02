@@ -17,175 +17,75 @@ import {
 
 interface LoginResult {
   success: boolean;
-
   message?: string;
 }
 
 interface AuthContextValue {
-  user:
-    AuthUser |
-    null;
-
-  session:
-    AuthSession |
-    null;
-
-  isAuthenticated:
-    boolean;
-
-  login:
-    (
-      email: string,
-      password: string
-    ) => LoginResult;
-
-  logout:
-    () => void;
-
-  refreshSession:
-    () => void;
+  user: AuthUser | null;
+  session: AuthSession | null;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<LoginResult>;
+  logout: () => void;
+  refreshSession: () => void;
 }
 
-const AuthContext =
-  createContext<
-    AuthContextValue |
-    undefined
-  >(
-    undefined
-  );
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 interface AuthProviderProps {
-  children:
-    ReactNode;
+  children: ReactNode;
 }
 
-export function AuthProvider({
-  children,
-}: AuthProviderProps) {
-  const [
-    session,
-    setSession,
-  ] =
-    useState<
-      AuthSession |
-      null
-    >(
-      () =>
-        getAuthSession()
-    );
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [session, setSession] = useState<AuthSession | null>(() =>
+    getAuthSession()
+  );
 
-  const login =
-    useCallback(
-      (
-        email:
-          string,
+  const login = useCallback(
+    async (email: string, password: string): Promise<LoginResult> => {
+      const result = await authenticateUser(email, password);
 
-        password:
-          string
-      ): LoginResult => {
-        const result =
-          authenticateUser(
-            email,
-            password
-          );
+      if (!result.success) {
+        return { success: false, message: result.message };
+      }
 
-        if (
-          !result.success
-        ) {
-          return {
-            success:
-              false,
+      setSession(result.session);
 
-            message:
-              result.message,
-          };
-        }
+      return { success: true };
+    },
+    []
+  );
 
-        setSession(
-          result.session
-        );
+  const logout = useCallback(() => {
+    clearAuthSession();
+    setSession(null);
+  }, []);
 
-        return {
-          success:
-            true,
-        };
-      },
-      []
-    );
+  const refreshSession = useCallback(() => {
+    setSession(getAuthSession());
+  }, []);
 
-  const logout =
-    useCallback(
-      () => {
-        clearAuthSession();
-
-        setSession(
-          null
-        );
-      },
-      []
-    );
-
-  const refreshSession =
-    useCallback(
-      () => {
-        setSession(
-          getAuthSession()
-        );
-      },
-      []
-    );
-
-  const value =
-    useMemo<AuthContextValue>(
-      () => ({
-        user:
-          session?.user ??
-          null,
-
-        session,
-
-        isAuthenticated:
-          Boolean(
-            session
-          ),
-
-        login,
-
-        logout,
-
-        refreshSession,
-      }),
-      [
-        session,
-        login,
-        logout,
-        refreshSession,
-      ]
-    );
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user: session?.user ?? null,
+      session,
+      isAuthenticated: Boolean(session),
+      login,
+      logout,
+      refreshSession,
+    }),
+    [session, login, logout, refreshSession]
+  );
 
   return (
-    <AuthContext.Provider
-      value={
-        value
-      }
-    >
-      {
-        children
-      }
-    </AuthContext.Provider>
+    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const context =
-    useContext(
-      AuthContext
-    );
+  const context = useContext(AuthContext);
 
   if (!context) {
-    throw new Error(
-      "useAuth deve ser utilizado dentro de AuthProvider."
-    );
+    throw new Error("useAuth deve ser utilizado dentro de AuthProvider.");
   }
 
   return context;

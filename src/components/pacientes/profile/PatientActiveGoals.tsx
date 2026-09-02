@@ -6,7 +6,9 @@ import {
 } from "lucide-react";
 
 import {
+  useEffect,
   useMemo,
+  useState,
 } from "react";
 
 import {
@@ -15,9 +17,11 @@ import {
 } from "react-router-dom";
 
 import {
-  getActiveObjectivesByPatientId,
-  type ObjectiveStatus,
-} from "@/pages/Pacientes/objectiveStorage";
+  listarObjetivos,
+  paraTherapeuticObjective,
+  type FrontObjectiveStatus as ObjectiveStatus,
+  type RealObjective,
+} from "@/services/objetivos";
 
 /* =========================================
    COMPONENTE
@@ -33,29 +37,37 @@ export function PatientActiveGoals() {
     useParams();
 
   const patientId =
-    Number(
-      id
-    );
+    id ?? "";
 
   /* =======================================
      OBJETIVOS ATIVOS
   ======================================= */
 
+  const [allObjectives, setAllObjectives] = useState<RealObjective[]>([]);
+
+  useEffect(() => {
+    if (!patientId) return;
+
+    listarObjetivos(patientId)
+      .then((resposta) => setAllObjectives(resposta.dados.map(paraTherapeuticObjective)))
+      .catch(() => {});
+  }, [patientId]);
+
   const goals =
     useMemo(
       () => {
         if (
-          !Number.isFinite(
-            patientId
-          ) ||
-          patientId <= 0
+          !patientId
         ) {
           return [];
         }
 
-        return getActiveObjectivesByPatientId(
-          patientId
-        )
+        return allObjectives
+          .filter(
+            (objective) =>
+              objective.status === "Em evolução" ||
+              objective.status === "Com regressão"
+          )
           .sort(
             (
               a,
@@ -102,6 +114,7 @@ export function PatientActiveGoals() {
       },
       [
         patientId,
+        allObjectives,
       ]
     );
 

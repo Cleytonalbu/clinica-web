@@ -24,7 +24,7 @@ import {
 
 interface PatientProfileHeaderProps {
   patientId:
-    number;
+    string | number;
 
   nome:
     string;

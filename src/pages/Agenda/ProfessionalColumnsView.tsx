@@ -10,8 +10,8 @@ import type {
 } from "./ScheduleBlocksView";
 
 import type {
-  StoredAppointment,
-} from "./appointmentStorage";
+  RealAppointment as StoredAppointment,
+} from "@/services/agenda";
 
 interface ProfessionalColumnsViewProps {
   appointments:
@@ -24,11 +24,11 @@ interface ProfessionalColumnsViewProps {
     string;
 
   onPatient: (
-    patientId: number
+    patientId: string
   ) => void;
 
   onDetails: (
-    appointmentId: number
+    appointmentId: string
   ) => void;
 }
 

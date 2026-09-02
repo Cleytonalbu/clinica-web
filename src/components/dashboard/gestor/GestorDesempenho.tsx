@@ -1,34 +1,14 @@
-const specialties = [
-  {
-    name: "Psicologia",
-    value: 82,
-    barStyle: "bg-[#6847f5]",
-    valueStyle: "text-[#6847f5]",
-  },
+import type { ApiDashboardGestor } from "@/services/dashboardGestor";
 
-  {
-    name: "Fonoaudiologia",
-    value: 74,
-    barStyle: "bg-[#36a9e1]",
-    valueStyle: "text-[#299bd2]",
-  },
+const CORES = ["#6847f5", "#36a9e1", "#35bd92", "#f2b347", "#ef6975"];
 
-  {
-    name: "Terapia Ocupacional",
-    value: 68,
-    barStyle: "bg-[#35bd92]",
-    valueStyle: "text-[#29a77f]",
-  },
+interface GestorDesempenhoProps {
+  dados: ApiDashboardGestor["desempenhoPorEspecialidade"];
+}
 
-  {
-    name: "Fisioterapia",
-    value: 61,
-    barStyle: "bg-[#f2b347]",
-    valueStyle: "text-[#dc9b2e]",
-  },
-];
-
-export function GestorDesempenho() {
+export function GestorDesempenho({
+  dados,
+}: GestorDesempenhoProps) {
   return (
     <section
       className="
@@ -45,56 +25,54 @@ export function GestorDesempenho() {
       </h2>
 
       <p className="mt-1 text-xs font-medium text-[#8a95b4]">
-        Atendimentos realizados no mês.
+        % de atendimentos concluídos no mês.
       </p>
 
-      <div className="mt-7 space-y-6">
-        {specialties.map(
-          (specialty) => (
-            <div
-              key={
-                specialty.name
-              }
-            >
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-xs font-semibold text-[#667397]">
-                  {
-                    specialty.name
-                  }
-                </span>
+      {dados.length === 0 ? (
+        <p className="mt-7 text-sm text-[#9aa3bd]">
+          Nenhum atendimento com especialidade registrada neste mês.
+        </p>
+      ) : (
+        <div className="mt-7 space-y-6">
+          {dados.map(
+            (especialidade, index) => (
+              <div
+                key={
+                  especialidade.especialidadeId
+                }
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-xs font-semibold text-[#667397]">
+                    {
+                      especialidade.nome
+                    }
+                  </span>
 
-                <span
-                  className={`
-                    text-xs
-                    font-extrabold
-                    ${specialty.valueStyle}
-                  `}
-                >
-                  {
-                    specialty.value
-                  }
-                  %
-                </span>
-              </div>
+                  <span
+                    className="text-xs font-extrabold"
+                    style={{ color: CORES[index % CORES.length] }}
+                  >
+                    {
+                      especialidade.percentual
+                    }
+                    %
+                  </span>
+                </div>
 
-              <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-[#f0f1f7]">
-                <div
-                  className={`
-                    h-full
-                    rounded-full
-                    transition-all
-                    ${specialty.barStyle}
-                  `}
-                  style={{
-                    width:
-                      `${specialty.value}%`,
-                  }}
-                />
+                <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-[#f0f1f7]">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${especialidade.percentual}%`,
+                      backgroundColor: CORES[index % CORES.length],
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-          )
-        )}
-      </div>
+            )
+          )}
+        </div>
+      )}
     </section>
   );
 }

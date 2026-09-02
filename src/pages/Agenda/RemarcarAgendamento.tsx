@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -29,290 +30,26 @@ import {
 } from "@/components/ui";
 
 import {
-  getSavedAppointments,
-  updateSavedAppointment,
-  type StoredAppointment,
-} from "./appointmentStorage";
-
-import {
   checkScheduleConflict,
 } from "./scheduleValidation";
 
 import {
-  getActiveProfessionals,
-  getActiveRooms,
-  getActiveSpecialties,
-} from "@/pages/Configuracoes/settingsStorage";
-
-/* =========================================
-   ATENDIMENTOS DE DEMONSTRAÇÃO
-========================================= */
-
-const defaultAppointments: StoredAppointment[] = [
-  {
-    id: 1,
-
-    patientId: 1,
-
-    patient:
-      "Maria Oliveira",
-
-    professional:
-      "Dra. Ana Paula",
-
-    specialty:
-      "Psicologia",
-
-    date:
-      "2026-08-07",
-
-    time:
-      "08:00",
-
-    endTime:
-      "08:50",
-
-    room:
-      "Sala 01",
-
-    type:
-      "Individual",
-
-    status:
-      "Realizado",
-  },
-
-  {
-    id: 2,
-
-    patientId: 2,
-
-    patient:
-      "João Miguel Silva",
-
-    professional:
-      "Dra. Camila Soares",
-
-    specialty:
-      "Fonoaudiologia",
-
-    date:
-      "2026-08-07",
-
-    time:
-      "08:00",
-
-    endTime:
-      "08:50",
-
-    room:
-      "Sala 02",
-
-    type:
-      "Individual",
-
-    status:
-      "Confirmado",
-  },
-
-  {
-    id: 3,
-
-    patientId: 3,
-
-    patient:
-      "Lucas Gabriel",
-
-    professional:
-      "Dra. Ana Paula",
-
-    specialty:
-      "Psicologia",
-
-    date:
-      "2026-08-07",
-
-    time:
-      "09:00",
-
-    endTime:
-      "09:50",
-
-    room:
-      "Sala 01",
-
-    type:
-      "Individual",
-
-    status:
-      "Confirmado",
-  },
-
-  {
-    id: 4,
-
-    patientId: 4,
-
-    patient:
-      "Ana Clara Rodrigues",
-
-    professional:
-      "Dra. Larissa Lima",
-
-    specialty:
-      "Terapia Ocupacional",
-
-    date:
-      "2026-08-07",
-
-    time:
-      "10:00",
-
-    endTime:
-      "10:50",
-
-    room:
-      "Sala 03",
-
-    type:
-      "Individual",
-
-    status:
-      "Agendado",
-  },
-
-  {
-    id: 5,
-
-    patientId: 5,
-
-    patient:
-      "Pedro Henrique",
-
-    professional:
-      "Dr. Rafael Costa",
-
-    specialty:
-      "Fisioterapia",
-
-    date:
-      "2026-08-07",
-
-    time:
-      "11:00",
-
-    endTime:
-      "11:50",
-
-    room:
-      "Sala 04",
-
-    type:
-      "Avaliação",
-
-    status:
-      "Cancelado",
-  },
-
-  {
-    id: 6,
-
-    patientId: 1,
-
-    patient:
-      "Maria Oliveira",
-
-    professional:
-      "Dra. Camila Soares",
-
-    specialty:
-      "Fonoaudiologia",
-
-    date:
-      "2026-08-07",
-
-    time:
-      "14:00",
-
-    endTime:
-      "14:50",
-
-    room:
-      "Sala 02",
-
-    type:
-      "Individual",
-
-    status:
-      "Agendado",
-  },
-
-  {
-    id: 7,
-
-    patientId: 3,
-
-    patient:
-      "Lucas Gabriel",
-
-    professional:
-      "Dra. Ana Paula",
-
-    specialty:
-      "Psicologia",
-
-    date:
-      "2026-08-08",
-
-    time:
-      "09:00",
-
-    endTime:
-      "09:50",
-
-    room:
-      "Sala 01",
-
-    type:
-      "Individual",
-
-    status:
-      "Agendado",
-  },
-
-  {
-    id: 8,
-
-    patientId: 1,
-
-    patient:
-      "Maria Oliveira",
-
-    professional:
-      "Dra. Ana Paula",
-
-    specialty:
-      "Psicologia",
-
-    date:
-      "2026-08-10",
-
-    time:
-      "10:30",
-
-    endTime:
-      "11:20",
-
-    room:
-      "Sala 01",
-
-    type:
-      "Individual",
-
-    status:
-      "Confirmado",
-  },
-];
+  atualizarAgendamento,
+  buscarAgendamento,
+  paraStoredAppointment,
+  type RealAppointment,
+} from "@/services/agenda";
+
+import {
+  listarProfissionais,
+  listarSalas,
+  type ApiProfissional,
+  type ApiSala,
+} from "@/services/referencias";
+
+import {
+  useUnit,
+} from "@/providers/UnitContext";
 
 /* =========================================
    COMPONENTE PRINCIPAL
@@ -327,67 +64,77 @@ export default function RemarcarAgendamento() {
   } =
     useParams();
 
-  const numericId =
-    Number(
-      appointmentId
-    );
+  const { activeUnitId } = useUnit();
 
   /* =======================================
-     CONFIGURAÇÕES
+     REFERÊNCIAS (API)
   ======================================= */
 
-  const activeProfessionals =
-    useMemo(
-      () =>
-        getActiveProfessionals(),
+  const [apiProfissionais, setApiProfissionais] = useState<ApiProfissional[]>([]);
+  const [apiRooms, setApiRooms] = useState<ApiSala[]>([]);
 
-      []
-    );
+  useEffect(() => {
+    listarProfissionais().then(setApiProfissionais).catch(() => {});
+    listarSalas().then((dados) => setApiRooms(dados.filter((r) => r.ativa))).catch(() => {});
+  }, []);
 
-  const activeRooms =
-    useMemo(
-      () =>
-        getActiveRooms(),
+  const activeProfessionals = useMemo(
+    () =>
+      apiProfissionais.map((p) => ({
+        id: p.id,
+        name: p.usuario.nome,
+        specialty: p.especialidades[0]?.especialidade.nome ?? "",
+        registration: p.registro ?? "",
+      })),
+    [apiProfissionais]
+  );
 
-      []
-    );
-
-  const activeSpecialties =
-    useMemo(
-      () =>
-        getActiveSpecialties(),
-
-      []
-    );
+  const activeRooms = useMemo(
+    () => apiRooms.map((r) => ({ id: r.id, name: r.nome })),
+    [apiRooms]
+  );
 
   /* =======================================
      AGENDAMENTO
   ======================================= */
 
-  const savedAppointments =
-    getSavedAppointments();
+  const [appointment, setAppointment] = useState<RealAppointment | null>(null);
+  const [fetching, setFetching] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const appointment =
-    [
-      ...defaultAppointments,
+  useEffect(() => {
+    if (!appointmentId) {
+      setFetching(false);
+      return;
+    }
 
-      ...savedAppointments,
-    ].find(
-      (
-        item
-      ) =>
-        item.id ===
-        numericId
-    );
+    let cancelado = false;
 
-  const isSavedAppointment =
-    savedAppointments.some(
-      (
-        item
-      ) =>
-        item.id ===
-        numericId
-    );
+    buscarAgendamento(appointmentId)
+      .then((dados) => {
+        if (cancelado) return;
+        const real = paraStoredAppointment(dados, activeUnitId);
+        setAppointment(real);
+        setDate(real.date);
+        setStartTime(real.time);
+        setEndTime(real.endTime);
+        setProfessional(real.professional);
+        setSpecialty(real.specialty);
+        setRoom(real.room);
+      })
+      .catch(() => {
+        if (cancelado) return;
+        setFetchError("Agendamento não encontrado.");
+      })
+      .finally(() => {
+        if (cancelado) return;
+        setFetching(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [appointmentId, activeUnitId]);
 
   /* =======================================
      FORMULÁRIO
@@ -398,7 +145,6 @@ export default function RemarcarAgendamento() {
     setDate,
   ] =
     useState(
-      appointment?.date ??
       ""
     );
 
@@ -407,7 +153,6 @@ export default function RemarcarAgendamento() {
     setStartTime,
   ] =
     useState(
-      appointment?.time ??
       ""
     );
 
@@ -416,7 +161,6 @@ export default function RemarcarAgendamento() {
     setEndTime,
   ] =
     useState(
-      appointment?.endTime ??
       ""
     );
 
@@ -425,7 +169,6 @@ export default function RemarcarAgendamento() {
     setProfessional,
   ] =
     useState(
-      appointment?.professional ??
       ""
     );
 
@@ -434,7 +177,6 @@ export default function RemarcarAgendamento() {
     setSpecialty,
   ] =
     useState(
-      appointment?.specialty ??
       ""
     );
 
@@ -443,7 +185,6 @@ export default function RemarcarAgendamento() {
     setRoom,
   ] =
     useState(
-      appointment?.room ??
       ""
     );
 
@@ -539,13 +280,11 @@ export default function RemarcarAgendamento() {
               undefined,
 
             /*
-             * Muito importante:
-             *
-             * ignora o próprio atendimento
-             * durante a remarcação.
+             * Checagem client-side é só uma prévia (mock, advisory) — a
+             * validação autoritativa de conflito acontece no PUT
+             * /agendamentos/:id no backend. Por isso não há mais um
+             * ignoreAppointmentId numérico correspondente ao UUID real.
              */
-            ignoreAppointmentId:
-              numericId,
           }
         );
       },
@@ -560,10 +299,24 @@ export default function RemarcarAgendamento() {
         endTime,
 
         room,
-
-        numericId,
       ]
     );
+
+  /* =======================================
+     CARREGANDO
+  ======================================= */
+
+  if (
+    fetching
+  ) {
+    return (
+      <DashboardLayout>
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
+          Carregando agendamento…
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   /* =======================================
      NÃO ENCONTRADO
@@ -580,7 +333,7 @@ export default function RemarcarAgendamento() {
           </h1>
 
           <p className="mt-2 text-sm text-slate-500">
-            O atendimento pode ter sido removido ou não existe.
+            {fetchError ?? "O atendimento pode ter sido removido ou não existe."}
           </p>
 
           <Button
@@ -615,46 +368,14 @@ export default function RemarcarAgendamento() {
           value
       );
 
-    const selectedSpecialty =
-      selected?.specialty ??
-      "";
-
-    const specialtyAvailable =
-      activeSpecialties.some(
-        (
-          item
-        ) =>
-          item.name ===
-          selectedSpecialty
-      );
-
     setProfessional(
       value
     );
 
-    if (
-      selected &&
-      specialtyAvailable
-    ) {
-      setSpecialty(
-        selected.specialty
-      );
-    } else {
-      setSpecialty(
-        ""
-      );
-    }
-
-    if (
-      selected &&
-      !specialtyAvailable
-    ) {
-      showError(
-        `A especialidade ${selected.specialty} está inativa.`
-      );
-
-      return;
-    }
+    setSpecialty(
+      selected?.specialty ??
+      ""
+    );
 
     clearFeedback();
   }
@@ -736,16 +457,6 @@ export default function RemarcarAgendamento() {
       return false;
     }
 
-    if (
-      !isSavedAppointment
-    ) {
-      showError(
-        "Os atendimentos de exemplo ainda não podem ser alterados permanentemente. Crie um novo agendamento para testar a remarcação persistente."
-      );
-
-      return false;
-    }
-
     return true;
   }
 
@@ -765,55 +476,30 @@ export default function RemarcarAgendamento() {
     );
 
     try {
-      updateSavedAppointment(
-        numericId,
-
-        {
-          date,
-
-          time:
-            startTime,
-
-          endTime,
-
-          professional,
-
-          specialty,
-
-          room,
-        }
+      const professionalReal = activeProfessionals.find(
+        (item) => item.name === professional
       );
 
-      /*
-       * Enquanto ainda não temos API,
-       * registramos o motivo apenas no
-       * console.
-       *
-       * Posteriormente teremos um
-       * histórico real de remarcações.
-       */
+      const roomReal = activeRooms.find((item) => item.name === room);
 
-      console.log(
-        "Agendamento remarcado:",
-        {
-          appointmentId:
-            numericId,
+      if (!professionalReal || !appointmentId) {
+        showError("Profissional inválido.");
+        setSaving(false);
+        return;
+      }
 
-          date,
+      await atualizarAgendamento(appointmentId, {
+        profissionalId: professionalReal.id,
+        salaId: roomReal?.id,
+        dataHora: `${date}T${startTime}:00`,
+        dataFim: `${date}T${endTime}:00`,
+      });
 
-          startTime,
-
-          endTime,
-
-          professional,
-
-          specialty,
-
-          room,
-
-          reason,
-        }
-      );
+      // Motivo da remarcação ainda não tem um campo próprio na API —
+      // registrado só localmente por enquanto (reason não é enviado).
+      if (reason) {
+        console.info("Motivo da remarcação (não persistido):", reason);
+      }
 
       setFeedback(
         "Agendamento remarcado com sucesso."
@@ -826,7 +512,7 @@ export default function RemarcarAgendamento() {
       setTimeout(
         () => {
           navigate(
-            `/agenda/${numericId}`
+            `/agenda/${appointmentId}`
           );
         },
 
@@ -889,7 +575,7 @@ export default function RemarcarAgendamento() {
             type="button"
             onClick={() =>
               navigate(
-                `/agenda/${numericId}`
+                `/agenda/${appointmentId}`
               )
             }
             className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-indigo-600"
@@ -928,16 +614,6 @@ export default function RemarcarAgendamento() {
             {
               feedback
             }
-          </div>
-        )}
-
-        {/* ================================= */}
-        {/* AVISO DEMONSTRAÇÃO */}
-        {/* ================================= */}
-
-        {!isSavedAppointment && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Este é um atendimento de demonstração. Por enquanto, apenas os novos agendamentos criados pelo sistema podem ser salvos após a remarcação.
           </div>
         )}
 
@@ -1345,7 +1021,7 @@ export default function RemarcarAgendamento() {
               variant="outline"
               onClick={() =>
                 navigate(
-                  `/agenda/${numericId}`
+                  `/agenda/${appointmentId}`
                 )
               }
             >
@@ -1359,7 +1035,6 @@ export default function RemarcarAgendamento() {
                 Boolean(
                   conflict
                 ) ||
-                !isSavedAppointment ||
                 activeProfessionals.length ===
                   0 ||
                 activeRooms.length ===

@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -54,13 +55,33 @@ import {
 } from "./ScheduleBlocksView";
 
 import {
+  listarAgendamentos,
+  paraStoredAppointment,
+  type RealAppointment as StoredAppointment,
+} from "@/services/agenda";
+
+// A criação/remarcação de agendamento (NovoAgendamento, RemarcarAgendamento,
+// DetalheAgendamento) ainda grava no mock local — essas telas dependem de
+// profissionais/especialidades/serviços/salas/convênios que também ainda
+// são mock em Configurações, e migrá-las é uma etapa maior à parte. Por
+// isso, mesclamos aqui os agendamentos reais (API) com os do mock, para não
+// "sumir" com o que essas telas ainda criam.
+import {
+  getSavedAppointments,
+} from "./appointmentStorage";
+
+import {
   getSavedBlocks,
 } from "./blockStorage";
 
 import {
-  getSavedAppointments,
-  type StoredAppointment,
-} from "./appointmentStorage";
+  listarEspecialidades,
+  listarProfissionais,
+} from "@/services/referencias";
+
+import {
+  useUnit,
+} from "@/providers/UnitContext";
 
 type CalendarView =
   | "day"
@@ -68,30 +89,27 @@ type CalendarView =
   | "week"
   | "month";
 
-const defaultAppointments: StoredAppointment[] = [
-  { id: 1, patientId: 1, patient: "Maria Oliveira", professional: "Dra. Ana Paula", specialty: "Psicologia", date: "2026-08-07", time: "08:00", endTime: "08:50", room: "Sala 01", type: "Individual", status: "Realizado" },
-  { id: 2, patientId: 2, patient: "João Miguel Silva", professional: "Dra. Camila Soares", specialty: "Fonoaudiologia", date: "2026-08-07", time: "08:00", endTime: "08:50", room: "Sala 02", type: "Individual", status: "Confirmado" },
-  { id: 3, patientId: 3, patient: "Lucas Gabriel", professional: "Dra. Ana Paula", specialty: "Psicologia", date: "2026-08-07", time: "09:00", endTime: "09:50", room: "Sala 01", type: "Individual", status: "Confirmado" },
-  { id: 4, patientId: 4, patient: "Ana Clara Rodrigues", professional: "Dra. Larissa Lima", specialty: "Terapia Ocupacional", date: "2026-08-07", time: "10:00", endTime: "10:50", room: "Sala 03", type: "Individual", status: "Agendado" },
-  { id: 5, patientId: 5, patient: "Pedro Henrique", professional: "Dr. Rafael Costa", specialty: "Fisioterapia", date: "2026-08-07", time: "11:00", endTime: "11:50", room: "Sala 04", type: "Avaliação", status: "Cancelado" },
-  { id: 6, patientId: 1, patient: "Maria Oliveira", professional: "Dra. Camila Soares", specialty: "Fonoaudiologia", date: "2026-08-07", time: "14:00", endTime: "14:50", room: "Sala 02", type: "Individual", status: "Agendado" },
-  { id: 7, patientId: 3, patient: "Lucas Gabriel", professional: "Dra. Ana Paula", specialty: "Psicologia", date: "2026-08-08", time: "09:00", endTime: "09:50", room: "Sala 01", type: "Individual", status: "Agendado" },
-  { id: 8, patientId: 1, patient: "Maria Oliveira", professional: "Dra. Ana Paula", specialty: "Psicologia", date: "2026-08-10", time: "10:30", endTime: "11:20", room: "Sala 01", type: "Individual", status: "Confirmado" },
-];
-
-const defaultScheduleBlocks: ScheduleBlock[] = [
-  { id: 1, professional: "Dra. Ana Paula", date: "2026-08-07", startTime: "12:00", endTime: "13:00", type: "Almoço", reason: "Intervalo de almoço" },
-  { id: 2, professional: "Dra. Camila Soares", date: "2026-08-07", startTime: "11:00", endTime: "12:00", type: "Reunião", reason: "Reunião da equipe clínica" },
-  { id: 3, professional: "Dra. Larissa Lima", date: "2026-08-07", startTime: "14:00", endTime: "17:00", type: "Indisponível", reason: "Atividade externa" },
-  { id: 4, professional: "Dr. Rafael Costa", date: "2026-08-08", startTime: "08:00", endTime: "17:00", type: "Férias", reason: "Período de férias" },
-];
-
-const professionals = ["Todos", "Dra. Ana Paula", "Dra. Camila Soares", "Dra. Larissa Lima", "Dr. Rafael Costa"];
-const specialties = ["Todas", "Psicologia", "Fonoaudiologia", "Terapia Ocupacional", "Fisioterapia"];
+// Bloqueios (tipo=BLOQUEIO) vêm misturados na mesma listagem de
+// /agendamentos — adaptados aqui para o formato ScheduleBlock que a UI já
+// sabe renderizar. O backend não categoriza o tipo do bloqueio
+// (Almoço/Reunião/Férias/...), só guarda `motivo` livre — por isso tudo
+// real cai em "Indisponível".
+function paraScheduleBlock(appointment: StoredAppointment): ScheduleBlock {
+  return {
+    id: appointment.id,
+    professional: appointment.professional,
+    date: appointment.date,
+    startTime: appointment.time,
+    endTime: appointment.endTime,
+    type: "Indisponível",
+    reason: appointment.motivo || "Bloqueio de agenda",
+  };
+}
 
 export default function Agenda() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { activeUnitId } = useUnit();
 
   const isGestor = user?.profile === "Gestor";
   const isRecepcao = user?.profile === "Recepção";
@@ -102,13 +120,67 @@ export default function Agenda() {
   const canCreateBlock = isGestor || isRecepcao;
 
   const [view, setView] = useState<CalendarView>("day");
-  const [selectedDate, setSelectedDate] = useState("2026-08-07");
+  const [selectedDate, setSelectedDate] = useState(() => formatDateForInput(new Date()));
   const [search, setSearch] = useState("");
   const [professional, setProfessional] = useState("Todos");
   const [specialty, setSpecialty] = useState("Todas");
   const [status, setStatus] = useState("Todos");
-  const [appointments] = useState<StoredAppointment[]>(() => [...defaultAppointments, ...getSavedAppointments()]);
-  const [scheduleBlocks] = useState<ScheduleBlock[]>(() => [...defaultScheduleBlocks, ...getSavedBlocks()]);
+
+  const [appointments, setAppointments] = useState<StoredAppointment[]>([]);
+  const [scheduleBlocks, setScheduleBlocks] = useState<ScheduleBlock[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [professionals, setProfessionals] = useState<string[]>(["Todos"]);
+  const [specialties, setSpecialties] = useState<string[]>(["Todas"]);
+
+  // A API não filtra /agendamentos por mês inteiro numa chamada só — busca
+  // uma janela ampla (mês atual) para alimentar as visões de dia/semana/mês
+  // sem paginar tela a tela nesta primeira integração.
+  useEffect(() => {
+    let cancelado = false;
+    setLoading(true);
+
+    listarAgendamentos({ porPagina: 500 })
+      .then((resposta) => {
+        if (cancelado) return;
+        const reais = resposta.dados.map((item) => paraStoredAppointment(item, activeUnitId));
+        const mock: StoredAppointment[] = getSavedAppointments().map((item) => ({
+          ...item,
+          id: String(item.id),
+          patientId: String(item.patientId),
+          tipo: "ATENDIMENTO" as const,
+        }));
+
+        setAppointments([...reais.filter((item) => item.tipo === "ATENDIMENTO"), ...mock]);
+        setScheduleBlocks([
+          ...reais.filter((item) => item.tipo === "BLOQUEIO").map(paraScheduleBlock),
+          ...getSavedBlocks(),
+        ]);
+        setLoadError(null);
+      })
+      .catch(() => {
+        if (cancelado) return;
+        setLoadError("Não foi possível carregar a agenda.");
+      })
+      .finally(() => {
+        if (cancelado) return;
+        setLoading(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [activeUnitId]);
+
+  useEffect(() => {
+    listarProfissionais()
+      .then((dados) => setProfessionals(["Todos", ...dados.map((p) => p.usuario.nome)]))
+      .catch(() => {});
+    listarEspecialidades()
+      .then((dados) => setSpecialties(["Todas", ...dados.map((e) => e.nome)]))
+      .catch(() => {});
+  }, []);
 
   const profileAppointments = useMemo(() => {
     if (!isProfissional) return appointments;
@@ -207,6 +279,18 @@ export default function Agenda() {
           )}
         </div>
 
+        {loadError && (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-xs font-semibold text-rose-700">
+            {loadError}
+          </div>
+        )}
+
+        {loading && (
+          <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-xs font-semibold text-slate-500">
+            Carregando agenda…
+          </div>
+        )}
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <MetricCard title="Atendimentos" value={String(dayStats.length)} description="Na data" icon={CalendarDays} iconStyle="bg-[#eeeaff] text-[#6847f5]" valueStyle="text-[#6847f5]" />
           <MetricCard title="Confirmados" value={String(confirmedCount)} description="Aguardando" icon={CheckCircle2} iconStyle="bg-[#eaf4ff] text-[#3988e8]" valueStyle="text-[#397fd5]" />
@@ -299,7 +383,7 @@ export default function Agenda() {
         )}
 
         {!isProfissional && view === "professionals" && (
-          <ProfessionalColumnsView appointments={filteredAppointments} blocks={filteredBlocks} selectedDate={selectedDate} onPatient={(patientId: number) => navigate(`/pacientes/${patientId}`)} onDetails={(appointmentId: number) => navigate(`/agenda/${appointmentId}`)} />
+          <ProfessionalColumnsView appointments={filteredAppointments} blocks={filteredBlocks} selectedDate={selectedDate} onPatient={(patientId: string) => navigate(`/pacientes/${patientId}`)} onDetails={(appointmentId: string) => navigate(`/agenda/${appointmentId}`)} />
         )}
 
         {view === "week" && <WeekView appointments={filteredAppointments} selectedDate={selectedDate} />}
@@ -314,9 +398,9 @@ interface DayViewProps {
   blocks: ScheduleBlock[];
   selectedDate: string;
   canReschedule: boolean;
-  onPatient: (patientId: number) => void;
-  onReschedule: (appointmentId: number) => void;
-  onDetails: (appointmentId: number) => void;
+  onPatient: (patientId: string) => void;
+  onReschedule: (appointmentId: string) => void;
+  onDetails: (appointmentId: string) => void;
 }
 
 function DayView({ appointments, blocks, selectedDate, canReschedule, onPatient, onReschedule, onDetails }: DayViewProps) {

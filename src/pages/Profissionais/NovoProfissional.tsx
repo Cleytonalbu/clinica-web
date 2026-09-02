@@ -1,10 +1,12 @@
-import { useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import {
   ArrowLeft,
   BriefcaseMedical,
   Save,
-  UserRound,
 } from "lucide-react";
 
 import {
@@ -15,67 +17,46 @@ import { DashboardLayout } from "@/layouts/DashboardLayout";
 
 import {
   Button,
-  FormField,
-  Input,
-  PageCard,
-  Select,
 } from "@/components/ui";
 
-interface ProfessionalFormData {
-  name: string;
-  birthDate: string;
-  cpf: string;
-  rg: string;
+import {
+  ProfessionalForm,
+  professionalFormInitialValues,
+  type ProfessionalFormData,
+} from "@/components/profissionais/form/ProfessionalForm";
 
-  phone: string;
-  email: string;
+import {
+  contarDigitos,
+} from "@/components/pacientes/form/masks";
 
-  specialty: string;
-  councilType: string;
-  councilNumber: string;
-
-  employmentType: string;
-  admissionDate: string;
-
-  status: string;
-
-  observations: string;
-}
-
-const initialValues: ProfessionalFormData = {
-  name: "",
-  birthDate: "",
-  cpf: "",
-  rg: "",
-
-  phone: "",
-  email: "",
-
-  specialty: "",
-  councilType: "",
-  councilNumber: "",
-
-  employmentType: "",
-  admissionDate: "",
-
-  status: "Ativo",
-
-  observations: "",
-};
+import {
+  criarProfissional,
+  listarEspecialidades,
+  type ApiEspecialidade,
+} from "@/services/referencias";
 
 export default function NovoProfissional() {
   const navigate = useNavigate();
 
   const [formData, setFormData] =
     useState<ProfessionalFormData>(
-      initialValues
+      professionalFormInitialValues
     );
+
+  const [especialidades, setEspecialidades] = useState<ApiEspecialidade[]>([]);
+
+  useEffect(() => {
+    listarEspecialidades().then(setEspecialidades).catch(() => {});
+  }, []);
 
   const [saving, setSaving] =
     useState(false);
 
   const [feedback, setFeedback] =
     useState<string | null>(null);
+
+  const [feedbackType, setFeedbackType] =
+    useState<"success" | "error" | null>(null);
 
   function updateField<
     K extends keyof ProfessionalFormData
@@ -89,31 +70,77 @@ export default function NovoProfissional() {
     }));
 
     setFeedback(null);
+    setFeedbackType(null);
   }
 
   function handleCancel() {
     navigate("/profissionais");
   }
 
+  function validar() {
+    if (!formData.name.trim()) {
+      return "Informe o nome completo.";
+    }
+    if (!formData.email.trim()) {
+      return "Informe o e-mail.";
+    }
+    if (!formData.senha || formData.senha.length < 6) {
+      return "A senha deve ter ao menos 6 caracteres.";
+    }
+    if (!formData.specialtyId) {
+      return "Selecione a especialidade.";
+    }
+    if (formData.cpf && contarDigitos(formData.cpf) !== 11) {
+      return "CPF deve ter 11 dígitos.";
+    }
+    if (formData.phone && contarDigitos(formData.phone) !== 11) {
+      return "Telefone deve ter 11 dígitos (DDD + número).";
+    }
+    return null;
+  }
+
   async function handleSave() {
+    const erro = validar();
+    if (erro) {
+      setFeedback(erro);
+      setFeedbackType("error");
+      return;
+    }
+
     setSaving(true);
 
     try {
-      console.log(
-        "Novo profissional:",
-        formData
-      );
-
-      // Futuramente:
-      // await professionalService.create(formData);
+      await criarProfissional({
+        nome: formData.name.trim(),
+        email: formData.email.trim(),
+        senha: formData.senha,
+        cpf: formData.cpf || undefined,
+        rg: formData.rg || undefined,
+        dataNascimento: formData.birthDate || undefined,
+        telefone: formData.phone || undefined,
+        status: formData.status as "ATIVO" | "INATIVO" | "FERIAS",
+        conselho: formData.councilType || undefined,
+        registro: formData.councilNumber || undefined,
+        tipoVinculo: formData.employmentType || undefined,
+        dataAdmissao: formData.admissionDate || undefined,
+        observacoes: formData.observations || undefined,
+        especialidadeIds: formData.specialtyId ? [formData.specialtyId] : [],
+      });
 
       setFeedback(
         "Profissional cadastrado com sucesso."
       );
+      setFeedbackType("success");
 
       setTimeout(() => {
         navigate("/profissionais");
       }, 800);
+    } catch (error: any) {
+      setFeedback(
+        error?.response?.data?.mensagem ??
+          "Não foi possível cadastrar o profissional."
+      );
+      setFeedbackType("error");
     } finally {
       setSaving(false);
     }
@@ -142,288 +169,22 @@ export default function NovoProfissional() {
         </div>
 
         {feedback && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <div
+            className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+              feedbackType === "error"
+                ? "border-red-200 bg-red-50 text-red-700"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+            }`}
+          >
             {feedback}
           </div>
         )}
 
-        <PageCard
-          title="Dados Pessoais"
-          description="Informações básicas do profissional."
-        >
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-            <div className="md:col-span-2">
-              <FormField
-                label="Nome completo"
-                required
-              >
-                <Input
-                  value={formData.name}
-                  onChange={(event) =>
-                    updateField(
-                      "name",
-                      event.target.value
-                    )
-                  }
-                  placeholder="Nome completo"
-                />
-              </FormField>
-            </div>
-
-            <FormField
-              label="Data de nascimento"
-            >
-              <Input
-                type="date"
-                value={formData.birthDate}
-                onChange={(event) =>
-                  updateField(
-                    "birthDate",
-                    event.target.value
-                  )
-                }
-              />
-            </FormField>
-
-            <FormField label="Status">
-              <Select
-                value={formData.status}
-                onChange={(event) =>
-                  updateField(
-                    "status",
-                    event.target.value
-                  )
-                }
-              >
-                <option value="Ativo">
-                  Ativo
-                </option>
-
-                <option value="Inativo">
-                  Inativo
-                </option>
-
-                <option value="Férias">
-                  Férias
-                </option>
-              </Select>
-            </FormField>
-
-            <FormField label="CPF">
-              <Input
-                value={formData.cpf}
-                onChange={(event) =>
-                  updateField(
-                    "cpf",
-                    event.target.value
-                  )
-                }
-                placeholder="000.000.000-00"
-              />
-            </FormField>
-
-            <FormField label="RG">
-              <Input
-                value={formData.rg}
-                onChange={(event) =>
-                  updateField(
-                    "rg",
-                    event.target.value
-                  )
-                }
-                placeholder="RG"
-              />
-            </FormField>
-
-            <FormField label="Telefone">
-              <Input
-                value={formData.phone}
-                onChange={(event) =>
-                  updateField(
-                    "phone",
-                    event.target.value
-                  )
-                }
-                placeholder="(00) 00000-0000"
-              />
-            </FormField>
-
-            <FormField label="E-mail">
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(event) =>
-                  updateField(
-                    "email",
-                    event.target.value
-                  )
-                }
-                placeholder="profissional@email.com"
-              />
-            </FormField>
-          </div>
-        </PageCard>
-
-        <PageCard
-          title="Dados Profissionais"
-          description="Especialidade, conselho e vínculo."
-        >
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-            <FormField
-              label="Especialidade"
-              required
-            >
-              <Select
-                value={formData.specialty}
-                onChange={(event) =>
-                  updateField(
-                    "specialty",
-                    event.target.value
-                  )
-                }
-              >
-                <option value="">
-                  Selecione
-                </option>
-
-                <option value="Psicologia">
-                  Psicologia
-                </option>
-
-                <option value="Fonoaudiologia">
-                  Fonoaudiologia
-                </option>
-
-                <option value="Terapia Ocupacional">
-                  Terapia Ocupacional
-                </option>
-
-                <option value="Fisioterapia">
-                  Fisioterapia
-                </option>
-
-                <option value="Psicopedagogia">
-                  Psicopedagogia
-                </option>
-
-                <option value="Nutrição">
-                  Nutrição
-                </option>
-              </Select>
-            </FormField>
-
-            <FormField label="Conselho">
-              <Select
-                value={formData.councilType}
-                onChange={(event) =>
-                  updateField(
-                    "councilType",
-                    event.target.value
-                  )
-                }
-              >
-                <option value="">
-                  Selecione
-                </option>
-
-                <option value="CRP">
-                  CRP
-                </option>
-
-                <option value="CREFONO">
-                  CREFONO
-                </option>
-
-                <option value="CREFITO">
-                  CREFITO
-                </option>
-
-                <option value="CRN">
-                  CRN
-                </option>
-
-                <option value="Outro">
-                  Outro
-                </option>
-              </Select>
-            </FormField>
-
-            <FormField label="Número do conselho">
-              <Input
-                value={formData.councilNumber}
-                onChange={(event) =>
-                  updateField(
-                    "councilNumber",
-                    event.target.value
-                  )
-                }
-                placeholder="Número do registro"
-              />
-            </FormField>
-
-            <FormField label="Tipo de vínculo">
-              <Select
-                value={formData.employmentType}
-                onChange={(event) =>
-                  updateField(
-                    "employmentType",
-                    event.target.value
-                  )
-                }
-              >
-                <option value="">
-                  Selecione
-                </option>
-
-                <option value="CLT">
-                  CLT
-                </option>
-
-                <option value="Prestador">
-                  Prestador de serviço
-                </option>
-
-                <option value="PJ">
-                  Pessoa Jurídica
-                </option>
-
-                <option value="Autônomo">
-                  Autônomo
-                </option>
-              </Select>
-            </FormField>
-
-            <FormField label="Data de admissão">
-              <Input
-                type="date"
-                value={formData.admissionDate}
-                onChange={(event) =>
-                  updateField(
-                    "admissionDate",
-                    event.target.value
-                  )
-                }
-              />
-            </FormField>
-          </div>
-        </PageCard>
-
-        <PageCard
-          title="Observações"
-          description="Informações adicionais sobre o profissional."
-        >
-          <textarea
-            value={formData.observations}
-            onChange={(event) =>
-              updateField(
-                "observations",
-                event.target.value
-              )
-            }
-            placeholder="Observações adicionais..."
-            className="min-h-32 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
-          />
-        </PageCard>
+        <ProfessionalForm
+          formData={formData}
+          updateField={updateField}
+          especialidades={especialidades}
+        />
 
         <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3 text-slate-500">

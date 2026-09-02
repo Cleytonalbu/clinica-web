@@ -1,9 +1,27 @@
 import {
   Lightbulb,
+  TrendingDown,
   TrendingUp,
 } from "lucide-react";
 
-export function GestorInsights() {
+import type { ApiDashboardGestor } from "@/services/dashboardGestor";
+
+interface GestorInsightsProps {
+  dados: ApiDashboardGestor["insightSemana"];
+}
+
+export function GestorInsights({
+  dados,
+}: GestorInsightsProps) {
+  const cresceu = dados.variacaoPercentual >= 0;
+
+  const mensagem = dados.atendimentosSemanaAtual === 0 && dados.atendimentosSemanaAnterior === 0
+    ? "Ainda não há atendimentos concluídos suficientes nos últimos 14 dias para gerar um insight."
+    : `O número de atendimentos concluídos ${cresceu ? "cresceu" : "caiu"} ${Math.abs(dados.variacaoPercentual)}% em relação à semana anterior.` +
+      (dados.especialidadeDestaque
+        ? ` ${dados.especialidadeDestaque} segue como a especialidade com maior volume de atendimentos nos últimos 7 dias.`
+        : "");
+
   return (
     <section
       className="
@@ -48,49 +66,49 @@ export function GestorInsights() {
             </h2>
 
             <p className="mt-1 max-w-3xl text-xs font-medium leading-5 text-[#68759b]">
-              O número de atendimentos realizados cresceu 12% em relação à semana anterior. Psicologia segue como a especialidade com maior volume de atendimentos.
+              {mensagem}
             </p>
           </div>
         </div>
 
         {/* INDICADOR */}
 
-        <div
-          className="
-            flex
-            shrink-0
-            items-center
-            gap-2
-            rounded-xl
-            border
-            border-white
-            bg-white/90
-            px-4
-            py-3
-            text-xs
-            font-extrabold
-            text-[#28a678]
-            shadow-[0_5px_16px_rgba(65,74,120,0.05)]
-          "
-        >
+        {(dados.atendimentosSemanaAtual > 0 || dados.atendimentosSemanaAnterior > 0) && (
           <div
-            className="
+            className={`
               flex
-              h-7
-              w-7
+              shrink-0
               items-center
-              justify-center
-              rounded-lg
-              bg-[#eafbf5]
-            "
+              gap-2
+              rounded-xl
+              border
+              border-white
+              bg-white/90
+              px-4
+              py-3
+              text-xs
+              font-extrabold
+              shadow-[0_5px_16px_rgba(65,74,120,0.05)]
+              ${cresceu ? "text-[#28a678]" : "text-[#d4536a]"}
+            `}
           >
-            <TrendingUp
-              size={15}
-            />
-          </div>
+            <div
+              className={`
+                flex
+                h-7
+                w-7
+                items-center
+                justify-center
+                rounded-lg
+                ${cresceu ? "bg-[#eafbf5]" : "bg-[#fdeef0]"}
+              `}
+            >
+              {cresceu ? <TrendingUp size={15} /> : <TrendingDown size={15} />}
+            </div>
 
-          +12% atendimentos
-        </div>
+            {cresceu ? "+" : ""}{dados.variacaoPercentual}% atendimentos
+          </div>
+        )}
       </div>
     </section>
   );

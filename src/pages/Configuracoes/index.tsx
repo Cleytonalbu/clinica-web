@@ -76,6 +76,12 @@ import GeneralSettingsContainer from "./GeneralSettingsContainer";
 import ClinicUnitsSettingsSection from "./ClinicUnitsSettingsSection";
 
 import {
+  formatarCEP,
+  formatarCNPJ,
+  formatarTelefoneFixo,
+} from "@/components/pacientes/form/masks";
+
+import {
   removeRoomUnitLinks,
   roomWorksAtUnit,
   setRoomUnit,
@@ -2077,12 +2083,13 @@ function ClinicSettingsSection({
                 value={
                   settings.cnpj
                 }
+                maxLength={18}
                 onChange={(
                   event
                 ) =>
                   onChange(
                     "cnpj",
-                    event.target.value
+                    formatarCNPJ(event.target.value)
                   )
                 }
               />
@@ -2110,12 +2117,13 @@ function ClinicSettingsSection({
                 value={
                   settings.phone
                 }
+                maxLength={14}
                 onChange={(
                   event
                 ) =>
                   onChange(
                     "phone",
-                    event.target.value
+                    formatarTelefoneFixo(event.target.value)
                   )
                 }
               />
@@ -2202,12 +2210,13 @@ function ClinicSettingsSection({
                 value={
                   settings.zipCode
                 }
+                maxLength={9}
                 onChange={(
                   event
                 ) =>
                   onChange(
                     "zipCode",
-                    event.target.value
+                    formatarCEP(event.target.value)
                   )
                 }
               />

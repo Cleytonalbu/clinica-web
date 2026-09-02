@@ -1,5 +1,5 @@
 import {
-  useMemo,
+  useEffect,
   useState,
 } from "react";
 
@@ -12,100 +12,60 @@ import {
 } from "lucide-react";
 
 import {
-  getBlockRequests,
-  updateBlockRequestStatus,
-  type BlockRequest,
-} from "@/pages/Agenda/blockRequestStorage";
-
-import {
-  saveBlock,
-} from "@/pages/Agenda/blockStorage";
-
-import {
-  checkScheduleConflict,
-} from "@/pages/Agenda/scheduleValidation";
+  listarSolicitacoesBloqueio,
+  aprovarSolicitacaoBloqueio,
+  recusarSolicitacaoBloqueio,
+  paraBlockRequest,
+} from "@/services/solicitacoesBloqueio";
 
 export function GestorSolicitacoesBloqueio() {
-  const [requests, setRequests] =
-    useState<BlockRequest[]>(() =>
-      getBlockRequests()
-    );
+  const [requests, setRequests] = useState<ReturnType<typeof paraBlockRequest>[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [processandoId, setProcessandoId] = useState<string | null>(null);
 
-  const [feedback, setFeedback] =
-    useState<string | null>(null);
-
-  const pendingRequests = useMemo(
-    () =>
-      requests
-        .filter(
-          (request) =>
-            request.status === "Pendente"
-        )
-        .sort(
-          (a, b) =>
-            b.createdAt.localeCompare(
-              a.createdAt
-            )
-        ),
-    [requests]
-  );
-
-  function refreshRequests() {
-    setRequests(getBlockRequests());
+  function carregar() {
+    setLoading(true);
+    listarSolicitacoesBloqueio("PENDENTE")
+      .then((dados) => setRequests(dados.map(paraBlockRequest)))
+      .catch(() => setRequests([]))
+      .finally(() => setLoading(false));
   }
 
-  function handleApprove(
-    request: BlockRequest
-  ) {
-    const conflict = checkScheduleConflict({
-      professional: request.professional,
-      date: request.date,
-      startTime: request.startTime,
-      endTime: request.endTime,
-    });
+  useEffect(() => {
+    carregar();
+  }, []);
 
-    if (conflict) {
+  async function handleApprove(id: string, professional: string) {
+    setProcessandoId(id);
+    try {
+      await aprovarSolicitacaoBloqueio(id);
+      setFeedback(`Bloqueio de ${professional} aprovado com sucesso.`);
+      carregar();
+    } catch (error: any) {
       setFeedback(
-        `Não foi possível aprovar: ${conflict.description}`
+        error?.response?.data?.mensagem ??
+          "Não foi possível aprovar a solicitação."
       );
-      return;
+    } finally {
+      setProcessandoId(null);
     }
-
-    saveBlock({
-      id: Date.now(),
-      professional: request.professional,
-      date: request.date,
-      startTime: request.startTime,
-      endTime: request.endTime,
-      type: request.type,
-      reason: request.reason,
-    });
-
-    updateBlockRequestStatus(
-      request.id,
-      "Aprovado"
-    );
-
-    setFeedback(
-      `Bloqueio de ${request.professional} aprovado com sucesso.`
-    );
-
-    refreshRequests();
   }
 
-  function handleReject(
-    request: BlockRequest
-  ) {
-    updateBlockRequestStatus(
-      request.id,
-      "Recusado"
-    );
-
-    setFeedback(
-      `Solicitação de ${request.professional} recusada.`
-    );
-
-    refreshRequests();
+  async function handleReject(id: string, professional: string) {
+    setProcessandoId(id);
+    try {
+      await recusarSolicitacaoBloqueio(id);
+      setFeedback(`Solicitação de ${professional} recusada.`);
+      carregar();
+    } catch (error: any) {
+      setFeedback(
+        error?.response?.data?.mensagem ??
+          "Não foi possível recusar a solicitação."
+      );
+    } finally {
+      setProcessandoId(null);
+    }
   }
 
   return (
@@ -129,7 +89,7 @@ export function GestorSolicitacoesBloqueio() {
         </div>
 
         <span className="inline-flex w-fit items-center rounded-full bg-[#f2efff] px-3 py-1 text-xs font-bold text-[#6847f5]">
-          {pendingRequests.length} pendente{pendingRequests.length === 1 ? "" : "s"}
+          {requests.length} pendente{requests.length === 1 ? "" : "s"}
         </span>
       </div>
 
@@ -140,7 +100,9 @@ export function GestorSolicitacoesBloqueio() {
           </div>
         )}
 
-        {pendingRequests.length === 0 ? (
+        {loading ? (
+          <p className="text-sm text-[#9aa3bd]">Carregando…</p>
+        ) : requests.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#dfe4f0] bg-[#fbfcff] px-5 py-8 text-center">
             <Lock
               size={28}
@@ -155,7 +117,7 @@ export function GestorSolicitacoesBloqueio() {
           </div>
         ) : (
           <div className="space-y-3">
-            {pendingRequests.map((request) => (
+            {requests.map((request) => (
               <div
                 key={request.id}
                 className="rounded-2xl border border-[#e6e9f2] bg-white p-4"
@@ -199,10 +161,11 @@ export function GestorSolicitacoesBloqueio() {
                   <div className="flex shrink-0 flex-wrap gap-2">
                     <button
                       type="button"
+                      disabled={processandoId === request.id}
                       onClick={() =>
-                        handleReject(request)
+                        handleReject(request.id, request.professional)
                       }
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#f0cfd5] bg-white px-4 text-sm font-bold text-[#d44e67] transition hover:bg-[#fff7f8]"
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#f0cfd5] bg-white px-4 text-sm font-bold text-[#d44e67] transition hover:bg-[#fff7f8] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <X size={16} />
                       Recusar
@@ -210,10 +173,11 @@ export function GestorSolicitacoesBloqueio() {
 
                     <button
                       type="button"
+                      disabled={processandoId === request.id}
                       onClick={() =>
-                        handleApprove(request)
+                        handleApprove(request.id, request.professional)
                       }
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#5d3df5] to-[#773cf5] px-4 text-sm font-bold text-white shadow-[0_8px_18px_rgba(103,66,246,0.18)] transition hover:opacity-95"
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#5d3df5] to-[#773cf5] px-4 text-sm font-bold text-white shadow-[0_8px_18px_rgba(103,66,246,0.18)] transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <Check size={16} />
                       Aprovar

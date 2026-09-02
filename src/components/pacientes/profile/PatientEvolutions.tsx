@@ -10,7 +10,9 @@ import {
 } from "lucide-react";
 
 import {
+  useEffect,
   useMemo,
+  useState,
 } from "react";
 
 import {
@@ -27,9 +29,10 @@ import {
 } from "@/components/ui";
 
 import {
-  getEvolutionsByPatientId,
-  type StoredEvolution,
-} from "@/pages/Pacientes/evolutionStorage";
+  listarEvolucoes,
+  paraStoredEvolution,
+  type RealEvolution as StoredEvolution,
+} from "@/services/evolucoes";
 
 import {
   getProfessionalSpecialty,
@@ -54,9 +57,7 @@ export function PatientEvolutions() {
     useAuth();
 
   const patientId =
-    Number(
-      id
-    );
+    id ?? "";
 
   const isGestor =
     user?.profile ===
@@ -78,23 +79,44 @@ export function PatientEvolutions() {
         )
       : "";
 
+  const [allEvolutions, setAllEvolutions] = useState<StoredEvolution[]>([]);
+  const [loadingEvolutions, setLoadingEvolutions] = useState(true);
+
+  useEffect(() => {
+    if (!patientId) {
+      setLoadingEvolutions(false);
+      return;
+    }
+
+    let cancelado = false;
+    setLoadingEvolutions(true);
+
+    listarEvolucoes(patientId)
+      .then((resposta) => {
+        if (cancelado) return;
+        setAllEvolutions(resposta.dados.map(paraStoredEvolution));
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (cancelado) return;
+        setLoadingEvolutions(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [patientId]);
+
   const evolutions =
     useMemo(
       () => {
         if (
-          !Number.isFinite(
-            patientId
-          ) ||
-          patientId <=
-            0
+          !patientId
         ) {
           return [];
         }
 
-        const all =
-          getEvolutionsByPatientId(
-            patientId
-          );
+        const all = allEvolutions;
 
         if (
           !isProfissional
@@ -116,6 +138,7 @@ export function PatientEvolutions() {
         );
       },
       [
+        allEvolutions,
         isProfissional,
         loggedProfessionalName,
         patientId,
@@ -159,9 +182,7 @@ export function PatientEvolutions() {
   function handleNewEvolution() {
     if (
       !canCreate ||
-      !Number.isFinite(
-        patientId
-      )
+      !patientId
     ) {
       return;
     }
@@ -173,7 +194,7 @@ export function PatientEvolutions() {
 
   function handleView(
     evolutionId:
-      number
+      string
   ) {
     navigate(
       `/pacientes/${patientId}/evolucoes/${evolutionId}`
@@ -214,6 +235,12 @@ export function PatientEvolutions() {
           </Button>
         )}
       </div>
+
+      {loadingEvolutions && (
+        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-xs font-semibold text-slate-500">
+          Carregando evoluções…
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
@@ -397,7 +424,7 @@ function EvolutionCard({
                 />
               }
               label="Objetivos"
-              value={`${evolution.objectives.length} trabalhado(s)`}
+              value={`${evolution.objectivesWorkedCount} trabalhado(s)`}
             />
           </div>
 

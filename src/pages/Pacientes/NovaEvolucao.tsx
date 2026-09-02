@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   ArrowLeft,
@@ -54,26 +54,31 @@ import {
 } from "@/components/pacientes/profile/evolutions/evolutionForm.types";
 
 import {
-  getPatientById,
-} from "@/pages/Pacientes/patientStorage";
+  buscarPaciente,
+  paraStoredPatient,
+  type RealPatient,
+} from "@/services/pacientes";
 
 import {
-  createObjective,
-  getObjectivesByPatientId,
-  type ObjectiveStatus,
-} from "@/pages/Pacientes/objectiveStorage";
+  criarObjetivo,
+  listarObjetivos,
+  slugCategoria,
+} from "@/services/objetivos";
 
 import {
-  createEvolution,
-  createStoredAttachments,
-  getLastEvolutionByPatientId,
-  updateEvolution as updateStoredEvolution,
-} from "@/pages/Pacientes/evolutionStorage";
+  atualizarEvolucao,
+  assinarEvolucao,
+  criarEvolucao,
+  enviarAnexo,
+  resultadoParaApi,
+} from "@/services/evolucoes";
 
 import {
-  getActiveProfessionals,
-  getActiveSpecialties,
-} from "@/pages/Configuracoes/settingsStorage";
+  listarProfissionais,
+  listarEspecialidades,
+  type ApiProfissional,
+  type ApiEspecialidade,
+} from "@/services/referencias";
 
 type ValidationErrors = Partial<
   Record<keyof EvolutionFormData, string>
@@ -83,11 +88,22 @@ export default function NovaEvolucao() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const patientIdNumber = Number(id);
   const patientId = id ?? "";
 
-  const patient =
-    getPatientById(patientIdNumber);
+  const [patient, setPatient] = useState<RealPatient | null>(null);
+  const [fetchingPatient, setFetchingPatient] = useState(true);
+
+  useEffect(() => {
+    if (!patientId) {
+      setFetchingPatient(false);
+      return;
+    }
+
+    buscarPaciente(patientId)
+      .then((dados) => setPatient(paraStoredPatient(dados)))
+      .catch(() => setPatient(null))
+      .finally(() => setFetchingPatient(false));
+  }, [patientId]);
 
   const {
     user,
@@ -108,11 +124,23 @@ export default function NovaEvolucao() {
     setObjectiveRefreshKey,
   ] = useState(0);
 
+  const [apiProfissionais, setApiProfissionais] = useState<ApiProfissional[]>([]);
+  const [apiEspecialidades, setApiEspecialidades] = useState<ApiEspecialidade[]>([]);
+
+  useEffect(() => {
+    listarProfissionais().then(setApiProfissionais).catch(() => {});
+    listarEspecialidades().then(setApiEspecialidades).catch(() => {});
+  }, []);
+
   const allActiveProfessionals =
     useMemo(
       () =>
-        getActiveProfessionals(),
-      []
+        apiProfissionais.map((p) => ({
+          id: p.id,
+          name: p.usuario.nome,
+          specialty: p.especialidades[0]?.especialidade.nome ?? "",
+        })),
+      [apiProfissionais]
     );
 
   const loggedProfessional =
@@ -135,37 +163,50 @@ export default function NovaEvolucao() {
     loggedProfessional?.specialty ??
     "";
 
+  const [allPatientObjectives, setAllPatientObjectives] = useState<
+    { id: string; title: string; specialty: string; professional: string; status: string }[]
+  >([]);
+
+  useEffect(() => {
+    if (!patientId) return;
+
+    listarObjetivos(patientId)
+      .then((resposta) => {
+        setAllPatientObjectives(
+          resposta.dados.map((o) => ({
+            id: o.id,
+            title: o.nome,
+            specialty: o.categoria.replace(/_/g, " "),
+            professional: o.profissional?.usuario.nome ?? "",
+            status:
+              o.status === "ALCANCADO"
+                ? "Atingido"
+                : o.status === "PARCIALMENTE_ALCANCADO"
+                  ? "Com regressão"
+                  : "Em evolução",
+          }))
+        );
+      })
+      .catch(() => {});
+  }, [patientId, objectiveRefreshKey]);
+
   const therapeuticPlanObjectives =
     useMemo(
       () =>
-        Number.isFinite(patientIdNumber) &&
-        patientIdNumber > 0
-          ? getObjectivesByPatientId(
-              patientIdNumber
-            ).filter(
+        allPatientObjectives.filter(
               (objective) =>
                 objective.status !==
                   "Atingido" &&
                 (
                   !isProfissional ||
-                  (
-                    objective.professional ===
-                      loggedProfessionalName &&
-                    (
-                      !professionalSpecialty ||
-                      objective.specialty ===
-                        professionalSpecialty
-                    )
-                  )
+                  objective.professional ===
+                      loggedProfessionalName
                 )
-            )
-          : [],
+            ),
       [
-        patientIdNumber,
-        objectiveRefreshKey,
+        allPatientObjectives,
         isProfissional,
         loggedProfessionalName,
-        professionalSpecialty,
       ]
     );
 
@@ -192,7 +233,7 @@ export default function NovaEvolucao() {
     useMemo(
       () => {
         const specialties =
-          getActiveSpecialties();
+          apiEspecialidades.map((e) => ({ id: e.id, name: e.nome }));
 
         if (
           !isProfissional
@@ -209,21 +250,10 @@ export default function NovaEvolucao() {
         );
       },
       [
+        apiEspecialidades,
         isProfissional,
         professionalSpecialty,
       ]
-    );
-
-  const lastEvolution =
-    useMemo(
-      () =>
-        Number.isFinite(patientIdNumber) &&
-        patientIdNumber > 0
-          ? getLastEvolutionByPatientId(
-              patientIdNumber
-            )
-          : undefined,
-      [patientIdNumber]
     );
 
   const [formData, setFormData] =
@@ -232,7 +262,7 @@ export default function NovaEvolucao() {
     );
 
   const [savedEvolutionId, setSavedEvolutionId] =
-    useState<number | null>(null);
+    useState<string | null>(null);
 
   const [saving, setSaving] =
     useState(false);
@@ -271,7 +301,7 @@ export default function NovaEvolucao() {
   }
 
   function updateObjective(
-    objectiveId: number,
+    objectiveId: number | string,
     field: "status" | "performance",
     value: EvolutionObjectiveStatus | number
   ) {
@@ -325,7 +355,7 @@ export default function NovaEvolucao() {
     setFeedbackType(null);
   }
 
-  function addObjective(objectiveId: number) {
+  function addObjective(objectiveId: number | string) {
     const selectedObjective =
       therapeuticPlanObjectives.find(
         (objective) => objective.id === objectiveId
@@ -367,7 +397,7 @@ export default function NovaEvolucao() {
     setFeedbackType("success");
   }
 
-  function removeObjective(objectiveId: number) {
+  function removeObjective(objectiveId: number | string) {
     setFormData((current) => ({
       ...current,
       objectives: current.objectives.filter(
@@ -378,7 +408,7 @@ export default function NovaEvolucao() {
 
   function handleObjectiveCreated(
     objective: {
-      id: number;
+      id: string;
       title: string;
       specialty: string;
     }
@@ -549,15 +579,82 @@ export default function NovaEvolucao() {
     return Object.keys(nextErrors).length === 0;
   }
 
+  // O front oferece "Individual"/"Grupo"/"Avaliação"; a API só aceita
+  // individual/grupo/domiciliar/teleconsulta. "Avaliação" não tem
+  // correspondência real — cai em "individual" (mais próximo).
+  function tipoAtendimentoParaApi(value: string): string {
+    switch (value) {
+      case "Grupo":
+        return "grupo";
+      case "Individual":
+      case "Avaliação":
+      default:
+        return "individual";
+    }
+  }
+
+  // Resolve nomes (profissional/especialidade) exibidos no formulário para
+  // os IDs reais exigidos pela API.
+  function resolveProfissionalId(): string | null {
+    return (
+      allActiveProfessionals.find(
+        (item) => item.name === formData.professional
+      )?.id ?? null
+    );
+  }
+
+  function buildEvolucaoPayload(rascunho: boolean) {
+    return {
+      pacienteId: patientId,
+      profissionalId: resolveProfissionalId() ?? "",
+      dataAtendimento: formData.sessionDate,
+      // A API monta a data/hora completa concatenando dataAtendimento +
+      // horaInicio/horaFim internamente — aqui só a hora (HH:mm).
+      horaInicio: formData.startTime || "00:00",
+      horaFim: formData.endTime || formData.startTime || "00:00",
+      especialidade: formData.specialty,
+      tipoAtendimento: tipoAtendimentoParaApi(formData.appointmentType),
+      localAtendimento: formData.appointmentLocation || undefined,
+      evolucaoEscrita: formData.writtenEvolution || undefined,
+      resultadoGeral: resultadoParaApi(formData.sessionResult),
+      impactos: formData.observedImpacts,
+      observacoes: formData.sessionResultObservation || undefined,
+      rascunho,
+      objetivosSessao: formData.objectives.map((objective) => ({
+        objetivoId: String(objective.id),
+        statusNaSessao: objective.status,
+        nivelDesempenho: objective.performance,
+      })),
+    };
+  }
+
+  // Envia os anexos pendentes (File[] escolhidos no navegador) para a
+  // evolução já criada. Anexos exigem um evolucaoId real, então só podem
+  // ser enviados depois do primeiro save.
+  async function enviarAnexosPendentes(evolucaoId: string) {
+    for (const file of formData.attachments) {
+      try {
+        await enviarAnexo(evolucaoId, file);
+      } catch {
+        // segue tentando os próximos; feedback de erro fica genérico
+      }
+    }
+  }
+
   async function handleSaveDraft() {
     if (
       !patient ||
-      !Number.isFinite(patientIdNumber) ||
-      patientIdNumber <= 0
+      !patientId
     ) {
       setFeedback(
         "Paciente não encontrado."
       );
+      setFeedbackType("error");
+      return;
+    }
+
+    if (!resolveProfissionalId()) {
+      setFeedback("Selecione o profissional responsável.");
       setFeedbackType("error");
       return;
     }
@@ -567,88 +664,30 @@ export default function NovaEvolucao() {
     setFeedbackType(null);
 
     try {
-      const draft: EvolutionFormData = {
-        ...formData,
-        status: "RASCUNHO",
-      };
-
-      const payload = {
-        patientId: patientIdNumber,
-        sessionDate: draft.sessionDate,
-        startTime: draft.startTime,
-        endTime: draft.endTime,
-        specialty: draft.specialty,
-        appointmentType:
-          draft.appointmentType,
-        appointmentLocation:
-          draft.appointmentLocation,
-        objectives: draft.objectives,
-        materials: draft.materials,
-        writtenEvolution:
-          draft.writtenEvolution,
-        referralSpecialty:
-          draft.referralSpecialty,
-        referralProfessional:
-          draft.referralProfessional,
-        referralReason:
-          draft.referralReason,
-        referralPriority:
-          draft.referralPriority,
-        referralObservation:
-          draft.referralObservation,
-        notifyProfessional:
-          draft.notifyProfessional,
-        addProfessionalAgenda:
-          draft.addProfessionalAgenda,
-        notifyManager:
-          draft.notifyManager,
-        observedImpacts:
-          draft.observedImpacts,
-        sessionResult:
-          draft.sessionResult,
-        sessionResultObservation:
-          draft.sessionResultObservation,
-        attachments:
-          createStoredAttachments(
-            draft.attachments
-          ),
-        professional:
-          draft.professional,
-        status:
-          "RASCUNHO" as const,
-      };
+      const payload = buildEvolucaoPayload(true);
 
       const stored =
         savedEvolutionId
-          ? updateStoredEvolution(
-              savedEvolutionId,
-              payload
-            )
-          : createEvolution(
-              payload
-            );
+          ? await atualizarEvolucao(savedEvolutionId, payload)
+          : await criarEvolucao(payload);
 
-      if (
-        stored &&
-        !savedEvolutionId
-      ) {
-        setSavedEvolutionId(
-          stored.id
-        );
+      if (!savedEvolutionId) {
+        setSavedEvolutionId(stored.id);
       }
 
-      setFormData(draft);
+      await enviarAnexosPendentes(stored.id);
+
+      setFormData((current) => ({ ...current, status: "RASCUNHO", attachments: [] }));
 
       setFeedback(
         "Rascunho salvo com sucesso."
       );
 
       setFeedbackType("success");
-    } catch (error) {
+    } catch (error: any) {
       setFeedback(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível salvar o rascunho."
+        error?.response?.data?.mensagem ??
+          "Não foi possível salvar o rascunho."
       );
 
       setFeedbackType("error");
@@ -681,8 +720,7 @@ export default function NovaEvolucao() {
 
     if (
       !patient ||
-      !Number.isFinite(patientIdNumber) ||
-      patientIdNumber <= 0
+      !patientId
     ) {
       setFeedback(
         "Paciente não encontrado."
@@ -691,86 +729,32 @@ export default function NovaEvolucao() {
       return;
     }
 
+    if (!resolveProfissionalId()) {
+      setFeedback("Selecione o profissional responsável.");
+      setFeedbackType("error");
+      return;
+    }
+
     setSaving(true);
 
     try {
-      const evolution: EvolutionFormData = {
-        ...formData,
-        status: "FINALIZADA",
-      };
+      const payload = buildEvolucaoPayload(true);
 
-      const payload = {
-        patientId: patientIdNumber,
-        sessionDate:
-          evolution.sessionDate,
-        startTime:
-          evolution.startTime,
-        endTime:
-          evolution.endTime,
-        specialty:
-          evolution.specialty,
-        appointmentType:
-          evolution.appointmentType,
-        appointmentLocation:
-          evolution.appointmentLocation,
-        objectives:
-          evolution.objectives,
-        materials:
-          evolution.materials,
-        writtenEvolution:
-          evolution.writtenEvolution,
-        referralSpecialty:
-          evolution.referralSpecialty,
-        referralProfessional:
-          evolution.referralProfessional,
-        referralReason:
-          evolution.referralReason,
-        referralPriority:
-          evolution.referralPriority,
-        referralObservation:
-          evolution.referralObservation,
-        notifyProfessional:
-          evolution.notifyProfessional,
-        addProfessionalAgenda:
-          evolution.addProfessionalAgenda,
-        notifyManager:
-          evolution.notifyManager,
-        observedImpacts:
-          evolution.observedImpacts,
-        sessionResult:
-          evolution.sessionResult,
-        sessionResultObservation:
-          evolution.sessionResultObservation,
-        attachments:
-          createStoredAttachments(
-            evolution.attachments
-          ),
-        professional:
-          evolution.professional,
-        status:
-          "FINALIZADA" as const,
-      };
-
+      // Assinar (POST /evolucoes/:id/assinar) só existe para uma evolução
+      // já criada — se ainda não houver rascunho salvo, cria primeiro.
       const stored =
         savedEvolutionId
-          ? updateStoredEvolution(
-              savedEvolutionId,
-              payload
-            )
-          : createEvolution(
-              payload
-            );
+          ? await atualizarEvolucao(savedEvolutionId, payload)
+          : await criarEvolucao(payload);
 
-      if (
-        stored &&
-        !savedEvolutionId
-      ) {
-        setSavedEvolutionId(
-          stored.id
-        );
+      if (!savedEvolutionId) {
+        setSavedEvolutionId(stored.id);
       }
 
-      setFormData(evolution);
+      await enviarAnexosPendentes(stored.id);
+      await assinarEvolucao(stored.id);
+
+      setFormData((current) => ({ ...current, status: "FINALIZADA" }));
 
       setFeedback(
         "Evolução finalizada com sucesso."
@@ -783,17 +767,26 @@ export default function NovaEvolucao() {
           `/pacientes/${patientId}?tab=evolucoes`
         );
       }, 900);
-    } catch (error) {
+    } catch (error: any) {
       setFeedback(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível finalizar a evolução."
+        error?.response?.data?.mensagem ??
+          "Não foi possível finalizar a evolução."
       );
 
       setFeedbackType("error");
     } finally {
       setSaving(false);
     }
+  }
+
+  if (fetchingPatient) {
+    return (
+      <DashboardLayout>
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
+          Carregando paciente…
+        </div>
+      </DashboardLayout>
+    );
   }
 
   if (!patient) {
@@ -910,13 +903,7 @@ export default function NovaEvolucao() {
             <PatientInfo
               icon={<CalendarDays size={20} />}
               label="Última evolução"
-              value={
-                lastEvolution
-                  ? formatDate(
-                      lastEvolution.sessionDate
-                    )
-                  : "-"
-              }
+              value="-"
             />
           </div>
         </div>
@@ -940,7 +927,7 @@ export default function NovaEvolucao() {
               therapeuticPlanObjectives
             }
             patientId={
-              patientIdNumber
+              patientId
             }
             activeProfessionals={
               activeProfessionals
@@ -1037,6 +1024,9 @@ export default function NovaEvolucao() {
               professional={
                 formData.professional
               }
+              professionals={
+                activeProfessionals
+              }
               onChange={(value) =>
                 updateField(
                   "professional",
@@ -1103,7 +1093,7 @@ interface SessionDataSectionProps {
   errors: ValidationErrors;
 
   activeSpecialties: Array<{
-    id: number;
+    id: number | string;
     name: string;
   }>;
 
@@ -1265,12 +1255,12 @@ interface SessionObjectivesSectionProps {
   formData: EvolutionFormData;
 
   therapeuticPlanObjectives: Array<{
-    id: number;
+    id: number | string;
     title: string;
     specialty: string;
   }>;
 
-  patientId: number;
+  patientId: string;
 
   activeProfessionals: Array<{
     id: number | string;
@@ -1284,21 +1274,21 @@ interface SessionObjectivesSectionProps {
   }>;
 
   updateObjective: (
-    objectiveId: number,
+    objectiveId: number | string,
     field: "status" | "performance",
     value: EvolutionObjectiveStatus | number
   ) => void;
 
   addObjective:
-    (objectiveId: number) => void;
+    (objectiveId: number | string) => void;
 
   removeObjective:
-    (objectiveId: number) => void;
+    (objectiveId: number | string) => void;
 
   onObjectiveCreated:
     (
       objective: {
-        id: number;
+        id: string;
         title: string;
         specialty: string;
       }
@@ -1354,10 +1344,11 @@ function SessionObjectivesSection({
       return;
     }
 
+    // Objetivos reais usam UUID (string) — `Number(...)` aqui era resquício
+    // do mock (id numérico) e sempre virava NaN, fazendo o objetivo nunca
+    // ser encontrado em `addObjective` e a sessão nunca ser vinculada.
     addObjective(
-      Number(
-        selectedObjectiveId
-      )
+      selectedObjectiveId
     );
 
     setSelectedObjectiveId(
@@ -1720,7 +1711,7 @@ function SessionObjectivesSection({
 
 interface QuickObjectiveModalProps {
   patientId:
-    number;
+    string;
 
   currentSpecialty:
     string;
@@ -1742,7 +1733,7 @@ interface QuickObjectiveModalProps {
   onCreated:
     (
       objective: {
-        id: number;
+        id: string;
         title: string;
         specialty: string;
       }
@@ -1772,7 +1763,7 @@ interface QuickObjectiveFormData {
     string;
 
   status:
-    ObjectiveStatus;
+    "Em evolução" | "Atingido" | "Com regressão";
 
   observation:
     string;
@@ -2017,16 +2008,21 @@ function QuickObjectiveModal({
     }
 
     if (
-      !Number.isFinite(
-        patientId
-      ) ||
-      patientId <=
-        0
+      !patientId
     ) {
       setObjectiveError(
         "Paciente inválido."
       );
 
+      return;
+    }
+
+    const professionalReal = activeProfessionals.find(
+      (item) => item.name === objectiveData.professional
+    );
+
+    if (!professionalReal) {
+      setObjectiveError("Profissional inválido.");
       return;
     }
 
@@ -2039,89 +2035,29 @@ function QuickObjectiveModal({
     );
 
     try {
-      createObjective(
+      const created = await criarObjetivo(
+        patientId,
         {
-          patientId,
-
-          generalObjective:
-            objectiveData.generalObjective,
-
-          title:
-            objectiveData.title,
-
-          specialty:
-            objectiveData.specialty,
-
-          professional:
-            objectiveData.professional,
-
-          startDate:
-            objectiveData.startDate,
-
-          targetDate:
-            objectiveData.targetDate,
-
-          progress:
-            Number(
-              objectiveData.progress
-            ),
-
-          status:
-            objectiveData.status,
-
-          observation:
-            objectiveData.observation,
+          profissionalId: String(professionalReal.id),
+          nome: objectiveData.title,
+          descricao: objectiveData.generalObjective
+            ? `Objetivo geral: ${objectiveData.generalObjective}`
+            : undefined,
+          categoria: slugCategoria(objectiveData.specialty),
+          progresso: Number(objectiveData.progress),
         }
       );
-
-      const createdObjective =
-        getObjectivesByPatientId(
-          patientId
-        )
-          .filter(
-            (
-              objective
-            ) =>
-              objective.title
-                .trim()
-                .toLocaleLowerCase(
-                  "pt-BR"
-                ) ===
-                objectiveData.title
-                  .trim()
-                  .toLocaleLowerCase(
-                    "pt-BR"
-                  ) &&
-              objective.professional ===
-                objectiveData.professional
-          )
-          .sort(
-            (
-              a,
-              b
-            ) =>
-              b.id -
-              a.id
-          )[0];
-
-      if (
-        !createdObjective
-      ) {
-        throw new Error(
-          "Objetivo criado, mas não foi possível localizá-lo."
-        );
-      }
 
       onCreated(
         {
           id:
-            createdObjective.id,
+            created.id,
 
           title:
-            createdObjective.title,
+            created.nome,
 
           specialty:
-            createdObjective.specialty,
+            objectiveData.specialty,
         }
       );
     } catch {
@@ -2372,7 +2308,7 @@ function QuickObjectiveModal({
                   updateObjectiveField(
                     "status",
                     event.target
-                      .value as ObjectiveStatus
+                      .value as "Em evolução" | "Atingido" | "Com regressão"
                   )
                 }
               >
@@ -2700,31 +2636,6 @@ function calculateAge(
     age,
     0
   );
-}
-
-function formatDate(
-  value: string
-) {
-  if (!value) {
-    return "-";
-  }
-
-  const [
-    year,
-    month,
-    day,
-  ] =
-    value.split("-");
-
-  if (
-    !year ||
-    !month ||
-    !day
-  ) {
-    return value;
-  }
-
-  return `${day}/${month}/${year}`;
 }
 
 interface PatientInfoProps {

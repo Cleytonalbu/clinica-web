@@ -38,8 +38,8 @@ import type {
 } from "./ScheduleBlocksView";
 
 import {
-  saveBlockRequest,
-} from "./blockRequestStorage";
+  criarSolicitacaoBloqueio,
+} from "@/services/solicitacoesBloqueio";
 
 type BlockType =
   ScheduleBlock["type"];
@@ -152,16 +152,11 @@ export default function SolicitarBloqueio() {
     setSaving(true);
 
     try {
-      saveBlockRequest({
-        id: Date.now(),
-        professional: professionalName,
-        date: formData.date,
-        startTime: formData.startTime,
-        endTime: formData.endTime,
-        type: formData.type,
-        reason: formData.reason.trim(),
-        status: "Pendente",
-        createdAt: new Date().toISOString(),
+      await criarSolicitacaoBloqueio({
+        dataHora: `${formData.date}T${formData.startTime}:00`,
+        dataFim: `${formData.date}T${formData.endTime}:00`,
+        tipo: formData.type,
+        motivo: formData.reason.trim(),
       });
 
       setFeedback(
@@ -172,9 +167,10 @@ export default function SolicitarBloqueio() {
       setTimeout(() => {
         navigate("/agenda");
       }, 700);
-    } catch {
+    } catch (error: any) {
       showError(
-        "Não foi possível enviar a solicitação de bloqueio."
+        error?.response?.data?.mensagem ??
+          "Não foi possível enviar a solicitação de bloqueio."
       );
     } finally {
       setSaving(false);

@@ -8,6 +8,8 @@ import type {
   ProfessionalFilterState,
 } from "@/components/profissionais/table/ProfessionalTable";
 
+import type { ApiEspecialidade } from "@/services/referencias";
+
 interface ProfessionalFiltersProps {
   filters:
     ProfessionalFilterState;
@@ -17,11 +19,14 @@ interface ProfessionalFiltersProps {
       filters:
         ProfessionalFilterState
     ) => void;
+
+  especialidades: ApiEspecialidade[];
 }
 
 export function ProfessionalFilters({
   filters,
   onChange,
+  especialidades,
 }: ProfessionalFiltersProps) {
   const hasFilters =
     filters.search.trim() !==
@@ -100,25 +105,14 @@ export function ProfessionalFilters({
             Todas as especialidades
           </option>
 
-          <option value="psicologia">
-            Psicologia
-          </option>
-
-          <option value="fono">
-            Fonoaudiologia
-          </option>
-
-          <option value="to">
-            Terapia Ocupacional
-          </option>
-
-          <option value="fisio">
-            Fisioterapia
-          </option>
-
-          <option value="nutricao">
-            Nutrição
-          </option>
+          {especialidades.map((especialidade) => (
+            <option
+              key={especialidade.id}
+              value={especialidade.id}
+            >
+              {especialidade.nome}
+            </option>
+          ))}
         </select>
 
         <select
@@ -140,15 +134,15 @@ export function ProfessionalFilters({
             Todos os status
           </option>
 
-          <option value="ativo">
+          <option value="ATIVO">
             Ativos
           </option>
 
-          <option value="inativo">
+          <option value="INATIVO">
             Inativos
           </option>
 
-          <option value="ferias">
+          <option value="FERIAS">
             Férias
           </option>
         </select>

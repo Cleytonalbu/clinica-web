@@ -12,6 +12,11 @@ import {
 } from "lucide-react";
 
 import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
   useNavigate,
   useParams,
 } from "react-router-dom";
@@ -30,15 +35,18 @@ import {
 } from "@/components/ui";
 
 import {
-  getPatientById,
-} from "@/pages/Pacientes/patientStorage";
+  buscarPaciente,
+  paraStoredPatient,
+  type RealPatient,
+} from "@/services/pacientes";
 
 import {
-  getPatientEvolutionById,
-} from "@/pages/Pacientes/evolutionStorage";
+  buscarEvolucao,
+  paraStoredEvolution,
+  type RealEvolution,
+} from "@/services/evolucoes";
 
 import {
-  canProfessionalAccessPatient,
   getProfessionalSpecialty,
 } from "@/pages/Pacientes/patientAccessRules";
 
@@ -58,25 +66,48 @@ export default function DetalheEvolucao() {
     useAuth();
 
   const patientId =
-    Number(
-      id
-    );
+    id ?? "";
 
-  const numericEvolutionId =
-    Number(
-      evolutionId
-    );
+  const [patient, setPatient] = useState<RealPatient | null>(null);
+  const [evolution, setEvolution] = useState<RealEvolution | null>(null);
+  const [fetching, setFetching] = useState(true);
+  // 403 real do backend (paciente sem vínculo com este profissional) —
+  // distinto de "não encontrado" para mostrar a mensagem certa.
+  const [accessDenied, setAccessDenied] = useState(false);
 
-  const patient =
-    getPatientById(
-      patientId
-    );
+  useEffect(() => {
+    if (!patientId || !evolutionId) {
+      setFetching(false);
+      return;
+    }
 
-  const evolution =
-    getPatientEvolutionById(
-      patientId,
-      numericEvolutionId
-    );
+    let cancelado = false;
+    setFetching(true);
+    setAccessDenied(false);
+
+    Promise.all([buscarPaciente(patientId), buscarEvolucao(evolutionId)])
+      .then(([dadosPaciente, dadosEvolucao]) => {
+        if (cancelado) return;
+        setPatient(paraStoredPatient(dadosPaciente));
+        setEvolution(paraStoredEvolution(dadosEvolucao));
+      })
+      .catch((error) => {
+        if (cancelado) return;
+        if (error?.response?.status === 403) {
+          setAccessDenied(true);
+        }
+        setPatient(null);
+        setEvolution(null);
+      })
+      .finally(() => {
+        if (cancelado) return;
+        setFetching(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [patientId, evolutionId]);
 
   const isProfissional =
     user?.profile ===
@@ -94,13 +125,6 @@ export default function DetalheEvolucao() {
         )
       : "";
 
-  const hasPatientAccess =
-    !isProfissional ||
-    canProfessionalAccessPatient(
-      loggedProfessionalName,
-      patientId
-    );
-
   const hasEvolutionAccess =
     !isProfissional ||
     Boolean(
@@ -117,6 +141,31 @@ export default function DetalheEvolucao() {
   function handleBack() {
     navigate(
       `/pacientes/${patientId}`
+    );
+  }
+
+  if (fetching) {
+    return (
+      <DashboardLayout>
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
+          Carregando evolução…
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <DashboardLayout>
+        <CenteredMessage
+          title="Acesso restrito à evolução"
+          description="Paciente não vinculado ao seu atendimento."
+          buttonLabel="Voltar para minhas evoluções"
+          onClick={
+            handleBack
+          }
+        />
+      </DashboardLayout>
     );
   }
 
@@ -139,7 +188,6 @@ export default function DetalheEvolucao() {
   }
 
   if (
-    !hasPatientAccess ||
     !hasEvolutionAccess
   ) {
     return (

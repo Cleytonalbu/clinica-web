@@ -13,10 +13,6 @@ import {
   Select,
 } from "@/components/ui";
 
-import {
-  getActiveProfessionals,
-} from "@/pages/Configuracoes/settingsStorage";
-
 /* =========================================
    PROPS
 ========================================= */
@@ -24,6 +20,9 @@ import {
 interface ProfessionalSignatureSectionProps {
   professional:
     string;
+
+  professionals:
+    Array<{ id: number | string; name: string; specialty: string }>;
 
   onChange: (
     professional:
@@ -37,19 +36,9 @@ interface ProfessionalSignatureSectionProps {
 
 export function ProfessionalSignatureSection({
   professional,
+  professionals,
   onChange,
 }: ProfessionalSignatureSectionProps) {
-  /* =======================================
-     PROFISSIONAIS ATIVOS
-  ======================================= */
-
-  const professionals =
-    useMemo(
-      () =>
-        getActiveProfessionals(),
-
-      []
-    );
 
   /* =======================================
      PROFISSIONAL SELECIONADO

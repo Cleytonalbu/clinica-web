@@ -1,30 +1,26 @@
-const ageGroups = [
-  {
-    label: "0 a 5 anos",
-    value: 38,
-    dotStyle: "bg-[#6847f5]",
-  },
+import type { ApiDashboardGestor } from "@/services/dashboardGestor";
 
-  {
-    label: "6 a 10 anos",
-    value: 31,
-    dotStyle: "bg-[#38a8df]",
-  },
+const CORES = ["#6847f5", "#38a8df", "#38bd92", "#f0b144"];
 
-  {
-    label: "11 a 15 anos",
-    value: 19,
-    dotStyle: "bg-[#38bd92]",
-  },
+interface GestorFaixaEtariaProps {
+  dados: ApiDashboardGestor["faixaEtaria"];
+}
 
-  {
-    label: "16+ anos",
-    value: 12,
-    dotStyle: "bg-[#f0b144]",
-  },
-];
+export function GestorFaixaEtaria({
+  dados,
+}: GestorFaixaEtariaProps) {
+  const gradienteStops = (() => {
+    let acumulado = 0;
 
-export function GestorFaixaEtaria() {
+    return dados.faixas
+      .map((faixa, index) => {
+        const inicio = acumulado;
+        acumulado += faixa.percentual;
+        return `${CORES[index % CORES.length]} ${inicio}% ${acumulado}%`;
+      })
+      .join(", ");
+  })();
+
   return (
     <section
       className="
@@ -58,8 +54,9 @@ export function GestorFaixaEtaria() {
             rounded-full
           "
           style={{
-            background:
-              "conic-gradient(#6847f5 0% 38%, #38a8df 38% 69%, #38bd92 69% 88%, #f0b144 88% 100%)",
+            background: dados.total > 0
+              ? `conic-gradient(${gradienteStops})`
+              : "#f0f1f7",
           }}
         >
           {/* CENTRO */}
@@ -78,7 +75,9 @@ export function GestorFaixaEtaria() {
             "
           >
             <p className="text-[26px] font-extrabold tracking-[-0.03em] text-[#10235f]">
-              146
+              {
+                dados.total
+              }
             </p>
 
             <p className="mt-0.5 text-[10px] font-semibold text-[#929cb8]">
@@ -91,35 +90,30 @@ export function GestorFaixaEtaria() {
       {/* LEGENDA */}
 
       <div className="mt-6 space-y-3">
-        {ageGroups.map(
-          (group) => (
+        {dados.faixas.map(
+          (faixa, index) => (
             <div
               key={
-                group.label
+                faixa.label
               }
               className="flex items-center justify-between gap-3"
             >
               <div className="flex items-center gap-2">
                 <span
-                  className={`
-                    h-2
-                    w-2
-                    shrink-0
-                    rounded-full
-                    ${group.dotStyle}
-                  `}
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: CORES[index % CORES.length] }}
                 />
 
                 <span className="text-xs font-semibold text-[#727e9f]">
                   {
-                    group.label
+                    faixa.label
                   }
                 </span>
               </div>
 
               <span className="text-xs font-extrabold text-[#263765]">
                 {
-                  group.value
+                  faixa.percentual
                 }
                 %
               </span>

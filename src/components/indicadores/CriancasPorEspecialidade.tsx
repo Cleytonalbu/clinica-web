@@ -1,84 +1,65 @@
-const items = [
-  {
-    name: "Psicologia",
-    value: 82,
-    percent: 100,
-    bar: "bg-[#6847f5]",
-  },
+import type { ApiIndicadoresGerais } from "@/services/indicadores";
 
-  {
-    name: "Fonoaudiologia",
-    value: 74,
-    percent: 90,
-    bar: "bg-[#3b91ed]",
-  },
+interface CriancasPorEspecialidadeProps {
+  dados: ApiIndicadoresGerais["criancasPorEspecialidade"];
+}
 
-  {
-    name: "Terapia Ocupacional",
-    value: 68,
-    percent: 83,
-    bar: "bg-[#ed982f]",
-  },
+const cores = ["#6847f5", "#3b91ed", "#ed982f", "#2daf82", "#e95f9b", "#a04ed7"];
 
-  {
-    name: "Fisioterapia",
-    value: 52,
-    percent: 63,
-    bar: "bg-[#2daf82]",
-  },
+export function CriancasPorEspecialidade({
+  dados,
+}: CriancasPorEspecialidadeProps) {
+  const total = dados.reduce((acc, item) => acc + item.total, 0);
+  const maior = Math.max(...dados.map((item) => item.total), 1);
 
-  {
-    name: "Psicopedagogia",
-    value: 41,
-    percent: 50,
-    bar: "bg-[#e95f9b]",
-  },
-];
-
-export function CriancasPorEspecialidade() {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="text-lg font-bold text-slate-900">
         Crianças por especialidade
       </h2>
 
-      <div className="mt-5 space-y-4">
-        {items.map(
-          (
-            item
-          ) => (
-            <div
-              key={
-                item.name
-              }
-            >
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-sm font-medium text-slate-600">
-                  {
-                    item.name
-                  }
-                </span>
+      {dados.length === 0 ? (
+        <p className="mt-5 text-sm text-slate-500">Nenhum dado no período selecionado.</p>
+      ) : (
+        <div className="mt-5 space-y-4">
+          {dados.map(
+            (
+              item,
+              index
+            ) => (
+              <div
+                key={
+                  item.especialidadeId
+                }
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm font-medium text-slate-600">
+                    {
+                      item.nome
+                    }
+                  </span>
 
-                <span className="text-sm font-bold text-slate-800">
-                  {
-                    item.value
-                  }
-                </span>
-              </div>
+                  <span className="text-sm font-bold text-slate-800">
+                    {
+                      item.total
+                    }
+                  </span>
+                </div>
 
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className={`h-full rounded-full ${item.bar}`}
-                  style={{
-                    width:
-                      `${item.percent}%`,
-                  }}
-                />
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.round((item.total / maior) * 100)}%`,
+                      backgroundColor: item.cor ?? cores[index % cores.length],
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-          )
-        )}
-      </div>
+            )
+          )}
+        </div>
+      )}
 
       <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
         <span className="text-sm font-semibold text-slate-600">
@@ -86,7 +67,7 @@ export function CriancasPorEspecialidade() {
         </span>
 
         <span className="text-sm font-bold text-slate-900">
-          317
+          {total}
         </span>
       </div>
     </section>

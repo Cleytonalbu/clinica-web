@@ -8,6 +8,10 @@ import {
 
 import type { PatientSchema } from "./schemas";
 
+import {
+  formatarCEP,
+} from "./masks";
+
 interface AddressSectionProps {
   form: UseFormReturn<PatientSchema>;
 }
@@ -32,7 +36,12 @@ export function AddressSection({
         >
           <Input
             placeholder="00000-000"
-            {...register("cep")}
+            maxLength={9}
+            {...register("cep", {
+              onChange: (event) => {
+                event.target.value = formatarCEP(event.target.value);
+              },
+            })}
           />
         </FormField>
 

@@ -15,6 +15,8 @@ interface ProfessionalProfileHeaderProps {
   specialty: string;
   council: string;
   status?: "Ativo" | "Inativo" | "Férias";
+  onEdit?: () => void;
+  onViewAgenda?: () => void;
 }
 
 export function ProfessionalProfileHeader({
@@ -22,6 +24,8 @@ export function ProfessionalProfileHeader({
   specialty,
   council,
   status = "Ativo",
+  onEdit,
+  onViewAgenda,
 }: ProfessionalProfileHeaderProps) {
   const navigate = useNavigate();
 
@@ -66,12 +70,16 @@ export function ProfessionalProfileHeader({
           <Button
             type="button"
             variant="outline"
+            onClick={onViewAgenda}
           >
             <CalendarDays size={17} />
             Ver agenda
           </Button>
 
-          <Button type="button">
+          <Button
+            type="button"
+            onClick={onEdit}
+          >
             <Edit3 size={17} />
             Editar profissional
           </Button>

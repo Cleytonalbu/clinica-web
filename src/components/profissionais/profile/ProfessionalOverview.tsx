@@ -7,37 +7,99 @@ import {
   Users,
 } from "lucide-react";
 
+import {
+  useEffect,
+  useState,
+} from "react";
+
 import { PageCard } from "@/components/ui";
 
-const professional = {
-  phone: "(83) 99999-1111",
-  email: "ana.paula@entreafetos.com.br",
-  specialty: "Psicologia",
-  council: "CRP 13/12345",
-  patients: 32,
-  appointmentsMonth: 126,
-  appointmentsToday: 8,
-  attendanceRate: "94%",
-};
+import {
+  listarAgendamentos,
+  type ApiAgendamento,
+} from "@/services/agenda";
 
-export function ProfessionalOverview() {
+import type { ApiProfissional } from "@/services/referencias";
+
+interface ProfessionalOverviewProps {
+  profissional: ApiProfissional;
+}
+
+function inicioDoMes() {
+  const hoje = new Date();
+  return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function hojeISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function formatarHora(iso: string) {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function ProfessionalOverview({
+  profissional,
+}: ProfessionalOverviewProps) {
+  const [agendaMes, setAgendaMes] = useState<ApiAgendamento[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelado = false;
+
+    listarAgendamentos({
+      profissionalId: profissional.id,
+      dataInicio: inicioDoMes(),
+      dataFim: hojeISO(),
+      porPagina: 300,
+    })
+      .then((resposta) => {
+        if (cancelado) return;
+        setAgendaMes(resposta.dados.filter((a) => a.tipo === "ATENDIMENTO"));
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (cancelado) return;
+        setLoading(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [profissional.id]);
+
+  const hoje = hojeISO();
+  const agendaHoje = agendaMes.filter((a) => a.dataHora.slice(0, 10) === hoje);
+  const realizados = agendaMes.filter((a) => a.status === "CONCLUIDO").length;
+  const cancelados = agendaMes.filter((a) => a.status === "CANCELADO").length;
+  const faltas = agendaMes.filter((a) => a.status === "FALTOU").length;
+  const taxaComparecimento = agendaMes.length > 0
+    ? Math.round((realizados / agendaMes.length) * 100)
+    : 0;
+
+  const proximosHoje = agendaHoje
+    .filter((a) => a.status !== "CANCELADO" && a.status !== "FALTOU")
+    .sort((a, b) => a.dataHora.localeCompare(b.dataHora))
+    .slice(0, 4);
+
+  const especialidadeNome = profissional.especialidades[0]?.especialidade.nome ?? "Sem especialidade";
+  const conselho = [profissional.conselho, profissional.registro].filter(Boolean).join(" ") || "—";
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <MetricCard
           title="Pacientes"
-          value={String(
-            professional.patients
-          )}
+          value={loading ? "…" : String(profissional.pacientes ?? 0)}
           icon={<Users size={22} />}
           className="bg-indigo-100 text-indigo-600"
         />
 
         <MetricCard
           title="Atendimentos no mês"
-          value={String(
-            professional.appointmentsMonth
-          )}
+          value={loading ? "…" : String(agendaMes.length)}
           icon={
             <CalendarCheck2
               size={22}
@@ -48,18 +110,14 @@ export function ProfessionalOverview() {
 
         <MetricCard
           title="Agenda hoje"
-          value={String(
-            professional.appointmentsToday
-          )}
+          value={loading ? "…" : String(agendaHoje.length)}
           icon={<Clock3 size={22} />}
           className="bg-amber-100 text-amber-600"
         />
 
         <MetricCard
           title="Comparecimento"
-          value={
-            professional.attendanceRate
-          }
+          value={loading ? "…" : `${taxaComparecimento}%`}
           icon={
             <TrendingUp size={22} />
           }
@@ -81,9 +139,7 @@ export function ProfessionalOverview() {
                   />
                 }
                 label="Especialidade"
-                value={
-                  professional.specialty
-                }
+                value={especialidadeNome}
               />
 
               <Info
@@ -93,9 +149,7 @@ export function ProfessionalOverview() {
                   />
                 }
                 label="Conselho"
-                value={
-                  professional.council
-                }
+                value={conselho}
               />
 
               <Info
@@ -103,9 +157,7 @@ export function ProfessionalOverview() {
                   <Phone size={18} />
                 }
                 label="Telefone"
-                value={
-                  professional.phone
-                }
+                value={profissional.telefone || "—"}
               />
 
               <Info
@@ -113,9 +165,7 @@ export function ProfessionalOverview() {
                   <Users size={18} />
                 }
                 label="E-mail"
-                value={
-                  professional.email
-                }
+                value={profissional.usuario.email}
               />
             </div>
           </PageCard>
@@ -124,63 +174,44 @@ export function ProfessionalOverview() {
             title="Próximos Atendimentos"
             description="Agenda do profissional para hoje."
           >
-            <div className="space-y-3">
-              <AppointmentRow
-                time="08:00"
-                patient="Maria Oliveira"
-                specialty="Psicologia"
-              />
-
-              <AppointmentRow
-                time="09:00"
-                patient="João Miguel Silva"
-                specialty="Psicologia"
-              />
-
-              <AppointmentRow
-                time="10:30"
-                patient="Lucas Gabriel"
-                specialty="Psicologia"
-              />
-
-              <AppointmentRow
-                time="14:00"
-                patient="Ana Clara Rodrigues"
-                specialty="Psicologia"
-              />
-            </div>
+            {loading ? (
+              <p className="text-sm text-slate-400">Carregando…</p>
+            ) : proximosHoje.length === 0 ? (
+              <p className="text-sm text-slate-400">Nenhum atendimento restante para hoje.</p>
+            ) : (
+              <div className="space-y-3">
+                {proximosHoje.map((agendamento) => (
+                  <AppointmentRow
+                    key={agendamento.id}
+                    time={formatarHora(agendamento.dataHora)}
+                    patient={agendamento.paciente?.nome ?? "-"}
+                    specialty={
+                      agendamento.especialidade?.nome ??
+                        agendamento.profissional?.especialidades[0]?.especialidade.nome ??
+                        ""
+                    }
+                  />
+                ))}
+              </div>
+            )}
           </PageCard>
         </div>
 
         <div className="space-y-6">
+          {/*
+           * ⚠️ "Carga Horária" não tem fonte real: não existe um modelo de
+           * horário de trabalho/disponibilidade configurado por profissional
+           * no backend (só a agenda de atendimentos já marcados). Mantido
+           * como exemplo estático até essa configuração existir.
+           */}
           <PageCard
             title="Carga Horária"
-            description="Resumo da disponibilidade semanal."
+            description="Resumo da disponibilidade semanal (ainda não configurável)."
           >
             <div className="space-y-3">
               <SummaryRow
-                label="Segunda"
-                value="08h às 17h"
-              />
-
-              <SummaryRow
-                label="Terça"
-                value="08h às 17h"
-              />
-
-              <SummaryRow
-                label="Quarta"
-                value="08h às 12h"
-              />
-
-              <SummaryRow
-                label="Quinta"
-                value="08h às 17h"
-              />
-
-              <SummaryRow
-                label="Sexta"
-                value="08h às 12h"
+                label="Segunda a sexta"
+                value="Configurável em breve"
               />
             </div>
           </PageCard>
@@ -192,22 +223,17 @@ export function ProfessionalOverview() {
             <div className="space-y-3">
               <SummaryRow
                 label="Realizados"
-                value="118"
+                value={loading ? "…" : String(realizados)}
               />
 
               <SummaryRow
                 label="Cancelados"
-                value="5"
+                value={loading ? "…" : String(cancelados)}
               />
 
               <SummaryRow
                 label="Faltas"
-                value="3"
-              />
-
-              <SummaryRow
-                label="Evoluções registradas"
-                value="112"
+                value={loading ? "…" : String(faltas)}
               />
             </div>
           </PageCard>

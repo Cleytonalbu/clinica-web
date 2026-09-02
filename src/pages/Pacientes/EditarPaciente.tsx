@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useState,
 } from "react";
 
@@ -28,9 +29,11 @@ import type {
 } from "@/components/pacientes/form";
 
 import {
-  getPatientById,
-  updatePatient,
-} from "./patientStorage";
+  atualizarPaciente,
+  buscarPaciente,
+  paraStoredPatient,
+  type RealPatient,
+} from "@/services/pacientes";
 
 /* =========================================
    COMPONENTE
@@ -45,15 +48,48 @@ export default function EditarPaciente() {
   } =
     useParams();
 
-  const patientId =
-    Number(
-      id
+  const [
+    patient,
+    setPatient,
+  ] =
+    useState<RealPatient | null>(
+      null
     );
 
-  const patient =
-    getPatientById(
-      patientId
+  const [
+    fetching,
+    setFetching,
+  ] =
+    useState(
+      true
     );
+
+  useEffect(() => {
+    if (!id) {
+      setFetching(false);
+      return;
+    }
+
+    let cancelado = false;
+
+    buscarPaciente(id)
+      .then((dados) => {
+        if (cancelado) return;
+        setPatient(paraStoredPatient(dados));
+      })
+      .catch(() => {
+        if (cancelado) return;
+        setPatient(null);
+      })
+      .finally(() => {
+        if (cancelado) return;
+        setFetching(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [id]);
 
   const [
     loading,
@@ -85,6 +121,20 @@ export default function EditarPaciente() {
     >(
       null
     );
+
+  /* =======================================
+     CARREGANDO
+  ======================================= */
+
+  if (fetching) {
+    return (
+      <DashboardLayout>
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
+          Carregando paciente…
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   /* =======================================
      PACIENTE NÃO ENCONTRADO
@@ -139,8 +189,8 @@ export default function EditarPaciente() {
     );
 
     try {
-      updatePatient(
-        patient.id,
+      await atualizarPaciente(
+        patient!.id,
         data
       );
 
@@ -155,19 +205,17 @@ export default function EditarPaciente() {
       setTimeout(
         () => {
           navigate(
-            `/pacientes/${patient.id}`
+            `/pacientes/${patient!.id}`
           );
         },
         700
       );
     } catch (
-      error
+      error: any
     ) {
       setFeedback(
-        error instanceof
-          Error
-          ? error.message
-          : "Não foi possível atualizar o paciente."
+        error?.response?.data?.mensagem ??
+          "Não foi possível atualizar o paciente."
       );
 
       setFeedbackType(
@@ -186,7 +234,7 @@ export default function EditarPaciente() {
 
   function handleCancel() {
     navigate(
-      `/pacientes/${patient.id}`
+      `/pacientes/${patient!.id}`
     );
   }
 

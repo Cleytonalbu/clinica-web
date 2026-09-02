@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -32,12 +33,16 @@ import {
 } from "@/components/ui";
 
 import {
-  getObjectiveGroupsByPatientId,
-  getObjectivesByPatientId,
-  type ObjectiveGroup,
-  type ObjectiveStatus,
-  type TherapeuticObjective,
-} from "@/pages/Pacientes/objectiveStorage";
+  listarObjetivos,
+  paraTherapeuticObjective,
+  type FrontObjectiveStatus as ObjectiveStatus,
+  type RealObjective as TherapeuticObjective,
+} from "@/services/objetivos";
+
+interface ObjectiveGroup {
+  generalObjective: string;
+  objectives: TherapeuticObjective[];
+}
 
 import {
   getFinalizedEvolutionsByPatientId,
@@ -70,9 +75,7 @@ export function PatientObjectives() {
     useAuth();
 
   const patientId =
-    Number(
-      id
-    );
+    id ?? "";
 
   /* =======================================
      PERFIL
@@ -122,22 +125,33 @@ export function PatientObjectives() {
      DADOS
   ======================================= */
 
-  const objectives =
-    useMemo(
-      () =>
-        Number.isFinite(
-          patientId
-        ) &&
-        patientId >
-          0
-          ? getObjectivesByPatientId(
-              patientId
-            )
-          : [],
-      [
-        patientId,
-      ]
-    );
+  const [objectives, setObjectives] = useState<TherapeuticObjective[]>([]);
+  const [loadingObjectives, setLoadingObjectives] = useState(true);
+
+  useEffect(() => {
+    if (!patientId) {
+      setLoadingObjectives(false);
+      return;
+    }
+
+    let cancelado = false;
+    setLoadingObjectives(true);
+
+    listarObjetivos(patientId)
+      .then((resposta) => {
+        if (cancelado) return;
+        setObjectives(resposta.dados.map(paraTherapeuticObjective));
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (cancelado) return;
+        setLoadingObjectives(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [patientId]);
 
   const visibleObjectives =
     useMemo(
@@ -224,18 +238,16 @@ export function PatientObjectives() {
     useMemo(
       () => {
         if (
-          !Number.isFinite(
-            patientId
-          ) ||
-          patientId <=
-            0
+          !patientId
         ) {
           return [];
         }
 
+        // Evoluções ainda são mock (IDs numéricos) — paciente real (UUID)
+        // nunca bate, então isso retorna [] até Evoluções ser migrado.
         const all =
           getFinalizedEvolutionsByPatientId(
-            patientId
+            Number(patientId) || -1
           );
 
         if (
@@ -303,11 +315,7 @@ export function PatientObjectives() {
   function handleNewObjective() {
     if (
       !canManageObjectives ||
-      !Number.isFinite(
-        patientId
-      ) ||
-      patientId <=
-        0
+      !patientId
     ) {
       return;
     }
@@ -361,6 +369,12 @@ export function PatientObjectives() {
           </Button>
         )}
       </div>
+
+      {loadingObjectives && (
+        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-xs font-semibold text-slate-500">
+          Carregando objetivos…
+        </div>
+      )}
 
       {/* ================================= */}
       {/* INDICADORES */}
@@ -1406,7 +1420,7 @@ function buildAverageSeries(
     >,
 
   objectiveIds:
-    number[]
+    (string | number)[]
 ): ChartPoint[] {
   const allowedIds =
     new Set(
@@ -1936,6 +1950,9 @@ function StatusBadge({
 
     "Com regressão":
       "bg-red-100 text-red-700",
+
+    "Não trabalhado":
+      "bg-slate-100 text-slate-600",
   };
 
   const icons: Record<
@@ -1959,6 +1976,14 @@ function StatusBadge({
     ),
 
     "Com regressão": (
+      <CircleDot
+        size={
+          13
+        }
+      />
+    ),
+
+    "Não trabalhado": (
       <CircleDot
         size={
           13

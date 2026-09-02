@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -38,13 +39,27 @@ import {
 } from "./scheduleValidation";
 
 import {
-  saveAppointment,
-  type StoredAppointment,
-} from "./appointmentStorage";
+  criarAgendamento,
+} from "@/services/agenda";
 
 import {
-  getPatients,
-} from "@/pages/Pacientes/patientStorage";
+  listarConvenios,
+  listarEspecialidades,
+  listarProfissionais,
+  listarSalas,
+  listarServicos,
+  type ApiConvenio,
+  type ApiEspecialidade,
+  type ApiProfissional,
+  type ApiSala,
+  type ApiServico,
+} from "@/services/referencias";
+
+import {
+  listarPacientes,
+  paraStoredPatient,
+  type RealPatient,
+} from "@/services/pacientes";
 
 import {
   calculateChargeAmount,
@@ -55,35 +70,8 @@ import {
 } from "@/pages/Financeiro/financeRules";
 
 import {
-  createChargeFromAppointment,
-} from "@/pages/Financeiro/financeStorage";
-
-import {
-  getActiveConvenios,
-  getActiveProfessionals,
-  getActiveRooms,
-  getActiveSpecialties,
-} from "@/pages/Configuracoes/settingsStorage";
-
-import {
   useUnit,
 } from "@/providers/UnitContext";
-
-import {
-  professionalWorksAtUnit,
-} from "@/pages/Configuracoes/professionalUnitStorage";
-
-import {
-  roomWorksAtUnit,
-} from "@/pages/Configuracoes/roomUnitStorage";
-
-import {
-  specialtyWorksAtUnit,
-} from "@/pages/Configuracoes/specialtyUnitStorage";
-
-import {
-  convenioWorksAtUnit,
-} from "@/pages/Configuracoes/convenioUnitStorage";
 
 import {
   getPatientPackageRemainingSessions,
@@ -111,6 +99,8 @@ interface AppointmentFormData {
   endTime: string;
 
   room: string;
+
+  servico: string;
 
   appointmentType:
     | "Individual"
@@ -164,6 +154,9 @@ const initialValues: AppointmentFormData = {
   room:
     "",
 
+  servico:
+    "",
+
   appointmentType:
     "Individual",
 
@@ -209,30 +202,25 @@ export default function NovoAgendamento() {
      PACIENTES
   ======================================= */
 
-  const patients =
-    useMemo(
-      () =>
-        getPatients()
-          .filter(
-            (
-              patient
-            ) =>
-              patient.status ===
-              "Ativo"
-          )
-          .sort(
-            (
-              a,
-              b
-            ) =>
-              a.nome.localeCompare(
-                b.nome,
-                "pt-BR"
-              )
-          ),
-
+  const [
+    patients,
+    setPatients,
+  ] =
+    useState<RealPatient[]>(
       []
     );
+
+  useEffect(() => {
+    listarPacientes({ status: "ativo", porPagina: 200 })
+      .then((resposta) => {
+        setPatients(
+          resposta.dados
+            .map(paraStoredPatient)
+            .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+        );
+      })
+      .catch(() => {});
+  }, []);
 
   const patientIdFromUrl =
     searchParams.get(
@@ -263,78 +251,54 @@ export default function NovoAgendamento() {
      CONFIGURAÇÕES
   ======================================= */
 
-  const activeRooms =
-    useMemo(
-      () =>
-        getActiveRooms().filter(
-          (
-            room
-          ) =>
-            roomWorksAtUnit(
-              room.id,
-              activeUnitId
-            )
-        ),
+  // As 4 listas abaixo vinham de Configurações (mock) filtradas por unidade
+  // (professionalWorksAtUnit etc). O backend ainda não modela vínculo
+  // profissional↔unidade em uso real (ver Fase 1 do multiunidades) — por
+  // ora trazemos todos os cadastros ativos, sem filtro de unidade.
+  const [apiRooms, setApiRooms] = useState<ApiSala[]>([]);
+  const [apiEspecialidades, setApiEspecialidades] = useState<ApiEspecialidade[]>([]);
+  const [apiProfissionais, setApiProfissionais] = useState<ApiProfissional[]>([]);
+  const [apiConvenios, setApiConvenios] = useState<ApiConvenio[]>([]);
+  const [apiServicos, setApiServicos] = useState<ApiServico[]>([]);
 
-      [
-        activeUnitId,
-      ]
-    );
+  useEffect(() => {
+    listarSalas().then((dados) => setApiRooms(dados.filter((r) => r.ativa))).catch(() => {});
+    listarEspecialidades().then((dados) => setApiEspecialidades(dados.filter((e) => e.ativo))).catch(() => {});
+    listarProfissionais().then(setApiProfissionais).catch(() => {});
+    listarConvenios().then((dados) => setApiConvenios(dados.filter((c) => c.ativo))).catch(() => {});
+    listarServicos().then((dados) => setApiServicos(dados.filter((s) => s.ativo))).catch(() => {});
+  }, []);
 
-  const activeSpecialties =
-    useMemo(
-      () =>
-        getActiveSpecialties().filter(
-          (
-            specialty
-          ) =>
-            specialtyWorksAtUnit(
-              specialty.id,
-              activeUnitId
-            )
-        ),
+  const activeRooms = useMemo(
+    () => apiRooms.map((r) => ({ id: r.id, name: r.nome })),
+    [apiRooms]
+  );
 
-      [
-        activeUnitId,
-      ]
-    );
+  const activeSpecialties = useMemo(
+    () => apiEspecialidades.map((e) => ({ id: e.id, name: e.nome })),
+    [apiEspecialidades]
+  );
 
-  const activeProfessionals =
-    useMemo(
-      () =>
-        getActiveProfessionals()
-          .filter(
-            (
-              professional
-            ) =>
-              professionalWorksAtUnit(
-                professional.id,
-                activeUnitId
-              )
-          ),
+  const activeProfessionals = useMemo(
+    () =>
+      apiProfissionais.map((p) => ({
+        id: p.id,
+        name: p.usuario.nome,
+        specialty: p.especialidades[0]?.especialidade.nome ?? "",
+        registration: p.registro ?? "",
+      })),
+    [apiProfissionais]
+  );
 
-      [
-        activeUnitId,
-      ]
-    );
+  const activeConvenios = useMemo(
+    () => apiConvenios.map((c) => ({ id: c.id, name: c.nome })),
+    [apiConvenios]
+  );
 
-  const activeConvenios =
-    useMemo(
-      () =>
-        getActiveConvenios().filter(
-          (
-            convenio
-          ) =>
-            convenioWorksAtUnit(
-              convenio.id,
-              activeUnitId
-            )
-        ),
-
-      [
-        activeUnitId,
-      ]
-    );
+  const activeServicos = useMemo(
+    () => apiServicos.map((s) => ({ id: s.id, name: s.nome, duracaoMin: s.duracaoMin })),
+    [apiServicos]
+  );
 
   /* =======================================
      FORMULÁRIO
@@ -360,6 +324,25 @@ export default function NovoAgendamento() {
           "",
       })
     );
+
+  // `patientFromUrl` só resolve depois que `patients` termina de carregar
+  // (fetch assíncrono) — o inicializador de useState acima roda antes disso,
+  // então o pré-preenchimento vindo de `?patientId=` (ex.: botão "Agendar"
+  // no perfil do paciente) se perdia. Sincroniza aqui assim que resolver,
+  // sem sobrescrever se o usuário já tiver escolhido outro paciente.
+  useEffect(() => {
+    if (
+      patientFromUrl &&
+      !formData.patientId
+    ) {
+      setFormData((current) => ({
+        ...current,
+        patientId: String(patientFromUrl.id),
+        patient: patientFromUrl.nome,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientFromUrl]);
 
   const [
     saving,
@@ -964,6 +947,16 @@ export default function NovoAgendamento() {
     }
 
     if (
+      !formData.servico
+    ) {
+      showError(
+        "Selecione o serviço."
+      );
+
+      return false;
+    }
+
+    if (
       formData.patientPackageId &&
       !selectedPatientPackage
     ) {
@@ -1040,126 +1033,55 @@ export default function NovoAgendamento() {
         return;
       }
 
-      const appointment:
-        StoredAppointment = {
-        id:
-          Date.now(),
+      const professionalReal =
+        activeProfessionals.find(
+          (item) => item.name === formData.professional
+        );
 
-        patientId:
-          selectedPatient.id,
+      const especialidadeReal =
+        activeSpecialties.find(
+          (item) => item.name === formData.specialty
+        );
 
-        unitId:
-          activeUnitId,
+      const servicoReal =
+        activeServicos.find(
+          (item) => item.name === formData.servico
+        );
 
-        patient:
-          selectedPatient.nome,
+      const salaReal =
+        activeRooms.find(
+          (item) => item.name === formData.room
+        );
 
-        professional:
-          formData.professional,
+      const convenioReal =
+        formData.billingType === "Convênio"
+          ? activeConvenios.find((item) => item.name === formData.convenio)
+          : undefined;
 
-        specialty:
-          formData.specialty,
+      if (!professionalReal || !servicoReal) {
+        showError("Profissional ou serviço inválido.");
+        setSaving(false);
+        return;
+      }
 
-        date:
-          formData.date,
-
-        time:
-          formData.startTime,
-
-        endTime:
-          formData.endTime,
-
-        room:
-          formData.room,
-
-        type:
-          formData.appointmentType,
-
-        status:
-          formData.status,
-
-        observations:
-          formData.observations,
-
-        billingType:
-          formData.billingType,
-
-        convenio:
-          formData.billingType ===
-          "Convênio"
-            ? formData.convenio
-            : undefined,
-
-        paymentMethod:
-          formData.paymentMethod,
-
-        serviceValue,
-
-        patientPackageId:
-          selectedPatientPackage?.id,
-
-        patientPackageName:
-          selectedPatientPackage?.planName,
-      };
-
-      saveAppointment(
-        appointment
-      );
+      await criarAgendamento({
+        pacienteId: selectedPatient.id,
+        profissionalId: professionalReal.id,
+        servicoId: servicoReal.id,
+        especialidadeId: especialidadeReal?.id,
+        convenioId: convenioReal?.id,
+        salaId: salaReal?.id,
+        dataHora: `${formData.date}T${formData.startTime}:00`,
+        observacoes: formData.observations || undefined,
+      });
 
       /*
-       * NOVA REGRA FINANCEIRA
-       *
-       * Atendimento avulso:
-       * a cobrança nasce no momento do agendamento,
-       * permitindo pagamento antes da consulta.
-       *
-       * Atendimento por pacote:
-       * não gera cobrança avulsa. A sessão só será
-       * consumida quando o atendimento for Realizado.
+       * ⚠️ O módulo Financeiro (financeStorage) ainda é mock e trabalha com
+       * IDs numéricos — o agendamento real agora usa UUID, então a cobrança
+       * automática que existia aqui (criar uma FinancialCharge a partir do
+       * agendamento) foi desativada nesta migração. Volta a existir quando
+       * o Financeiro também migrar para a API (próxima etapa do roadmap).
        */
-      if (
-        !selectedPatientPackage &&
-        formData.billingType !==
-          "Convênio"
-      ) {
-        createChargeFromAppointment({
-          unitId:
-            activeUnitId,
-
-          appointmentId:
-            appointment.id,
-
-          patientId:
-            selectedPatient.id,
-
-          patient:
-            selectedPatient.nome,
-
-          professional:
-            formData.professional,
-
-          specialty:
-            formData.specialty,
-
-          date:
-            formData.date,
-
-          billingType:
-            formData.billingType,
-
-          convenio:
-            formData.billingType ===
-            "Convênio"
-              ? formData.convenio
-              : undefined,
-
-          paymentMethod:
-            formData.paymentMethod,
-
-          amount:
-            serviceValue,
-        });
-      }
 
       setFeedback(
         selectedPatientPackage
@@ -1167,7 +1089,7 @@ export default function NovoAgendamento() {
           : formData.billingType ===
               "Convênio"
             ? "Agendamento de convênio criado com sucesso. A produção será gerada quando o atendimento for realizado."
-            : "Agendamento criado com sucesso. A cobrança já está disponível para recebimento."
+            : "Agendamento criado com sucesso."
       );
 
       setFeedbackType(
@@ -1183,9 +1105,10 @@ export default function NovoAgendamento() {
 
         700
       );
-    } catch {
+    } catch (error: any) {
       showError(
-        "Não foi possível criar o agendamento."
+        error?.response?.data?.mensagem ??
+          "Não foi possível criar o agendamento."
       );
     } finally {
       setSaving(
@@ -1618,9 +1541,35 @@ export default function NovoAgendamento() {
 
         <PageCard
           title="Detalhes do Atendimento"
-          description="Sala, tipo e situação."
+          description="Serviço, sala, tipo e situação."
         >
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {/* ============================= */}
+            {/* SERVIÇO */}
+            {/* ============================= */}
+
+            <FormField
+              label="Serviço"
+              required
+            >
+              <Select
+                value={formData.servico}
+                onChange={(event) => updateField("servico", event.target.value)}
+              >
+                <option value="">Selecione o serviço</option>
+                {activeServicos.map((servico) => (
+                  <option key={servico.id} value={servico.name}>
+                    {servico.name} ({servico.duracaoMin}min)
+                  </option>
+                ))}
+              </Select>
+              {activeServicos.length === 0 && (
+                <p className="mt-2 text-xs font-medium text-amber-600">
+                  Nenhum serviço ativo cadastrado.
+                </p>
+              )}
+            </FormField>
+
             {/* ============================= */}
             {/* SALA */}
             {/* ============================= */}
@@ -2008,18 +1957,11 @@ export default function NovoAgendamento() {
               ) : formData.billingType ===
                 "Particular" ? (
                 <p className="mt-1 text-xs text-indigo-600">
-                  {selectedProfessional?.customValue
-                    ? "Valor específico do profissional"
-                    : "Valor padrão da especialidade"}
+                  Valor padrão da especialidade
                 </p>
               ) : selectedConvenio ? (
                 <p className="mt-1 text-xs text-indigo-600">
-                  {selectedConvenio
-                    .specialtyValues[
-                    formData.specialty
-                  ]
-                    ? "Valor específico do convênio"
-                    : `Regra padrão: ${selectedConvenio.discountPercent}% de desconto`}
+                  Valor conforme regra do convênio
                 </p>
               ) : (
                 <p className="mt-1 text-xs text-indigo-600">

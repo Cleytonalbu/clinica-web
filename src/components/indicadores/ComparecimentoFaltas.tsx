@@ -1,52 +1,46 @@
-const attendanceItems = [
-  {
-    label: "Comparecimentos",
-    value: 582,
-    percent: 91,
-    dot: "bg-[#2daf82]",
-  },
+import type { ApiIndicadoresGerais } from "@/services/indicadores";
 
-  {
-    label: "Faltas",
-    value: 18,
-    percent: 3,
-    dot: "bg-[#eb5771]",
-  },
+interface ComparecimentoFaltasProps {
+  dados: ApiIndicadoresGerais["comparecimento"];
+}
 
-  {
-    label: "Cancelamentos",
-    value: 22,
-    percent: 3,
-    dot: "bg-[#e95f9b]",
-  },
+export function ComparecimentoFaltas({
+  dados,
+}: ComparecimentoFaltasProps) {
+  const { comparecimentos, faltas, agendados, emAtendimento, total, taxaComparecimento } = dados;
 
-  {
-    label: "Remarcações",
-    value: 18,
-    percent: 3,
-    dot: "bg-[#ed982f]",
-  },
-];
+  const items = [
+    { label: "Comparecimentos", value: comparecimentos, dot: "bg-[#2daf82]" },
+    { label: "Faltas", value: faltas, dot: "bg-[#eb5771]" },
+    { label: "Agendados", value: agendados, dot: "bg-[#ed982f]" },
+    { label: "Em atendimento", value: emAtendimento, dot: "bg-[#3b91ed]" },
+  ];
 
-export function ComparecimentoFaltas() {
+  function percentDe(value: number) {
+    return total > 0 ? Math.round((value / total) * 100) : 0;
+  }
+
+  const faltasDeg = total > 0 ? (faltas / total) * 360 : 0;
+  const agendadosDeg = total > 0 ? (agendados / total) * 360 : 0;
+  const emAtendimentoDeg = total > 0 ? (emAtendimento / total) * 360 : 0;
+
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="text-lg font-bold text-slate-900">
-        Taxa de comparecimento e faltas
+        Taxa de comparecimento
       </h2>
 
       <div className="mt-6 grid grid-cols-1 gap-8 sm:grid-cols-[180px_1fr] sm:items-center">
         <div
           className="relative mx-auto flex h-40 w-40 items-center justify-center rounded-full"
           style={{
-            background:
-              "conic-gradient(#2daf82 0deg 327.6deg, #eb5771 327.6deg 338.4deg, #e95f9b 338.4deg 349.2deg, #ed982f 349.2deg 360deg)",
+            background: `conic-gradient(#2daf82 0deg ${360 - faltasDeg - agendadosDeg - emAtendimentoDeg}deg, #eb5771 ${360 - faltasDeg - agendadosDeg - emAtendimentoDeg}deg ${360 - agendadosDeg - emAtendimentoDeg}deg, #ed982f ${360 - agendadosDeg - emAtendimentoDeg}deg ${360 - emAtendimentoDeg}deg, #3b91ed ${360 - emAtendimentoDeg}deg 360deg)`,
           }}
         >
           <div className="flex h-[112px] w-[112px] items-center justify-center rounded-full bg-white">
             <div className="text-center">
               <p className="text-3xl font-bold text-slate-900">
-                91%
+                {taxaComparecimento}%
               </p>
 
               <p className="text-xs text-slate-400">
@@ -57,7 +51,7 @@ export function ComparecimentoFaltas() {
         </div>
 
         <div className="space-y-4">
-          {attendanceItems.map(
+          {items.map(
             (
               item
             ) => (
@@ -78,20 +72,13 @@ export function ComparecimentoFaltas() {
                 </span>
 
                 <span className="text-sm font-bold text-slate-800">
-                  {item.value} ({item.percent}%)
+                  {item.value} ({percentDe(item.value)}%)
                 </span>
               </div>
             )
           )}
         </div>
       </div>
-
-      <button
-        type="button"
-        className="mt-6 w-full rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-      >
-        Ver detalhes
-      </button>
     </section>
   );
 }

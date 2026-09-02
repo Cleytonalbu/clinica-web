@@ -1,55 +1,26 @@
 import {
   Banknote,
-  CalendarCheck2,
   CheckCircle2,
   Clock3,
   WalletCards,
 } from "lucide-react";
 
-import {
-  useMemo,
-} from "react";
-
-import {
-  useAuth,
-} from "@/auth/AuthContext";
-
-import {
-  getProfessionalPayoutSummary,
-  type ProfessionalPayout,
-} from "@/pages/Financeiro/professionalPayoutStorage";
+import type { ApiMeusRepasses } from "@/services/dashboardProfissional";
 
 /* =========================================
    VALORES A RECEBER DO PROFISSIONAL
 ========================================= */
 
-export function ProfissionalValoresReceber() {
-  const {
-    user,
-  } =
-    useAuth();
+interface ProfissionalValoresReceberProps {
+  repasses: ApiMeusRepasses | null;
+  loading: boolean;
+}
 
-  const professionalName =
-    user?.professionalName ??
-    user?.name ??
-    "";
-
-  const summary =
-    useMemo(
-      () =>
-        getProfessionalPayoutSummary(
-          professionalName
-        ),
-      [
-        professionalName,
-      ]
-    );
-
-  const recentPayouts =
-    summary.payouts.slice(
-      0,
-      4
-    );
+export function ProfissionalValoresReceber({
+  repasses,
+  loading,
+}: ProfissionalValoresReceberProps) {
+  const recentPayouts = (repasses?.transacoes ?? []).slice(0, 4);
 
   return (
     <section className="overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-sm">
@@ -78,17 +49,13 @@ export function ProfissionalValoresReceber() {
           </p>
 
           <p className="mt-1 text-2xl font-extrabold tracking-[-0.03em]">
-            {formatCurrency(
-              summary.total
-            )}
+            {
+              loading ? "…" : formatCurrency(repasses?.total ?? 0)
+            }
           </p>
 
           <div className="mt-3 flex items-center gap-2 text-[10px] font-medium text-violet-100">
-            <CalendarCheck2
-              size={13}
-            />
-
-            {summary.appointments} atendimento(s) com repasse
+            {repasses?.quantidade ?? 0} atendimento(s) com repasse
           </div>
         </div>
       </div>
@@ -99,7 +66,7 @@ export function ProfissionalValoresReceber() {
             title="Recebido"
             value={
               formatCurrency(
-                summary.received
+                repasses?.recebido ?? 0
               )
             }
             icon={
@@ -114,7 +81,7 @@ export function ProfissionalValoresReceber() {
             title="Pendente"
             value={
               formatCurrency(
-                summary.pending
+                repasses?.pendente ?? 0
               )
             }
             icon={
@@ -137,7 +104,9 @@ export function ProfissionalValoresReceber() {
             </span>
           </div>
 
-          {recentPayouts.length >
+          {loading ? (
+            <p className="text-xs text-slate-400">Carregando…</p>
+          ) : recentPayouts.length >
           0 ? (
             <div className="space-y-2.5">
               {recentPayouts.map(
@@ -235,43 +204,43 @@ function ValueBox({
 function PayoutRow({
   payout,
 }: {
-  payout:
-    ProfessionalPayout;
+  payout: ApiMeusRepasses["transacoes"][number];
 }) {
+  const pago = payout.status === "PAGO";
+
   return (
     <div className="rounded-xl border border-slate-100 bg-slate-50/55 px-3.5 py-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-xs font-bold text-slate-700">
             {
-              payout.patient
+              payout.paciente?.nome ?? payout.descricao
             }
           </p>
 
           <p className="mt-1 truncate text-[10px] font-medium text-slate-400">
             {formatDate(
-              payout.serviceDate
-            )} • {payout.specialty}
+              payout.dataVencimento ?? payout.criadoEm
+            )} • {payout.categoria}
           </p>
         </div>
 
         <div className="shrink-0 text-right">
           <p className="text-xs font-extrabold text-[#6543ef]">
             {formatCurrency(
-              payout.amount
+              Number(payout.valor)
             )}
           </p>
 
           <span
             className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[9px] font-extrabold ${
-              payout.status ===
-              "Pago"
+              pago
                 ? "bg-emerald-100 text-emerald-700"
                 : "bg-amber-100 text-amber-700"
             }`}
           >
             {
-              payout.status
+              pago ? "Pago" : "Pendente"
             }
           </span>
         </div>
@@ -309,22 +278,10 @@ function formatDate(
     return "—";
   }
 
-  const [
-    year,
-    month,
-    day,
-  ] =
-    value.split(
-      "-"
-    );
-
-  if (
-    !year ||
-    !month ||
-    !day
-  ) {
-    return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "—";
   }
 
-  return `${day}/${month}/${year}`;
+  return new Intl.DateTimeFormat("pt-BR").format(date);
 }

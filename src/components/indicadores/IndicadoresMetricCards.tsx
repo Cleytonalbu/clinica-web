@@ -5,114 +5,17 @@ import type {
 import {
   CircleCheckBig,
   CircleX,
-  Goal,
   Target,
   Trophy,
-  TrendingDown,
   TrendingUp,
   UsersRound,
 } from "lucide-react";
 
-interface Metric {
-  title: string;
-  value: string;
-  description: string;
-  icon: ReactNode;
-  tone:
-    | "indigo"
-    | "blue"
-    | "violet"
-    | "green"
-    | "orange"
-    | "red"
-    | "pink";
+import type { ApiIndicadoresGerais } from "@/services/indicadores";
+
+interface IndicadoresMetricCardsProps {
+  contadores: ApiIndicadoresGerais["contadores"];
 }
-
-const metrics: Metric[] = [
-  {
-    title: "Crianças cadastradas",
-    value: "156",
-    description: "+8% em relação ao mês anterior",
-    icon: (
-      <UsersRound
-        size={21}
-      />
-    ),
-    tone: "indigo",
-  },
-
-  {
-    title: "Profissionais ativos",
-    value: "18",
-    description: "Sem alteração",
-    icon: (
-      <CircleCheckBig
-        size={21}
-      />
-    ),
-    tone: "blue",
-  },
-
-  {
-    title: "Objetivos ativos",
-    value: "842",
-    description: "+12% em relação ao mês anterior",
-    icon: (
-      <Target
-        size={21}
-      />
-    ),
-    tone: "violet",
-  },
-
-  {
-    title: "Objetivos alcançados",
-    value: "324",
-    description: "+12% em relação ao mês anterior",
-    icon: (
-      <Trophy
-        size={21}
-      />
-    ),
-    tone: "green",
-  },
-
-  {
-    title: "Objetivos em evolução",
-    value: "472",
-    description: "+10% em relação ao mês anterior",
-    icon: (
-      <TrendingUp
-        size={21}
-      />
-    ),
-    tone: "orange",
-  },
-
-  {
-    title: "Objetivos com regressão",
-    value: "46",
-    description: "-5% em relação ao mês anterior",
-    icon: (
-      <TrendingDown
-        size={21}
-      />
-    ),
-    tone: "red",
-  },
-
-  {
-    title: "Faltas registradas",
-    value: "18",
-    description: "-8% em relação ao mês anterior",
-    icon: (
-      <CircleX
-        size={21}
-      />
-    ),
-    tone: "pink",
-  },
-];
 
 const toneClasses = {
   indigo:
@@ -130,16 +33,59 @@ const toneClasses = {
   orange:
     "bg-orange-50 text-orange-600",
 
-  red:
-    "bg-red-50 text-red-600",
-
   pink:
     "bg-pink-50 text-pink-600",
 };
 
-export function IndicadoresMetricCards() {
+export function IndicadoresMetricCards({
+  contadores,
+}: IndicadoresMetricCardsProps) {
+  const metrics: {
+    title: string;
+    value: string;
+    icon: ReactNode;
+    tone: keyof typeof toneClasses;
+  }[] = [
+    {
+      title: "Crianças cadastradas",
+      value: String(contadores.criancasCadastradas),
+      icon: <UsersRound size={21} />,
+      tone: "indigo",
+    },
+    {
+      title: "Profissionais ativos",
+      value: String(contadores.profissionaisAtivos),
+      icon: <CircleCheckBig size={21} />,
+      tone: "blue",
+    },
+    {
+      title: "Objetivos ativos",
+      value: String(contadores.objetivosAtivos),
+      icon: <Target size={21} />,
+      tone: "violet",
+    },
+    {
+      title: "Objetivos alcançados",
+      value: String(contadores.objetivosAlcancados),
+      icon: <Trophy size={21} />,
+      tone: "green",
+    },
+    {
+      title: "Objetivos em evolução",
+      value: String(contadores.objetivosEmEvolucao),
+      icon: <TrendingUp size={21} />,
+      tone: "orange",
+    },
+    {
+      title: "Faltas registradas",
+      value: String(contadores.faltasRegistradas),
+      icon: <CircleX size={21} />,
+      tone: "pink",
+    },
+  ];
+
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-7">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
       {metrics.map(
         (
           metric
@@ -177,12 +123,6 @@ export function IndicadoresMetricCards() {
                 }
               </div>
             </div>
-
-            <p className="mt-4 text-[10px] leading-4 text-slate-400">
-              {
-                metric.description
-              }
-            </p>
           </div>
         )
       )}

@@ -9,6 +9,12 @@ import {
 
 import type { PatientSchema } from "./schemas";
 
+import {
+  formatarCNS,
+  formatarCPF,
+  formatarRG,
+} from "./masks";
+
 interface PersonalDataSectionProps {
   form: UseFormReturn<PatientSchema>;
 }
@@ -45,7 +51,12 @@ export function PersonalDataSection({
         >
           <Input
             placeholder="000.000.000-00"
-            {...register("cpf")}
+            maxLength={14}
+            {...register("cpf", {
+              onChange: (event) => {
+                event.target.value = formatarCPF(event.target.value);
+              },
+            })}
           />
         </FormField>
 
@@ -55,7 +66,12 @@ export function PersonalDataSection({
         >
           <Input
             placeholder="RG"
-            {...register("rg")}
+            maxLength={9}
+            {...register("rg", {
+              onChange: (event) => {
+                event.target.value = formatarRG(event.target.value);
+              },
+            })}
           />
         </FormField>
 
@@ -64,8 +80,13 @@ export function PersonalDataSection({
           error={errors.cns?.message}
         >
           <Input
-            placeholder="Cartão Nacional de Saúde"
-            {...register("cns")}
+            placeholder="000 0000 0000 0000"
+            maxLength={18}
+            {...register("cns", {
+              onChange: (event) => {
+                event.target.value = formatarCNS(event.target.value);
+              },
+            })}
           />
         </FormField>
 
@@ -75,6 +96,7 @@ export function PersonalDataSection({
         >
           <Input
             type="date"
+            max={new Date().toISOString().slice(0, 10)}
             {...register("nascimento")}
           />
         </FormField>

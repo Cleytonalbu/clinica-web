@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 import {
-  useMemo,
+  useEffect,
   useState,
 } from "react";
 
@@ -36,163 +36,17 @@ import {
 } from "@/auth/AuthContext";
 
 import {
-  getSavedAppointments,
-  updateSavedAppointment,
-  type StoredAppointment,
-} from "./appointmentStorage";
+  alterarStatusAgendamento,
+  buscarAgendamento,
+  paraStoredAppointment,
+  LABELS_MOTIVO_FALTA,
+  type MotivoFalta,
+  type RealAppointment as StoredAppointment,
+} from "@/services/agenda";
 
 import {
-  createChargeFromAppointment,
-  getFinancialCharges,
-} from "@/pages/Financeiro/financeStorage";
-
-import {
-  consumeLinkedPatientPackageSession,
-} from "@/pages/Financeiro/patientPackageStorage";
-
-import {
-  getClinicUnitById,
-  getDefaultClinicUnitId,
-} from "@/pages/Configuracoes/clinicUnitStorage";
-
-import {
-  createGuiaFromAppointment,
-} from "@/pages/GuiasConvenios/guideBillingStorage";
-
-/* =========================================
-   ATENDIMENTOS DE DEMONSTRAÇÃO
-========================================= */
-
-const defaultAppointments: StoredAppointment[] = [
-  {
-    id: 1,
-    patientId: 1,
-    unitId: getDefaultClinicUnitId(),
-    patient: "Maria Oliveira",
-    professional: "Dra. Ana Paula",
-    specialty: "Psicologia",
-    date: "2026-08-07",
-    time: "08:00",
-    endTime: "08:50",
-    room: "Sala 01",
-    type: "Individual",
-    status: "Realizado",
-    observations:
-      "Paciente compareceu acompanhado pela responsável.",
-  },
-
-  {
-    id: 2,
-    patientId: 2,
-    unitId: getDefaultClinicUnitId(),
-    patient: "João Miguel Silva",
-    professional: "Dra. Camila Soares",
-    specialty: "Fonoaudiologia",
-    date: "2026-08-07",
-    time: "08:00",
-    endTime: "08:50",
-    room: "Sala 02",
-    type: "Individual",
-    status: "Confirmado",
-    observations: "",
-  },
-
-  {
-    id: 3,
-    patientId: 3,
-    unitId: getDefaultClinicUnitId(),
-    patient: "Lucas Gabriel",
-    professional: "Dra. Ana Paula",
-    specialty: "Psicologia",
-    date: "2026-08-07",
-    time: "09:00",
-    endTime: "09:50",
-    room: "Sala 01",
-    type: "Individual",
-    status: "Confirmado",
-    observations: "",
-  },
-
-  {
-    id: 4,
-    patientId: 4,
-    unitId: getDefaultClinicUnitId(),
-    patient: "Ana Clara Rodrigues",
-    professional: "Dra. Larissa Lima",
-    specialty: "Terapia Ocupacional",
-    date: "2026-08-07",
-    time: "10:00",
-    endTime: "10:50",
-    room: "Sala 03",
-    type: "Individual",
-    status: "Agendado",
-    observations: "",
-  },
-
-  {
-    id: 5,
-    patientId: 5,
-    unitId: getDefaultClinicUnitId(),
-    patient: "Pedro Henrique",
-    professional: "Dr. Rafael Costa",
-    specialty: "Fisioterapia",
-    date: "2026-08-07",
-    time: "11:00",
-    endTime: "11:50",
-    room: "Sala 04",
-    type: "Avaliação",
-    status: "Cancelado",
-    observations: "",
-  },
-
-  {
-    id: 6,
-    patientId: 1,
-    unitId: getDefaultClinicUnitId(),
-    patient: "Maria Oliveira",
-    professional: "Dra. Camila Soares",
-    specialty: "Fonoaudiologia",
-    date: "2026-08-07",
-    time: "14:00",
-    endTime: "14:50",
-    room: "Sala 02",
-    type: "Individual",
-    status: "Agendado",
-    observations: "",
-  },
-
-  {
-    id: 7,
-    patientId: 3,
-    unitId: getDefaultClinicUnitId(),
-    patient: "Lucas Gabriel",
-    professional: "Dra. Ana Paula",
-    specialty: "Psicologia",
-    date: "2026-08-08",
-    time: "09:00",
-    endTime: "09:50",
-    room: "Sala 01",
-    type: "Individual",
-    status: "Agendado",
-    observations: "",
-  },
-
-  {
-    id: 8,
-    patientId: 1,
-    unitId: getDefaultClinicUnitId(),
-    patient: "Maria Oliveira",
-    professional: "Dra. Ana Paula",
-    specialty: "Psicologia",
-    date: "2026-08-10",
-    time: "10:30",
-    endTime: "11:20",
-    room: "Sala 01",
-    type: "Individual",
-    status: "Confirmado",
-    observations: "",
-  },
-];
+  useUnit,
+} from "@/providers/UnitContext";
 
 /* =========================================
    COMPONENTE PRINCIPAL
@@ -210,10 +64,7 @@ export default function DetalheAgendamento() {
     user,
   } = useAuth();
 
-  const numericId =
-    Number(
-      appointmentId
-    );
+  const { activeUnit, activeUnitId } = useUnit();
 
   /* =======================================
      PERFIL
@@ -253,32 +104,6 @@ export default function DetalheAgendamento() {
      AGENDAMENTO
   ======================================= */
 
-  const savedAppointments =
-    getSavedAppointments();
-
-  const isSavedAppointment =
-    savedAppointments.some(
-      (item) =>
-        item.id ===
-        numericId
-    );
-
-  const initialAppointment =
-    useMemo(
-      () =>
-        [
-          ...defaultAppointments,
-          ...savedAppointments,
-        ].find(
-          (item) =>
-            item.id ===
-            numericId
-        ),
-      [
-        numericId,
-      ]
-    );
-
   const [
     appointment,
     setAppointment,
@@ -286,8 +111,37 @@ export default function DetalheAgendamento() {
     useState<
       StoredAppointment | undefined
     >(
-      initialAppointment
+      undefined
     );
+
+  const [fetching, setFetching] = useState(true);
+
+  useEffect(() => {
+    if (!appointmentId) {
+      setFetching(false);
+      return;
+    }
+
+    let cancelado = false;
+
+    buscarAgendamento(appointmentId)
+      .then((dados) => {
+        if (cancelado) return;
+        setAppointment(paraStoredAppointment(dados, activeUnitId));
+      })
+      .catch(() => {
+        if (cancelado) return;
+        setAppointment(undefined);
+      })
+      .finally(() => {
+        if (cancelado) return;
+        setFetching(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [appointmentId, activeUnitId]);
 
   const [
     feedback,
@@ -306,6 +160,32 @@ export default function DetalheAgendamento() {
       | "error"
       | null
     >(null);
+
+  // Motivo da falta, escolhido no seletor exibido ao clicar em "Faltou"
+  // antes de confirmar a mudança de status.
+  const [
+    showMotivoFalta,
+    setShowMotivoFalta,
+  ] = useState(false);
+
+  const [
+    motivoFaltaSelecionado,
+    setMotivoFaltaSelecionado,
+  ] = useState<MotivoFalta | "">("");
+
+  /* =======================================
+     CARREGANDO
+  ======================================= */
+
+  if (fetching) {
+    return (
+      <DashboardLayout>
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
+          Carregando agendamento…
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   /* =======================================
      NÃO ENCONTRADO
@@ -339,14 +219,8 @@ export default function DetalheAgendamento() {
     );
   }
 
-  const appointmentUnit =
-    getClinicUnitById(
-      appointment.unitId
-    );
-
   const appointmentUnitName =
-    appointmentUnit?.name ??
-    "Unidade Principal";
+    activeUnit.name;
 
   /* =======================================
      VÍNCULO DO PROFISSIONAL
@@ -392,9 +266,10 @@ export default function DetalheAgendamento() {
      ALTERAR STATUS
   ======================================= */
 
-  function changeStatus(
+  async function changeStatus(
     status:
-      StoredAppointment["status"]
+      StoredAppointment["status"],
+    motivoFalta?: MotivoFalta
   ) {
     /* =====================================
        PERMISSÃO
@@ -443,234 +318,31 @@ export default function DetalheAgendamento() {
     }
 
     /* =====================================
-       DADOS DEMONSTRATIVOS
-    ===================================== */
-
-    if (
-      !isSavedAppointment
-    ) {
-      setFeedback(
-        "Os atendimentos de demonstração ainda não podem ter o status alterado permanentemente."
-      );
-
-      setFeedbackType(
-        "error"
-      );
-
-      return;
-    }
-
-    /* =====================================
        ATUALIZAÇÃO
     ===================================== */
 
-    updateSavedAppointment(
-      appointment.id,
-      {
+    try {
+      await alterarStatusAgendamento(
+        appointment!.id,
         status,
-      }
-    );
-
-    /* =====================================
-       PACOTE / GERAÇÃO DA COBRANÇA
-    ===================================== */
-
-    let packageSessionConsumed =
-      false;
-
-    let packageAlreadyConsumed =
-      false;
-
-    let fallbackChargeCreated =
-      false;
-
-    if (
-      status ===
-      "Realizado"
-    ) {
-      /*
-       * Se a Recepção escolheu um pacote no agendamento,
-       * consumimos EXATAMENTE aquele pacote.
-       *
-       * Não procuramos mais outro pacote automaticamente:
-       * a escolha feita no agendamento é a referência.
-       */
-      if (
-        appointment.billingType ===
-          "Convênio" &&
-        appointment.convenio
-      ) {
-        /*
-         * Convênio não gera cobrança para o paciente.
-         * Quando o atendimento é realizado, ele entra
-         * automaticamente na produção da competência.
-         */
-        createGuiaFromAppointment({
-          unitId:
-            appointment.unitId,
-          appointmentId:
-            appointment.id,
-          convenio:
-            appointment.convenio,
-          paciente:
-            appointment.patient,
-          professional:
-            appointment.professional,
-          specialty:
-            appointment.specialty,
-          dataAtendimento:
-            appointment.date,
-          valorUnitario:
-            appointment.serviceValue ?? 0,
-        });
-      } else if (
-        appointment.patientPackageId
-      ) {
-        const packageResult =
-          consumeLinkedPatientPackageSession({
-            appointmentId:
-              appointment.id,
-
-            patientPackageId:
-              appointment.patientPackageId,
-
-            patientId:
-              appointment.patientId,
-
-            unitId:
-              appointment.unitId,
-
-            specialty:
-              appointment.specialty,
-          });
-
-        packageSessionConsumed =
-          packageResult.consumed;
-
-        packageAlreadyConsumed =
-          packageResult.alreadyConsumed;
-
-        /*
-         * Segurança:
-         * se o pacote vinculado deixou de ter sessão disponível
-         * antes da realização, criamos cobrança avulsa para que
-         * o atendimento não fique sem cobertura financeira.
-         */
-        if (
-          !packageSessionConsumed &&
-          !packageAlreadyConsumed
-        ) {
-          const existingCharge =
-            getFinancialCharges().find(
-              (
-                charge
-              ) =>
-                charge.appointmentId ===
-                appointment.id
-            );
-
-          if (
-            !existingCharge
-          ) {
-            createChargeFromAppointment({
-              unitId:
-                appointment.unitId,
-
-              appointmentId:
-                appointment.id,
-
-              patientId:
-                appointment.patientId,
-
-              patient:
-                appointment.patient,
-
-              professional:
-                appointment.professional,
-
-              specialty:
-                appointment.specialty,
-
-              date:
-                appointment.date,
-
-              billingType:
-                appointment.billingType,
-
-              convenio:
-                appointment.convenio,
-
-              paymentMethod:
-                appointment.paymentMethod,
-
-              amount:
-                appointment.serviceValue,
-            });
-
-            fallbackChargeCreated =
-              true;
-          }
-        }
-      } else {
-        /*
-         * Atendimento avulso:
-         * a cobrança já deve ter sido criada no agendamento.
-         *
-         * Este trecho apenas mantém compatibilidade com
-         * agendamentos antigos, criados antes desta regra.
-         */
-        const existingCharge =
-          getFinancialCharges().find(
-            (
-              charge
-            ) =>
-              charge.appointmentId ===
-              appointment.id
-          );
-
-        if (
-          !existingCharge
-        ) {
-          createChargeFromAppointment({
-            unitId:
-              appointment.unitId,
-
-            appointmentId:
-              appointment.id,
-
-            patientId:
-              appointment.patientId,
-
-            patient:
-              appointment.patient,
-
-            professional:
-              appointment.professional,
-
-            specialty:
-              appointment.specialty,
-
-            date:
-              appointment.date,
-
-            billingType:
-              appointment.billingType,
-
-            convenio:
-              appointment.convenio,
-
-            paymentMethod:
-              appointment.paymentMethod,
-
-            amount:
-              appointment.serviceValue,
-          });
-
-          fallbackChargeCreated =
-            true;
-        }
-      }
+        motivoFalta
+      );
+    } catch (error: any) {
+      setFeedback(
+        error?.response?.data?.mensagem ??
+          "Não foi possível alterar o status do atendimento."
+      );
+      setFeedbackType("error");
+      return;
     }
+
+    /*
+     * ⚠️ Geração de cobrança/guia de convênio/consumo de pacote ao marcar
+     * como Realizado foi removida daqui — dependia do Financeiro e de
+     * Convênios/Pacotes, que ainda são mock e trabalham com IDs numéricos
+     * incompatíveis com o UUID real do agendamento. Volta quando esses
+     * módulos também migrarem para a API.
+     */
 
     /* =====================================
        ESTADO LOCAL
@@ -690,54 +362,18 @@ export default function DetalheAgendamento() {
        FEEDBACK
     ===================================== */
 
-    if (
-      status ===
-      "Realizado"
-    ) {
-      if (
-        appointment.billingType ===
-          "Convênio" &&
-        appointment.convenio
-      ) {
-        setFeedback(
-          "Atendimento realizado com sucesso. Ele foi incluído automaticamente na produção do convênio."
-        );
-      } else if (
-        packageSessionConsumed
-      ) {
-        setFeedback(
-          "Atendimento realizado com sucesso. 1 sessão do pacote vinculado foi utilizada."
-        );
-      } else if (
-        packageAlreadyConsumed
-      ) {
-        setFeedback(
-          "Atendimento realizado. Esta sessão já havia sido descontada do pacote anteriormente."
-        );
-      } else if (
-        fallbackChargeCreated
-      ) {
-        setFeedback(
-          appointment.patientPackageId
-            ? "Atendimento realizado. O pacote vinculado não tinha sessão disponível, então uma cobrança avulsa foi criada."
-            : "Atendimento realizado. A cobrança deste agendamento antigo foi criada no Financeiro."
-        );
-      } else {
-        setFeedback(
-          "Atendimento realizado com sucesso. A cobrança já estava disponível no Financeiro desde o agendamento."
-        );
-      }
-    } else {
-      setFeedback(
-        getStatusMessage(
-          status
-        )
-      );
-    }
+    setFeedback(
+      getStatusMessage(
+        status
+      )
+    );
 
     setFeedbackType(
       "success"
     );
+
+    setShowMotivoFalta(false);
+    setMotivoFaltaSelecionado("");
   }
 
   /* =======================================
@@ -753,7 +389,7 @@ export default function DetalheAgendamento() {
     }
 
     navigate(
-      `/agenda/${appointment.id}/remarcar`
+      `/agenda/${appointment!.id}/remarcar`
     );
   }
 
@@ -763,7 +399,7 @@ export default function DetalheAgendamento() {
 
   function handleOpenPatient() {
     navigate(
-      `/pacientes/${appointment.patientId}`
+      `/pacientes/${appointment!.patientId}`
     );
   }
 
@@ -795,7 +431,7 @@ export default function DetalheAgendamento() {
     }
 
     navigate(
-      `/pacientes/${appointment.patientId}/evolucoes/nova`
+      `/pacientes/${appointment!.patientId}/evolucoes/nova`
     );
   }
 
@@ -866,16 +502,6 @@ export default function DetalheAgendamento() {
             {
               feedback
             }
-          </div>
-        )}
-
-        {/* ================================= */}
-        {/* AVISO DE DEMONSTRAÇÃO */}
-        {/* ================================= */}
-
-        {!isSavedAppointment && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Este é um atendimento de demonstração. As alterações permanentes estão disponíveis nos novos agendamentos criados pelo sistema.
           </div>
         )}
 
@@ -1122,11 +748,60 @@ export default function DetalheAgendamento() {
                     "Cancelado"
                 }
                 onClick={() =>
-                  changeStatus(
-                    "Faltou"
-                  )
+                  setShowMotivoFalta(true)
                 }
               />
+
+              {showMotivoFalta && (
+                <div className="col-span-full rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-sm font-semibold text-amber-800">
+                    Qual foi o motivo da falta? (opcional)
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <select
+                      value={motivoFaltaSelecionado}
+                      onChange={(event) =>
+                        setMotivoFaltaSelecionado(
+                          event.target.value as MotivoFalta | ""
+                        )
+                      }
+                      className="h-10 rounded-lg border border-amber-300 bg-white px-3 text-sm text-slate-700"
+                    >
+                      <option value="">Não informar</option>
+                      {Object.entries(LABELS_MOTIVO_FALTA).map(
+                        ([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        )
+                      )}
+                    </select>
+
+                    <Button
+                      onClick={() =>
+                        changeStatus(
+                          "Faltou",
+                          motivoFaltaSelecionado || undefined
+                        )
+                      }
+                    >
+                      Confirmar falta
+                    </Button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMotivoFalta(false);
+                        setMotivoFaltaSelecionado("");
+                      }}
+                      className="text-sm font-semibold text-slate-500 hover:text-slate-700"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* =========================== */}
               {/* CANCELAR */}

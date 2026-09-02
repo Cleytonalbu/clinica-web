@@ -7,6 +7,10 @@ import {
   Users,
 } from "lucide-react";
 
+import type {
+  ReactNode,
+} from "react";
+
 import {
   useMemo,
 } from "react";
@@ -15,36 +19,12 @@ import {
   useNavigate,
 } from "react-router-dom";
 
+import type { ApiProfissional } from "@/services/referencias";
+
 export type ProfessionalStatus =
   | "Ativo"
   | "Inativo"
   | "Férias";
-
-export interface Professional {
-  id:
-    number;
-
-  name:
-    string;
-
-  specialty:
-    string;
-
-  council:
-    string;
-
-  phone:
-    string;
-
-  patients:
-    number;
-
-  appointmentsToday:
-    number;
-
-  status:
-    ProfessionalStatus;
-}
 
 export interface ProfessionalFilterState {
   search:
@@ -57,87 +37,27 @@ export interface ProfessionalFilterState {
     string;
 }
 
-/* =========================================
-   DADOS EXISTENTES
-========================================= */
-
-const professionals:
-  Professional[] = [
-  {
-    id: 1,
-    name:
-      "Dra. Ana Paula",
-    specialty:
-      "Psicologia",
-    council:
-      "CRP 13/12345",
-    phone:
-      "(83) 99999-1111",
-    patients: 32,
-    appointmentsToday: 8,
-    status:
-      "Ativo",
-  },
-
-  {
-    id: 2,
-    name:
-      "Dra. Camila Soares",
-    specialty:
-      "Fonoaudiologia",
-    council:
-      "CREFONO 4-12345",
-    phone:
-      "(83) 99999-2222",
-    patients: 28,
-    appointmentsToday: 6,
-    status:
-      "Ativo",
-  },
-
-  {
-    id: 3,
-    name:
-      "Dra. Larissa Lima",
-    specialty:
-      "Terapia Ocupacional",
-    council:
-      "CREFITO 1/123456",
-    phone:
-      "(83) 99999-3333",
-    patients: 21,
-    appointmentsToday: 5,
-    status:
-      "Férias",
-  },
-
-  {
-    id: 4,
-    name:
-      "Dr. Rafael Costa",
-    specialty:
-      "Fisioterapia",
-    council:
-      "CREFITO 1/654321",
-    phone:
-      "(83) 99999-4444",
-    patients: 18,
-    appointmentsToday: 4,
-    status:
-      "Inativo",
-  },
-];
+const STATUS_LABEL: Record<ApiProfissional["status"], ProfessionalStatus> = {
+  ATIVO: "Ativo",
+  INATIVO: "Inativo",
+  FERIAS: "Férias",
+};
 
 /* =========================================
    COMPONENTE PRINCIPAL
 ========================================= */
 
-function ProfessionalTableBase({
+interface ProfessionalTableProps {
+  profissionais: ApiProfissional[];
+  loading: boolean;
+  filters: ProfessionalFilterState;
+}
+
+export function ProfessionalTable({
+  profissionais,
+  loading,
   filters,
-}: {
-  filters:
-    ProfessionalFilterState;
-}) {
+}: ProfessionalTableProps) {
   const navigate =
     useNavigate();
 
@@ -151,49 +71,33 @@ function ProfessionalTableBase({
               "pt-BR"
             );
 
-        return professionals.filter(
+        return profissionais.filter(
           (
-            professional
+            profissional
           ) => {
+            const conselho = [profissional.conselho, profissional.registro].filter(Boolean).join(" ");
+
             const matchesSearch =
               !search ||
-              professional.name
-                .toLocaleLowerCase(
-                  "pt-BR"
-                )
-                .includes(
-                  search
-                ) ||
-              professional.council
-                .toLocaleLowerCase(
-                  "pt-BR"
-                )
-                .includes(
-                  search
-                ) ||
-              professional.phone
-                .toLocaleLowerCase(
-                  "pt-BR"
-                )
-                .includes(
-                  search
-                );
+              profissional.usuario.nome
+                .toLocaleLowerCase("pt-BR")
+                .includes(search) ||
+              conselho
+                .toLocaleLowerCase("pt-BR")
+                .includes(search) ||
+              (profissional.telefone ?? "")
+                .toLocaleLowerCase("pt-BR")
+                .includes(search);
 
             const matchesSpecialty =
-              filters.specialty ===
-                "todas" ||
-              normalizeSpecialty(
-                professional.specialty
-              ) ===
-                filters.specialty;
+              filters.specialty === "todas" ||
+              profissional.especialidades.some(
+                (e) => e.especialidade.id === filters.specialty
+              );
 
             const matchesStatus =
-              filters.status ===
-                "todos" ||
-              normalizeStatus(
-                professional.status
-              ) ===
-                filters.status;
+              filters.status === "todos" ||
+              profissional.status === filters.status;
 
             return (
               matchesSearch &&
@@ -204,13 +108,14 @@ function ProfessionalTableBase({
         );
       },
       [
+        profissionais,
         filters,
       ]
     );
 
   function handleViewProfessional(
     professionalId:
-      number
+      string
   ) {
     navigate(
       `/profissionais/${professionalId}`
@@ -219,7 +124,7 @@ function ProfessionalTableBase({
 
   function handleEditProfessional(
     professionalId:
-      number
+      string
   ) {
     navigate(
       `/profissionais/${professionalId}/editar`
@@ -279,14 +184,27 @@ function ProfessionalTableBase({
           </thead>
 
           <tbody className="divide-y divide-[#eef0f5]">
-            {filteredProfessionals.map(
+            {loading && (
+              <tr>
+                <td colSpan={8} className="px-6 py-14 text-center text-sm text-[#929bb3]">
+                  Carregando profissionais…
+                </td>
+              </tr>
+            )}
+
+            {!loading && filteredProfessionals.map(
               (
-                professional,
+                profissional,
                 index
-              ) => (
+              ) => {
+                const especialidadeNome = profissional.especialidades[0]?.especialidade.nome ?? "Sem especialidade";
+                const conselho = [profissional.conselho, profissional.registro].filter(Boolean).join(" ") || "—";
+                const status = STATUS_LABEL[profissional.status];
+
+                return (
                 <tr
                   key={
-                    professional.id
+                    profissional.id
                   }
                   className="transition hover:bg-[#fcfbff]"
                 >
@@ -301,7 +219,7 @@ function ProfessionalTableBase({
                       >
                         {
                           getInitials(
-                            professional.name
+                            profissional.usuario.nome
                           )
                         }
                       </div>
@@ -311,20 +229,19 @@ function ProfessionalTableBase({
                           type="button"
                           onClick={() =>
                             handleViewProfessional(
-                              professional.id
+                              profissional.id
                             )
                           }
                           className="text-left text-sm font-extrabold text-[#263765] transition hover:text-[#6543ef]"
                         >
                           {
-                            professional.name
+                            profissional.usuario.nome
                           }
                         </button>
 
-                        <p className="mt-1 text-[10px] font-semibold text-[#9aa3b9]">
-                          ID #
+                        <p className="mt-1 truncate text-[10px] font-semibold text-[#9aa3b9]">
                           {
-                            professional.id
+                            profissional.usuario.email
                           }
                         </p>
                       </div>
@@ -336,7 +253,7 @@ function ProfessionalTableBase({
                   <td className="px-5 py-4">
                     <SpecialtyBadge
                       specialty={
-                        professional.specialty
+                        especialidadeNome
                       }
                     />
                   </td>
@@ -346,7 +263,7 @@ function ProfessionalTableBase({
                   <td className="px-5 py-4">
                     <p className="text-xs font-semibold text-[#657295]">
                       {
-                        professional.council
+                        conselho
                       }
                     </p>
                   </td>
@@ -361,7 +278,7 @@ function ProfessionalTableBase({
                       />
 
                       {
-                        professional.phone
+                        profissional.telefone || "—"
                       }
                     </div>
                   </td>
@@ -375,7 +292,7 @@ function ProfessionalTableBase({
                       />
 
                       {
-                        professional.patients
+                        profissional.pacientes ?? 0
                       }
                     </div>
                   </td>
@@ -389,7 +306,7 @@ function ProfessionalTableBase({
                       />
 
                       {
-                        professional.appointmentsToday
+                        profissional.atendimentosHoje ?? 0
                       }
                     </div>
                   </td>
@@ -399,7 +316,7 @@ function ProfessionalTableBase({
                   <td className="px-5 py-4">
                     <StatusBadge
                       status={
-                        professional.status
+                        status
                       }
                     />
                   </td>
@@ -412,7 +329,7 @@ function ProfessionalTableBase({
                         title="Visualizar profissional"
                         onClick={() =>
                           handleViewProfessional(
-                            professional.id
+                            profissional.id
                           )
                         }
                       >
@@ -425,7 +342,7 @@ function ProfessionalTableBase({
                         title="Editar profissional"
                         onClick={() =>
                           handleEditProfessional(
-                            professional.id
+                            profissional.id
                           )
                         }
                       >
@@ -436,10 +353,11 @@ function ProfessionalTableBase({
                     </div>
                   </td>
                 </tr>
-              )
+                );
+              }
             )}
 
-            {filteredProfessionals.length ===
+            {!loading && filteredProfessionals.length ===
               0 && (
               <tr>
                 <td
@@ -479,123 +397,13 @@ function ProfessionalTableBase({
           de{" "}
           <strong className="text-[#526080]">
             {
-              professionals.length
+              profissionais.length
             }
           </strong>{" "}
           profissionais
         </p>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            disabled
-            className="h-9 rounded-lg border border-[#e1e4ef] bg-white px-3 text-xs font-semibold text-[#9aa3b8] disabled:opacity-60"
-          >
-            Anterior
-          </button>
-
-          <button
-            type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#6847f5] text-xs font-extrabold text-white shadow-[0_5px_13px_rgba(104,71,245,0.20)]"
-          >
-            1
-          </button>
-
-          <button
-            type="button"
-            disabled
-            className="h-9 rounded-lg border border-[#e1e4ef] bg-white px-3 text-xs font-semibold text-[#9aa3b8] disabled:opacity-60"
-          >
-            Próxima
-          </button>
-        </div>
       </div>
     </section>
-  );
-}
-
-/* =========================================
-   SUMMARY
-========================================= */
-
-interface SummaryCardConfig {
-  title:
-    string;
-
-  value:
-    number;
-
-  description:
-    string;
-
-  icon:
-    typeof Users;
-
-  iconStyle:
-    string;
-
-  valueStyle:
-    string;
-}
-
-function ProfessionalSummary({
-  cards,
-}: {
-  cards:
-    SummaryCardConfig[];
-}) {
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-      {cards.map(
-        (
-          card
-        ) => {
-          const Icon =
-            card.icon;
-
-          return (
-            <div
-              key={
-                card.title
-              }
-              className="relative overflow-hidden rounded-2xl border border-[#e9ebf4] bg-white p-5 shadow-[0_4px_16px_rgba(51,65,120,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(51,65,120,0.08)]"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[12px] font-semibold text-[#68769b]">
-                    {
-                      card.title
-                    }
-                  </p>
-
-                  <p
-                    className={`mt-3 text-[27px] font-extrabold tracking-[-0.03em] ${card.valueStyle}`}
-                  >
-                    {
-                      card.value
-                    }
-                  </p>
-
-                  <p className="mt-1.5 text-[10px] font-medium text-[#98a1ba]">
-                    {
-                      card.description
-                    }
-                  </p>
-                </div>
-
-                <span
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${card.iconStyle}`}
-                >
-                  <Icon
-                    size={20}
-                  />
-                </span>
-              </div>
-            </div>
-          );
-        }
-      )}
-    </div>
   );
 }
 
@@ -605,7 +413,7 @@ function ProfessionalSummary({
 
 interface TableHeaderProps {
   children:
-    React.ReactNode;
+    ReactNode;
 
   align?:
     | "left"
@@ -716,7 +524,7 @@ function ActionButton({
   onClick,
 }: {
   children:
-    React.ReactNode;
+    ReactNode;
 
   title:
     string;
@@ -802,63 +610,6 @@ function getSpecialtyStyle(
   return "bg-[#eef0f5] text-[#66718c]";
 }
 
-function normalizeSpecialty(
-  specialty:
-    string
-) {
-  const map:
-    Record<
-      string,
-      string
-    > = {
-    Psicologia:
-      "psicologia",
-
-    Fonoaudiologia:
-      "fono",
-
-    "Terapia Ocupacional":
-      "to",
-
-    Fisioterapia:
-      "fisio",
-
-    Nutrição:
-      "nutricao",
-  };
-
-  return (
-    map[
-      specialty
-    ] ??
-    specialty
-      .toLocaleLowerCase(
-        "pt-BR"
-      )
-  );
-}
-
-function normalizeStatus(
-  status:
-    ProfessionalStatus
-) {
-  if (
-    status ===
-    "Ativo"
-  ) {
-    return "ativo";
-  }
-
-  if (
-    status ===
-    "Inativo"
-  ) {
-    return "inativo";
-  }
-
-  return "ferias";
-}
-
 function getInitials(
   name:
     string
@@ -888,15 +639,3 @@ function getInitials(
     .join("")
     .toUpperCase();
 }
-
-/* =========================================
-   EXPORTS AUXILIARES NO COMPONENTE
-========================================= */
-
-export const ProfessionalTable = Object.assign(
-  ProfessionalTableBase,
-  {
-    Summary: ProfessionalSummary,
-    data: professionals,
-  }
-);

@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -31,18 +32,25 @@ import {
 } from "@/components/ui";
 
 import {
-  getPatientById,
-} from "./patientStorage";
+  buscarPaciente,
+  paraStoredPatient,
+  type RealPatient,
+} from "@/services/pacientes";
 
 import {
-  createObjective,
-  type ObjectiveStatus,
-} from "./objectiveStorage";
+  criarObjetivo,
+  slugCategoria,
+} from "@/services/objetivos";
 
 import {
-  getActiveProfessionals,
-  getActiveSpecialties,
-} from "@/pages/Configuracoes/settingsStorage";
+  listarProfissionais,
+  type ApiProfissional,
+} from "@/services/referencias";
+
+type ObjectiveStatus =
+  | "Em evolução"
+  | "Atingido"
+  | "Com regressão";
 
 /* =========================================
    TIPOS
@@ -122,14 +130,22 @@ export default function NovoObjetivo() {
     useParams();
 
   const patientId =
-    Number(
-      id
-    );
+    id ?? "";
 
-  const patient =
-    getPatientById(
-      patientId
-    );
+  const [patient, setPatient] = useState<RealPatient | null>(null);
+  const [fetchingPatient, setFetchingPatient] = useState(true);
+
+  useEffect(() => {
+    if (!patientId) {
+      setFetchingPatient(false);
+      return;
+    }
+
+    buscarPaciente(patientId)
+      .then((dados) => setPatient(paraStoredPatient(dados)))
+      .catch(() => setPatient(null))
+      .finally(() => setFetchingPatient(false));
+  }, [patientId]);
 
   const {
     user,
@@ -149,12 +165,22 @@ export default function NovoObjetivo() {
      CONFIGURAÇÕES
   ======================================= */
 
+  const [apiProfissionais, setApiProfissionais] = useState<ApiProfissional[]>([]);
+
+  useEffect(() => {
+    listarProfissionais().then(setApiProfissionais).catch(() => {});
+  }, []);
+
   const allActiveProfessionals =
     useMemo(
       () =>
-        getActiveProfessionals(),
+        apiProfissionais.map((p) => ({
+          id: p.id,
+          name: p.usuario.nome,
+          specialty: p.especialidades[0]?.especialidade.nome ?? "",
+        })),
 
-      []
+      [apiProfissionais]
     );
 
   const loggedProfessional =
@@ -194,11 +220,24 @@ export default function NovoObjetivo() {
       ]
     );
 
+  // Deriva das especialidades já vinculadas aos profissionais reais — um
+  // profissional só aparece em allActiveProfessionals se estiver ativo, e
+  // sua especialidade vem de um vínculo real, então não precisa de uma
+  // segunda checagem "está ativa?" separada.
   const activeSpecialties =
     useMemo(
       () => {
+        const names =
+          Array.from(
+            new Set(
+              allActiveProfessionals
+                .map((professional) => professional.specialty)
+                .filter(Boolean)
+            )
+          );
+
         const specialties =
-          getActiveSpecialties();
+          names.map((name) => ({ name }));
 
         if (
           !isProfissional
@@ -216,6 +255,7 @@ export default function NovoObjetivo() {
       },
 
       [
+        allActiveProfessionals,
         isProfissional,
         loggedProfessional?.specialty,
       ]
@@ -247,6 +287,19 @@ export default function NovoObjetivo() {
             : "",
       })
     );
+
+  // `loggedProfessional` só existe depois que allActiveProfessionals chega
+  // da API (async) — o useState acima roda antes disso no primeiro render,
+  // então resincroniza aqui assim que a lista carrega.
+  useEffect(() => {
+    if (!isProfissional || !loggedProfessional) return;
+
+    setFormData((current) => ({
+      ...current,
+      professional: loggedProfessionalName,
+      specialty: loggedProfessional.specialty,
+    }));
+  }, [isProfissional, loggedProfessional, loggedProfessionalName]);
 
   const [
     saving,
@@ -558,44 +611,33 @@ export default function NovoObjetivo() {
     );
 
     try {
-      createObjective(
+      const professionalReal = allActiveProfessionals.find(
+        (item) => item.name === formData.professional
+      );
+
+      if (!professionalReal) {
+        showError("Profissional inválido.");
+        setSaving(false);
+        return;
+      }
+
+      await criarObjetivo(
+        patient.id,
         {
-          patientId:
-            patient.id,
-
-          generalObjective:
-            formData.generalObjective,
-
-          title:
-            formData.title,
-
-          specialty:
-            formData.specialty,
-
-          professional:
-            formData.professional,
-
-          startDate:
-            formData.startDate,
-
-          targetDate:
-            formData.targetDate,
-
-          progress:
-            Number(
-              formData.progress
-            ),
-
-          status:
-            formData.status,
-
-          observation:
-            formData.observation,
+          profissionalId: professionalReal.id,
+          nome: formData.title,
+          descricao:
+            formData.observation ||
+            (formData.generalObjective
+              ? `Objetivo geral: ${formData.generalObjective}`
+              : undefined),
+          categoria: slugCategoria(formData.specialty),
+          progresso: Number(formData.progress),
         }
       );
 
       setFeedback(
-        "Objetivo específico criado e vinculado ao objetivo geral com sucesso."
+        "Objetivo criado com sucesso."
       );
 
       setFeedbackType(
@@ -610,15 +652,30 @@ export default function NovoObjetivo() {
         },
         700
       );
-    } catch {
+    } catch (error: any) {
       showError(
-        "Não foi possível criar o objetivo."
+        error?.response?.data?.mensagem ??
+          "Não foi possível criar o objetivo."
       );
     } finally {
       setSaving(
         false
       );
     }
+  }
+
+  /* =======================================
+     CARREGANDO
+  ======================================= */
+
+  if (fetchingPatient) {
+    return (
+      <DashboardLayout>
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
+          Carregando paciente…
+        </div>
+      </DashboardLayout>
+    );
   }
 
   /* =======================================
@@ -735,7 +792,7 @@ export default function NovoObjetivo() {
                 onChange={(event) => updateField("generalObjective", event.target.value)}
                 placeholder="Ex.: Desenvolver autonomia nas atividades de vida diária"
               />
-              <p className="mt-2 text-xs text-slate-400">Meta terapêutica ampla que pode reunir vários objetivos específicos.</p>
+              <p className="mt-2 text-xs text-slate-400">Meta terapêutica ampla que pode reunir vários objetivos específicos. Guardado junto da descrição do objetivo — a API ainda não tem um Plano Terapêutico vinculado por aqui.</p>
             </FormField>
 
             <div className="rounded-2xl border border-violet-100 bg-violet-50/60 p-4">
@@ -853,7 +910,7 @@ export default function NovoObjetivo() {
 
         <PageCard
           title="Período e Progresso"
-          description="Defina datas e situação inicial do objetivo."
+          description="Defina datas e situação inicial do objetivo. As datas ainda não são salvas pela API (dependem do Plano Terapêutico, não implementado)."
         >
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
             <FormField
@@ -931,6 +988,7 @@ export default function NovoObjetivo() {
                 value={
                   formData.status
                 }
+                disabled
                 onChange={(
                   event
                 ) =>
@@ -954,6 +1012,8 @@ export default function NovoObjetivo() {
                   Com regressão
                 </option>
               </Select>
+
+              <p className="mt-2 text-xs text-slate-400">Todo objetivo novo começa como "Em evolução" na API.</p>
             </FormField>
           </div>
         </PageCard>

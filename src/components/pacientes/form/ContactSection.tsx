@@ -8,6 +8,11 @@ import {
 
 import type { PatientSchema } from "./schemas";
 
+import {
+  formatarCelular,
+  formatarTelefoneFixo,
+} from "./masks";
+
 interface ContactSectionProps {
   form: UseFormReturn<PatientSchema>;
 }
@@ -33,7 +38,12 @@ export function ContactSection({
           <Input
             type="tel"
             placeholder="(00) 00000-0000"
-            {...register("celular")}
+            maxLength={15}
+            {...register("celular", {
+              onChange: (event) => {
+                event.target.value = formatarCelular(event.target.value);
+              },
+            })}
           />
         </FormField>
 
@@ -44,7 +54,12 @@ export function ContactSection({
           <Input
             type="tel"
             placeholder="(00) 0000-0000"
-            {...register("telefone")}
+            maxLength={14}
+            {...register("telefone", {
+              onChange: (event) => {
+                event.target.value = formatarTelefoneFixo(event.target.value);
+              },
+            })}
           />
         </FormField>
 

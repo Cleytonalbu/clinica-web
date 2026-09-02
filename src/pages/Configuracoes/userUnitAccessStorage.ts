@@ -17,7 +17,7 @@ import {
 ========================================= */
 
 export interface UserUnitAccess {
-  userId: number;
+  userId: string;
   unitIds: number[];
   allUnits: boolean;
   updatedAt: string;
@@ -109,7 +109,7 @@ export function userCanAccessUnit(
 
 export function setUserUnitAccess(
   userId:
-    number,
+    string,
 
   data: {
     unitIds?:
@@ -216,7 +216,7 @@ export function setUserUnitAccess(
 
 export function clearUserUnitAccess(
   userId:
-    number
+    string
 ) {
   const next =
     readAccessList()

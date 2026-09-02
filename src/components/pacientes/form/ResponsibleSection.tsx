@@ -9,6 +9,11 @@ import {
 
 import type { PatientSchema } from "./schemas";
 
+import {
+  formatarCPF,
+  formatarCelular,
+} from "./masks";
+
 interface ResponsibleSectionProps {
   form: UseFormReturn<PatientSchema>;
 }
@@ -60,7 +65,12 @@ export function ResponsibleSection({
         >
           <Input
             placeholder="000.000.000-00"
-            {...register("responsavelCpf")}
+            maxLength={14}
+            {...register("responsavelCpf", {
+              onChange: (event) => {
+                event.target.value = formatarCPF(event.target.value);
+              },
+            })}
           />
         </FormField>
 
@@ -71,7 +81,12 @@ export function ResponsibleSection({
           <Input
             type="tel"
             placeholder="(00) 00000-0000"
-            {...register("responsavelTelefone")}
+            maxLength={15}
+            {...register("responsavelTelefone", {
+              onChange: (event) => {
+                event.target.value = formatarCelular(event.target.value);
+              },
+            })}
           />
         </FormField>
 

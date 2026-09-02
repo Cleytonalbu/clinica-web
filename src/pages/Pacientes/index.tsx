@@ -8,9 +8,14 @@ import {
 } from "lucide-react";
 
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
+
+import {
+  useSearchParams,
+} from "react-router-dom";
 
 import {
   DashboardLayout,
@@ -33,16 +38,14 @@ import {
 } from "@/components/pacientes/table/PatientTable";
 
 import {
-  getPatients,
-} from "@/pages/Pacientes/patientStorage";
+  listarPacientes,
+  paraStoredPatient,
+  type RealPatient,
+} from "@/services/pacientes";
 
 import {
   getSavedAppointments,
 } from "@/pages/Agenda/appointmentStorage";
-
-import {
-  getProfessionalAccessiblePatientIds,
-} from "@/pages/Pacientes/patientAccessRules";
 
 /* =========================================
    PÁGINA PACIENTES
@@ -63,11 +66,13 @@ export default function Pacientes() {
     user?.name ??
     "";
 
+  const [searchParams] = useSearchParams();
+
   const [
     search,
     setSearch,
   ] =
-    useState("");
+    useState(() => searchParams.get("busca") ?? "");
 
   const [
     status,
@@ -81,44 +86,53 @@ export default function Pacientes() {
   ] =
     useState("Todos");
 
-  const allPatients =
-    getPatients();
+  const [
+    allPatients,
+    setAllPatients,
+  ] =
+    useState<RealPatient[]>([]);
 
-  const accessiblePatientIds =
-    useMemo(
-      () =>
-        isProfissional
-          ? new Set(
-              getProfessionalAccessiblePatientIds(
-                loggedProfessionalName
-              )
-            )
-          : null,
-      [
-        isProfissional,
-        loggedProfessionalName,
-      ]
-    );
+  const [
+    loadingPatients,
+    setLoadingPatients,
+  ] =
+    useState(true);
 
-  const patients =
-    useMemo(
-      () =>
-        isProfissional
-          ? allPatients.filter(
-              (
-                patient
-              ) =>
-                accessiblePatientIds?.has(
-                  patient.id
-                )
-            )
-          : allPatients,
-      [
-        accessiblePatientIds,
-        allPatients,
-        isProfissional,
-      ]
-    );
+  const [
+    loadError,
+    setLoadError,
+  ] =
+    useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelado = false;
+
+    setLoadingPatients(true);
+
+    listarPacientes({ porPagina: 200 })
+      .then((resposta) => {
+        if (cancelado) return;
+        setAllPatients(resposta.dados.map(paraStoredPatient));
+        setLoadError(null);
+      })
+      .catch(() => {
+        if (cancelado) return;
+        setLoadError("Não foi possível carregar os pacientes.");
+      })
+      .finally(() => {
+        if (cancelado) return;
+        setLoadingPatients(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+  // O backend já filtra GET /pacientes por vínculo real (agendamento ou
+  // objetivo) quando quem pede é PROFISSIONAL — não precisa repetir a
+  // restrição aqui.
+  const patients = allPatients;
 
   const appointments =
     useMemo(
@@ -137,14 +151,10 @@ export default function Pacientes() {
             appointment
           ) =>
             appointment.professional ===
-              loggedProfessionalName &&
-            accessiblePatientIds?.has(
-              appointment.patientId
-            )
+              loggedProfessionalName
         );
       },
       [
-        accessiblePatientIds,
         isProfissional,
         loggedProfessionalName,
       ]
@@ -295,6 +305,18 @@ export default function Pacientes() {
           </div>
         )}
 
+        {loadError && (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-xs font-semibold text-rose-700">
+            {loadError}
+          </div>
+        )}
+
+        {loadingPatients && (
+          <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-xs font-semibold text-slate-500">
+            Carregando pacientes…
+          </div>
+        )}
+
         {/* INDICADORES */}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -346,7 +368,7 @@ export default function Pacientes() {
                 appointmentsThisMonth
               )
             }
-            description="Atendimentos realizados"
+            description="Agenda ainda não integrada — não conta pacientes novos"
             icon={
               CalendarCheck2
             }
@@ -361,7 +383,7 @@ export default function Pacientes() {
                 upcomingAppointments
               )
             }
-            description="Agendamentos futuros"
+            description="Agenda ainda não integrada — não conta pacientes novos"
             icon={
               CalendarClock
             }

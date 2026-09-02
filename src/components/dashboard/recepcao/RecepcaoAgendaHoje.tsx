@@ -1,99 +1,67 @@
+import { useState } from "react";
+
 import {
   CalendarDays,
-  MoreHorizontal,
   Plus,
+  UserCheck,
 } from "lucide-react";
 
 import {
   useNavigate,
 } from "react-router-dom";
 
-interface Appointment {
-  id: number;
-  time: string;
-  arrival: string;
-  patient: string;
-  age: string;
-  responsible: string;
-  tag: string;
-  professional: string;
-  specialty: string;
-  status:
-    | "Em atendimento"
-    | "Aguardando"
-    | "Agendado";
+import {
+  registrarChegadaAgendamento,
+  type ApiAgendamento,
+  type ApiStatusAgendamento,
+} from "@/services/agenda";
+
+interface RecepcaoAgendaHojeProps {
+  agendamentos: ApiAgendamento[];
+  loading: boolean;
+  onAtualizar: () => void;
 }
 
-const appointments: Appointment[] = [
-  {
-    id: 1,
-    time: "08:00",
-    arrival: "Chegada 07:55",
-    patient: "João Miguel Silva",
-    age: "8 anos",
-    responsible: "Mariana Silva",
-    tag: "TEA - Nível 1",
-    professional: "Dra. Juliana Santos",
-    specialty: "Psicologia",
-    status: "Em atendimento",
-  },
+function calcularIdade(dataNascimentoISO: string) {
+  const nascimento = new Date(dataNascimentoISO);
+  const hoje = new Date();
+  let idade = hoje.getFullYear() - nascimento.getFullYear();
+  const aindaNaoFezAniversario =
+    hoje.getMonth() < nascimento.getMonth() ||
+    (hoje.getMonth() === nascimento.getMonth() && hoje.getDate() < nascimento.getDate());
+  if (aindaNaoFezAniversario) idade -= 1;
+  return idade;
+}
 
-  {
-    id: 2,
-    time: "09:00",
-    arrival: "Chegada 08:50",
-    patient: "Ana Clara Rodrigues",
-    age: "7 anos",
-    responsible: "Camila Rodrigues",
-    tag: "TDAH",
-    professional: "Dra. Juliana Santos",
-    specialty: "Psicologia",
-    status: "Aguardando",
-  },
+function formatarHora(iso: string) {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
-  {
-    id: 3,
-    time: "10:00",
-    arrival: "Chegada --",
-    patient: "Pedro Henrique Santos",
-    age: "6 anos",
-    responsible: "Juliana Santos",
-    tag: "Atraso escolar",
-    professional: "Dra. Juliana Santos",
-    specialty: "Psicologia",
-    status: "Agendado",
-  },
-
-  {
-    id: 4,
-    time: "11:00",
-    arrival: "Chegada --",
-    patient: "Maria Eduarda Lima",
-    age: "9 anos",
-    responsible: "Fernanda Lima",
-    tag: "Ansiedade",
-    professional: "Dra. Juliana Santos",
-    specialty: "Psicologia",
-    status: "Agendado",
-  },
-
-  {
-    id: 5,
-    time: "14:00",
-    arrival: "Chegada --",
-    patient: "Lucas Gabriel Alves",
-    age: "10 anos",
-    responsible: "Juliana Alves",
-    tag: "T. Opositivo",
-    professional: "Dra. Juliana Santos",
-    specialty: "Psicologia",
-    status: "Agendado",
-  },
-];
-
-export function RecepcaoAgendaHoje() {
+export function RecepcaoAgendaHoje({
+  agendamentos,
+  loading,
+  onAtualizar,
+}: RecepcaoAgendaHojeProps) {
   const navigate =
     useNavigate();
+
+  const [processandoId, setProcessandoId] = useState<string | null>(null);
+
+  async function handleCheckin(id: string) {
+    setProcessandoId(id);
+    try {
+      await registrarChegadaAgendamento(id);
+      onAtualizar();
+    } catch {
+      // feedback simples — a lista só não atualiza se falhar
+    } finally {
+      setProcessandoId(null);
+    }
+  }
+
+  const ordenados = [...agendamentos].sort((a, b) => a.dataHora.localeCompare(b.dataHora));
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -140,92 +108,107 @@ export function RecepcaoAgendaHoje() {
         </div>
       </div>
 
-      <div>
-        {appointments.map(
-          (
-            appointment
-          ) => (
-            <div
-              key={
-                appointment.id
-              }
-              className="grid grid-cols-1 gap-4 border-b border-slate-100 px-5 py-5 last:border-b-0 lg:grid-cols-[70px_minmax(0,1.3fr)_140px_minmax(180px,0.9fr)_130px_36px] lg:items-center"
-            >
-              <div>
-                <p className="text-sm font-bold text-slate-900">
-                  {
-                    appointment.time
-                  }
-                </p>
-
-                <p className={`mt-1 text-[11px] ${
-                  appointment.arrival.includes(
-                    "--"
-                  )
-                    ? "text-slate-400"
-                    : "text-emerald-600"
-                }`}>
-                  {
-                    appointment.arrival
-                  }
-                </p>
-              </div>
-
-              <div>
-                <p className="text-sm font-bold text-slate-900">
-                  {
-                    appointment.patient
-                  }
-                </p>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  {appointment.age} • Responsável:{" "}
-                  {
-                    appointment.responsible
-                  }
-                </p>
-              </div>
-
-              <div>
-                <span className="inline-flex rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-600">
-                  {
-                    appointment.tag
-                  }
-                </span>
-              </div>
-
-              <div>
-                <p className="text-sm font-bold text-slate-800">
-                  {
-                    appointment.professional
-                  }
-                </p>
-
-                <p className="mt-1 text-xs text-slate-400">
-                  {
-                    appointment.specialty
-                  }
-                </p>
-              </div>
-
-              <StatusBadge
-                status={
-                  appointment.status
+      {loading ? (
+        <p className="p-5 text-sm text-slate-400">Carregando…</p>
+      ) : ordenados.length === 0 ? (
+        <p className="p-5 text-sm text-slate-400">
+          Nenhum atendimento agendado para hoje.
+        </p>
+      ) : (
+        <div>
+          {ordenados.map(
+            (
+              appointment
+            ) => (
+              <div
+                key={
+                  appointment.id
                 }
-              />
-
-              <button
-                type="button"
-                className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100"
+                className="grid grid-cols-1 gap-4 border-b border-slate-100 px-5 py-5 last:border-b-0 lg:grid-cols-[70px_minmax(0,1.3fr)_140px_minmax(180px,0.9fr)_130px_auto] lg:items-center"
               >
-                <MoreHorizontal
-                  size={18}
+                <div>
+                  <p className="text-sm font-bold text-slate-900">
+                    {
+                      formatarHora(appointment.dataHora)
+                    }
+                  </p>
+
+                  <p className={`mt-1 text-[11px] ${
+                    appointment.horaChegada
+                      ? "text-emerald-600"
+                      : "text-slate-400"
+                  }`}>
+                    {
+                      appointment.horaChegada
+                        ? `Chegada ${formatarHora(appointment.horaChegada)}`
+                        : "Chegada --"
+                    }
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm font-bold text-slate-900">
+                    {
+                      appointment.paciente?.nome ?? "-"
+                    }
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    {appointment.paciente ? `${calcularIdade(appointment.paciente.dataNascimento)} anos` : ""}
+                    {appointment.paciente?.responsavel && ` • Responsável: ${appointment.paciente.responsavel}`}
+                  </p>
+                </div>
+
+                <div>
+                  {appointment.paciente?.diagnostico && (
+                    <span className="inline-flex rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-600">
+                      {
+                        appointment.paciente.diagnostico
+                      }
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-sm font-bold text-slate-800">
+                    {
+                      appointment.profissional?.usuario.nome ?? "-"
+                    }
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-400">
+                    {
+                      appointment.especialidade?.nome ??
+                        appointment.profissional?.especialidades[0]?.especialidade.nome ??
+                        ""
+                    }
+                  </p>
+                </div>
+
+                <StatusBadge
+                  status={
+                    appointment.status
+                  }
                 />
-              </button>
-            </div>
-          )
-        )}
-      </div>
+
+                {appointment.status === "AGENDADO" ? (
+                  <button
+                    type="button"
+                    disabled={processandoId === appointment.id}
+                    onClick={() => handleCheckin(appointment.id)}
+                    className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <UserCheck size={15} />
+                    Chegou
+                  </button>
+                ) : (
+                  <span />
+                )}
+              </div>
+            )
+          )}
+        </div>
+      )}
 
       <div className="border-t border-slate-100 p-4 text-center">
         <button
@@ -247,16 +230,26 @@ export function RecepcaoAgendaHoje() {
 function StatusBadge({
   status,
 }: {
-  status:
-    Appointment["status"];
+  status: ApiStatusAgendamento;
 }) {
+  const labels: Record<ApiStatusAgendamento, string> = {
+    AGENDADO: "Agendado",
+    AGUARDANDO: "Aguardando",
+    EM_ATENDIMENTO: "Em atendimento",
+    CONCLUIDO: "Concluído",
+    CANCELADO: "Cancelado",
+    FALTOU: "Faltou",
+  };
+
   const style =
-    status ===
-    "Em atendimento"
+    status === "EM_ATENDIMENTO"
       ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
-      : status ===
-        "Aguardando"
+      : status === "AGUARDANDO"
       ? "bg-sky-50 text-sky-700 ring-1 ring-sky-100"
+      : status === "CONCLUIDO"
+      ? "bg-slate-100 text-slate-600 ring-1 ring-slate-200"
+      : status === "CANCELADO" || status === "FALTOU"
+      ? "bg-rose-50 text-rose-700 ring-1 ring-rose-100"
       : "bg-violet-50 text-violet-700 ring-1 ring-violet-100";
 
   return (
@@ -264,7 +257,7 @@ function StatusBadge({
       className={`inline-flex justify-center rounded-lg px-3 py-1.5 text-xs font-semibold ${style}`}
     >
       {
-        status
+        labels[status]
       }
     </span>
   );

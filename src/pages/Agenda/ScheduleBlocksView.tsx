@@ -12,7 +12,7 @@ type BlockType =
   | "Indisponível";
 
 export interface ScheduleBlock {
-  id: number;
+  id: number | string;
   professional: string;
   date: string;
   startTime: string;
