@@ -13,8 +13,10 @@ import {
   Filter,
   Grid3X3,
   Lock,
+  MoreHorizontal,
   Pencil,
   Plus,
+  RotateCcw,
   Save,
   Settings2,
   Trash2,
@@ -61,8 +63,11 @@ import {
   getFixedScheduleOccurrences,
   getFixedSchedulesByUnit,
   removeFixedSchedule,
+  removeFixedScheduleException,
+  setFixedScheduleException,
   updateFixedSchedule,
   type FixedSchedule,
+  type FixedScheduleExceptionStatus,
   type FixedScheduleOccurrence,
   type FixedScheduleWeekDay,
 } from "./fixedScheduleStorage";
@@ -800,6 +805,12 @@ function fixedOccurrenceToItem(
 
   if (
     exceptionStatus ===
+      "Confirmado"
+  ) {
+    status =
+      "Confirmado";
+  } else if (
+    exceptionStatus ===
       "Cancelado pelo paciente" ||
     exceptionStatus ===
       "Cancelado pela clínica" ||
@@ -818,6 +829,10 @@ function fixedOccurrenceToItem(
       "Faltou";
   }
 
+  const remapped =
+    occurrence.exception?.status ===
+      "Remarcado";
+
   return {
     key:
       `fixed-${occurrence.fixedScheduleId}-${occurrence.date}`,
@@ -826,13 +841,22 @@ function fixedOccurrenceToItem(
       "fixed",
 
     date:
-      occurrence.date,
+      remapped
+        ? occurrence.exception?.replacementDate ??
+          occurrence.date
+        : occurrence.date,
 
     startTime:
-      occurrence.startTime,
+      remapped
+        ? occurrence.exception?.replacementStartTime ??
+          occurrence.startTime
+        : occurrence.startTime,
 
     endTime:
-      occurrence.endTime,
+      remapped
+        ? occurrence.exception?.replacementEndTime ??
+          occurrence.endTime
+        : occurrence.endTime,
 
     patientId:
       occurrence.patientId,
@@ -841,10 +865,16 @@ function fixedOccurrenceToItem(
       occurrence.patientName,
 
     professionalId:
-      occurrence.professionalId,
+      remapped
+        ? occurrence.exception?.replacementProfessionalId ??
+          occurrence.professionalId
+        : occurrence.professionalId,
 
     professional:
-      occurrence.professionalName,
+      remapped
+        ? occurrence.exception?.replacementProfessionalName ??
+          occurrence.professionalName
+        : occurrence.professionalName,
 
     specialty:
       occurrence.specialty,
@@ -854,8 +884,16 @@ function fixedOccurrenceToItem(
       "Atendimento",
 
     room:
-      occurrence.roomName ||
-      "Sem sala",
+      remapped
+        ? (
+            occurrence.exception?.replacementRoomName ??
+            occurrence.roomName ??
+            "Sem sala"
+          )
+        : (
+            occurrence.roomName ??
+            "Sem sala"
+          ),
 
     status,
 
@@ -1035,6 +1073,17 @@ export default function ReceptionWeeklyAgenda() {
   ] =
     useState(
       false
+    );
+
+  const [
+    selectedFixedOccurrence,
+    setSelectedFixedOccurrence,
+  ] =
+    useState<
+      AgendaOperationalItem |
+      null
+    >(
+      null
     );
 
   const [
@@ -1783,6 +1832,46 @@ export default function ReceptionWeeklyAgenda() {
     );
   }
 
+  function applyFixedOccurrenceQuickStatus(
+    item:
+      AgendaOperationalItem,
+
+    status:
+      FixedScheduleExceptionStatus
+  ) {
+    if (
+      !item.fixedScheduleId
+    ) {
+      return;
+    }
+
+    setFixedScheduleException(
+      {
+        fixedScheduleId:
+          item.fixedScheduleId,
+
+        unitId:
+          activeUnitId,
+
+        date:
+          item.date,
+
+        status,
+
+        source:
+          "recepcao",
+      }
+    );
+
+    setRefreshKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    );
+  }
+
   function handleVacantSlot(
     slot:
       VacantSlot
@@ -2079,7 +2168,6 @@ export default function ReceptionWeeklyAgenda() {
                 "Agendado",
                 "Confirmado",
                 "Realizado",
-                "Horário fixo",
                 "Cancelado",
                 "Cancelado pelo paciente",
                 "Cancelado pela clínica",
@@ -2443,7 +2531,6 @@ export default function ReceptionWeeklyAgenda() {
             "Realizado",
             "Cancelado",
             "Faltou",
-            "Horário fixo",
             "Cancelado pelo paciente",
             "Cancelado pela clínica",
             "Falta do profissional",
@@ -2481,6 +2568,41 @@ export default function ReceptionWeeklyAgenda() {
           </span>
         </div>
       </section>
+
+      {selectedFixedOccurrence && (
+        <FixedScheduleOccurrenceManager
+          item={
+            selectedFixedOccurrence
+          }
+          professionals={
+            professionals
+          }
+          rooms={
+            rooms
+          }
+          activeUnitId={
+            activeUnitId
+          }
+          onClose={() =>
+            setSelectedFixedOccurrence(
+              null
+            )
+          }
+          onChanged={() => {
+            setRefreshKey(
+              (
+                current
+              ) =>
+                current +
+                1
+            );
+
+            setSelectedFixedOccurrence(
+              null
+            );
+          }}
+        />
+      )}
 
       {/* VISUALIZAÇÕES */}
       {view ===
@@ -2522,6 +2644,12 @@ export default function ReceptionWeeklyAgenda() {
           }
           onVacant={
             handleVacantSlot
+          }
+          onFixedOccurrence={
+            setSelectedFixedOccurrence
+          }
+          onFixedQuickStatus={
+            applyFixedOccurrenceQuickStatus
           }
         />
       )}
@@ -2599,6 +2727,12 @@ export default function ReceptionWeeklyAgenda() {
                     }
                     onVacant={
                       handleVacantSlot
+                    }
+                    onFixedOccurrence={
+                      setSelectedFixedOccurrence
+                    }
+                    onFixedQuickStatus={
+                      applyFixedOccurrenceQuickStatus
                     }
                   />
                 );
@@ -3817,6 +3951,623 @@ const selectedRoom =
   );
 }
 
+function FixedScheduleOccurrenceManager({
+  item,
+  professionals,
+  rooms,
+  activeUnitId,
+  onClose,
+  onChanged,
+}: {
+  item:
+    AgendaOperationalItem;
+
+  professionals:
+    ProfessionalSetting[];
+
+  rooms:
+    Array<{
+      id: number;
+      name: string;
+    }>;
+
+  activeUnitId:
+    number;
+
+  onClose:
+    () => void;
+
+  onChanged:
+    () => void;
+}) {
+  const [
+    status,
+    setStatus,
+  ] =
+    useState<
+      FixedScheduleExceptionStatus |
+      ""
+    >(
+      ""
+    );
+
+  const [
+    reason,
+    setReason,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    replacementDate,
+    setReplacementDate,
+  ] =
+    useState(
+      item.date
+    );
+
+  const [
+    replacementStartTime,
+    setReplacementStartTime,
+  ] =
+    useState(
+      item.startTime
+    );
+
+  const [
+    replacementEndTime,
+    setReplacementEndTime,
+  ] =
+    useState(
+      item.endTime
+    );
+
+  const [
+    replacementProfessionalId,
+    setReplacementProfessionalId,
+  ] =
+    useState(
+      item.professionalId
+        ? String(
+            item.professionalId
+          )
+        : ""
+    );
+
+  const [
+    replacementRoomName,
+    setReplacementRoomName,
+  ] =
+    useState(
+      item.room ===
+        "Sem sala"
+        ? ""
+        : item.room
+    );
+
+  const [
+    feedback,
+    setFeedback,
+  ] =
+    useState<
+      string |
+      null
+    >(
+      null
+    );
+
+  if (
+    !item.fixedScheduleId
+  ) {
+    return null;
+  }
+
+  const selectedReplacementProfessional =
+    professionals.find(
+      (
+        professional
+      ) =>
+        professional.id ===
+        Number(
+          replacementProfessionalId
+        )
+    );
+
+  const selectedReplacementRoom =
+    rooms.find(
+      (
+        room
+      ) =>
+        room.name ===
+        replacementRoomName
+    );
+
+  function saveException() {
+    if (
+      !status
+    ) {
+      setFeedback(
+        "Selecione uma ação para esta sessão."
+      );
+
+      return;
+    }
+
+    if (
+      status ===
+        "Remarcado"
+    ) {
+      if (
+        !replacementDate ||
+        !replacementStartTime ||
+        !replacementEndTime ||
+        !selectedReplacementProfessional ||
+        !selectedReplacementRoom
+      ) {
+        setFeedback(
+          "Preencha data, horário, profissional e sala da remarcação."
+        );
+
+        return;
+      }
+    }
+
+    setFixedScheduleException(
+      {
+        fixedScheduleId:
+          item.fixedScheduleId,
+
+        unitId:
+          activeUnitId,
+
+        date:
+          item.date,
+
+        status,
+
+        reason:
+          reason.trim() ||
+          undefined,
+
+        replacementDate:
+          status ===
+            "Remarcado"
+            ? replacementDate
+            : undefined,
+
+        replacementStartTime:
+          status ===
+            "Remarcado"
+            ? replacementStartTime
+            : undefined,
+
+        replacementEndTime:
+          status ===
+            "Remarcado"
+            ? replacementEndTime
+            : undefined,
+
+        replacementProfessionalId:
+          status ===
+            "Remarcado"
+            ? selectedReplacementProfessional?.id
+            : undefined,
+
+        replacementProfessionalName:
+          status ===
+            "Remarcado"
+            ? selectedReplacementProfessional?.name
+            : undefined,
+
+        replacementRoomId:
+          status ===
+            "Remarcado"
+            ? selectedReplacementRoom?.id
+            : undefined,
+
+        replacementRoomName:
+          status ===
+            "Remarcado"
+            ? selectedReplacementRoom?.name
+            : undefined,
+      }
+    );
+
+    onChanged();
+  }
+
+  function restoreSession() {
+    removeFixedScheduleException(
+      item.fixedScheduleId!,
+      item.date
+    );
+
+    onChanged();
+  }
+
+  const actions:
+    Array<{
+      value:
+        FixedScheduleExceptionStatus;
+      label:
+        string;
+      description:
+        string;
+    }> = [
+    {
+      value:
+        "Cancelado pela clínica",
+      label:
+        "Cancelado pela clínica",
+      description:
+        "Cancela apenas esta sessão e preserva a rotina.",
+    },
+    {
+      value:
+        "Falta do profissional",
+      label:
+        "Falta do profissional",
+      description:
+        "Libera esta ocorrência para remanejamento/encaixe.",
+    },
+    {
+      value:
+        "Bloqueado",
+      label:
+        "Bloquear esta sessão",
+      description:
+        "Impede uso deste horário nesta data.",
+    },
+    {
+      value:
+        "Remarcado",
+      label:
+        "Remarcar somente esta sessão",
+      description:
+        "Move apenas esta ocorrência; a rotina semanal continua igual.",
+    },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/35 p-4">
+      <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-[#ddd8ff] bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-[#ece9ff] bg-[#faf9ff] px-6 py-5">
+          <div>
+            <h2 className="text-lg font-extrabold text-[#10235f]">
+              Mais opções da sessão
+            </h2>
+
+            <p className="mt-1 text-xs font-medium text-[#7d89a8]">
+              A alteração vale somente para {
+                formatShortDate(
+                  item.date
+                )
+              }. A rotina semanal do paciente não será apagada.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={
+              onClose
+            }
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e2e5ef] text-[#667397]"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="p-6">
+          <div className="grid grid-cols-1 gap-3 rounded-2xl border border-[#e8eaf3] bg-[#fbfbfe] p-4 sm:grid-cols-2">
+            <div>
+              <p className="text-[10px] font-bold uppercase text-[#9aa3b8]">
+                Paciente
+              </p>
+
+              <p className="mt-1 text-sm font-extrabold text-[#263765]">
+                {
+                  item.patient
+                }
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-bold uppercase text-[#9aa3b8]">
+                Profissional
+              </p>
+
+              <p className="mt-1 text-sm font-extrabold text-[#263765]">
+                {
+                  item.professional
+                }
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-bold uppercase text-[#9aa3b8]">
+                Horário
+              </p>
+
+              <p className="mt-1 text-sm font-extrabold text-[#263765]">
+                {
+                  item.startTime
+                } – {
+                  item.endTime
+                }
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-bold uppercase text-[#9aa3b8]">
+                Procedimento / sala
+              </p>
+
+              <p className="mt-1 text-sm font-extrabold text-[#263765]">
+                {
+                  item.procedure
+                } • {
+                  item.room
+                }
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <p className="mb-3 text-xs font-extrabold text-[#526080]">
+              O que aconteceu nesta sessão?
+            </p>
+
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              {actions.map(
+                (
+                  action
+                ) => (
+                  <button
+                    key={
+                      action.value
+                    }
+                    type="button"
+                    onClick={() =>
+                      setStatus(
+                        action.value
+                      )
+                    }
+                    className={`rounded-xl border p-3 text-left transition ${
+                      status ===
+                        action.value
+                        ? "border-[#9b87ff] bg-[#f6f3ff]"
+                        : "border-[#e5e7ef] bg-white hover:bg-[#fbfbfe]"
+                    }`}
+                  >
+                    <p className="text-xs font-extrabold text-[#263765]">
+                      {
+                        action.label
+                      }
+                    </p>
+
+                    <p className="mt-1 text-[10px] font-medium leading-4 text-[#8a95b4]">
+                      {
+                        action.description
+                      }
+                    </p>
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+
+          {status ===
+            "Remarcado" && (
+            <div className="mt-5 rounded-2xl border border-[#ddd8ff] bg-[#faf9ff] p-4">
+              <h3 className="text-sm font-extrabold text-[#263765]">
+                Novo horário desta sessão
+              </h3>
+
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <FilterField label="Nova data">
+                  <Input
+                    type="date"
+                    value={
+                      replacementDate
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setReplacementDate(
+                        event.target.value
+                      )
+                    }
+                  />
+                </FilterField>
+
+                <FilterField label="Profissional">
+                  <Select
+                    value={
+                      replacementProfessionalId
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setReplacementProfessionalId(
+                        event.target.value
+                      )
+                    }
+                  >
+                    <option value="">
+                      Selecione
+                    </option>
+
+                    {professionals.map(
+                      (
+                        professional
+                      ) => (
+                        <option
+                          key={
+                            professional.id
+                          }
+                          value={
+                            professional.id
+                          }
+                        >
+                          {
+                            professional.name
+                          } — {
+                            professional.specialty
+                          }
+                        </option>
+                      )
+                    )}
+                  </Select>
+                </FilterField>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <FilterField label="Início">
+                    <Input
+                      type="time"
+                      value={
+                        replacementStartTime
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setReplacementStartTime(
+                          event.target.value
+                        )
+                      }
+                    />
+                  </FilterField>
+
+                  <FilterField label="Fim">
+                    <Input
+                      type="time"
+                      value={
+                        replacementEndTime
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setReplacementEndTime(
+                          event.target.value
+                        )
+                      }
+                    />
+                  </FilterField>
+                </div>
+
+                <FilterField label="Sala">
+                  <Select
+                    value={
+                      replacementRoomName
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setReplacementRoomName(
+                        event.target.value
+                      )
+                    }
+                  >
+                    <option value="">
+                      Selecione
+                    </option>
+
+                    {rooms.map(
+                      (
+                        room
+                      ) => (
+                        <option
+                          key={
+                            room.id
+                          }
+                          value={
+                            room.name
+                          }
+                        >
+                          {
+                            room.name
+                          }
+                        </option>
+                      )
+                    )}
+                  </Select>
+                </FilterField>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-5">
+            <FilterField label="Motivo / observação">
+              <Input
+                value={
+                  reason
+                }
+                onChange={(
+                  event
+                ) =>
+                  setReason(
+                    event.target.value
+                  )
+                }
+                placeholder="Opcional"
+              />
+            </FilterField>
+          </div>
+
+          {feedback && (
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700">
+              {
+                feedback
+              }
+            </div>
+          )}
+
+          <div className="mt-6 flex flex-col gap-2 border-t border-[#eceef5] pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              type="button"
+              onClick={
+                restoreSession
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#e2e5ef] px-4 py-2.5 text-xs font-bold text-[#667397] hover:bg-[#f8f9fc]"
+            >
+              <RotateCcw
+                size={15}
+              />
+
+              Restaurar sessão normal
+            </button>
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={
+                  onClose
+                }
+              >
+                Cancelar
+              </Button>
+
+              <Button
+                type="button"
+                onClick={
+                  saveException
+                }
+              >
+                <Save
+                  size={15}
+                />
+
+                Salvar exceção
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AgendaViewButton({
   active,
   onClick,
@@ -3858,6 +4609,8 @@ function DailyOperationalView({
   activeUnitId,
   onAppointment,
   onVacant,
+  onFixedOccurrence,
+  onFixedQuickStatus,
 }: {
   date:
     string;
@@ -3884,6 +4637,21 @@ function DailyOperationalView({
     (
       slot:
         VacantSlot
+    ) => void;
+
+  onFixedOccurrence:
+    (
+      item:
+        AgendaOperationalItem
+    ) => void;
+
+  onFixedQuickStatus:
+    (
+      item:
+        AgendaOperationalItem,
+
+      status:
+        FixedScheduleExceptionStatus
     ) => void;
 }) {
   const times =
@@ -4009,6 +4777,12 @@ function DailyOperationalView({
                           }
                           onAppointment={
                             onAppointment
+                          }
+                          onFixedOccurrence={
+                            onFixedOccurrence
+                          }
+                          onFixedQuickStatus={
+                            onFixedQuickStatus
                           }
                         />
                       )
@@ -4599,6 +5373,8 @@ function DayColumn({
   activeUnitId,
   onAppointment,
   onVacant,
+  onFixedOccurrence,
+  onFixedQuickStatus,
 }: {
   date:
     string;
@@ -4628,6 +5404,21 @@ function DayColumn({
     (
       slot:
         VacantSlot
+    ) => void;
+
+  onFixedOccurrence:
+    (
+      item:
+        AgendaOperationalItem
+    ) => void;
+
+  onFixedQuickStatus:
+    (
+      item:
+        AgendaOperationalItem,
+
+      status:
+        FixedScheduleExceptionStatus
     ) => void;
 }) {
   const today =
@@ -4747,6 +5538,12 @@ function DayColumn({
                   }
                   onAppointment={
                     onAppointment
+                  }
+                  onFixedOccurrence={
+                    onFixedOccurrence
+                  }
+                  onFixedQuickStatus={
+                    onFixedQuickStatus
                   }
                 />
               )
@@ -4894,6 +5691,8 @@ function OperationalCard({
   professionals,
   activeUnitId,
   onAppointment,
+  onFixedOccurrence,
+  onFixedQuickStatus,
 }: {
   item:
     AgendaOperationalItem;
@@ -4908,6 +5707,21 @@ function OperationalCard({
     (
       appointmentId:
         number
+    ) => void;
+
+  onFixedOccurrence:
+    (
+      item:
+        AgendaOperationalItem
+    ) => void;
+
+  onFixedQuickStatus:
+    (
+      item:
+        AgendaOperationalItem,
+
+      status:
+        FixedScheduleExceptionStatus
     ) => void;
 }) {
   void professionals;
@@ -4964,10 +5778,16 @@ function OperationalCard({
     undefined;
 
   return (
-    <button
-      type="button"
-      disabled={
-        !clickable
+    <div
+      role={
+        clickable
+          ? "button"
+          : undefined
+      }
+      tabIndex={
+        clickable
+          ? 0
+          : undefined
       }
       onClick={() => {
         if (
@@ -4979,9 +5799,30 @@ function OperationalCard({
           );
         }
       }}
+      onKeyDown={(
+        event
+      ) => {
+        if (
+          clickable &&
+          (
+            event.key ===
+              "Enter" ||
+            event.key ===
+              " "
+          ) &&
+          item.appointmentId !==
+            undefined
+        ) {
+          event.preventDefault();
+
+          onAppointment(
+            item.appointmentId
+          );
+        }
+      }}
       className={`relative w-full overflow-hidden rounded-xl border p-3 text-left transition ${
         clickable
-          ? "hover:-translate-y-0.5 hover:shadow-md"
+          ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md"
           : "cursor-default"
       } ${
         cancelled
@@ -5051,25 +5892,28 @@ function OperationalCard({
           )}
         </div>
 
-        <span
-          className="shrink-0 rounded-full border bg-white/80 px-2 py-0.5 text-[8px] font-extrabold"
-          style={{
-            borderColor:
-              mixWithWhite(
-                statusColor,
-                0.55
-              ),
+        {item.status !==
+          "Horário fixo" && (
+          <span
+            className="shrink-0 rounded-full border bg-white/80 px-2 py-0.5 text-[8px] font-extrabold"
+            style={{
+              borderColor:
+                mixWithWhite(
+                  statusColor,
+                  0.55
+                ),
 
-            color:
-              statusColor,
-          }}
-        >
-          {
-            getStatusLabel(
-              item.status
-            )
-          }
-        </span>
+              color:
+                statusColor,
+            }}
+          >
+            {
+              getStatusLabel(
+                item.status
+              )
+            }
+          </span>
+        )}
       </div>
 
       <div className="mt-2.5 space-y-1.5 pl-1">
@@ -5118,12 +5962,96 @@ function OperationalCard({
         )}
       </div>
 
+      {item.source ===
+        "fixed" && (
+        <div
+          className="mt-2.5 flex flex-wrap items-center gap-1 border-t border-black/5 pt-2"
+          onClick={(
+            event
+          ) =>
+            event.stopPropagation()
+          }
+        >
+          <button
+            type="button"
+            onClick={() =>
+              onFixedQuickStatus(
+                item,
+                "Confirmado"
+              )
+            }
+            className={`rounded-md border px-2 py-1 text-[8px] font-extrabold transition ${
+              item.status ===
+                "Confirmado"
+                ? "border-emerald-500 bg-emerald-100 text-emerald-800"
+                : "border-emerald-200 bg-white/80 text-emerald-700 hover:bg-emerald-50"
+            }`}
+            title="Confirmar esta sessão"
+          >
+            ✓ Confirmou
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              onFixedQuickStatus(
+                item,
+                "Falta"
+              )
+            }
+            className={`rounded-md border px-2 py-1 text-[8px] font-extrabold transition ${
+              item.status ===
+                "Faltou"
+                ? "border-orange-500 bg-orange-100 text-orange-800"
+                : "border-orange-200 bg-white/80 text-orange-700 hover:bg-orange-50"
+            }`}
+            title="Registrar falta do paciente"
+          >
+            Faltou
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              onFixedQuickStatus(
+                item,
+                "Cancelado pelo paciente"
+              )
+            }
+            className={`rounded-md border px-2 py-1 text-[8px] font-extrabold transition ${
+              item.status ===
+                "Cancelado pelo paciente"
+                ? "border-red-500 bg-red-100 text-red-700"
+                : "border-red-200 bg-white/80 text-red-600 hover:bg-red-50"
+            }`}
+            title="Cancelar somente esta sessão"
+          >
+            Cancelou
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              onFixedOccurrence(
+                item
+              )
+            }
+            className="flex h-6 w-7 items-center justify-center rounded-md border border-[#ddd8ff] bg-white/80 text-[#6847f5] transition hover:bg-white"
+            title="Mais opções"
+          >
+            <MoreHorizontal
+              size={13}
+            />
+          </button>
+        </div>
+      )}
+
       {item.cancelledMakesSlotAvailable && (
         <div className="mt-2.5 rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1.5 text-[9px] font-extrabold text-emerald-700">
           Horário liberado para encaixe
         </div>
       )}
-    </button>
+    </div>
   );
 }
 

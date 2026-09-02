@@ -65,6 +65,7 @@ export interface FixedSchedule {
 }
 
 export type FixedScheduleExceptionStatus =
+  | "Confirmado"
   | "Cancelado pelo paciente"
   | "Cancelado pela clínica"
   | "Falta"
