@@ -78,6 +78,8 @@ import {
   AppointmentRequestsPanel,
 } from "./AppointmentRequestsPanel";
 
+import ReceptionWeeklyAgenda from "./ReceptionWeeklyAgenda";
+
 import {
   APPOINTMENT_REQUESTS_CHANGED_EVENT,
   getAppointmentRequestsByUnit,
@@ -559,6 +561,23 @@ export default function Agenda() {
 
   function handleToday() {
     setSelectedDate(formatDateForInput(new Date()));
+  }
+
+  /*
+   * NOVA AGENDA OPERACIONAL DA RECEPÇÃO
+   *
+   * Gestor e Profissional continuam usando a agenda já aprovada.
+   * A Recepção passa a ter a visão semanal operacional, com
+   * horários fixos, procedimentos, salas, bloqueios e encaixes.
+   */
+  if (
+    isRecepcao
+  ) {
+    return (
+      <DashboardLayout>
+        <ReceptionWeeklyAgenda />
+      </DashboardLayout>
+    );
   }
 
   return (

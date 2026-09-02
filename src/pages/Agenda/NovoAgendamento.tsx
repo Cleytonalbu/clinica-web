@@ -96,6 +96,10 @@ import {
   type PatientPackage,
 } from "@/pages/Financeiro/patientPackageStorage";
 
+import {
+  getActiveProceduresBySpecialty,
+} from "@/pages/Configuracoes/procedureStorage";
+
 /* =========================================
    TIPOS
 ========================================= */
@@ -117,11 +121,7 @@ interface AppointmentFormData {
 
   room: string;
 
-  appointmentType:
-    | "Individual"
-    | "Grupo"
-    | "Avaliação"
-    | "Retorno";
+  appointmentType: string;
 
   status:
     | "Agendado"
@@ -170,7 +170,7 @@ const initialValues: AppointmentFormData = {
     "",
 
   appointmentType:
-    "Individual",
+    "",
 
   status:
     "Agendado",
@@ -364,6 +364,21 @@ export default function NovoAgendamento() {
           patientFromUrl?.nome ??
           "",
       })
+    );
+
+  const availableProcedures =
+    useMemo(
+      () =>
+        formData.specialty
+          ? getActiveProceduresBySpecialty(
+              activeUnitId,
+              formData.specialty
+            )
+          : [],
+      [
+        activeUnitId,
+        formData.specialty,
+      ]
     );
 
   const [
@@ -1704,7 +1719,7 @@ export default function NovoAgendamento() {
 
         <PageCard
           title="Detalhes do Atendimento"
-          description="Sala, tipo e situação."
+          description="Sala, procedimento e situação."
         >
           <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
             {/* ============================= */}
@@ -1759,38 +1774,51 @@ export default function NovoAgendamento() {
             {/* ============================= */}
 
             <FormField
-              label="Tipo"
+              label="Procedimento"
+              required
             >
               <Select
                 value={
                   formData.appointmentType
+                }
+                disabled={
+                  !formData.specialty
                 }
                 onChange={(
                   event
                 ) =>
                   updateField(
                     "appointmentType",
-
-                    event.target
-                      .value as AppointmentFormData["appointmentType"]
+                    event.target.value
                   )
                 }
               >
-                <option value="Individual">
-                  Individual
+                <option value="">
+                  {
+                    formData.specialty
+                      ? "Selecione o procedimento"
+                      : "Selecione primeiro o profissional"
+                  }
                 </option>
 
-                <option value="Grupo">
-                  Grupo
-                </option>
-
-                <option value="Avaliação">
-                  Avaliação
-                </option>
-
-                <option value="Retorno">
-                  Retorno
-                </option>
+                {availableProcedures.map(
+                  (
+                    procedure
+                  ) => (
+                    <option
+                      key={
+                        procedure.id
+                      }
+                      value={
+                        procedure.name
+                      }
+                    >
+                      {
+                        procedure.name
+                      }
+                    </option>
+                  )
+                )}
               </Select>
             </FormField>
 

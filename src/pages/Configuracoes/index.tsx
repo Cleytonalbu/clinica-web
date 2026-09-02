@@ -10,6 +10,7 @@ import {
   Building2,
   CalendarDays,
   ChevronRight,
+  ClipboardList,
   CircleDollarSign,
   DoorOpen,
   FileBarChart,
@@ -88,6 +89,20 @@ import {
 } from "./specialtyUnitStorage";
 
 import {
+  getProfessionalAgendaTonesBySpecialty,
+  getSpecialtyAgendaColor,
+  setSpecialtyAgendaColor,
+} from "./specialtyAgendaColorStorage";
+
+import {
+  createProcedure,
+  getProcedures,
+  removeProcedure,
+  toggleProcedure,
+  updateProcedure,
+} from "./procedureStorage";
+
+import {
   convenioWorksAtUnit,
   removeConvenioUnitLinks,
   setConvenioUnit,
@@ -113,6 +128,7 @@ type SettingsSection =
   | "clinic"
   | "units"
   | "specialties"
+  | "procedures"
   | "professionals"
   | "user-logins"
   | "convenios"
@@ -284,6 +300,15 @@ const menuItems: {
     label: "Especialidades",
     icon:
       <Stethoscope
+        size={18}
+      />,
+  },
+
+  {
+    id: "procedures",
+    label: "Procedimentos",
+    icon:
+      <ClipboardList
         size={18}
       />,
   },
@@ -1809,6 +1834,31 @@ export default function Configuracoes() {
             )}
 
             {activeSection ===
+              "procedures" && (
+              <ProceduresSettingsSection
+                activeUnitId={
+                  activeUnitId
+                }
+
+                specialties={
+                  activeSpecialties.filter(
+                    (
+                      specialty
+                    ) =>
+                      specialtyWorksAtUnit(
+                        specialty.id,
+                        activeUnitId
+                      )
+                  )
+                }
+
+                onFeedback={
+                  showFeedback
+                }
+              />
+            )}
+
+            {activeSection ===
               "professionals" && (
               <ProfessionalsSettingsSection
                 settings={
@@ -2448,6 +2498,386 @@ function ClinicSettingsSection({
   );
 }
 
+function ProceduresSettingsSection({
+  activeUnitId,
+  specialties,
+  onFeedback,
+}: {
+  activeUnitId:
+    number;
+
+  specialties:
+    SpecialtySetting[];
+
+  onFeedback:
+    (
+      message:
+        string
+    ) => void;
+}) {
+  const [
+    version,
+    setVersion,
+  ] =
+    useState(
+      0
+    );
+
+  const [
+    name,
+    setName,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    specialtyId,
+    setSpecialtyId,
+  ] =
+    useState(
+      ""
+    );
+
+  void version;
+
+  const procedures =
+    getProcedures()
+      .filter(
+        (
+          item
+        ) =>
+          item.unitId ===
+          activeUnitId
+      )
+      .sort(
+        (
+          a,
+          b
+        ) =>
+          a.specialtyName.localeCompare(
+            b.specialtyName,
+            "pt-BR"
+          ) ||
+          a.name.localeCompare(
+            b.name,
+            "pt-BR"
+          )
+      );
+
+  function refresh() {
+    setVersion(
+      (
+        current
+      ) =>
+        current +
+        1
+    );
+  }
+
+  function addProcedure() {
+    const specialty =
+      specialties.find(
+        (
+          item
+        ) =>
+          item.id ===
+          Number(
+            specialtyId
+          )
+      );
+
+    if (
+      !specialty
+    ) {
+      onFeedback(
+        "Selecione a especialidade."
+      );
+
+      return;
+    }
+
+    try {
+      createProcedure(
+        {
+          unitId:
+            activeUnitId,
+
+          name,
+
+          specialtyId:
+            specialty.id,
+
+          specialtyName:
+            specialty.name,
+        }
+      );
+
+      setName(
+        ""
+      );
+
+      setSpecialtyId(
+        ""
+      );
+
+      refresh();
+
+      onFeedback(
+        "Procedimento adicionado com sucesso."
+      );
+    } catch (
+      error
+    ) {
+      onFeedback(
+        error instanceof
+          Error
+          ? error.message
+          : "Não foi possível adicionar o procedimento."
+      );
+    }
+  }
+
+  return (
+    <>
+      <PageCard
+        title="Procedimentos"
+        description="Cadastre os procedimentos que poderão ser selecionados nos agendamentos."
+      >
+        <div className="space-y-3">
+          {procedures.map(
+            (
+              procedure
+            ) => (
+              <div
+                key={
+                  procedure.id
+                }
+                className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-[1fr_260px_130px_auto]"
+              >
+                <FormField label="Procedimento">
+                  <Input
+                    value={
+                      procedure.name
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      updateProcedure(
+                        procedure.id,
+                        {
+                          name:
+                            event.target.value,
+                        }
+                      )
+                    }
+                    onBlur={
+                      refresh
+                    }
+                  />
+                </FormField>
+
+                <FormField label="Especialidade">
+                  <Select
+                    value={
+                      String(
+                        procedure.specialtyId
+                      )
+                    }
+                    onChange={(
+                      event
+                    ) => {
+                      const specialty =
+                        specialties.find(
+                          (
+                            item
+                          ) =>
+                            item.id ===
+                            Number(
+                              event.target.value
+                            )
+                        );
+
+                      if (
+                        specialty
+                      ) {
+                        updateProcedure(
+                          procedure.id,
+                          {
+                            specialtyId:
+                              specialty.id,
+
+                            specialtyName:
+                              specialty.name,
+                          }
+                        );
+
+                        refresh();
+                      }
+                    }}
+                  >
+                    {specialties.map(
+                      (
+                        specialty
+                      ) => (
+                        <option
+                          key={
+                            specialty.id
+                          }
+                          value={
+                            specialty.id
+                          }
+                        >
+                          {
+                            specialty.name
+                          }
+                        </option>
+                      )
+                    )}
+                  </Select>
+                </FormField>
+
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-slate-700">
+                    Status
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toggleProcedure(
+                        procedure.id
+                      );
+
+                      refresh();
+                    }}
+                    className={`w-full rounded-xl px-4 py-2.5 text-sm font-semibold ${
+                      procedure.active
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {
+                      procedure.active
+                        ? "Ativo"
+                        : "Inativo"
+                    }
+                  </button>
+                </div>
+
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      removeProcedure(
+                        procedure.id
+                      );
+
+                      refresh();
+
+                      onFeedback(
+                        "Procedimento excluído."
+                      );
+                    }}
+                    className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-200 text-red-600"
+                  >
+                    <Trash2
+                      size={18}
+                    />
+                  </button>
+                </div>
+              </div>
+            )
+          )}
+
+          {procedures.length ===
+            0 && (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center text-sm text-slate-500">
+              Nenhum procedimento cadastrado nesta unidade.
+            </div>
+          )}
+        </div>
+      </PageCard>
+
+      <PageCard
+        title="Novo Procedimento"
+        description="O procedimento ficará disponível para seleção na Agenda."
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_280px_auto]">
+          <FormField label="Nome">
+            <Input
+              value={
+                name
+              }
+              onChange={(
+                event
+              ) =>
+                setName(
+                  event.target.value
+                )
+              }
+              placeholder="Ex.: Sessão convencional"
+            />
+          </FormField>
+
+          <FormField label="Especialidade">
+            <Select
+              value={
+                specialtyId
+              }
+              onChange={(
+                event
+              ) =>
+                setSpecialtyId(
+                  event.target.value
+                )
+              }
+            >
+              <option value="">
+                Selecione
+              </option>
+
+              {specialties.map(
+                (
+                  specialty
+                ) => (
+                  <option
+                    key={
+                      specialty.id
+                    }
+                    value={
+                      specialty.id
+                    }
+                  >
+                    {
+                      specialty.name
+                    }
+                  </option>
+                )
+              )}
+            </Select>
+          </FormField>
+
+          <div className="flex items-end">
+            <Button
+              type="button"
+              onClick={
+                addProcedure
+              }
+            >
+              <Plus
+                size={17}
+              />
+
+              Adicionar
+            </Button>
+          </div>
+        </div>
+      </PageCard>
+    </>
+  );
+}
+
 function SpecialtiesSettingsSection({
   settings,
   activeUnitId,
@@ -2531,7 +2961,16 @@ function SpecialtiesSettingsSection({
       0
     );
 
+  const [
+    colorVersion,
+    setColorVersion,
+  ] =
+    useState(
+      0
+    );
+
   void pricingVersion;
+  void colorVersion;
 
   const activeCount =
     settings.specialties.filter(
@@ -2584,7 +3023,7 @@ function SpecialtiesSettingsSection({
                 }
                 className="rounded-2xl border border-slate-200 bg-white p-5"
               >
-                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_190px_190px_150px_auto]">
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_190px_190px_170px_150px_auto]">
                   <FormField label="Especialidade">
                     <Input
                       value={
@@ -2678,6 +3117,59 @@ function SpecialtiesSettingsSection({
                     />
                   </FormField>
 
+                  <FormField label="Cor na agenda">
+                    <div className="flex h-11 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3">
+                      <input
+                        type="color"
+                        value={
+                          getSpecialtyAgendaColor(
+                            activeUnitId,
+                            specialty.id
+                          )
+                        }
+                        onChange={(
+                          event
+                        ) => {
+                          setSpecialtyAgendaColor(
+                            activeUnitId,
+                            specialty.id,
+                            event.target.value
+                          );
+
+                          setColorVersion(
+                            (
+                              current
+                            ) =>
+                              current +
+                              1
+                          );
+                        }}
+                        className="h-7 w-10 cursor-pointer rounded border-0 bg-transparent p-0"
+                        title="Escolher cor da especialidade"
+                      />
+
+                      <span
+                        className="h-6 flex-1 rounded-lg"
+                        style={{
+                          backgroundColor:
+                            getSpecialtyAgendaColor(
+                              activeUnitId,
+                              specialty.id
+                            ),
+                        }}
+                      />
+
+                      <span className="text-[10px] font-bold text-slate-500">
+                        {
+                          getSpecialtyAgendaColor(
+                            activeUnitId,
+                            specialty.id
+                          )
+                        }
+                      </span>
+                    </div>
+                  </FormField>
+
                   <div>
                     <p className="mb-2 text-sm font-semibold text-slate-700">
                       Status
@@ -2716,6 +3208,64 @@ function SpecialtiesSettingsSection({
                         size={18}
                       />
                     </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 border-t border-slate-100 pt-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">
+                        Tons dos profissionais
+                      </p>
+
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        Todos usam a cor da especialidade, com um tom diferente para identificação rápida na agenda.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {
+                        getProfessionalAgendaTonesBySpecialty(
+                          activeUnitId,
+                          specialty.id
+                        ).map(
+                          (
+                            tone
+                          ) => (
+                            <span
+                              key={
+                                tone.professionalId
+                              }
+                              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700"
+                            >
+                              <span
+                                className="h-3 w-3 rounded-full"
+                                style={{
+                                  backgroundColor:
+                                    tone.toneColor,
+                                }}
+                              />
+
+                              {
+                                tone.professionalName
+                              }
+                            </span>
+                          )
+                        )
+                      }
+
+                      {
+                        getProfessionalAgendaTonesBySpecialty(
+                          activeUnitId,
+                          specialty.id
+                        ).length ===
+                          0 && (
+                          <span className="text-[11px] text-slate-400">
+                            Nenhum profissional desta especialidade nesta unidade.
+                          </span>
+                        )
+                      }
+                    </div>
                   </div>
                 </div>
               </div>

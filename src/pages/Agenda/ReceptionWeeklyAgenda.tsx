@@ -1,0 +1,5213 @@
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  DoorOpen,
+  Filter,
+  Grid3X3,
+  Lock,
+  Pencil,
+  Plus,
+  Save,
+  Settings2,
+  Trash2,
+  Search,
+  SlidersHorizontal,
+  Stethoscope,
+  UserRound,
+  XCircle,
+} from "lucide-react";
+
+import {
+  useNavigate,
+} from "react-router-dom";
+
+import {
+  Button,
+  Input,
+  Select,
+} from "@/components/ui";
+
+import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
+  APPOINTMENTS_CHANGED_EVENT,
+  getSavedAppointments,
+  type StoredAppointment,
+} from "./appointmentStorage";
+
+import {
+  getSavedBlocks,
+  SCHEDULE_BLOCKS_CHANGED_EVENT,
+} from "./blockStorage";
+
+import type {
+  ScheduleBlock,
+} from "./ScheduleBlocksView";
+
+import {
+  FIXED_SCHEDULES_CHANGED_EVENT,
+  FIXED_SCHEDULE_EXCEPTIONS_CHANGED_EVENT,
+  createFixedSchedule,
+  getFixedScheduleOccurrences,
+  getFixedSchedulesByUnit,
+  removeFixedSchedule,
+  updateFixedSchedule,
+  type FixedSchedule,
+  type FixedScheduleOccurrence,
+  type FixedScheduleWeekDay,
+} from "./fixedScheduleStorage";
+
+import {
+  SPECIALTY_AGENDA_COLORS_CHANGED_EVENT,
+  getSpecialtyAgendaColor,
+} from "@/pages/Configuracoes/specialtyAgendaColorStorage";
+
+import {
+  getActiveProfessionals,
+  getActiveRooms,
+  getActiveSpecialties,
+  getAgendaSettings,
+  type ProfessionalSetting,
+} from "@/pages/Configuracoes/settingsStorage";
+
+import {
+  professionalWorksAtUnit,
+} from "@/pages/Configuracoes/professionalUnitStorage";
+
+import {
+  specialtyWorksAtUnit,
+} from "@/pages/Configuracoes/specialtyUnitStorage";
+
+import {
+  roomWorksAtUnit,
+} from "@/pages/Configuracoes/roomUnitStorage";
+
+import {
+  getProfessionalScheduleDays,
+} from "@/pages/Profissionais/professionalScheduleStorage";
+
+import {
+  getPatients,
+} from "@/pages/Pacientes/patientStorage";
+
+import {
+  getActiveProceduresBySpecialty,
+  getActiveProceduresByUnit,
+  PROCEDURES_CHANGED_EVENT,
+} from "@/pages/Configuracoes/procedureStorage";
+
+type ReceptionAgendaView =
+  | "day"
+  | "week"
+  | "month";
+
+type OperationalStatus =
+  | "Agendado"
+  | "Confirmado"
+  | "Realizado"
+  | "Cancelado"
+  | "Faltou"
+  | "Horário fixo"
+  | "Cancelado pelo paciente"
+  | "Cancelado pela clínica"
+  | "Falta do profissional"
+  | "Bloqueado";
+
+interface AgendaOperationalItem {
+  key: string;
+
+  source:
+    | "appointment"
+    | "fixed"
+    | "block";
+
+  date: string;
+
+  startTime: string;
+  endTime: string;
+
+  patientId?: number;
+  patient: string;
+
+  professionalId?: number;
+  professional: string;
+
+  specialty: string;
+
+  procedure: string;
+
+  room: string;
+
+  status:
+    OperationalStatus;
+
+  appointmentId?: number;
+
+  fixedScheduleId?: string;
+
+  cancelledMakesSlotAvailable:
+    boolean;
+}
+
+interface VacantSlot {
+  key: string;
+
+  date: string;
+
+  startTime: string;
+  endTime: string;
+
+  professionalId: number;
+  professional: string;
+
+  specialty: string;
+}
+
+const WEEK_DAY_LABELS = [
+  "Dom",
+  "Seg",
+  "Ter",
+  "Qua",
+  "Qui",
+  "Sex",
+  "Sáb",
+];
+
+const PROFESSIONAL_SCHEDULE_DAY_NAMES = [
+  "Domingo",
+  "Segunda-feira",
+  "Terça-feira",
+  "Quarta-feira",
+  "Quinta-feira",
+  "Sexta-feira",
+  "Sábado",
+] as const;
+
+function formatDate(
+  date:
+    Date
+) {
+  return `${date.getFullYear()}-${String(
+    date.getMonth() +
+      1
+  ).padStart(
+    2,
+    "0"
+  )}-${String(
+    date.getDate()
+  ).padStart(
+    2,
+    "0"
+  )}`;
+}
+
+function parseDate(
+  value:
+    string
+) {
+  const [
+    year,
+    month,
+    day,
+  ] =
+    value
+      .split(
+        "-"
+      )
+      .map(
+        Number
+      );
+
+  return new Date(
+    year,
+    month -
+      1,
+    day,
+    12,
+    0,
+    0,
+    0
+  );
+}
+
+function addDays(
+  value:
+    string,
+
+  days:
+    number
+) {
+  const date =
+    parseDate(
+      value
+    );
+
+  date.setDate(
+    date.getDate() +
+      days
+  );
+
+  return formatDate(
+    date
+  );
+}
+
+function getWeekStart(
+  value:
+    string
+) {
+  const date =
+    parseDate(
+      value
+    );
+
+  const day =
+    date.getDay();
+
+  /*
+   * A clínica trabalha visualmente com a semana
+   * começando na segunda-feira.
+   */
+  const diff =
+    day ===
+      0
+      ? -6
+      : 1 -
+        day;
+
+  date.setDate(
+    date.getDate() +
+      diff
+  );
+
+  return formatDate(
+    date
+  );
+}
+
+function getWeekDates(
+  selectedDate:
+    string
+) {
+  const start =
+    getWeekStart(
+      selectedDate
+    );
+
+  return Array.from(
+    {
+      length:
+        6,
+    },
+    (
+      _,
+      index
+    ) =>
+      addDays(
+        start,
+        index
+      )
+  );
+}
+
+function formatShortDate(
+  value:
+    string
+) {
+  const date =
+    parseDate(
+      value
+    );
+
+  return `${WEEK_DAY_LABELS[
+    date.getDay()
+  ]}, ${String(
+    date.getDate()
+  ).padStart(
+    2,
+    "0"
+  )}/${String(
+    date.getMonth() +
+      1
+  ).padStart(
+    2,
+    "0"
+  )}`;
+}
+
+function formatWeekTitle(
+  dates:
+    string[]
+) {
+  if (
+    dates.length ===
+    0
+  ) {
+    return "";
+  }
+
+  const first =
+    parseDate(
+      dates[0]
+    );
+
+  const last =
+    parseDate(
+      dates[
+        dates.length -
+          1
+      ]
+    );
+
+  const monthNames = [
+    "jan.",
+    "fev.",
+    "mar.",
+    "abr.",
+    "mai.",
+    "jun.",
+    "jul.",
+    "ago.",
+    "set.",
+    "out.",
+    "nov.",
+    "dez.",
+  ];
+
+  if (
+    first.getMonth() ===
+      last.getMonth() &&
+    first.getFullYear() ===
+      last.getFullYear()
+  ) {
+    return `${first.getDate()} – ${last.getDate()} de ${monthNames[
+      first.getMonth()
+    ]} de ${first.getFullYear()}`;
+  }
+
+  return `${first.getDate()} de ${monthNames[
+    first.getMonth()
+  ]} – ${last.getDate()} de ${monthNames[
+    last.getMonth()
+  ]} de ${last.getFullYear()}`;
+}
+
+function formatFullDayTitle(
+  value:
+    string
+) {
+  const date =
+    parseDate(
+      value
+    );
+
+  return new Intl.DateTimeFormat(
+    "pt-BR",
+    {
+      weekday:
+        "long",
+      day:
+        "2-digit",
+      month:
+        "long",
+      year:
+        "numeric",
+    }
+  )
+    .format(
+      date
+    )
+    .replace(
+      /^./,
+      (
+        letter
+      ) =>
+        letter.toUpperCase()
+    );
+}
+
+function formatMonthTitle(
+  value:
+    string
+) {
+  const date =
+    parseDate(
+      value
+    );
+
+  const title =
+    new Intl.DateTimeFormat(
+      "pt-BR",
+      {
+        month:
+          "long",
+        year:
+          "numeric",
+      }
+    ).format(
+      date
+    );
+
+  return title
+    .charAt(
+      0
+    )
+    .toUpperCase() +
+    title.slice(
+      1
+    );
+}
+
+function timeToMinutes(
+  value:
+    string
+) {
+  const [
+    hours,
+    minutes,
+  ] =
+    value
+      .split(
+        ":"
+      )
+      .map(
+        Number
+      );
+
+  return (
+    hours *
+      60 +
+    minutes
+  );
+}
+
+function minutesToTime(
+  value:
+    number
+) {
+  return `${String(
+    Math.floor(
+      value /
+        60
+    )
+  ).padStart(
+    2,
+    "0"
+  )}:${String(
+    value %
+      60
+  ).padStart(
+    2,
+    "0"
+  )}`;
+}
+
+function periodsOverlap(
+  startA:
+    string,
+  endA:
+    string,
+  startB:
+    string,
+  endB:
+    string
+) {
+  return (
+    timeToMinutes(
+      startA
+    ) <
+      timeToMinutes(
+        endB
+      ) &&
+    timeToMinutes(
+      endA
+    ) >
+      timeToMinutes(
+        startB
+      )
+  );
+}
+
+function isCancelledStatus(
+  status:
+    OperationalStatus
+) {
+  return (
+    status ===
+      "Cancelado" ||
+    status ===
+      "Cancelado pelo paciente" ||
+    status ===
+      "Cancelado pela clínica" ||
+    status ===
+      "Faltou" ||
+    status ===
+      "Falta do profissional"
+  );
+}
+
+function getStatusLabel(
+  status:
+    OperationalStatus
+) {
+  return status;
+}
+
+function getStatusSolidColor(
+  status:
+    OperationalStatus
+) {
+  const colors:
+    Record<
+      OperationalStatus,
+      string
+    > = {
+    Agendado:
+      "#38BDF8",
+
+    Confirmado:
+      "#16A34A",
+
+    Realizado:
+      "#A855F7",
+
+    Cancelado:
+      "#EF4444",
+
+    Faltou:
+      "#F97316",
+
+    "Horário fixo":
+      "#2563EB",
+
+    "Cancelado pelo paciente":
+      "#EF4444",
+
+    "Cancelado pela clínica":
+      "#52525B",
+
+    "Falta do profissional":
+      "#B91C1C",
+
+    Bloqueado:
+      "#475569",
+  };
+
+  return colors[
+    status
+  ];
+}
+
+function getTextColor(
+  background:
+    string
+) {
+  const clean =
+    background
+      .replace(
+        "#",
+        ""
+      );
+
+  const r =
+    parseInt(
+      clean.slice(
+        0,
+        2
+      ),
+      16
+    );
+
+  const g =
+    parseInt(
+      clean.slice(
+        2,
+        4
+      ),
+      16
+    );
+
+  const b =
+    parseInt(
+      clean.slice(
+        4,
+        6
+      ),
+      16
+    );
+
+  const luminance =
+    (
+      0.299 *
+        r +
+      0.587 *
+        g +
+      0.114 *
+        b
+    ) /
+    255;
+
+  return luminance >
+    0.67
+    ? "#263765"
+    : "#FFFFFF";
+}
+
+function mixWithWhite(
+  hex:
+    string,
+
+  ratio:
+    number
+) {
+  const clean =
+    hex.replace(
+      "#",
+      ""
+    );
+
+  const r =
+    parseInt(
+      clean.slice(
+        0,
+        2
+      ),
+      16
+    );
+
+  const g =
+    parseInt(
+      clean.slice(
+        2,
+        4
+      ),
+      16
+    );
+
+  const b =
+    parseInt(
+      clean.slice(
+        4,
+        6
+      ),
+      16
+    );
+
+  const mix =
+    (
+      value:
+        number
+    ) =>
+      Math.round(
+        value +
+          (
+            255 -
+            value
+          ) *
+            ratio
+      )
+        .toString(
+          16
+        )
+        .padStart(
+          2,
+          "0"
+        );
+
+  return `#${mix(r)}${mix(g)}${mix(b)}`
+    .toUpperCase();
+}
+
+function appointmentToItem(
+  appointment:
+    StoredAppointment
+):
+  AgendaOperationalItem {
+  return {
+    key:
+      `appointment-${appointment.id}`,
+
+    source:
+      "appointment",
+
+    date:
+      appointment.date,
+
+    startTime:
+      appointment.time,
+
+    endTime:
+      appointment.endTime,
+
+    patientId:
+      appointment.patientId,
+
+    patient:
+      appointment.patient,
+
+    professionalId:
+      appointment.professionalId,
+
+    professional:
+      appointment.professional,
+
+    specialty:
+      appointment.specialty,
+
+    procedure:
+      appointment.type ||
+      "Atendimento",
+
+    room:
+      appointment.room ||
+      "Sem sala",
+
+    status:
+      appointment.status,
+
+    appointmentId:
+      appointment.id,
+
+    cancelledMakesSlotAvailable:
+      appointment.status ===
+        "Cancelado" ||
+      appointment.status ===
+        "Faltou",
+  };
+}
+
+function fixedOccurrenceToItem(
+  occurrence:
+    FixedScheduleOccurrence
+):
+  AgendaOperationalItem {
+  const exceptionStatus =
+    occurrence.exception?.status;
+
+  let status:
+    OperationalStatus =
+      "Horário fixo";
+
+  if (
+    exceptionStatus ===
+      "Cancelado pelo paciente" ||
+    exceptionStatus ===
+      "Cancelado pela clínica" ||
+    exceptionStatus ===
+      "Falta do profissional" ||
+    exceptionStatus ===
+      "Bloqueado"
+  ) {
+    status =
+      exceptionStatus;
+  } else if (
+    exceptionStatus ===
+      "Falta"
+  ) {
+    status =
+      "Faltou";
+  }
+
+  return {
+    key:
+      `fixed-${occurrence.fixedScheduleId}-${occurrence.date}`,
+
+    source:
+      "fixed",
+
+    date:
+      occurrence.date,
+
+    startTime:
+      occurrence.startTime,
+
+    endTime:
+      occurrence.endTime,
+
+    patientId:
+      occurrence.patientId,
+
+    patient:
+      occurrence.patientName,
+
+    professionalId:
+      occurrence.professionalId,
+
+    professional:
+      occurrence.professionalName,
+
+    specialty:
+      occurrence.specialty,
+
+    procedure:
+      occurrence.procedure ||
+      "Atendimento",
+
+    room:
+      occurrence.roomName ||
+      "Sem sala",
+
+    status,
+
+    fixedScheduleId:
+      occurrence.fixedScheduleId,
+
+    cancelledMakesSlotAvailable:
+      status ===
+        "Cancelado pelo paciente" ||
+      status ===
+        "Cancelado pela clínica" ||
+      status ===
+        "Faltou" ||
+      status ===
+        "Falta do profissional",
+  };
+}
+
+function blockToItem(
+  block:
+    ScheduleBlock,
+
+  professionals:
+    ProfessionalSetting[]
+):
+  AgendaOperationalItem {
+  const professional =
+    professionals.find(
+      (
+        item
+      ) =>
+        item.name ===
+        block.professional
+    );
+
+  return {
+    key:
+      `block-${block.id}`,
+
+    source:
+      "block",
+
+    date:
+      block.date,
+
+    startTime:
+      block.startTime,
+
+    endTime:
+      block.endTime,
+
+    patient:
+      "",
+
+    professionalId:
+      professional?.id,
+
+    professional:
+      block.professional,
+
+    specialty:
+      professional?.specialty ??
+      "",
+
+    procedure:
+      block.type,
+
+    room:
+      "",
+
+    status:
+      block.type ===
+        "Férias"
+        ? "Falta do profissional"
+        : "Bloqueado",
+
+    cancelledMakesSlotAvailable:
+      false,
+  };
+}
+
+export default function ReceptionWeeklyAgenda() {
+  const navigate =
+    useNavigate();
+
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
+  const [
+    view,
+    setView,
+  ] =
+    useState<ReceptionAgendaView>(
+      "week"
+    );
+
+  const [
+    selectedDate,
+    setSelectedDate,
+  ] =
+    useState(
+      () =>
+        formatDate(
+          new Date()
+        )
+    );
+
+  const [
+    professionalFilter,
+    setProfessionalFilter,
+  ] =
+    useState(
+      "Todos"
+    );
+
+  const [
+    specialtyFilter,
+    setSpecialtyFilter,
+  ] =
+    useState(
+      "Todas"
+    );
+
+  const [
+    procedureFilter,
+    setProcedureFilter,
+  ] =
+    useState(
+      "Todos"
+    );
+
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] =
+    useState(
+      "Todos"
+    );
+
+  const [
+    patientFilter,
+    setPatientFilter,
+  ] =
+    useState(
+      "Todos"
+    );
+
+  const [
+    roomFilter,
+    setRoomFilter,
+  ] =
+    useState(
+      "Todas"
+    );
+
+  const [
+    search,
+    setSearch,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    showExtraFilters,
+    setShowExtraFilters,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    showFixedScheduleManager,
+    setShowFixedScheduleManager,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    refreshKey,
+    setRefreshKey,
+  ] =
+    useState(
+      0
+    );
+
+  const weekDates =
+    useMemo(
+      () =>
+        getWeekDates(
+          selectedDate
+        ),
+      [
+        selectedDate,
+      ]
+    );
+
+  const weekStart =
+    weekDates[0];
+
+  const weekEnd =
+    weekDates[
+      weekDates.length -
+        1
+    ];
+
+  const professionals =
+    useMemo(
+      () =>
+        getActiveProfessionals()
+          .filter(
+            (
+              item
+            ) =>
+              professionalWorksAtUnit(
+                item.id,
+                activeUnitId
+              )
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              a.name.localeCompare(
+                b.name,
+                "pt-BR"
+              )
+          ),
+      [
+        activeUnitId,
+        refreshKey,
+      ]
+    );
+
+  const specialties =
+    useMemo(
+      () =>
+        getActiveSpecialties()
+          .filter(
+            (
+              item
+            ) =>
+              specialtyWorksAtUnit(
+                item.id,
+                activeUnitId
+              )
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              a.name.localeCompare(
+                b.name,
+                "pt-BR"
+              )
+          ),
+      [
+        activeUnitId,
+        refreshKey,
+      ]
+    );
+
+  const rooms =
+    useMemo(
+      () =>
+        getActiveRooms()
+          .filter(
+            (
+              item
+            ) =>
+              roomWorksAtUnit(
+                item.id,
+                activeUnitId
+              )
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              a.name.localeCompare(
+                b.name,
+                "pt-BR"
+              )
+          ),
+      [
+        activeUnitId,
+        refreshKey,
+      ]
+    );
+
+  const patients =
+    useMemo(
+      () =>
+        getPatients()
+          .filter(
+            (
+              item
+            ) =>
+              item.status ===
+              "Ativo"
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              a.nome.localeCompare(
+                b.nome,
+                "pt-BR"
+              )
+          ),
+      [
+        refreshKey,
+      ]
+    );
+
+  const rawItems =
+    useMemo(
+      () => {
+        if (
+          !weekStart ||
+          !weekEnd
+        ) {
+          return [];
+        }
+
+        const appointments =
+          getSavedAppointments()
+            .filter(
+              (
+                appointment
+              ) =>
+                appointment.unitId ===
+                  activeUnitId &&
+                appointment.date >=
+                  weekStart &&
+                appointment.date <=
+                  weekEnd
+            );
+
+        const appointmentKeys =
+          new Set(
+            appointments.map(
+              (
+                appointment
+              ) =>
+                `${appointment.patientId}|${appointment.professionalId ?? appointment.professional}|${appointment.date}|${appointment.time}`
+            )
+          );
+
+        /*
+         * Se já existe um agendamento real para aquela ocorrência
+         * do horário fixo, ele tem prioridade. Assim a recepção
+         * não vê o mesmo paciente duas vezes.
+         */
+        const fixedOccurrences =
+          getFixedScheduleOccurrences(
+            activeUnitId,
+            weekStart,
+            weekEnd
+          )
+            .filter(
+              (
+                occurrence
+              ) =>
+                !appointmentKeys.has(
+                  `${occurrence.patientId}|${occurrence.professionalId}|${occurrence.date}|${occurrence.startTime}`
+                )
+            );
+
+        const blocks =
+          getSavedBlocks()
+            .filter(
+              (
+                block
+              ) =>
+                block.unitId ===
+                  activeUnitId &&
+                block.date >=
+                  weekStart &&
+                block.date <=
+                  weekEnd
+            );
+
+        return [
+          ...appointments.map(
+            appointmentToItem
+          ),
+
+          ...fixedOccurrences.map(
+            fixedOccurrenceToItem
+          ),
+
+          ...blocks.map(
+            (
+              block
+            ) =>
+              blockToItem(
+                block,
+                professionals
+              )
+          ),
+        ]
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              `${a.date} ${a.startTime}`
+                .localeCompare(
+                  `${b.date} ${b.startTime}`
+                )
+          );
+      },
+      [
+        activeUnitId,
+        professionals,
+        refreshKey,
+        weekEnd,
+        weekStart,
+      ]
+    );
+
+  const procedureCatalog =
+    useMemo(
+      () =>
+        getActiveProceduresByUnit(
+          activeUnitId
+        ),
+      [
+        activeUnitId,
+        refreshKey,
+      ]
+    );
+
+  const procedures =
+    useMemo(
+      () =>
+        procedureCatalog
+          .filter(
+            (
+              item
+            ) =>
+              specialtyFilter ===
+                "Todas" ||
+              item.specialtyName ===
+                specialtyFilter
+          )
+          .map(
+            (
+              item
+            ) =>
+              item.name
+          ),
+      [
+        procedureCatalog,
+        specialtyFilter,
+      ]
+    );
+
+  const filteredItems =
+    useMemo(
+      () => {
+        const term =
+          search
+            .trim()
+            .toLocaleLowerCase(
+              "pt-BR"
+            );
+
+        return rawItems.filter(
+          (
+            item
+          ) => {
+            const matchesProfessional =
+              professionalFilter ===
+                "Todos" ||
+              String(
+                item.professionalId ??
+                item.professional
+              ) ===
+                professionalFilter;
+
+            const matchesSpecialty =
+              specialtyFilter ===
+                "Todas" ||
+              item.specialty ===
+                specialtyFilter;
+
+            const matchesProcedure =
+              procedureFilter ===
+                "Todos" ||
+              item.procedure ===
+                procedureFilter;
+
+            const matchesStatus =
+              statusFilter ===
+                "Todos" ||
+              item.status ===
+                statusFilter;
+
+            const matchesPatient =
+              patientFilter ===
+                "Todos" ||
+              String(
+                item.patientId ??
+                item.patient
+              ) ===
+                patientFilter;
+
+            const matchesRoom =
+              roomFilter ===
+                "Todas" ||
+              item.room ===
+                roomFilter;
+
+            const matchesSearch =
+              !term ||
+              [
+                item.patient,
+                item.professional,
+                item.specialty,
+                item.procedure,
+                item.room,
+                item.status,
+              ]
+                .join(
+                  " "
+                )
+                .toLocaleLowerCase(
+                  "pt-BR"
+                )
+                .includes(
+                  term
+                );
+
+            return (
+              matchesProfessional &&
+              matchesSpecialty &&
+              matchesProcedure &&
+              matchesStatus &&
+              matchesPatient &&
+              matchesRoom &&
+              matchesSearch
+            );
+          }
+        );
+      },
+      [
+        patientFilter,
+        professionalFilter,
+        procedureFilter,
+        rawItems,
+        roomFilter,
+        search,
+        specialtyFilter,
+        statusFilter,
+      ]
+    );
+
+  const vacantSlots =
+    useMemo(
+      () => {
+        const settings =
+          getAgendaSettings();
+
+        const duration =
+          Math.max(
+            settings.defaultSessionDuration,
+            10
+          );
+
+        const step =
+          Math.max(
+            duration +
+              settings.intervalBetweenAppointments,
+            10
+          );
+
+        const selectedProfessionals =
+          professionals.filter(
+            (
+              professional
+            ) =>
+              professionalFilter ===
+                "Todos" ||
+              String(
+                professional.id
+              ) ===
+                professionalFilter
+          );
+
+        const slots:
+          VacantSlot[] = [];
+
+        weekDates.forEach(
+          (
+            date
+          ) => {
+            const dayName =
+              PROFESSIONAL_SCHEDULE_DAY_NAMES[
+                parseDate(
+                  date
+                ).getDay()
+              ];
+
+            selectedProfessionals.forEach(
+              (
+                professional
+              ) => {
+                if (
+                  specialtyFilter !==
+                    "Todas" &&
+                  professional.specialty !==
+                    specialtyFilter
+                ) {
+                  return;
+                }
+
+                const day =
+                  getProfessionalScheduleDays(
+                    professional.id,
+                    activeUnitId
+                  )
+                    .find(
+                      (
+                        item
+                      ) =>
+                        item.day ===
+                        dayName
+                    );
+
+                if (
+                  !day ||
+                  !day.enabled ||
+                  !day.start ||
+                  !day.end
+                ) {
+                  return;
+                }
+
+                const occupied =
+                  rawItems.filter(
+                    (
+                      item
+                    ) =>
+                      item.date ===
+                        date &&
+                      (
+                        item.professionalId !==
+                          undefined
+                          ? item.professionalId ===
+                            professional.id
+                          : item.professional ===
+                            professional.name
+                      ) &&
+                      !item.cancelledMakesSlotAvailable
+                  );
+
+                let cursor =
+                  timeToMinutes(
+                    day.start
+                  );
+
+                const end =
+                  timeToMinutes(
+                    day.end
+                  );
+
+                while (
+                  cursor +
+                    duration <=
+                  end
+                ) {
+                  const startTime =
+                    minutesToTime(
+                      cursor
+                    );
+
+                  const endTime =
+                    minutesToTime(
+                      cursor +
+                        duration
+                    );
+
+                  const insideBreak =
+                    day.breakStart &&
+                    day.breakEnd &&
+                    periodsOverlap(
+                      startTime,
+                      endTime,
+                      day.breakStart,
+                      day.breakEnd
+                    );
+
+                  const hasConflict =
+                    occupied.some(
+                      (
+                        item
+                      ) =>
+                        periodsOverlap(
+                          startTime,
+                          endTime,
+                          item.startTime,
+                          item.endTime
+                        )
+                    );
+
+                  if (
+                    !insideBreak &&
+                    !hasConflict
+                  ) {
+                    slots.push(
+                      {
+                        key:
+                          `vacant-${professional.id}-${date}-${startTime}`,
+
+                        date,
+
+                        startTime,
+
+                        endTime,
+
+                        professionalId:
+                          professional.id,
+
+                        professional:
+                          professional.name,
+
+                        specialty:
+                          professional.specialty,
+                      }
+                    );
+                  }
+
+                  cursor +=
+                    step;
+                }
+              }
+            );
+          }
+        );
+
+        return slots;
+      },
+      [
+        activeUnitId,
+        professionalFilter,
+        professionals,
+        rawItems,
+        specialtyFilter,
+        weekDates,
+      ]
+    );
+
+  useEffect(
+    () => {
+      const refresh =
+        () =>
+          setRefreshKey(
+            (
+              current
+            ) =>
+              current +
+              1
+          );
+
+      window.addEventListener(
+        APPOINTMENTS_CHANGED_EVENT,
+        refresh
+      );
+
+      window.addEventListener(
+        SCHEDULE_BLOCKS_CHANGED_EVENT,
+        refresh
+      );
+
+      window.addEventListener(
+        FIXED_SCHEDULES_CHANGED_EVENT,
+        refresh
+      );
+
+      window.addEventListener(
+        FIXED_SCHEDULE_EXCEPTIONS_CHANGED_EVENT,
+        refresh
+      );
+
+      window.addEventListener(
+        SPECIALTY_AGENDA_COLORS_CHANGED_EVENT,
+        refresh
+      );
+
+      window.addEventListener(
+        PROCEDURES_CHANGED_EVENT,
+        refresh
+      );
+
+      return () => {
+        window.removeEventListener(
+          APPOINTMENTS_CHANGED_EVENT,
+          refresh
+        );
+
+        window.removeEventListener(
+          SCHEDULE_BLOCKS_CHANGED_EVENT,
+          refresh
+        );
+
+        window.removeEventListener(
+          FIXED_SCHEDULES_CHANGED_EVENT,
+          refresh
+        );
+
+        window.removeEventListener(
+          FIXED_SCHEDULE_EXCEPTIONS_CHANGED_EVENT,
+          refresh
+        );
+
+        window.removeEventListener(
+          SPECIALTY_AGENDA_COLORS_CHANGED_EVENT,
+          refresh
+        );
+
+        window.removeEventListener(
+          PROCEDURES_CHANGED_EVENT,
+          refresh
+        );
+      };
+    },
+    []
+  );
+
+  function clearFilters() {
+    setProfessionalFilter(
+      "Todos"
+    );
+
+    setSpecialtyFilter(
+      "Todas"
+    );
+
+    setProcedureFilter(
+      "Todos"
+    );
+
+    setStatusFilter(
+      "Todos"
+    );
+
+    setPatientFilter(
+      "Todos"
+    );
+
+    setRoomFilter(
+      "Todas"
+    );
+
+    setSearch(
+      ""
+    );
+  }
+
+  function movePeriod(
+    direction:
+      -1 |
+      1
+  ) {
+    if (
+      view ===
+      "day"
+    ) {
+      setSelectedDate(
+        addDays(
+          selectedDate,
+          direction
+        )
+      );
+
+      return;
+    }
+
+    if (
+      view ===
+      "week"
+    ) {
+      setSelectedDate(
+        addDays(
+          selectedDate,
+          direction *
+            7
+        )
+      );
+
+      return;
+    }
+
+    const date =
+      parseDate(
+        selectedDate
+      );
+
+    date.setMonth(
+      date.getMonth() +
+        direction
+    );
+
+    setSelectedDate(
+      formatDate(
+        date
+      )
+    );
+  }
+
+  function goToday() {
+    setSelectedDate(
+      formatDate(
+        new Date()
+      )
+    );
+  }
+
+  function handleVacantSlot(
+    slot:
+      VacantSlot
+  ) {
+    const params =
+      new URLSearchParams(
+        {
+          date:
+            slot.date,
+
+          time:
+            slot.startTime,
+
+          professionalId:
+            String(
+              slot.professionalId
+            ),
+        }
+      );
+
+    navigate(
+      `/agenda/novo?${params.toString()}`
+    );
+  }
+
+  const totalAppointments =
+    filteredItems.filter(
+      (
+        item
+      ) =>
+        item.source !==
+          "block" &&
+        !isCancelledStatus(
+          item.status
+        )
+    ).length;
+
+  const totalCancelled =
+    filteredItems.filter(
+      (
+        item
+      ) =>
+        isCancelledStatus(
+          item.status
+        )
+    ).length;
+
+  const totalBlocks =
+    filteredItems.filter(
+      (
+        item
+      ) =>
+        item.source ===
+        "block"
+    ).length;
+
+  return (
+    <div className="mx-auto w-full max-w-[1800px] space-y-5">
+      {/* CABEÇALHO */}
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div>
+          <h1 className="text-[30px] font-extrabold tracking-[-0.03em] text-[#10235f]">
+            Agenda
+          </h1>
+
+          <p className="mt-1.5 max-w-3xl text-sm font-medium text-[#7d89a8]">
+            Visão operacional da recepção com horários fixos, salas, procedimentos, cancelamentos, bloqueios e oportunidades de encaixe.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-xl border border-[#e2e5ef] bg-white p-1">
+            <AgendaViewButton
+              active={
+                view ===
+                "day"
+              }
+              onClick={() =>
+                setView(
+                  "day"
+                )
+              }
+            >
+              Dia
+            </AgendaViewButton>
+
+            <AgendaViewButton
+              active={
+                view ===
+                "week"
+              }
+              onClick={() =>
+                setView(
+                  "week"
+                )
+              }
+            >
+              Semana
+            </AgendaViewButton>
+
+            <AgendaViewButton
+              active={
+                view ===
+                "month"
+              }
+              onClick={() =>
+                setView(
+                  "month"
+                )
+              }
+            >
+              Mês
+            </AgendaViewButton>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={
+              goToday
+            }
+          >
+            <CalendarDays
+              size={16}
+            />
+
+            Hoje
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              setShowFixedScheduleManager(
+                (
+                  current
+                ) =>
+                  !current
+              )
+            }
+          >
+            <Settings2
+              size={16}
+            />
+
+            Agendamentos fixos
+          </Button>
+
+
+        </div>
+      </div>
+
+      {showFixedScheduleManager && (
+        <FixedScheduleManager
+          activeUnitId={
+            activeUnitId
+          }
+          professionals={
+            professionals
+          }
+          rooms={
+            rooms
+          }
+          patients={
+            patients
+          }
+          procedures={
+            procedureCatalog
+          }
+          onChanged={() =>
+            setRefreshKey(
+              (
+                current
+              ) =>
+                current +
+                1
+            )
+          }
+        />
+      )}
+
+      {/* RESUMO RÁPIDO */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <SummaryCard
+          label="Atendimentos"
+          value={
+            totalAppointments
+          }
+          icon={
+            CalendarDays
+          }
+          className="bg-violet-50 text-violet-700"
+        />
+
+        <SummaryCard
+          label="Encaixes visíveis"
+          value={
+            vacantSlots.length
+          }
+          icon={
+            Clock3
+          }
+          className="bg-emerald-50 text-emerald-700"
+        />
+
+        <SummaryCard
+          label="Cancelamentos/Faltas"
+          value={
+            totalCancelled
+          }
+          icon={
+            XCircle
+          }
+          className="bg-rose-50 text-rose-700"
+        />
+
+        <SummaryCard
+          label="Bloqueios"
+          value={
+            totalBlocks
+          }
+          icon={
+            Lock
+          }
+          className="bg-slate-100 text-slate-700"
+        />
+      </div>
+
+      {/* FILTROS */}
+      <section className="rounded-2xl border border-[#e8eaf3] bg-white p-4 shadow-[0_4px_16px_rgba(51,65,120,0.04)]">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+          <FilterField
+            label="Profissional"
+          >
+            <Select
+              value={
+                professionalFilter
+              }
+              onChange={(
+                event
+              ) =>
+                setProfessionalFilter(
+                  event.target.value
+                )
+              }
+            >
+              <option value="Todos">
+                Todos os profissionais
+              </option>
+
+              {professionals.map(
+                (
+                  professional
+                ) => (
+                  <option
+                    key={
+                      professional.id
+                    }
+                    value={
+                      String(
+                        professional.id
+                      )
+                    }
+                  >
+                    {
+                      professional.name
+                    }
+                  </option>
+                )
+              )}
+            </Select>
+          </FilterField>
+
+          <FilterField
+            label="Status"
+          >
+            <Select
+              value={
+                statusFilter
+              }
+              onChange={(
+                event
+              ) =>
+                setStatusFilter(
+                  event.target.value
+                )
+              }
+            >
+              <option value="Todos">
+                Todos os status
+              </option>
+
+              {[
+                "Agendado",
+                "Confirmado",
+                "Realizado",
+                "Horário fixo",
+                "Cancelado",
+                "Cancelado pelo paciente",
+                "Cancelado pela clínica",
+                "Faltou",
+                "Falta do profissional",
+                "Bloqueado",
+              ].map(
+                (
+                  item
+                ) => (
+                  <option
+                    key={
+                      item
+                    }
+                    value={
+                      item
+                    }
+                  >
+                    {
+                      item
+                    }
+                  </option>
+                )
+              )}
+            </Select>
+          </FilterField>
+
+          <FilterField
+            label="Procedimento"
+          >
+            <Select
+              value={
+                procedureFilter
+              }
+              onChange={(
+                event
+              ) =>
+                setProcedureFilter(
+                  event.target.value
+                )
+              }
+            >
+              <option value="Todos">
+                Todos os procedimentos
+              </option>
+
+              {procedures.map(
+                (
+                  procedure
+                ) => (
+                  <option
+                    key={
+                      procedure
+                    }
+                    value={
+                      procedure
+                    }
+                  >
+                    {
+                      procedure
+                    }
+                  </option>
+                )
+              )}
+            </Select>
+          </FilterField>
+
+          <FilterField
+            label="Paciente"
+          >
+            <Select
+              value={
+                patientFilter
+              }
+              onChange={(
+                event
+              ) =>
+                setPatientFilter(
+                  event.target.value
+                )
+              }
+            >
+              <option value="Todos">
+                Todos os pacientes
+              </option>
+
+              {patients.map(
+                (
+                  patient
+                ) => (
+                  <option
+                    key={
+                      patient.id
+                    }
+                    value={
+                      String(
+                        patient.id
+                      )
+                    }
+                  >
+                    {
+                      patient.nome
+                    }
+                  </option>
+                )
+              )}
+            </Select>
+          </FilterField>
+
+          <div className="flex items-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                setShowExtraFilters(
+                  (
+                    current
+                  ) =>
+                    !current
+                )
+              }
+            >
+              <SlidersHorizontal
+                size={16}
+              />
+
+              Mais filtros
+            </Button>
+
+            <button
+              type="button"
+              onClick={
+                clearFilters
+              }
+              className="h-11 px-2 text-xs font-bold text-[#6847f5] hover:text-[#5434db]"
+            >
+              Limpar
+            </button>
+          </div>
+        </div>
+
+        {showExtraFilters && (
+          <div className="mt-4 grid grid-cols-1 gap-3 border-t border-[#f0f1f6] pt-4 md:grid-cols-3">
+            <FilterField
+              label="Especialidade"
+            >
+              <Select
+                value={
+                  specialtyFilter
+                }
+                onChange={(
+                  event
+                ) =>
+                  setSpecialtyFilter(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="Todas">
+                  Todas as especialidades
+                </option>
+
+                {specialties.map(
+                  (
+                    specialty
+                  ) => (
+                    <option
+                      key={
+                        specialty.id
+                      }
+                      value={
+                        specialty.name
+                      }
+                    >
+                      {
+                        specialty.name
+                      }
+                    </option>
+                  )
+                )}
+              </Select>
+            </FilterField>
+
+            <FilterField
+              label="Sala"
+            >
+              <Select
+                value={
+                  roomFilter
+                }
+                onChange={(
+                  event
+                ) =>
+                  setRoomFilter(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="Todas">
+                  Todas as salas
+                </option>
+
+                {rooms.map(
+                  (
+                    room
+                  ) => (
+                    <option
+                      key={
+                        room.id
+                      }
+                      value={
+                        room.name
+                      }
+                    >
+                      {
+                        room.name
+                      }
+                    </option>
+                  )
+                )}
+              </Select>
+            </FilterField>
+
+            <FilterField
+              label="Busca rápida"
+            >
+              <div className="relative">
+                <Search
+                  size={16}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9aa3b8]"
+                />
+
+                <Input
+                  value={
+                    search
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setSearch(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Paciente, profissional, sala..."
+                  className="pl-9"
+                />
+              </div>
+            </FilterField>
+          </div>
+        )}
+      </section>
+
+      {/* NAVEGAÇÃO DA SEMANA */}
+      <section className="flex flex-col gap-3 rounded-2xl border border-[#e8eaf3] bg-white px-4 py-3 shadow-[0_4px_16px_rgba(51,65,120,0.04)] sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => movePeriod(-1)}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e2e5ef] text-[#667397] transition hover:bg-[#faf9ff] hover:text-[#6847f5]"
+            title="Semana anterior"
+          >
+            <ChevronLeft
+              size={18}
+            />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => movePeriod(1)}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e2e5ef] text-[#667397] transition hover:bg-[#faf9ff] hover:text-[#6847f5]"
+            title="Próxima semana"
+          >
+            <ChevronRight
+              size={18}
+            />
+          </button>
+        </div>
+
+        <div className="text-center">
+          <p className="text-base font-extrabold text-[#263765]">
+            {
+              view ===
+                "day"
+                ? formatFullDayTitle(
+                    selectedDate
+                  )
+                : view ===
+                    "week"
+                  ? formatWeekTitle(
+                      weekDates
+                    )
+                  : formatMonthTitle(
+                      selectedDate
+                    )
+            }
+          </p>
+
+          <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#9aa3b8]">
+            {
+              view ===
+                "day"
+                ? "Visão diária por horários"
+                : view ===
+                    "week"
+                  ? "Visão semanal operacional"
+                  : "Visão mensal da agenda"
+            }
+          </p>
+        </div>
+
+        <div className="hidden w-[82px] sm:block" />
+      </section>
+
+      {/* LEGENDA DE ESPECIALIDADES */}
+      <section className="rounded-2xl border border-[#e8eaf3] bg-white px-4 py-3 shadow-[0_4px_16px_rgba(51,65,120,0.04)]">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5">
+          <span className="mr-1 text-[10px] font-extrabold uppercase tracking-wide text-[#8993aa]">
+            Especialidades
+          </span>
+
+          {specialties.map(
+            (
+              specialty
+            ) => (
+              <span
+                key={
+                  specialty.id
+                }
+                className="inline-flex items-center gap-2 text-[10px] font-semibold text-[#63708f]"
+              >
+                <span
+                  className="h-3 w-3 rounded-sm"
+                  style={{
+                    backgroundColor:
+                      getSpecialtyAgendaColor(
+                        activeUnitId,
+                        specialty.id
+                      ),
+                  }}
+                />
+
+                {
+                  specialty.name
+                }
+              </span>
+            )
+          )}
+        </div>
+      </section>
+
+      {/* LEGENDA DE STATUS */}
+      <section className="rounded-2xl border border-[#e8eaf3] bg-white px-4 py-3 shadow-[0_4px_16px_rgba(51,65,120,0.04)]">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5">
+          <span className="mr-1 text-[10px] font-extrabold uppercase tracking-wide text-[#8993aa]">
+            Status
+          </span>
+
+          {[
+            "Agendado",
+            "Confirmado",
+            "Realizado",
+            "Cancelado",
+            "Faltou",
+            "Horário fixo",
+            "Cancelado pelo paciente",
+            "Cancelado pela clínica",
+            "Falta do profissional",
+            "Bloqueado",
+          ].map(
+            (
+              status
+            ) => (
+              <span
+                key={
+                  status
+                }
+                className="inline-flex items-center gap-2 text-[10px] font-semibold text-[#63708f]"
+              >
+                <span
+                  className="h-3 w-3 rounded-sm"
+                  style={{
+                    backgroundColor:
+                      getStatusSolidColor(
+                        status as OperationalStatus
+                      ),
+                  }}
+                />
+
+                {
+                  status
+                }
+              </span>
+            )
+          )}
+
+          <span className="inline-flex items-center gap-2 text-[10px] font-semibold text-[#63708f]">
+            <span className="h-3 w-3 rounded-sm bg-emerald-500" />
+            Livre para encaixe
+          </span>
+        </div>
+      </section>
+
+      {/* VISUALIZAÇÕES */}
+      {view ===
+        "day" && (
+        <DailyOperationalView
+          date={
+            selectedDate
+          }
+          items={
+            filteredItems.filter(
+              (
+                item
+              ) =>
+                item.date ===
+                selectedDate
+            )
+          }
+          vacantSlots={
+            vacantSlots.filter(
+              (
+                slot
+              ) =>
+                slot.date ===
+                selectedDate
+            )
+          }
+          professionals={
+            professionals
+          }
+          activeUnitId={
+            activeUnitId
+          }
+          onAppointment={(
+            appointmentId
+          ) =>
+            navigate(
+              `/agenda/${appointmentId}`
+            )
+          }
+          onVacant={
+            handleVacantSlot
+          }
+        />
+      )}
+
+      {view ===
+        "week" && (
+        <div className="overflow-x-auto pb-2">
+          <div className="grid min-w-[1320px] grid-cols-6 gap-3">
+            {weekDates.map(
+              (
+                date
+              ) => {
+                const dayItems =
+                  filteredItems
+                    .filter(
+                      (
+                        item
+                      ) =>
+                        item.date ===
+                        date
+                    );
+
+                const dayVacant =
+                  vacantSlots
+                    .filter(
+                      (
+                        slot
+                      ) =>
+                        slot.date ===
+                        date
+                    );
+
+                const visibleVacant =
+                  professionalFilter ===
+                    "Todos"
+                    ? dayVacant.slice(
+                        0,
+                        4
+                      )
+                    : dayVacant;
+
+                return (
+                  <DayColumn
+                    key={
+                      date
+                    }
+                    date={
+                      date
+                    }
+                    items={
+                      dayItems
+                    }
+                    vacantSlots={
+                      visibleVacant
+                    }
+                    hiddenVacantCount={
+                      Math.max(
+                        dayVacant.length -
+                          visibleVacant.length,
+                        0
+                      )
+                    }
+                    professionals={
+                      professionals
+                    }
+                    activeUnitId={
+                      activeUnitId
+                    }
+                    onAppointment={(
+                      appointmentId
+                    ) =>
+                      navigate(
+                        `/agenda/${appointmentId}`
+                      )
+                    }
+                    onVacant={
+                      handleVacantSlot
+                    }
+                  />
+                );
+              }
+            )}
+          </div>
+        </div>
+      )}
+
+      {view ===
+        "month" && (
+        <ReceptionMonthView
+          selectedDate={
+            selectedDate
+          }
+          activeUnitId={
+            activeUnitId
+          }
+          professionals={
+            professionals
+          }
+          professionalFilter={
+            professionalFilter
+          }
+          specialtyFilter={
+            specialtyFilter
+          }
+          statusFilter={
+            statusFilter
+          }
+          procedureFilter={
+            procedureFilter
+          }
+          roomFilter={
+            roomFilter
+          }
+          patientFilter={
+            patientFilter
+          }
+          search={
+            search
+          }
+          refreshKey={
+            refreshKey
+          }
+          onSelectDate={(
+            date
+          ) => {
+            setSelectedDate(
+              date
+            );
+
+            setView(
+              "day"
+            );
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function FixedScheduleManager({
+  activeUnitId,
+  professionals,
+  rooms,
+  patients,
+  procedures,
+  onChanged,
+}: {
+  activeUnitId:
+    number;
+
+  professionals:
+    ProfessionalSetting[];
+
+  rooms:
+    Array<{
+      id: number;
+      name: string;
+    }>;
+
+  patients:
+    Array<{
+      id: number;
+      nome: string;
+    }>;
+
+  procedures:
+    Array<{
+      id: number;
+      name: string;
+      specialtyName: string;
+    }>;
+
+  onChanged:
+    () => void;
+}) {
+  const [
+    patientId,
+    setPatientId,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    editingId,
+    setEditingId,
+  ] =
+    useState<
+      string |
+      null
+    >(
+      null
+    );
+
+  const [
+    professionalId,
+    setProfessionalId,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    procedure,
+    setProcedure,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    roomId,
+    setRoomId,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    weekDay,
+    setWeekDay,
+  ] =
+    useState<
+      FixedScheduleWeekDay
+    >(
+      1
+    );
+
+  const [
+    startTime,
+    setStartTime,
+  ] =
+    useState(
+      "08:00"
+    );
+
+  const [
+    endTime,
+    setEndTime,
+  ] =
+    useState(
+      "08:50"
+    );
+
+  const [
+    startDate,
+    setStartDate,
+  ] =
+    useState(
+      () =>
+        formatDate(
+          new Date()
+        )
+    );
+
+  const [
+    endDate,
+    setEndDate,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    observations,
+    setObservations,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    feedback,
+    setFeedback,
+  ] =
+    useState<
+      string |
+      null
+    >(
+      null
+    );
+
+  const [
+    feedbackType,
+    setFeedbackType,
+  ] =
+    useState<
+      "success" |
+      "error" |
+      null
+    >(
+      null
+    );
+
+  const allSchedules =
+    getFixedSchedulesByUnit(
+      activeUnitId
+    );
+
+  const selectedPatient =
+    patients.find(
+      (
+        item
+      ) =>
+        item.id ===
+        Number(
+          patientId
+        )
+    );
+
+  const patientSchedules =
+    patientId
+      ? allSchedules
+          .filter(
+            (
+              schedule
+            ) =>
+              schedule.patientId ===
+              Number(
+                patientId
+              )
+          )
+          .slice()
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              `${a.weekDay}-${a.startTime}-${a.professionalName}`
+                .localeCompare(
+                  `${b.weekDay}-${b.startTime}-${b.professionalName}`,
+                  "pt-BR"
+                )
+          )
+      : [];
+
+  const selectedProfessional =
+    professionals.find(
+      (
+        item
+      ) =>
+        item.id ===
+        Number(
+          professionalId
+        )
+    );
+
+    const availableProcedures =
+    selectedProfessional
+      ? procedures.filter(
+          (
+            item
+          ) =>
+            item.specialtyName ===
+            selectedProfessional.specialty
+        )
+      : [];
+
+const selectedRoom =
+    rooms.find(
+      (
+        item
+      ) =>
+        item.id ===
+        Number(
+          roomId
+        )
+    );
+
+  const dayLabels:
+    Array<{
+      value:
+        FixedScheduleWeekDay;
+      label:
+        string;
+    }> = [
+    {
+      value:
+        1,
+      label:
+        "Segunda-feira",
+    },
+    {
+      value:
+        2,
+      label:
+        "Terça-feira",
+    },
+    {
+      value:
+        3,
+      label:
+        "Quarta-feira",
+    },
+    {
+      value:
+        4,
+      label:
+        "Quinta-feira",
+    },
+    {
+      value:
+        5,
+      label:
+        "Sexta-feira",
+    },
+    {
+      value:
+        6,
+      label:
+        "Sábado",
+    },
+    {
+      value:
+        0,
+      label:
+        "Domingo",
+    },
+  ];
+
+  function clearProfessionalForm() {
+    setEditingId(
+      null
+    );
+
+    setProfessionalId(
+      ""
+    );
+
+    setProcedure(
+      ""
+    );
+
+    setRoomId(
+      ""
+    );
+
+    setWeekDay(
+      1
+    );
+
+    setStartTime(
+      "08:00"
+    );
+
+    setEndTime(
+      "08:50"
+    );
+
+    setEndDate(
+      ""
+    );
+
+    setObservations(
+      ""
+    );
+  }
+
+  function changePatient(
+    value:
+      string
+  ) {
+    setPatientId(
+      value
+    );
+
+    clearProfessionalForm();
+
+    setFeedback(
+      null
+    );
+  }
+
+  function editSchedule(
+    schedule:
+      FixedSchedule
+  ) {
+    setPatientId(
+      String(
+        schedule.patientId
+      )
+    );
+
+    setEditingId(
+      schedule.id
+    );
+
+    setProfessionalId(
+      String(
+        schedule.professionalId
+      )
+    );
+
+    setProcedure(
+      schedule.procedure
+    );
+
+    const room =
+      rooms.find(
+        (
+          item
+        ) =>
+          item.id ===
+            schedule.roomId ||
+          item.name ===
+            schedule.roomName
+      );
+
+    setRoomId(
+      room
+        ? String(
+            room.id
+          )
+        : ""
+    );
+
+    setWeekDay(
+      schedule.weekDay
+    );
+
+    setStartTime(
+      schedule.startTime
+    );
+
+    setEndTime(
+      schedule.endTime
+    );
+
+    setStartDate(
+      schedule.startDate
+    );
+
+    setEndDate(
+      schedule.endDate ??
+      ""
+    );
+
+    setObservations(
+      schedule.observations ??
+      ""
+    );
+
+    setFeedback(
+      null
+    );
+  }
+
+  function saveProfessionalSchedule() {
+    if (
+      !selectedPatient
+    ) {
+      setFeedback(
+        "Selecione primeiro o paciente do agendamento."
+      );
+
+      setFeedbackType(
+        "error"
+      );
+
+      return;
+    }
+
+    if (
+      !selectedProfessional
+    ) {
+      setFeedback(
+        "Selecione o profissional."
+      );
+
+      setFeedbackType(
+        "error"
+      );
+
+      return;
+    }
+
+    if (
+      !procedure.trim()
+    ) {
+      setFeedback(
+        "Informe o procedimento."
+      );
+
+      setFeedbackType(
+        "error"
+      );
+
+      return;
+    }
+
+    if (
+      !selectedRoom
+    ) {
+      setFeedback(
+        "Selecione a sala."
+      );
+
+      setFeedbackType(
+        "error"
+      );
+
+      return;
+    }
+
+    try {
+      const data = {
+        unitId:
+          activeUnitId,
+
+        patientId:
+          selectedPatient.id,
+
+        patientName:
+          selectedPatient.nome,
+
+        professionalId:
+          selectedProfessional.id,
+
+        professionalName:
+          selectedProfessional.name,
+
+        specialty:
+          selectedProfessional.specialty,
+
+        procedure:
+          procedure.trim(),
+
+        roomId:
+          selectedRoom.id,
+
+        roomName:
+          selectedRoom.name,
+
+        weekDay,
+
+        startTime,
+
+        endTime,
+
+        startDate,
+
+        endDate:
+          endDate ||
+          undefined,
+
+        observations:
+          observations.trim() ||
+          undefined,
+      };
+
+      if (
+        editingId
+      ) {
+        updateFixedSchedule(
+          editingId,
+          data
+        );
+
+        setFeedback(
+          "Atendimento fixo atualizado."
+        );
+      } else {
+        createFixedSchedule(
+          data
+        );
+
+        setFeedback(
+          "Profissional e horário adicionados ao agendamento fixo."
+        );
+      }
+
+      setFeedbackType(
+        "success"
+      );
+
+      clearProfessionalForm();
+
+      onChanged();
+    } catch (
+      error
+    ) {
+      setFeedback(
+        error instanceof
+          Error
+          ? error.message
+          : "Não foi possível salvar o atendimento fixo."
+      );
+
+      setFeedbackType(
+        "error"
+      );
+    }
+  }
+
+  function remove(
+    schedule:
+      FixedSchedule
+  ) {
+    const confirmed =
+      window.confirm(
+        `Remover ${schedule.professionalName}, ${schedule.startTime}, da agenda fixa de ${schedule.patientName}?`
+      );
+
+    if (
+      !confirmed
+    ) {
+      return;
+    }
+
+    removeFixedSchedule(
+      schedule.id
+    );
+
+    if (
+      editingId ===
+      schedule.id
+    ) {
+      clearProfessionalForm();
+    }
+
+    setFeedback(
+      "Atendimento removido da agenda fixa do paciente."
+    );
+
+    setFeedbackType(
+      "success"
+    );
+
+    onChanged();
+  }
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-[#ddd8ff] bg-white shadow-[0_8px_28px_rgba(82,62,170,0.08)]">
+      <div className="border-b border-[#ece9ff] bg-[#faf9ff] px-5 py-4">
+        <h2 className="text-base font-extrabold text-[#10235f]">
+          Agendamento fixo do paciente
+        </h2>
+
+        <p className="mt-1 text-xs font-medium text-[#7d89a8]">
+          O paciente é cadastrado uma única vez. Depois, adicione abaixo cada profissional e o respectivo horário da rotina semanal.
+        </p>
+      </div>
+
+      <div className="p-5">
+        <div className="rounded-2xl border border-[#e8e4ff] bg-[#faf9ff] p-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(280px,0.7fr)_1fr] lg:items-end">
+            <FilterField
+              label="Paciente"
+            >
+              <Select
+                value={
+                  patientId
+                }
+                onChange={(
+                  event
+                ) =>
+                  changePatient(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="">
+                  Selecione o paciente
+                </option>
+
+                {patients.map(
+                  (
+                    patient
+                  ) => (
+                    <option
+                      key={
+                        patient.id
+                      }
+                      value={
+                        patient.id
+                      }
+                    >
+                      {
+                        patient.nome
+                      }
+                    </option>
+                  )
+                )}
+              </Select>
+            </FilterField>
+
+            <div className="pb-1">
+              {selectedPatient ? (
+                <>
+                  <p className="text-sm font-extrabold text-[#263765]">
+                    {
+                      selectedPatient.nome
+                    }
+                  </p>
+
+                  <p className="mt-1 text-[10px] font-semibold text-[#7d89a8]">
+                    {
+                      patientSchedules.length
+                    } atendimento(s) recorrente(s) cadastrado(s)
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs font-semibold text-[#929bb3]">
+                  Selecione uma criança para visualizar ou montar a rotina fixa.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {selectedPatient && (
+          <div className="mt-5 grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1.1fr)_minmax(430px,0.9fr)]">
+            <div className="rounded-2xl border border-[#e8eaf3] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-extrabold text-[#263765]">
+                    {
+                      editingId
+                        ? "Editar atendimento"
+                        : "Adicionar profissional e horário"
+                    }
+                  </h3>
+
+                  <p className="mt-1 text-[10px] font-medium text-[#929bb3]">
+                    Cada profissional pode ter seu próprio dia, procedimento, sala e horário.
+                  </p>
+                </div>
+
+                {editingId && (
+                  <button
+                    type="button"
+                    onClick={
+                      clearProfessionalForm
+                    }
+                    className="text-xs font-bold text-[#6847f5]"
+                  >
+                    Cancelar edição
+                  </button>
+                )}
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <FilterField
+                  label="Profissional"
+                >
+                  <Select
+                    value={
+                      professionalId
+                    }
+                    onChange={(
+                      event
+                    ) => {
+                      setProfessionalId(
+                        event.target.value
+                      );
+
+                      setProcedure(
+                        ""
+                      );
+                    }}
+                  >
+                    <option value="">
+                      Selecione o profissional
+                    </option>
+
+                    {professionals.map(
+                      (
+                        professional
+                      ) => (
+                        <option
+                          key={
+                            professional.id
+                          }
+                          value={
+                            professional.id
+                          }
+                        >
+                          {
+                            professional.name
+                          } — {
+                            professional.specialty
+                          }
+                        </option>
+                      )
+                    )}
+                  </Select>
+                </FilterField>
+
+                <FilterField
+                  label="Procedimento"
+                >
+                  <Select
+                    value={
+                      procedure
+                    }
+                    disabled={
+                      !selectedProfessional
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setProcedure(
+                        event.target.value
+                      )
+                    }
+                  >
+                    <option value="">
+                      {
+                        selectedProfessional
+                          ? "Selecione o procedimento"
+                          : "Selecione primeiro o profissional"
+                      }
+                    </option>
+
+                    {availableProcedures.map(
+                      (
+                        item
+                      ) => (
+                        <option
+                          key={
+                            item.id
+                          }
+                          value={
+                            item.name
+                          }
+                        >
+                          {
+                            item.name
+                          }
+                        </option>
+                      )
+                    )}
+                  </Select>
+                </FilterField>
+
+                <FilterField
+                  label="Sala"
+                >
+                  <Select
+                    value={
+                      roomId
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setRoomId(
+                        event.target.value
+                      )
+                    }
+                  >
+                    <option value="">
+                      Selecione a sala
+                    </option>
+
+                    {rooms.map(
+                      (
+                        room
+                      ) => (
+                        <option
+                          key={
+                            room.id
+                          }
+                          value={
+                            room.id
+                          }
+                        >
+                          {
+                            room.name
+                          }
+                        </option>
+                      )
+                    )}
+                  </Select>
+                </FilterField>
+
+                <FilterField
+                  label="Dia da semana"
+                >
+                  <Select
+                    value={
+                      String(
+                        weekDay
+                      )
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setWeekDay(
+                        Number(
+                          event.target.value
+                        ) as
+                          FixedScheduleWeekDay
+                      )
+                    }
+                  >
+                    {dayLabels.map(
+                      (
+                        day
+                      ) => (
+                        <option
+                          key={
+                            day.value
+                          }
+                          value={
+                            day.value
+                          }
+                        >
+                          {
+                            day.label
+                          }
+                        </option>
+                      )
+                    )}
+                  </Select>
+                </FilterField>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <FilterField
+                    label="Início"
+                  >
+                    <Input
+                      type="time"
+                      value={
+                        startTime
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setStartTime(
+                          event.target.value
+                        )
+                      }
+                    />
+                  </FilterField>
+
+                  <FilterField
+                    label="Fim"
+                  >
+                    <Input
+                      type="time"
+                      value={
+                        endTime
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setEndTime(
+                          event.target.value
+                        )
+                      }
+                    />
+                  </FilterField>
+                </div>
+
+                <FilterField
+                  label="Válido a partir de"
+                >
+                  <Input
+                    type="date"
+                    value={
+                      startDate
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setStartDate(
+                        event.target.value
+                      )
+                    }
+                  />
+                </FilterField>
+
+                <FilterField
+                  label="Válido até (opcional)"
+                >
+                  <Input
+                    type="date"
+                    value={
+                      endDate
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setEndDate(
+                        event.target.value
+                      )
+                    }
+                  />
+                </FilterField>
+
+                <div className="md:col-span-2">
+                  <FilterField
+                    label="Observação"
+                  >
+                    <Input
+                      value={
+                        observations
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setObservations(
+                          event.target.value
+                        )
+                      }
+                      placeholder="Opcional"
+                    />
+                  </FilterField>
+                </div>
+              </div>
+
+              {selectedProfessional && (
+                <div className="mt-4 rounded-xl border border-[#e8e4ff] bg-[#faf9ff] px-4 py-3">
+                  <p className="text-xs font-bold text-[#6847f5]">
+                    {
+                      selectedProfessional.specialty
+                    }
+                  </p>
+
+                  <p className="mt-1 text-[10px] font-medium text-[#7d89a8]">
+                    Especialidade preenchida automaticamente pelo cadastro do profissional.
+                  </p>
+                </div>
+              )}
+
+              {feedback && (
+                <div
+                  className={`mt-4 rounded-xl border px-4 py-3 text-xs font-semibold ${
+                    feedbackType ===
+                      "success"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-red-200 bg-red-50 text-red-700"
+                  }`}
+                >
+                  {
+                    feedback
+                  }
+                </div>
+              )}
+
+              <div className="mt-5 flex justify-end">
+                <Button
+                  type="button"
+                  onClick={
+                    saveProfessionalSchedule
+                  }
+                >
+                  {
+                    editingId
+                      ? (
+                        <Save
+                          size={16}
+                        />
+                      )
+                      : (
+                        <Plus
+                          size={16}
+                        />
+                      )
+                  }
+
+                  {
+                    editingId
+                      ? "Salvar alterações"
+                      : "Adicionar à agenda fixa"
+                  }
+                </Button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-[#e8eaf3] bg-[#fbfbfe] p-4">
+              <h3 className="text-sm font-extrabold text-[#263765]">
+                Rotina semanal de {
+                  selectedPatient.nome
+                }
+              </h3>
+
+              <p className="mt-1 text-[10px] font-medium text-[#929bb3]">
+                Todos os profissionais e horários vinculados a este agendamento.
+              </p>
+
+              <div className="mt-4 max-h-[500px] space-y-2 overflow-y-auto pr-1">
+                {patientSchedules.map(
+                  (
+                    schedule
+                  ) => {
+                    const day =
+                      dayLabels.find(
+                        (
+                          item
+                        ) =>
+                          item.value ===
+                          schedule.weekDay
+                      )?.label ??
+                      "";
+
+                    return (
+                      <div
+                        key={
+                          schedule.id
+                        }
+                        className="rounded-xl border border-[#e5e7f0] bg-white p-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-extrabold text-[#263765]">
+                              {
+                                schedule.professionalName
+                              }
+                            </p>
+
+                            <p className="mt-1 text-[10px] font-bold text-[#6847f5]">
+                              {
+                                schedule.specialty
+                              }
+                            </p>
+
+                            <p className="mt-1 text-[10px] font-semibold text-[#65718f]">
+                              {
+                                day
+                              } • {
+                                schedule.startTime
+                              } – {
+                                schedule.endTime
+                              }
+                            </p>
+
+                            <p className="mt-1 truncate text-[9px] font-medium text-[#8d96ad]">
+                              {
+                                schedule.procedure
+                              } • {
+                                schedule.roomName
+                              }
+                            </p>
+                          </div>
+
+                          <div className="flex shrink-0 gap-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                editSchedule(
+                                  schedule
+                                )
+                              }
+                              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#ddd8ff] text-[#6847f5] hover:bg-[#faf9ff]"
+                              title="Editar atendimento"
+                            >
+                              <Pencil
+                                size={14}
+                              />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                remove(
+                                  schedule
+                                )
+                              }
+                              className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
+                              title="Remover atendimento"
+                            >
+                              <Trash2
+                                size={14}
+                              />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                )}
+
+                {patientSchedules.length ===
+                  0 && (
+                  <div className="rounded-xl border border-dashed border-[#dfe2ed] bg-white px-4 py-10 text-center">
+                    <CalendarDays
+                      size={24}
+                      className="mx-auto text-[#b7becf]"
+                    />
+
+                    <p className="mt-2 text-[10px] font-semibold text-[#8d96ad]">
+                      Ainda não existem profissionais vinculados à rotina fixa deste paciente.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function AgendaViewButton({
+  active,
+  onClick,
+  children,
+}: {
+  active:
+    boolean;
+
+  onClick:
+    () => void;
+
+  children:
+    React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={
+        onClick
+      }
+      className={`rounded-lg px-3 py-2 text-xs font-extrabold transition ${
+        active
+          ? "bg-[#6847f5] text-white shadow-sm"
+          : "text-[#667397] hover:bg-[#f5f3ff] hover:text-[#6847f5]"
+      }`}
+    >
+      {
+        children
+      }
+    </button>
+  );
+}
+
+function DailyOperationalView({
+  date,
+  items,
+  vacantSlots,
+  professionals,
+  activeUnitId,
+  onAppointment,
+  onVacant,
+}: {
+  date:
+    string;
+
+  items:
+    AgendaOperationalItem[];
+
+  vacantSlots:
+    VacantSlot[];
+
+  professionals:
+    ProfessionalSetting[];
+
+  activeUnitId:
+    number;
+
+  onAppointment:
+    (
+      appointmentId:
+        number
+    ) => void;
+
+  onVacant:
+    (
+      slot:
+        VacantSlot
+    ) => void;
+}) {
+  const times =
+    Array.from(
+      new Set(
+        [
+          ...items.map(
+            (
+              item
+            ) =>
+              item.startTime
+          ),
+
+          ...vacantSlots.map(
+            (
+              slot
+            ) =>
+              slot.startTime
+          ),
+        ]
+      )
+    )
+      .sort(
+        (
+          a,
+          b
+        ) =>
+          a.localeCompare(
+            b
+          )
+      );
+
+  if (
+    times.length ===
+    0
+  ) {
+    return (
+      <section className="rounded-2xl border border-[#e8eaf3] bg-white p-10 text-center shadow-[0_4px_16px_rgba(51,65,120,0.04)]">
+        <CalendarDays
+          size={28}
+          className="mx-auto text-[#c1c6d4]"
+        />
+
+        <p className="mt-3 font-extrabold text-[#526080]">
+          Nenhum horário disponível neste dia
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-[#e8eaf3] bg-white shadow-[0_4px_16px_rgba(51,65,120,0.04)]">
+      <div className="border-b border-[#eceef5] bg-[#fbfbfe] px-5 py-4">
+        <h2 className="text-base font-extrabold text-[#10235f]">
+          Agenda detalhada do dia
+        </h2>
+
+        <p className="mt-1 text-xs font-medium text-[#8a95b4]">
+          Cada faixa de horário mostra simultaneamente todos os profissionais atendendo, bloqueados ou disponíveis para encaixe.
+        </p>
+      </div>
+
+      <div className="divide-y divide-[#eef0f5]">
+        {times.map(
+          (
+            time
+          ) => {
+            const timeItems =
+              items.filter(
+                (
+                  item
+                ) =>
+                  item.startTime ===
+                  time
+              );
+
+            const timeVacant =
+              vacantSlots.filter(
+                (
+                  slot
+                ) =>
+                  slot.startTime ===
+                  time
+              );
+
+            return (
+              <div
+                key={
+                  time
+                }
+                className="grid grid-cols-[78px_minmax(0,1fr)]"
+              >
+                <div className="border-r border-[#eef0f5] bg-[#fafbfe] px-3 py-4">
+                  <p className="text-sm font-extrabold text-[#263765]">
+                    {
+                      time
+                    }
+                  </p>
+
+                  <p className="mt-1 text-[9px] font-semibold uppercase text-[#a1a9bc]">
+                    horário
+                  </p>
+                </div>
+
+                <div className="p-3">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                    {timeItems.map(
+                      (
+                        item
+                      ) => (
+                        <OperationalCard
+                          key={
+                            item.key
+                          }
+                          item={
+                            item
+                          }
+                          professionals={
+                            professionals
+                          }
+                          activeUnitId={
+                            activeUnitId
+                          }
+                          onAppointment={
+                            onAppointment
+                          }
+                        />
+                      )
+                    )}
+
+                    {timeVacant.map(
+                      (
+                        slot
+                      ) => (
+                        <VacantCard
+                          key={
+                            slot.key
+                          }
+                          slot={
+                            slot
+                          }
+                          activeUnitId={
+                            activeUnitId
+                          }
+                          onClick={() =>
+                            onVacant(
+                              slot
+                            )
+                          }
+                        />
+                      )
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ReceptionMonthView({
+  selectedDate,
+  activeUnitId,
+  professionals,
+  professionalFilter,
+  specialtyFilter,
+  statusFilter,
+  procedureFilter,
+  roomFilter,
+  patientFilter,
+  search,
+  refreshKey,
+  onSelectDate,
+}: {
+  selectedDate:
+    string;
+
+  activeUnitId:
+    number;
+
+  professionals:
+    ProfessionalSetting[];
+
+  professionalFilter:
+    string;
+
+  specialtyFilter:
+    string;
+
+  statusFilter:
+    string;
+
+  procedureFilter:
+    string;
+
+  roomFilter:
+    string;
+
+  patientFilter:
+    string;
+
+  search:
+    string;
+
+  refreshKey:
+    number;
+
+  onSelectDate:
+    (
+      date:
+        string
+    ) => void;
+}) {
+  void refreshKey;
+
+  const date =
+    parseDate(
+      selectedDate
+    );
+
+  const year =
+    date.getFullYear();
+
+  const month =
+    date.getMonth();
+
+  const firstDate =
+    `${year}-${String(
+      month +
+        1
+    ).padStart(
+      2,
+      "0"
+    )}-01`;
+
+  const lastDay =
+    new Date(
+      year,
+      month +
+        1,
+      0
+    ).getDate();
+
+  const lastDate =
+    `${year}-${String(
+      month +
+        1
+    ).padStart(
+      2,
+      "0"
+    )}-${String(
+      lastDay
+    ).padStart(
+      2,
+      "0"
+    )}`;
+
+  const appointments =
+    getSavedAppointments()
+      .filter(
+        (
+          appointment
+        ) =>
+          appointment.unitId ===
+            activeUnitId &&
+          appointment.date >=
+            firstDate &&
+          appointment.date <=
+            lastDate
+      )
+      .map(
+        appointmentToItem
+      );
+
+  const appointmentKeys =
+    new Set(
+      appointments.map(
+        (
+          item
+        ) =>
+          `${item.patientId}|${item.professionalId ?? item.professional}|${item.date}|${item.startTime}`
+      )
+    );
+
+  const fixed =
+    getFixedScheduleOccurrences(
+      activeUnitId,
+      firstDate,
+      lastDate
+    )
+      .filter(
+        (
+          occurrence
+        ) =>
+          !appointmentKeys.has(
+            `${occurrence.patientId}|${occurrence.professionalId}|${occurrence.date}|${occurrence.startTime}`
+          )
+      )
+      .map(
+        fixedOccurrenceToItem
+      );
+
+  const blocks =
+    getSavedBlocks()
+      .filter(
+        (
+          block
+        ) =>
+          block.unitId ===
+            activeUnitId &&
+          block.date >=
+            firstDate &&
+          block.date <=
+            lastDate
+      )
+      .map(
+        (
+          block
+        ) =>
+          blockToItem(
+            block,
+            professionals
+          )
+      );
+
+  const term =
+    search
+      .trim()
+      .toLocaleLowerCase(
+        "pt-BR"
+      );
+
+  const items = [
+    ...appointments,
+    ...fixed,
+    ...blocks,
+  ]
+    .filter(
+      (
+        item
+      ) => {
+        const professionalMatch =
+          professionalFilter ===
+            "Todos" ||
+          String(
+            item.professionalId ??
+              item.professional
+          ) ===
+            professionalFilter;
+
+        const specialtyMatch =
+          specialtyFilter ===
+            "Todas" ||
+          item.specialty ===
+            specialtyFilter;
+
+        const statusMatch =
+          statusFilter ===
+            "Todos" ||
+          item.status ===
+            statusFilter;
+
+        const procedureMatch =
+          procedureFilter ===
+            "Todos" ||
+          item.procedure ===
+            procedureFilter;
+
+        const roomMatch =
+          roomFilter ===
+            "Todas" ||
+          item.room ===
+            roomFilter;
+
+        const patientMatch =
+          patientFilter ===
+            "Todos" ||
+          String(
+            item.patientId ??
+              item.patient
+          ) ===
+            patientFilter;
+
+        const searchMatch =
+          !term ||
+          [
+            item.patient,
+            item.professional,
+            item.procedure,
+            item.room,
+          ]
+            .join(
+              " "
+            )
+            .toLocaleLowerCase(
+              "pt-BR"
+            )
+            .includes(
+              term
+            );
+
+        return (
+          professionalMatch &&
+          specialtyMatch &&
+          statusMatch &&
+          procedureMatch &&
+          roomMatch &&
+          patientMatch &&
+          searchMatch
+        );
+      }
+    );
+
+  const firstWeekDay =
+    new Date(
+      year,
+      month,
+      1,
+      12
+    ).getDay();
+
+  /*
+   * Ajusta para calendário iniciado na segunda.
+   */
+  const mondayBasedOffset =
+    firstWeekDay ===
+      0
+      ? 6
+      : firstWeekDay -
+        1;
+
+  const days =
+    Array.from(
+      {
+        length:
+          lastDay,
+      },
+      (
+        _,
+        index
+      ) =>
+        index +
+        1
+    );
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-[#e8eaf3] bg-white shadow-[0_4px_16px_rgba(51,65,120,0.04)]">
+      <div className="grid grid-cols-7 border-b border-[#e8eaf3] bg-[#fbfbfe]">
+        {[
+          "Seg",
+          "Ter",
+          "Qua",
+          "Qui",
+          "Sex",
+          "Sáb",
+          "Dom",
+        ].map(
+          (
+            label
+          ) => (
+            <div
+              key={
+                label
+              }
+              className="border-r border-[#eef0f5] px-3 py-3 text-center text-[10px] font-extrabold uppercase tracking-wide text-[#7d89a8] last:border-r-0"
+            >
+              {
+                label
+              }
+            </div>
+          )
+        )}
+      </div>
+
+      <div className="grid grid-cols-7">
+        {Array.from(
+          {
+            length:
+              mondayBasedOffset,
+          },
+          (
+            _,
+            index
+          ) => (
+            <div
+              key={
+                `empty-${index}`
+              }
+              className="min-h-[135px] border-b border-r border-[#eef0f5] bg-[#fafbfc]"
+            />
+          )
+        )}
+
+        {days.map(
+          (
+            day
+          ) => {
+            const currentDate =
+              `${year}-${String(
+                month +
+                  1
+              ).padStart(
+                2,
+                "0"
+              )}-${String(
+                day
+              ).padStart(
+                2,
+                "0"
+              )}`;
+
+            const dayItems =
+              items.filter(
+                (
+                  item
+                ) =>
+                  item.date ===
+                  currentDate
+              );
+
+            const isToday =
+              currentDate ===
+              formatDate(
+                new Date()
+              );
+
+            return (
+              <button
+                key={
+                  currentDate
+                }
+                type="button"
+                onClick={() =>
+                  onSelectDate(
+                    currentDate
+                  )
+                }
+                className={`min-h-[135px] border-b border-r border-[#eef0f5] p-2.5 text-left transition hover:bg-[#faf9ff] ${
+                  isToday
+                    ? "bg-[#faf8ff]"
+                    : "bg-white"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-extrabold ${
+                    isToday
+                      ? "bg-[#6847f5] text-white"
+                      : "text-[#526080]"
+                  }`}>
+                    {
+                      day
+                    }
+                  </span>
+
+                  {dayItems.length >
+                    0 && (
+                    <span className="rounded-full bg-[#eeeaff] px-2 py-0.5 text-[9px] font-extrabold text-[#6847f5]">
+                      {
+                        dayItems.length
+                      }
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-2 space-y-1">
+                  {dayItems
+                    .filter(
+                      (
+                        item
+                      ) =>
+                        item.source !==
+                        "block"
+                    )
+                    .slice(
+                      0,
+                      3
+                    )
+                    .map(
+                      (
+                        item
+                      ) => {
+                        const procedureColor =
+                          getProcedureColor(
+                            item.procedure
+                          );
+
+                        return (
+                          <div
+                            key={
+                              item.key
+                            }
+                            className="flex items-center gap-1.5 truncate rounded-md bg-[#f7f8fc] px-2 py-1 text-[8px] font-semibold text-[#667397]"
+                          >
+                            <span
+                              className="h-1.5 w-1.5 shrink-0 rounded-full"
+                              style={{
+                                backgroundColor:
+                                  procedureColor,
+                              }}
+                            />
+
+                            <span className="truncate">
+                              {
+                                item.startTime
+                              } {
+                                item.patient
+                              }
+                            </span>
+                          </div>
+                        );
+                      }
+                    )}
+
+                  {dayItems.length >
+                    3 && (
+                    <p className="px-1 text-[8px] font-bold text-[#8e98b0]">
+                      +{
+                        dayItems.length -
+                        3
+                      } mais
+                    </p>
+                  )}
+                </div>
+              </button>
+            );
+          }
+        )}
+      </div>
+    </section>
+  );
+}
+
+function FilterField({
+  label,
+  children,
+}: {
+  label:
+    string;
+
+  children:
+    React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-xs font-bold text-[#536180]">
+        {
+          label
+        }
+      </span>
+
+      {
+        children
+      }
+    </label>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  icon:
+    Icon,
+  className,
+}: {
+  label:
+    string;
+
+  value:
+    number;
+
+  icon:
+    typeof CalendarDays;
+
+  className:
+    string;
+}) {
+  return (
+    <div className="rounded-2xl border border-[#e8eaf3] bg-white p-4 shadow-[0_4px_16px_rgba(51,65,120,0.04)]">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#929bb3]">
+            {
+              label
+            }
+          </p>
+
+          <p className="mt-1 text-2xl font-extrabold text-[#263765]">
+            {
+              value
+            }
+          </p>
+        </div>
+
+        <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${className}`}>
+          <Icon
+            size={18}
+          />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function DayColumn({
+  date,
+  items,
+  vacantSlots,
+  hiddenVacantCount,
+  professionals,
+  activeUnitId,
+  onAppointment,
+  onVacant,
+}: {
+  date:
+    string;
+
+  items:
+    AgendaOperationalItem[];
+
+  vacantSlots:
+    VacantSlot[];
+
+  hiddenVacantCount:
+    number;
+
+  professionals:
+    ProfessionalSetting[];
+
+  activeUnitId:
+    number;
+
+  onAppointment:
+    (
+      appointmentId:
+        number
+    ) => void;
+
+  onVacant:
+    (
+      slot:
+        VacantSlot
+    ) => void;
+}) {
+  const today =
+    formatDate(
+      new Date()
+    );
+
+  const isToday =
+    date ===
+    today;
+
+  const timeline = [
+    ...items.map(
+      (
+        item
+      ) => ({
+        kind:
+          "item" as const,
+
+        time:
+          item.startTime,
+
+        item,
+      })
+    ),
+
+    ...vacantSlots.map(
+      (
+        slot
+      ) => ({
+        kind:
+          "vacant" as const,
+
+        time:
+          slot.startTime,
+
+        slot,
+      })
+    ),
+  ]
+    .sort(
+      (
+        a,
+        b
+      ) =>
+        a.time.localeCompare(
+          b.time
+        )
+    );
+
+  return (
+    <section className={`overflow-hidden rounded-2xl border bg-white shadow-[0_4px_16px_rgba(51,65,120,0.04)] ${
+      isToday
+        ? "border-[#bdb0ff] ring-2 ring-[#eeeaff]"
+        : "border-[#e8eaf3]"
+    }`}>
+      <div className={`border-b px-4 py-3 ${
+        isToday
+          ? "border-[#ded8ff] bg-[#faf8ff]"
+          : "border-[#eef0f5] bg-[#fbfbfe]"
+      }`}>
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className={`text-sm font-extrabold ${
+              isToday
+                ? "text-[#6847f5]"
+                : "text-[#263765]"
+            }`}>
+              {
+                formatShortDate(
+                  date
+                )
+              }
+            </p>
+
+            <p className="mt-0.5 text-[9px] font-semibold text-[#9aa3b8]">
+              {
+                items.filter(
+                  (
+                    item
+                  ) =>
+                    item.source !==
+                    "block"
+                ).length
+              } atendimento(s)
+            </p>
+          </div>
+
+          {isToday && (
+            <span className="rounded-full bg-[#6847f5] px-2 py-1 text-[8px] font-extrabold uppercase text-white">
+              Hoje
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="max-h-[760px] space-y-2 overflow-y-auto p-2.5">
+        {timeline.map(
+          (
+            entry
+          ) =>
+            entry.kind ===
+              "item"
+              ? (
+                <OperationalCard
+                  key={
+                    entry.item.key
+                  }
+                  item={
+                    entry.item
+                  }
+                  professionals={
+                    professionals
+                  }
+                  activeUnitId={
+                    activeUnitId
+                  }
+                  onAppointment={
+                    onAppointment
+                  }
+                />
+              )
+              : (
+                <VacantCard
+                  key={
+                    entry.slot.key
+                  }
+                  slot={
+                    entry.slot
+                  }
+                  activeUnitId={
+                    activeUnitId
+                  }
+                  onClick={() =>
+                    onVacant(
+                      entry.slot
+                    )
+                  }
+                />
+              )
+        )}
+
+        {hiddenVacantCount >
+          0 && (
+          <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/50 px-3 py-2 text-center text-[10px] font-bold text-emerald-700">
+            +{
+              hiddenVacantCount
+            } horários livres. Filtre um profissional para visualizar todos.
+          </div>
+        )}
+
+        {timeline.length ===
+          0 && (
+          <div className="rounded-xl border border-dashed border-[#e1e4ef] bg-[#fbfbfd] px-3 py-10 text-center">
+            <Filter
+              size={22}
+              className="mx-auto text-[#c1c6d4]"
+            />
+
+            <p className="mt-2 text-[10px] font-semibold text-[#98a1b8]">
+              Sem registros para os filtros atuais.
+            </p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function getSpecialtyCardColor(
+  activeUnitId:
+    number,
+
+  specialtyName:
+    string
+) {
+  const specialty =
+    getActiveSpecialties()
+      .find(
+        (
+          item
+        ) =>
+          item.name ===
+          specialtyName
+      );
+
+  if (
+    !specialty
+  ) {
+    return "#64748B";
+  }
+
+  return getSpecialtyAgendaColor(
+    activeUnitId,
+    specialty.id
+  );
+}
+
+const PROCEDURE_COLORS = [
+  "#2563EB",
+  "#7C3AED",
+  "#DB2777",
+  "#059669",
+  "#D97706",
+  "#0891B2",
+  "#DC2626",
+  "#4F46E5",
+  "#65A30D",
+  "#C026D3",
+];
+
+function getProcedureColor(
+  procedure:
+    string
+) {
+  const normalized =
+    procedure
+      .trim()
+      .toLocaleLowerCase(
+        "pt-BR"
+      );
+
+  if (
+    !normalized
+  ) {
+    return "#64748B";
+  }
+
+  /*
+   * A cor é derivada do nome do procedimento.
+   * O mesmo procedimento sempre recebe a mesma cor,
+   * sem depender do profissional.
+   */
+  let hash =
+    0;
+
+  for (
+    let index =
+      0;
+    index <
+      normalized.length;
+    index +=
+      1
+  ) {
+    hash =
+      (
+        hash *
+          31 +
+        normalized.charCodeAt(
+          index
+        )
+      ) >>>
+      0;
+  }
+
+  return PROCEDURE_COLORS[
+    hash %
+      PROCEDURE_COLORS.length
+  ];
+}
+
+function OperationalCard({
+  item,
+  professionals,
+  activeUnitId,
+  onAppointment,
+}: {
+  item:
+    AgendaOperationalItem;
+
+  professionals:
+    ProfessionalSetting[];
+
+  activeUnitId:
+    number;
+
+  onAppointment:
+    (
+      appointmentId:
+        number
+    ) => void;
+}) {
+  void professionals;
+
+  /*
+   * COR PRINCIPAL DO CARD:
+   * a especialidade define a família de cor.
+   *
+   * STATUS:
+   * continua visível na faixa lateral e no selo.
+   *
+   * PROCEDIMENTO:
+   * continua identificado pela bolinha.
+   */
+  const specialtyColor =
+    getSpecialtyCardColor(
+      activeUnitId,
+      item.specialty
+    );
+
+  const statusColor =
+    getStatusSolidColor(
+      item.status
+    );
+
+  const procedureColor =
+    getProcedureColor(
+      item.procedure
+    );
+
+  const cardBackground =
+    mixWithWhite(
+      specialtyColor,
+      0.86
+    );
+
+  const borderColor =
+    mixWithWhite(
+      specialtyColor,
+      0.55
+    );
+
+  const cancelled =
+    isCancelledStatus(
+      item.status
+    );
+
+  const block =
+    item.source ===
+    "block";
+
+  const clickable =
+    item.appointmentId !==
+    undefined;
+
+  return (
+    <button
+      type="button"
+      disabled={
+        !clickable
+      }
+      onClick={() => {
+        if (
+          item.appointmentId !==
+          undefined
+        ) {
+          onAppointment(
+            item.appointmentId
+          );
+        }
+      }}
+      className={`relative w-full overflow-hidden rounded-xl border p-3 text-left transition ${
+        clickable
+          ? "hover:-translate-y-0.5 hover:shadow-md"
+          : "cursor-default"
+      } ${
+        cancelled
+          ? "opacity-80"
+          : ""
+      }`}
+      style={{
+        backgroundColor:
+          block
+            ? "#F8FAFC"
+            : cardBackground,
+
+        borderColor:
+          block
+            ? "#CBD5E1"
+            : borderColor,
+      }}
+    >
+      <span
+        className="absolute inset-y-0 left-0 w-1.5"
+        style={{
+          backgroundColor:
+            statusColor,
+        }}
+        title={`Status: ${getStatusLabel(
+          item.status
+        )}`}
+      />
+
+      <div className="flex items-start justify-between gap-2 pl-1">
+        <div className="min-w-0">
+          <p
+            className="text-[11px] font-extrabold"
+            style={{
+              color:
+                block
+                  ? "#475569"
+                  : specialtyColor,
+            }}
+          >
+            {
+              item.startTime
+            } – {
+              item.endTime
+            }
+          </p>
+
+          {!block && (
+            <p className={`mt-1 truncate text-[11px] font-extrabold ${
+              cancelled
+                ? "line-through text-[#7c879f]"
+                : "text-[#263765]"
+            }`}>
+              {
+                item.patient ||
+                "Sem paciente"
+              }
+            </p>
+          )}
+
+          {block && (
+            <p className="mt-1 truncate text-[11px] font-extrabold text-[#475569]">
+              {
+                item.procedure
+              }
+            </p>
+          )}
+        </div>
+
+        <span
+          className="shrink-0 rounded-full border bg-white/80 px-2 py-0.5 text-[8px] font-extrabold"
+          style={{
+            borderColor:
+              mixWithWhite(
+                statusColor,
+                0.55
+              ),
+
+            color:
+              statusColor,
+          }}
+        >
+          {
+            getStatusLabel(
+              item.status
+            )
+          }
+        </span>
+      </div>
+
+      <div className="mt-2.5 space-y-1.5 pl-1">
+        <InfoLine
+          icon={
+            UserRound
+          }
+          value={
+            item.professional
+          }
+        />
+
+        {item.procedure && (
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span
+              className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white"
+              style={{
+                backgroundColor:
+                  procedureColor,
+              }}
+              title={`Procedimento: ${item.procedure}`}
+            />
+
+            <Stethoscope
+              size={11}
+              className="shrink-0 text-[#8e98b0]"
+            />
+
+            <p className="truncate text-[9px] font-semibold text-[#6f7c9b]">
+              {
+                item.procedure
+              }
+            </p>
+          </div>
+        )}
+
+        {item.room && (
+          <InfoLine
+            icon={
+              DoorOpen
+            }
+            value={
+              item.room
+            }
+          />
+        )}
+      </div>
+
+      {item.cancelledMakesSlotAvailable && (
+        <div className="mt-2.5 rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1.5 text-[9px] font-extrabold text-emerald-700">
+          Horário liberado para encaixe
+        </div>
+      )}
+    </button>
+  );
+}
+
+function VacantCard({
+  slot,
+  activeUnitId,
+  onClick,
+}: {
+  slot:
+    VacantSlot;
+
+  activeUnitId:
+    number;
+
+  onClick:
+    () => void;
+}) {
+  void activeUnitId;
+
+  return (
+    <button
+      type="button"
+      onClick={
+        onClick
+      }
+      className="w-full rounded-xl border border-dashed border-emerald-300 bg-emerald-50/60 p-3 text-left transition hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-sm"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-extrabold text-emerald-700">
+          {
+            slot.startTime
+          } – {
+            slot.endTime
+          }
+        </p>
+
+        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[8px] font-extrabold text-emerald-700">
+          LIVRE
+        </span>
+      </div>
+
+      <div className="mt-2 flex items-center gap-2">
+        <UserRound
+          size={11}
+          className="shrink-0 text-emerald-700"
+        />
+
+        <p className="truncate text-[10px] font-semibold text-[#667397]">
+          {
+            slot.professional
+          }
+        </p>
+      </div>
+
+      <p className="mt-2 text-[9px] font-extrabold text-emerald-700">
+        Clique para encaixar
+      </p>
+    </button>
+  );
+}
+
+function InfoLine({
+  icon:
+    Icon,
+  value,
+}: {
+  icon:
+    typeof UserRound;
+
+  value:
+    string;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-1.5">
+      <Icon
+        size={11}
+        className="shrink-0 text-[#8e98b0]"
+      />
+
+      <p className="truncate text-[9px] font-semibold text-[#6f7c9b]">
+        {
+          value
+        }
+      </p>
+    </div>
+  );
+}
