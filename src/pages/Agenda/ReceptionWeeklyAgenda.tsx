@@ -14,6 +14,7 @@ import {
   Grid3X3,
   Lock,
   MoreHorizontal,
+  Palette,
   Pencil,
   Plus,
   RotateCcw,
@@ -76,7 +77,10 @@ import {
 
 import {
   SPECIALTY_AGENDA_COLORS_CHANGED_EVENT,
+  getProfessionalAgendaTone,
+  getProfessionalAgendaTonesBySpecialty,
   getSpecialtyAgendaColor,
+  setSpecialtyAgendaColor,
 } from "@/pages/Configuracoes/specialtyAgendaColorStorage";
 
 import {
@@ -1108,6 +1112,14 @@ export default function ReceptionWeeklyAgenda() {
     );
 
   const [
+    showAgendaColorSettings,
+    setShowAgendaColorSettings,
+  ] =
+    useState(
+      false
+    );
+
+  const [
     selectedEncaixeSlot,
     setSelectedEncaixeSlot,
   ] =
@@ -2090,6 +2102,22 @@ export default function ReceptionWeeklyAgenda() {
             Agendar
           </Button>
 
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              setShowAgendaColorSettings(
+                true
+              )
+            }
+          >
+            <Palette
+              size={16}
+            />
+
+            Cores da agenda
+          </Button>
+
 
         </div>
       </div>
@@ -2650,6 +2678,25 @@ export default function ReceptionWeeklyAgenda() {
         </div>
       </section>
 
+      {showAgendaColorSettings && (
+        <AgendaColorSettingsModal
+          activeUnitId={
+            activeUnitId
+          }
+          specialties={
+            specialties
+          }
+          professionals={
+            professionals
+          }
+          onClose={() =>
+            setShowAgendaColorSettings(
+              false
+            )
+          }
+        />
+      )}
+
       {selectedEncaixeSlot && (
         <EncaixeRapidoModal
           baseSlot={
@@ -2925,6 +2972,288 @@ export default function ReceptionWeeklyAgenda() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function AgendaColorSettingsModal({
+  activeUnitId,
+  specialties,
+  professionals,
+  onClose,
+}: {
+  activeUnitId:
+    number;
+
+  specialties:
+    Array<{
+      id: number;
+      name: string;
+    }>;
+
+  professionals:
+    ProfessionalSetting[];
+
+  onClose:
+    () => void;
+}) {
+  const [
+    version,
+    setVersion,
+  ] =
+    useState(
+      0
+    );
+
+  const [
+    feedback,
+    setFeedback,
+  ] =
+    useState<
+      string |
+      null
+    >(
+      null
+    );
+
+  void version;
+
+  function updateColor(
+    specialtyId:
+      number,
+
+    color:
+      string
+  ) {
+    try {
+      setSpecialtyAgendaColor(
+        activeUnitId,
+        specialtyId,
+        color
+      );
+
+      setVersion(
+        (
+          current
+        ) =>
+          current +
+          1
+      );
+
+      setFeedback(
+        "Cor atualizada. Os tons dos profissionais foram recalculados automaticamente."
+      );
+    } catch (
+      error
+    ) {
+      setFeedback(
+        error instanceof
+          Error
+          ? error.message
+          : "Não foi possível atualizar a cor."
+      );
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[96] flex items-center justify-center bg-slate-950/45 p-4">
+      <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
+          <div>
+            <h2 className="text-lg font-extrabold text-[#10235f]">
+              Cores da agenda
+            </h2>
+
+            <p className="mt-1 max-w-2xl text-xs font-medium text-[#7d89a8]">
+              A Recepção escolhe a cor principal de cada especialidade. Os profissionais vinculados a ela recebem automaticamente tons diferentes da mesma cor.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={
+              onClose
+            }
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100"
+            title="Fechar"
+          >
+            <X
+              size={19}
+            />
+          </button>
+        </div>
+
+        <div className="space-y-4 p-6">
+          {specialties.map(
+            (
+              specialty
+            ) => {
+              const baseColor =
+                getSpecialtyAgendaColor(
+                  activeUnitId,
+                  specialty.id
+                );
+
+              const tones =
+                getProfessionalAgendaTonesBySpecialty(
+                  activeUnitId,
+                  specialty.id
+                );
+
+              const specialtyProfessionals =
+                professionals.filter(
+                  (
+                    professional
+                  ) =>
+                    professional.specialty ===
+                    specialty.name
+                );
+
+              return (
+                <section
+                  key={
+                    specialty.id
+                  }
+                  className="rounded-2xl border border-[#e7e9f2] bg-white p-4"
+                >
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="h-5 w-5 shrink-0 rounded-md border border-black/5"
+                          style={{
+                            backgroundColor:
+                              baseColor,
+                          }}
+                        />
+
+                        <div>
+                          <h3 className="text-sm font-extrabold text-[#263765]">
+                            {
+                              specialty.name
+                            }
+                          </h3>
+
+                          <p className="mt-0.5 text-[10px] font-medium text-[#8d96ad]">
+                            {
+                              specialtyProfessionals.length
+                            } profissional(is) nesta especialidade
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <label className="flex items-center gap-3 rounded-xl border border-[#e3e6ef] bg-[#fbfbfe] px-3 py-2">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wide text-[#78839f]">
+                        Cor principal
+                      </span>
+
+                      <input
+                        type="color"
+                        value={
+                          baseColor
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          updateColor(
+                            specialty.id,
+                            event.target.value
+                          )
+                        }
+                        className="h-8 w-11 cursor-pointer rounded-lg border-0 bg-transparent p-0"
+                        title={`Escolher cor de ${specialty.name}`}
+                      />
+
+                      <span className="min-w-[72px] text-xs font-bold text-[#536180]">
+                        {
+                          baseColor
+                        }
+                      </span>
+                    </label>
+                  </div>
+
+                  <div className="mt-4 border-t border-[#eef0f5] pt-4">
+                    <p className="mb-3 text-[10px] font-extrabold uppercase tracking-wide text-[#8993aa]">
+                      Tons dos profissionais
+                    </p>
+
+                    {tones.length >
+                      0 ? (
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {tones.map(
+                          (
+                            tone
+                          ) => (
+                            <div
+                              key={
+                                tone.professionalId
+                              }
+                              className="flex min-w-0 items-center gap-3 rounded-xl border border-[#e8eaf3] bg-[#fbfbfe] px-3 py-2.5"
+                            >
+                              <span
+                                className="h-8 w-8 shrink-0 rounded-lg border border-black/5"
+                                style={{
+                                  backgroundColor:
+                                    tone.toneColor,
+                                }}
+                              />
+
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-extrabold text-[#263765]">
+                                  {
+                                    tone.professionalName
+                                  }
+                                </p>
+
+                                <p className="mt-0.5 text-[9px] font-semibold text-[#8d96ad]">
+                                  {
+                                    tone.toneColor
+                                  }
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-[#dfe2ed] bg-[#fafbfc] px-4 py-5 text-center text-[10px] font-semibold text-[#8d96ad]">
+                        Nenhum profissional ativo desta especialidade está vinculado à unidade atual.
+                      </div>
+                    )}
+                  </div>
+                </section>
+              );
+            }
+          )}
+
+          {specialties.length ===
+            0 && (
+            <div className="rounded-xl border border-dashed border-[#dfe2ed] bg-[#fafbfc] px-4 py-10 text-center text-xs font-semibold text-[#8d96ad]">
+              Nenhuma especialidade ativa disponível nesta unidade.
+            </div>
+          )}
+
+          {feedback && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">
+              {
+                feedback
+              }
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end border-t border-slate-200 bg-slate-50 px-6 py-4">
+          <Button
+            type="button"
+            onClick={
+              onClose
+            }
+          >
+            Concluir
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -6583,11 +6912,10 @@ function OperationalCard({
         FixedScheduleExceptionStatus
     ) => void;
 }) {
-  void professionals;
-
   /*
    * COR PRINCIPAL DO CARD:
-   * a especialidade define a família de cor.
+   * a especialidade define a cor-base e cada profissional
+   * recebe automaticamente um tom dessa mesma família.
    *
    * STATUS:
    * continua visível na faixa lateral e no selo.
@@ -6595,7 +6923,34 @@ function OperationalCard({
    * PROCEDIMENTO:
    * continua identificado pela bolinha.
    */
+  const professional =
+    item.professionalId !==
+      undefined
+      ? professionals.find(
+          (
+            current
+          ) =>
+            current.id ===
+            item.professionalId
+        )
+      : professionals.find(
+          (
+            current
+          ) =>
+            current.name ===
+            item.professional
+        );
+
+  const professionalTone =
+    professional
+      ? getProfessionalAgendaTone(
+          activeUnitId,
+          professional.id
+        )
+      : undefined;
+
   const specialtyColor =
+    professionalTone?.toneColor ??
     getSpecialtyCardColor(
       activeUnitId,
       item.specialty
