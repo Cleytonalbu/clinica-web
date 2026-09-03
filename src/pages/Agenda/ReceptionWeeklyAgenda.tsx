@@ -45,6 +45,7 @@ import {
 import {
   APPOINTMENTS_CHANGED_EVENT,
   getSavedAppointments,
+  saveAppointment,
   type StoredAppointment,
 } from "./appointmentStorage";
 
@@ -84,6 +85,7 @@ import {
   getActiveRooms,
   getActiveSpecialties,
   getAgendaSettings,
+  shouldCreateChargeOnAppointmentCreation,
   type ProfessionalSetting,
 } from "@/pages/Configuracoes/settingsStorage";
 
@@ -120,6 +122,15 @@ import {
   getActiveProceduresByUnit,
   PROCEDURES_CHANGED_EVENT,
 } from "@/pages/Configuracoes/procedureStorage";
+
+import {
+  calculateChargeAmount,
+  getDefaultPaymentMethod,
+} from "@/pages/Financeiro/financeRules";
+
+import {
+  createChargeFromAppointment,
+} from "@/pages/Financeiro/financeStorage";
 
 type ReceptionAgendaView =
   | "day"
@@ -1097,6 +1108,17 @@ export default function ReceptionWeeklyAgenda() {
     );
 
   const [
+    selectedEncaixeSlot,
+    setSelectedEncaixeSlot,
+  ] =
+    useState<
+      VacantSlot |
+      null
+    >(
+      null
+    );
+
+  const [
     refreshKey,
     setRefreshKey,
   ] =
@@ -1522,7 +1544,7 @@ export default function ReceptionWeeklyAgenda() {
       ]
     );
 
-  const vacantSlots =
+  const allVacantSlots =
     useMemo(
       () => {
         const settings =
@@ -1542,17 +1564,7 @@ export default function ReceptionWeeklyAgenda() {
           );
 
         const selectedProfessionals =
-          professionals.filter(
-            (
-              professional
-            ) =>
-              professionalFilter ===
-                "Todos" ||
-              String(
-                professional.id
-              ) ===
-                professionalFilter
-          );
+          professionals;
 
         const slots:
           VacantSlot[] = [];
@@ -1572,15 +1584,6 @@ export default function ReceptionWeeklyAgenda() {
               (
                 professional
               ) => {
-                if (
-                  specialtyFilter !==
-                    "Todas" &&
-                  professional.specialty !==
-                    specialtyFilter
-                ) {
-                  return;
-                }
-
                 const day =
                   getProfessionalScheduleDays(
                     professional.id,
@@ -1709,11 +1712,43 @@ export default function ReceptionWeeklyAgenda() {
       },
       [
         activeUnitId,
-        professionalFilter,
         professionals,
         rawItems,
-        specialtyFilter,
         weekDates,
+      ]
+    );
+
+  const vacantSlots =
+    useMemo(
+      () =>
+        allVacantSlots.filter(
+          (
+            slot
+          ) => {
+            const matchesProfessional =
+              professionalFilter ===
+                "Todos" ||
+              String(
+                slot.professionalId
+              ) ===
+                professionalFilter;
+
+            const matchesSpecialty =
+              specialtyFilter ===
+                "Todas" ||
+              slot.specialty ===
+                specialtyFilter;
+
+            return (
+              matchesProfessional &&
+              matchesSpecialty
+            );
+          }
+        ),
+      [
+        allVacantSlots,
+        professionalFilter,
+        specialtyFilter,
       ]
     );
 
@@ -1927,24 +1962,8 @@ export default function ReceptionWeeklyAgenda() {
     slot:
       VacantSlot
   ) {
-    const params =
-      new URLSearchParams(
-        {
-          date:
-            slot.date,
-
-          time:
-            slot.startTime,
-
-          professionalId:
-            String(
-              slot.professionalId
-            ),
-        }
-      );
-
-    navigate(
-      `/agenda/novo?${params.toString()}`
+    setSelectedEncaixeSlot(
+      slot
     );
   }
 
@@ -2631,6 +2650,59 @@ export default function ReceptionWeeklyAgenda() {
         </div>
       </section>
 
+      {selectedEncaixeSlot && (
+        <EncaixeRapidoModal
+          baseSlot={
+            selectedEncaixeSlot
+          }
+          allVacantSlots={
+            allVacantSlots
+          }
+          patients={
+            patients
+          }
+          professionals={
+            professionals
+          }
+          rooms={
+            rooms
+          }
+          procedures={
+            procedureCatalog
+          }
+          packagePlans={
+            packagePlans
+          }
+          convenios={
+            convenios
+          }
+          rawItems={
+            rawItems
+          }
+          activeUnitId={
+            activeUnitId
+          }
+          onClose={() =>
+            setSelectedEncaixeSlot(
+              null
+            )
+          }
+          onSaved={() => {
+            setSelectedEncaixeSlot(
+              null
+            );
+
+            setRefreshKey(
+              (
+                current
+              ) =>
+                current +
+                1
+            );
+          }}
+        />
+      )}
+
       {selectedFixedOccurrence && (
         <FixedScheduleOccurrenceManager
           item={
@@ -2853,6 +2925,929 @@ export default function ReceptionWeeklyAgenda() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function EncaixeRapidoModal({
+  baseSlot,
+  allVacantSlots,
+  patients,
+  professionals,
+  rooms,
+  procedures,
+  packagePlans,
+  convenios,
+  rawItems,
+  activeUnitId,
+  onClose,
+  onSaved,
+}: {
+  baseSlot:
+    VacantSlot;
+
+  allVacantSlots:
+    VacantSlot[];
+
+  patients:
+    Array<{
+      id: number;
+      nome: string;
+    }>;
+
+  professionals:
+    ProfessionalSetting[];
+
+  rooms:
+    Array<{
+      id: number;
+      name: string;
+    }>;
+
+  procedures:
+    Array<{
+      id: number;
+      name: string;
+      specialtyName: string;
+    }>;
+
+  packagePlans:
+    Array<{
+      id: number;
+      name: string;
+      finalValue: number;
+      active: boolean;
+    }>;
+
+  convenios:
+    Array<{
+      id: number;
+      name: string;
+    }>;
+
+  rawItems:
+    AgendaOperationalItem[];
+
+  activeUnitId:
+    number;
+
+  onClose:
+    () => void;
+
+  onSaved:
+    () => void;
+}) {
+  const [
+    patientId,
+    setPatientId,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    professionalId,
+    setProfessionalId,
+  ] =
+    useState(
+      String(
+        baseSlot.professionalId
+      )
+    );
+
+  const [
+    procedure,
+    setProcedure,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    roomName,
+    setRoomName,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    attendanceMode,
+    setAttendanceMode,
+  ] =
+    useState<
+      "Avulso" |
+      "Plano"
+    >(
+      "Avulso"
+    );
+
+  const [
+    packagePlanId,
+    setPackagePlanId,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    convenioId,
+    setConvenioId,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    observations,
+    setObservations,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    feedback,
+    setFeedback,
+  ] =
+    useState<
+      string |
+      null
+    >(
+      null
+    );
+
+  const availableProfessionalSlots =
+    useMemo(
+      () => {
+        const byProfessional =
+          new Map<
+            number,
+            VacantSlot
+          >();
+
+        allVacantSlots
+          .filter(
+            (
+              slot
+            ) =>
+              slot.date ===
+                baseSlot.date &&
+              slot.startTime ===
+                baseSlot.startTime &&
+              slot.endTime ===
+                baseSlot.endTime
+          )
+          .forEach(
+            (
+              slot
+            ) =>
+              byProfessional.set(
+                slot.professionalId,
+                slot
+              )
+          );
+
+        return Array.from(
+          byProfessional.values()
+        )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              a.professional.localeCompare(
+                b.professional,
+                "pt-BR"
+              )
+          );
+      },
+      [
+        allVacantSlots,
+        baseSlot.date,
+        baseSlot.endTime,
+        baseSlot.startTime,
+      ]
+    );
+
+  const selectedPatient =
+    patients.find(
+      (
+        item
+      ) =>
+        item.id ===
+        Number(
+          patientId
+        )
+    );
+
+  const selectedProfessional =
+    professionals.find(
+      (
+        item
+      ) =>
+        item.id ===
+        Number(
+          professionalId
+        )
+    );
+
+  const selectedPackagePlan =
+    packagePlans.find(
+      (
+        item
+      ) =>
+        item.id ===
+        Number(
+          packagePlanId
+        )
+    );
+
+  const selectedConvenio =
+    convenios.find(
+      (
+        item
+      ) =>
+        item.id ===
+        Number(
+          convenioId
+        )
+    );
+
+  const availableProcedures =
+    selectedProfessional
+      ? procedures.filter(
+          (
+            item
+          ) =>
+            item.specialtyName ===
+            selectedProfessional.specialty
+        )
+      : [];
+
+  const availableRooms =
+    useMemo(
+      () =>
+        rooms.filter(
+          (
+            room
+          ) =>
+            !rawItems.some(
+              (
+                item
+              ) =>
+                item.date ===
+                  baseSlot.date &&
+                item.room ===
+                  room.name &&
+                !item.cancelledMakesSlotAvailable &&
+                periodsOverlap(
+                  baseSlot.startTime,
+                  baseSlot.endTime,
+                  item.startTime,
+                  item.endTime
+                )
+            )
+        ),
+      [
+        baseSlot.date,
+        baseSlot.endTime,
+        baseSlot.startTime,
+        rawItems,
+        rooms,
+      ]
+    );
+
+  function saveEncaixe() {
+    if (
+      !selectedPatient
+    ) {
+      setFeedback(
+        "Selecione o paciente."
+      );
+
+      return;
+    }
+
+    if (
+      !selectedProfessional
+    ) {
+      setFeedback(
+        "Selecione um profissional disponível."
+      );
+
+      return;
+    }
+
+    const stillAvailable =
+      availableProfessionalSlots.some(
+        (
+          slot
+        ) =>
+          slot.professionalId ===
+          selectedProfessional.id
+      );
+
+    if (
+      !stillAvailable
+    ) {
+      setFeedback(
+        "Este profissional não está mais livre neste horário."
+      );
+
+      return;
+    }
+
+    if (
+      !procedure
+    ) {
+      setFeedback(
+        "Selecione o procedimento."
+      );
+
+      return;
+    }
+
+    if (
+      !roomName
+    ) {
+      setFeedback(
+        "Selecione uma sala disponível."
+      );
+
+      return;
+    }
+
+    if (
+      attendanceMode ===
+        "Plano" &&
+      !selectedPackagePlan
+    ) {
+      setFeedback(
+        "Selecione o plano."
+      );
+
+      return;
+    }
+
+    const billingType =
+      selectedConvenio
+        ? "Convênio" as const
+        : "Particular" as const;
+
+    const serviceValue =
+      attendanceMode ===
+        "Plano"
+        ? 0
+        : calculateChargeAmount(
+            {
+              professional:
+                selectedProfessional.name,
+
+              specialty:
+                selectedProfessional.specialty,
+
+              billingType,
+
+              convenio:
+                selectedConvenio?.name,
+            }
+          );
+
+    const paymentMethod =
+      getDefaultPaymentMethod(
+        billingType
+      );
+
+    const appointment:
+      StoredAppointment = {
+      id:
+        Date.now(),
+
+      patientId:
+        selectedPatient.id,
+
+      unitId:
+        activeUnitId,
+
+      patient:
+        selectedPatient.nome,
+
+      professionalId:
+        selectedProfessional.id,
+
+      professional:
+        selectedProfessional.name,
+
+      specialty:
+        selectedProfessional.specialty,
+
+      date:
+        baseSlot.date,
+
+      time:
+        baseSlot.startTime,
+
+      endTime:
+        baseSlot.endTime,
+
+      room:
+        roomName,
+
+      type:
+        procedure,
+
+      status:
+        "Agendado",
+
+      observations:
+        [
+          "Encaixe avulso",
+          observations.trim(),
+        ]
+          .filter(
+            Boolean
+          )
+          .join(
+            " | "
+          ),
+
+      billingType,
+
+      convenioId:
+        selectedConvenio?.id,
+
+      convenio:
+        selectedConvenio?.name,
+
+      paymentMethod,
+
+      serviceValue,
+
+      patientPackageId:
+        attendanceMode ===
+          "Plano"
+          ? selectedPackagePlan?.id
+          : undefined,
+
+      patientPackageName:
+        attendanceMode ===
+          "Plano"
+          ? selectedPackagePlan?.name
+          : undefined,
+    };
+
+    saveAppointment(
+      appointment
+    );
+
+    if (
+      shouldCreateChargeOnAppointmentCreation(
+        {
+          billingType,
+
+          hasPatientPackage:
+            attendanceMode ===
+            "Plano",
+        }
+      )
+    ) {
+      createChargeFromAppointment(
+        {
+          unitId:
+            activeUnitId,
+
+          appointmentId:
+            appointment.id,
+
+          patientId:
+            selectedPatient.id,
+
+          patient:
+            selectedPatient.nome,
+
+          professionalId:
+            selectedProfessional.id,
+
+          professional:
+            selectedProfessional.name,
+
+          specialty:
+            selectedProfessional.specialty,
+
+          date:
+            baseSlot.date,
+
+          billingType,
+
+          convenioId:
+            selectedConvenio?.id,
+
+          convenio:
+            selectedConvenio?.name,
+
+          paymentMethod,
+
+          amount:
+            serviceValue,
+        }
+      );
+    }
+
+    onSaved();
+  }
+
+  return (
+    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/45 p-4">
+      <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
+          <div>
+            <h2 className="text-lg font-extrabold text-[#10235f]">
+              Encaixe rápido
+            </h2>
+
+            <p className="mt-1 text-xs font-medium text-[#7d89a8]">
+              {
+                formatShortDate(
+                  baseSlot.date
+                )
+              } • {
+                baseSlot.startTime
+              } – {
+                baseSlot.endTime
+              }
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={
+              onClose
+            }
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"
+            title="Fechar"
+          >
+            <X
+              size={19}
+            />
+          </button>
+        </div>
+
+        <div className="space-y-5 p-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FilterField
+              label="Paciente"
+            >
+              <Select
+                value={
+                  patientId
+                }
+                onChange={(
+                  event
+                ) =>
+                  setPatientId(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="">
+                  Selecione o paciente
+                </option>
+
+                {patients.map(
+                  (
+                    patient
+                  ) => (
+                    <option
+                      key={
+                        patient.id
+                      }
+                      value={
+                        patient.id
+                      }
+                    >
+                      {
+                        patient.nome
+                      }
+                    </option>
+                  )
+                )}
+              </Select>
+            </FilterField>
+
+            <FilterField
+              label="Profissional disponível"
+            >
+              <Select
+                value={
+                  professionalId
+                }
+                onChange={(
+                  event
+                ) => {
+                  setProfessionalId(
+                    event.target.value
+                  );
+
+                  setProcedure(
+                    ""
+                  );
+                }}
+              >
+                {availableProfessionalSlots.map(
+                  (
+                    slot
+                  ) => (
+                    <option
+                      key={
+                        slot.professionalId
+                      }
+                      value={
+                        slot.professionalId
+                      }
+                    >
+                      {
+                        slot.professional
+                      } — {
+                        slot.specialty
+                      }
+                    </option>
+                  )
+                )}
+              </Select>
+
+              <p className="mt-1.5 text-[10px] font-semibold text-emerald-700">
+                {
+                  availableProfessionalSlots.length
+                } profissional(is) livre(s) neste horário.
+              </p>
+            </FilterField>
+
+            <FilterField
+              label="Procedimento"
+            >
+              <Select
+                value={
+                  procedure
+                }
+                disabled={
+                  !selectedProfessional
+                }
+                onChange={(
+                  event
+                ) =>
+                  setProcedure(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="">
+                  Selecione o procedimento
+                </option>
+
+                {availableProcedures.map(
+                  (
+                    item
+                  ) => (
+                    <option
+                      key={
+                        item.id
+                      }
+                      value={
+                        item.name
+                      }
+                    >
+                      {
+                        item.name
+                      }
+                    </option>
+                  )
+                )}
+              </Select>
+            </FilterField>
+
+            <FilterField
+              label="Sala disponível"
+            >
+              <Select
+                value={
+                  roomName
+                }
+                onChange={(
+                  event
+                ) =>
+                  setRoomName(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="">
+                  Selecione a sala
+                </option>
+
+                {availableRooms.map(
+                  (
+                    room
+                  ) => (
+                    <option
+                      key={
+                        room.id
+                      }
+                      value={
+                        room.name
+                      }
+                    >
+                      {
+                        room.name
+                      }
+                    </option>
+                  )
+                )}
+              </Select>
+            </FilterField>
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs font-bold text-[#536180]">
+              Forma do atendimento
+            </p>
+
+            <div className="flex flex-wrap gap-5 rounded-xl border border-slate-200 px-4 py-3">
+              <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-600">
+                <input
+                  type="radio"
+                  checked={
+                    attendanceMode ===
+                    "Avulso"
+                  }
+                  onChange={() => {
+                    setAttendanceMode(
+                      "Avulso"
+                    );
+
+                    setPackagePlanId(
+                      ""
+                    );
+                  }}
+                />
+
+                Sessão avulsa
+              </label>
+
+              <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-600">
+                <input
+                  type="radio"
+                  checked={
+                    attendanceMode ===
+                    "Plano"
+                  }
+                  onChange={() =>
+                    setAttendanceMode(
+                      "Plano"
+                    )
+                  }
+                />
+
+                Plano
+              </label>
+            </div>
+          </div>
+
+          {attendanceMode ===
+            "Plano" && (
+            <FilterField
+              label="Plano"
+            >
+              <Select
+                value={
+                  packagePlanId
+                }
+                onChange={(
+                  event
+                ) =>
+                  setPackagePlanId(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="">
+                  Selecione o plano
+                </option>
+
+                {packagePlans.map(
+                  (
+                    plan
+                  ) => (
+                    <option
+                      key={
+                        plan.id
+                      }
+                      value={
+                        plan.id
+                      }
+                    >
+                      {
+                        plan.name
+                      }
+                    </option>
+                  )
+                )}
+              </Select>
+            </FilterField>
+          )}
+
+          <FilterField
+            label="Convênio"
+          >
+            <Select
+              value={
+                convenioId
+              }
+              onChange={(
+                event
+              ) =>
+                setConvenioId(
+                  event.target.value
+                )
+              }
+            >
+              <option value="">
+                Sem convênio
+              </option>
+
+              {convenios.map(
+                (
+                  convenio
+                ) => (
+                  <option
+                    key={
+                      convenio.id
+                    }
+                    value={
+                      convenio.id
+                    }
+                  >
+                    {
+                      convenio.name
+                    }
+                  </option>
+                )
+              )}
+            </Select>
+          </FilterField>
+
+          <FilterField
+            label="Observações"
+          >
+            <Input
+              value={
+                observations
+              }
+              onChange={(
+                event
+              ) =>
+                setObservations(
+                  event.target.value
+                )
+              }
+              placeholder="Opcional"
+            />
+          </FilterField>
+
+          {feedback && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700">
+              {
+                feedback
+              }
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={
+              onClose
+            }
+          >
+            Fechar
+          </Button>
+
+          <Button
+            type="button"
+            onClick={
+              saveEncaixe
+            }
+          >
+            <Save
+              size={15}
+            />
+
+            Salvar encaixe
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

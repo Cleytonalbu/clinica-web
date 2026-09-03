@@ -1,7 +1,6 @@
 import {
   CalendarDays,
   MoreHorizontal,
-  Plus,
 } from "lucide-react";
 
 import {
@@ -122,21 +121,6 @@ export function RecepcaoAgendaHoje() {
             Ver agenda completa
           </button>
 
-          <button
-            type="button"
-            onClick={() =>
-              navigate(
-                "/agenda/novo"
-              )
-            }
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:opacity-95"
-          >
-            <Plus
-              size={17}
-            />
-
-            Novo agendamento
-          </button>
         </div>
       </div>
 
