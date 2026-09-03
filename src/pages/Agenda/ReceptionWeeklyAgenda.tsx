@@ -24,6 +24,7 @@ import {
   SlidersHorizontal,
   Stethoscope,
   UserRound,
+  X,
   XCircle,
 } from "lucide-react";
 
@@ -78,12 +79,17 @@ import {
 } from "@/pages/Configuracoes/specialtyAgendaColorStorage";
 
 import {
+  getActiveConvenios,
   getActiveProfessionals,
   getActiveRooms,
   getActiveSpecialties,
   getAgendaSettings,
   type ProfessionalSetting,
 } from "@/pages/Configuracoes/settingsStorage";
+
+import {
+  getActivePackagePlansByUnit,
+} from "@/pages/Configuracoes/packagePlanStorage";
 
 import {
   professionalWorksAtUnit,
@@ -96,6 +102,10 @@ import {
 import {
   roomWorksAtUnit,
 } from "@/pages/Configuracoes/roomUnitStorage";
+
+import {
+  convenioWorksAtUnit,
+} from "@/pages/Configuracoes/convenioUnitStorage";
 
 import {
   getProfessionalScheduleDays,
@@ -1201,6 +1211,47 @@ export default function ReceptionWeeklyAgenda() {
       ]
     );
 
+  const convenios =
+    useMemo(
+      () =>
+        getActiveConvenios()
+          .filter(
+            (
+              item
+            ) =>
+              convenioWorksAtUnit(
+                item.id,
+                activeUnitId
+              )
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              a.name.localeCompare(
+                b.name,
+                "pt-BR"
+              )
+          ),
+      [
+        activeUnitId,
+        refreshKey,
+      ]
+    );
+
+  const packagePlans =
+    useMemo(
+      () =>
+        getActivePackagePlansByUnit(
+          activeUnitId
+        ),
+      [
+        activeUnitId,
+        refreshKey,
+      ]
+    );
+
   const patients =
     useMemo(
       () =>
@@ -2017,7 +2068,7 @@ export default function ReceptionWeeklyAgenda() {
               size={16}
             />
 
-            Agendamentos fixos
+            Agendar
           </Button>
 
 
@@ -2041,6 +2092,12 @@ export default function ReceptionWeeklyAgenda() {
           procedures={
             procedureCatalog
           }
+          convenios={
+            convenios
+          }
+          packagePlans={
+            packagePlans
+          }
           onChanged={() =>
             setRefreshKey(
               (
@@ -2048,6 +2105,11 @@ export default function ReceptionWeeklyAgenda() {
               ) =>
                 current +
                 1
+            )
+          }
+          onClose={() =>
+            setShowFixedScheduleManager(
+              false
             )
           }
         />
@@ -2801,7 +2863,10 @@ function FixedScheduleManager({
   rooms,
   patients,
   procedures,
+  convenios,
+  packagePlans,
   onChanged,
+  onClose,
 }: {
   activeUnitId:
     number;
@@ -2819,6 +2884,8 @@ function FixedScheduleManager({
     Array<{
       id: number;
       nome: string;
+      telefone?: string;
+      celular?: string;
     }>;
 
   procedures:
@@ -2828,7 +2895,24 @@ function FixedScheduleManager({
       specialtyName: string;
     }>;
 
+  convenios:
+    Array<{
+      id: number;
+      name: string;
+    }>;
+
+  packagePlans:
+    Array<{
+      id: number;
+      name: string;
+      finalValue: number;
+      active: boolean;
+    }>;
+
   onChanged:
+    () => void;
+
+  onClose:
     () => void;
 }) {
   const [
@@ -2840,27 +2924,8 @@ function FixedScheduleManager({
     );
 
   const [
-    editingId,
-    setEditingId,
-  ] =
-    useState<
-      string |
-      null
-    >(
-      null
-    );
-
-  const [
     professionalId,
     setProfessionalId,
-  ] =
-    useState(
-      ""
-    );
-
-  const [
-    procedure,
-    setProcedure,
   ] =
     useState(
       ""
@@ -2875,13 +2940,22 @@ function FixedScheduleManager({
     );
 
   const [
-    weekDay,
-    setWeekDay,
+    procedure,
+    setProcedure,
   ] =
-    useState<
-      FixedScheduleWeekDay
-    >(
-      1
+    useState(
+      ""
+    );
+
+  const [
+    startDate,
+    setStartDate,
+  ] =
+    useState(
+      () =>
+        formatDate(
+          new Date()
+        )
     );
 
   const [
@@ -2901,19 +2975,43 @@ function FixedScheduleManager({
     );
 
   const [
-    startDate,
-    setStartDate,
+    recurrence,
+    setRecurrence,
   ] =
     useState(
-      () =>
-        formatDate(
-          new Date()
-        )
+      "Semanalmente"
     );
 
   const [
-    endDate,
-    setEndDate,
+    billingMode,
+    setBillingMode,
+  ] =
+    useState<
+      "Avulso" |
+      "Plano"
+    >(
+      "Avulso"
+    );
+
+  const [
+    packagePlanId,
+    setPackagePlanId,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    convenioId,
+    setConvenioId,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    authorization,
+    setAuthorization,
   ] =
     useState(
       ""
@@ -2938,23 +3036,6 @@ function FixedScheduleManager({
       null
     );
 
-  const [
-    feedbackType,
-    setFeedbackType,
-  ] =
-    useState<
-      "success" |
-      "error" |
-      null
-    >(
-      null
-    );
-
-  const allSchedules =
-    getFixedSchedulesByUnit(
-      activeUnitId
-    );
-
   const selectedPatient =
     patients.find(
       (
@@ -2965,32 +3046,6 @@ function FixedScheduleManager({
           patientId
         )
     );
-
-  const patientSchedules =
-    patientId
-      ? allSchedules
-          .filter(
-            (
-              schedule
-            ) =>
-              schedule.patientId ===
-              Number(
-                patientId
-              )
-          )
-          .slice()
-          .sort(
-            (
-              a,
-              b
-            ) =>
-              `${a.weekDay}-${a.startTime}-${a.professionalName}`
-                .localeCompare(
-                  `${b.weekDay}-${b.startTime}-${b.professionalName}`,
-                  "pt-BR"
-                )
-          )
-      : [];
 
   const selectedProfessional =
     professionals.find(
@@ -3003,18 +3058,7 @@ function FixedScheduleManager({
         )
     );
 
-    const availableProcedures =
-    selectedProfessional
-      ? procedures.filter(
-          (
-            item
-          ) =>
-            item.specialtyName ===
-            selectedProfessional.specialty
-        )
-      : [];
-
-const selectedRoom =
+  const selectedRoom =
     rooms.find(
       (
         item
@@ -3025,194 +3069,45 @@ const selectedRoom =
         )
     );
 
-  const dayLabels:
-    Array<{
-      value:
-        FixedScheduleWeekDay;
-      label:
-        string;
-    }> = [
-    {
-      value:
-        1,
-      label:
-        "Segunda-feira",
-    },
-    {
-      value:
-        2,
-      label:
-        "Terça-feira",
-    },
-    {
-      value:
-        3,
-      label:
-        "Quarta-feira",
-    },
-    {
-      value:
-        4,
-      label:
-        "Quinta-feira",
-    },
-    {
-      value:
-        5,
-      label:
-        "Sexta-feira",
-    },
-    {
-      value:
-        6,
-      label:
-        "Sábado",
-    },
-    {
-      value:
-        0,
-      label:
-        "Domingo",
-    },
-  ];
-
-  function clearProfessionalForm() {
-    setEditingId(
-      null
+  const selectedPackagePlan =
+    packagePlans.find(
+      (
+        item
+      ) =>
+        item.id ===
+        Number(
+          packagePlanId
+        )
     );
 
-    setProfessionalId(
-      ""
+  const selectedConvenio =
+    convenios.find(
+      (
+        item
+      ) =>
+        item.id ===
+        Number(
+          convenioId
+        )
     );
 
-    setProcedure(
-      ""
-    );
+  const availableProcedures =
+    selectedProfessional
+      ? procedures.filter(
+          (
+            item
+          ) =>
+            item.specialtyName ===
+            selectedProfessional.specialty
+        )
+      : [];
 
-    setRoomId(
-      ""
-    );
-
-    setWeekDay(
-      1
-    );
-
-    setStartTime(
-      "08:00"
-    );
-
-    setEndTime(
-      "08:50"
-    );
-
-    setEndDate(
-      ""
-    );
-
-    setObservations(
-      ""
-    );
-  }
-
-  function changePatient(
-    value:
-      string
-  ) {
-    setPatientId(
-      value
-    );
-
-    clearProfessionalForm();
-
-    setFeedback(
-      null
-    );
-  }
-
-  function editSchedule(
-    schedule:
-      FixedSchedule
-  ) {
-    setPatientId(
-      String(
-        schedule.patientId
-      )
-    );
-
-    setEditingId(
-      schedule.id
-    );
-
-    setProfessionalId(
-      String(
-        schedule.professionalId
-      )
-    );
-
-    setProcedure(
-      schedule.procedure
-    );
-
-    const room =
-      rooms.find(
-        (
-          item
-        ) =>
-          item.id ===
-            schedule.roomId ||
-          item.name ===
-            schedule.roomName
-      );
-
-    setRoomId(
-      room
-        ? String(
-            room.id
-          )
-        : ""
-    );
-
-    setWeekDay(
-      schedule.weekDay
-    );
-
-    setStartTime(
-      schedule.startTime
-    );
-
-    setEndTime(
-      schedule.endTime
-    );
-
-    setStartDate(
-      schedule.startDate
-    );
-
-    setEndDate(
-      schedule.endDate ??
-      ""
-    );
-
-    setObservations(
-      schedule.observations ??
-      ""
-    );
-
-    setFeedback(
-      null
-    );
-  }
-
-  function saveProfessionalSchedule() {
+  function save() {
     if (
       !selectedPatient
     ) {
       setFeedback(
-        "Selecione primeiro o paciente do agendamento."
-      );
-
-      setFeedbackType(
-        "error"
+        "Selecione o paciente."
       );
 
       return;
@@ -3225,24 +3120,6 @@ const selectedRoom =
         "Selecione o profissional."
       );
 
-      setFeedbackType(
-        "error"
-      );
-
-      return;
-    }
-
-    if (
-      !procedure.trim()
-    ) {
-      setFeedback(
-        "Informe o procedimento."
-      );
-
-      setFeedbackType(
-        "error"
-      );
-
       return;
     }
 
@@ -3253,87 +3130,136 @@ const selectedRoom =
         "Selecione a sala."
       );
 
-      setFeedbackType(
-        "error"
+      return;
+    }
+
+    if (
+      !procedure
+    ) {
+      setFeedback(
+        "Selecione o procedimento."
+      );
+
+      return;
+    }
+
+    if (
+      billingMode ===
+        "Plano" &&
+      !selectedPackagePlan
+    ) {
+      setFeedback(
+        "Selecione o plano."
+      );
+
+      return;
+    }
+
+    if (
+      !startDate ||
+      !startTime ||
+      !endTime
+    ) {
+      setFeedback(
+        "Informe data e horário."
       );
 
       return;
     }
 
     try {
-      const data = {
-        unitId:
-          activeUnitId,
+      const weekDay =
+        parseDate(
+          startDate
+        ).getDay() as
+          FixedScheduleWeekDay;
 
-        patientId:
-          selectedPatient.id,
+      createFixedSchedule(
+        {
+          unitId:
+            activeUnitId,
 
-        patientName:
-          selectedPatient.nome,
+          patientId:
+            selectedPatient.id,
 
-        professionalId:
-          selectedProfessional.id,
+          patientName:
+            selectedPatient.nome,
 
-        professionalName:
-          selectedProfessional.name,
+          professionalId:
+            selectedProfessional.id,
 
-        specialty:
-          selectedProfessional.specialty,
+          professionalName:
+            selectedProfessional.name,
 
-        procedure:
-          procedure.trim(),
+          specialty:
+            selectedProfessional.specialty,
 
-        roomId:
-          selectedRoom.id,
+          procedure,
 
-        roomName:
-          selectedRoom.name,
+          roomId:
+            selectedRoom.id,
 
-        weekDay,
+          roomName:
+            selectedRoom.name,
 
-        startTime,
+          weekDay,
 
-        endTime,
+          startTime,
 
-        startDate,
+          endTime,
 
-        endDate:
-          endDate ||
-          undefined,
+          startDate,
 
-        observations:
-          observations.trim() ||
-          undefined,
-      };
+          billingType:
+            selectedConvenio
+              ? "Convênio"
+              : billingMode ===
+                  "Plano"
+                ? "Pacote"
+                : "Particular",
 
-      if (
-        editingId
-      ) {
-        updateFixedSchedule(
-          editingId,
-          data
-        );
+          patientPackageId:
+            billingMode ===
+              "Plano"
+              ? selectedPackagePlan?.id
+              : undefined,
 
-        setFeedback(
-          "Atendimento fixo atualizado."
-        );
-      } else {
-        createFixedSchedule(
-          data
-        );
+          patientPackageName:
+            billingMode ===
+              "Plano"
+              ? selectedPackagePlan?.name
+              : undefined,
 
-        setFeedback(
-          "Profissional e horário adicionados ao agendamento fixo."
-        );
-      }
+          convenioId:
+            selectedConvenio?.id,
 
-      setFeedbackType(
-        "success"
+          convenioName:
+            selectedConvenio?.name,
+
+          observations:
+            [
+              observations.trim(),
+
+              `Recorrência: ${recurrence}`,
+
+              selectedConvenio &&
+              authorization
+                ? `Autorização: ${authorization}`
+                : "",
+            ]
+              .filter(
+                Boolean
+              )
+              .join(
+                " | "
+              ) ||
+            undefined,
+        }
       );
 
-      clearProfessionalForm();
-
       onChanged();
+
+      onClose();
     } catch (
       error
     ) {
@@ -3341,100 +3267,80 @@ const selectedRoom =
         error instanceof
           Error
           ? error.message
-          : "Não foi possível salvar o atendimento fixo."
-      );
-
-      setFeedbackType(
-        "error"
+          : "Não foi possível salvar o agendamento."
       );
     }
-  }
-
-  function remove(
-    schedule:
-      FixedSchedule
-  ) {
-    const confirmed =
-      window.confirm(
-        `Remover ${schedule.professionalName}, ${schedule.startTime}, da agenda fixa de ${schedule.patientName}?`
-      );
-
-    if (
-      !confirmed
-    ) {
-      return;
-    }
-
-    removeFixedSchedule(
-      schedule.id
-    );
-
-    if (
-      editingId ===
-      schedule.id
-    ) {
-      clearProfessionalForm();
-    }
-
-    setFeedback(
-      "Atendimento removido da agenda fixa do paciente."
-    );
-
-    setFeedbackType(
-      "success"
-    );
-
-    onChanged();
   }
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-[#ddd8ff] bg-white shadow-[0_8px_28px_rgba(82,62,170,0.08)]">
-      <div className="border-b border-[#ece9ff] bg-[#faf9ff] px-5 py-4">
-        <h2 className="text-base font-extrabold text-[#10235f]">
-          Agendamento fixo do paciente
-        </h2>
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4">
+      <div className="max-h-[94vh] w-full max-w-[1450px] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-7 py-5">
+          <div>
+            <h2 className="text-xl font-bold text-slate-700">
+              Agendamento
+            </h2>
 
-        <p className="mt-1 text-xs font-medium text-[#7d89a8]">
-          O paciente é cadastrado uma única vez. Depois, adicione abaixo cada profissional e o respectivo horário da rotina semanal.
-        </p>
-      </div>
+            <p className="mt-1 text-xs text-slate-400">
+              Cadastre a rotina do paciente uma única vez.
+            </p>
+          </div>
 
-      <div className="p-5">
-        <div className="rounded-2xl border border-[#e8e4ff] bg-[#faf9ff] p-4">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(280px,0.7fr)_1fr] lg:items-end">
+          <button
+            type="button"
+            onClick={
+              onClose
+            }
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100"
+            title="Fechar"
+          >
+            <X
+              size={20}
+            />
+          </button>
+        </div>
+
+        <div className="p-7">
+          <div className="grid grid-cols-1 gap-x-7 gap-y-5 md:grid-cols-2 xl:grid-cols-4">
             <FilterField
-              label="Paciente"
+              label="Profissional"
             >
               <Select
                 value={
-                  patientId
+                  professionalId
                 }
                 onChange={(
                   event
-                ) =>
-                  changePatient(
+                ) => {
+                  setProfessionalId(
                     event.target.value
-                  )
-                }
+                  );
+
+                  setProcedure(
+                    ""
+                  );
+                }}
               >
                 <option value="">
-                  Selecione o paciente
+                  Selecione o profissional
                 </option>
 
-                {patients.map(
+                {professionals.map(
                   (
-                    patient
+                    professional
                   ) => (
                     <option
                       key={
-                        patient.id
+                        professional.id
                       }
                       value={
-                        patient.id
+                        professional.id
                       }
                     >
                       {
-                        patient.nome
+                        professional.name
+                      } — {
+                        professional.specialty
                       }
                     </option>
                   )
@@ -3442,512 +3348,470 @@ const selectedRoom =
               </Select>
             </FilterField>
 
-            <div className="pb-1">
-              {selectedPatient ? (
-                <>
-                  <p className="text-sm font-extrabold text-[#263765]">
-                    {
-                      selectedPatient.nome
-                    }
-                  </p>
+            <FilterField
+              label="Sala"
+            >
+              <Select
+                value={
+                  roomId
+                }
+                onChange={(
+                  event
+                ) =>
+                  setRoomId(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="">
+                  Selecione a sala
+                </option>
 
-                  <p className="mt-1 text-[10px] font-semibold text-[#7d89a8]">
-                    {
-                      patientSchedules.length
-                    } atendimento(s) recorrente(s) cadastrado(s)
-                  </p>
-                </>
-              ) : (
-                <p className="text-xs font-semibold text-[#929bb3]">
-                  Selecione uma criança para visualizar ou montar a rotina fixa.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {selectedPatient && (
-          <div className="mt-5 grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1.1fr)_minmax(430px,0.9fr)]">
-            <div className="rounded-2xl border border-[#e8eaf3] p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-extrabold text-[#263765]">
-                    {
-                      editingId
-                        ? "Editar atendimento"
-                        : "Adicionar profissional e horário"
-                    }
-                  </h3>
-
-                  <p className="mt-1 text-[10px] font-medium text-[#929bb3]">
-                    Cada profissional pode ter seu próprio dia, procedimento, sala e horário.
-                  </p>
-                </div>
-
-                {editingId && (
-                  <button
-                    type="button"
-                    onClick={
-                      clearProfessionalForm
-                    }
-                    className="text-xs font-bold text-[#6847f5]"
-                  >
-                    Cancelar edição
-                  </button>
+                {rooms.map(
+                  (
+                    room
+                  ) => (
+                    <option
+                      key={
+                        room.id
+                      }
+                      value={
+                        room.id
+                      }
+                    >
+                      {
+                        room.name
+                      }
+                    </option>
+                  )
                 )}
-              </div>
+              </Select>
+            </FilterField>
 
-              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                <FilterField
-                  label="Profissional"
+            <div className="xl:col-span-2">
+              <FilterField
+                label="Paciente"
+              >
+                <Select
+                  value={
+                    patientId
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setPatientId(
+                      event.target.value
+                    )
+                  }
                 >
-                  <Select
-                    value={
-                      professionalId
+                  <option value="">
+                    Selecione o paciente
+                  </option>
+
+                  {patients.map(
+                    (
+                      patient
+                    ) => (
+                      <option
+                        key={
+                          patient.id
+                        }
+                        value={
+                          patient.id
+                        }
+                      >
+                        {
+                          patient.nome
+                        }
+                      </option>
+                    )
+                  )}
+                </Select>
+              </FilterField>
+            </div>
+
+            <FilterField
+              label="Data"
+            >
+              <Input
+                type="date"
+                value={
+                  startDate
+                }
+                onChange={(
+                  event
+                ) =>
+                  setStartDate(
+                    event.target.value
+                  )
+                }
+              />
+            </FilterField>
+
+            <div>
+              <p className="mb-2 block text-xs font-bold text-[#536180]">
+                Horário
+              </p>
+
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                <Input
+                  type="time"
+                  value={
+                    startTime
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setStartTime(
+                      event.target.value
+                    )
+                  }
+                />
+
+                <span className="text-xs font-semibold text-slate-400">
+                  às
+                </span>
+
+                <Input
+                  type="time"
+                  value={
+                    endTime
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setEndTime(
+                      event.target.value
+                    )
+                  }
+                />
+              </div>
+            </div>
+
+            <FilterField
+              label="Recorrência"
+            >
+              <Select
+                value={
+                  recurrence
+                }
+                onChange={(
+                  event
+                ) =>
+                  setRecurrence(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="Semanalmente">
+                  Semanalmente
+                </option>
+
+                <option value="Diariamente">
+                  Diariamente
+                </option>
+
+                <option value="A cada duas semanas">
+                  A cada duas semanas
+                </option>
+
+                <option value="A cada três semanas">
+                  A cada três semanas
+                </option>
+
+                <option value="Mensalmente">
+                  Mensalmente
+                </option>
+              </Select>
+            </FilterField>
+
+            <FilterField
+              label="Telefone"
+            >
+              <Input
+                value={
+                  selectedPatient?.telefone ??
+                  ""
+                }
+                disabled
+                placeholder="Telefone do cadastro"
+              />
+            </FilterField>
+
+            <FilterField
+              label="Celular"
+            >
+              <Input
+                value={
+                  selectedPatient?.celular ??
+                  ""
+                }
+                disabled
+                placeholder="Celular do cadastro"
+              />
+            </FilterField>
+
+            <div className="xl:col-span-2">
+              <p className="mb-2 block text-xs font-bold text-[#536180]">
+                Forma do atendimento
+              </p>
+
+              <div className="flex h-11 items-center gap-6 rounded-xl border border-slate-200 bg-white px-4">
+                <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-600">
+                  <input
+                    type="radio"
+                    checked={
+                      billingMode ===
+                      "Avulso"
                     }
-                    onChange={(
-                      event
-                    ) => {
-                      setProfessionalId(
-                        event.target.value
+                    onChange={() => {
+                      setBillingMode(
+                        "Avulso"
                       );
 
-                      setProcedure(
+                      setPackagePlanId(
                         ""
                       );
                     }}
-                  >
-                    <option value="">
-                      Selecione o profissional
-                    </option>
+                  />
 
-                    {professionals.map(
-                      (
-                        professional
-                      ) => (
-                        <option
-                          key={
-                            professional.id
-                          }
-                          value={
-                            professional.id
-                          }
-                        >
-                          {
-                            professional.name
-                          } — {
-                            professional.specialty
-                          }
-                        </option>
-                      )
-                    )}
-                  </Select>
-                </FilterField>
+                  Sessão avulsa
+                </label>
 
-                <FilterField
-                  label="Procedimento"
-                >
-                  <Select
-                    value={
-                      procedure
+                <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-600">
+                  <input
+                    type="radio"
+                    checked={
+                      billingMode ===
+                      "Plano"
                     }
-                    disabled={
-                      !selectedProfessional
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setProcedure(
-                        event.target.value
-                      )
-                    }
-                  >
-                    <option value="">
-                      {
-                        selectedProfessional
-                          ? "Selecione o procedimento"
-                          : "Selecione primeiro o profissional"
-                      }
-                    </option>
-
-                    {availableProcedures.map(
-                      (
-                        item
-                      ) => (
-                        <option
-                          key={
-                            item.id
-                          }
-                          value={
-                            item.name
-                          }
-                        >
-                          {
-                            item.name
-                          }
-                        </option>
-                      )
-                    )}
-                  </Select>
-                </FilterField>
-
-                <FilterField
-                  label="Sala"
-                >
-                  <Select
-                    value={
-                      roomId
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setRoomId(
-                        event.target.value
-                      )
-                    }
-                  >
-                    <option value="">
-                      Selecione a sala
-                    </option>
-
-                    {rooms.map(
-                      (
-                        room
-                      ) => (
-                        <option
-                          key={
-                            room.id
-                          }
-                          value={
-                            room.id
-                          }
-                        >
-                          {
-                            room.name
-                          }
-                        </option>
-                      )
-                    )}
-                  </Select>
-                </FilterField>
-
-                <FilterField
-                  label="Dia da semana"
-                >
-                  <Select
-                    value={
-                      String(
-                        weekDay
-                      )
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setWeekDay(
-                        Number(
-                          event.target.value
-                        ) as
-                          FixedScheduleWeekDay
-                      )
-                    }
-                  >
-                    {dayLabels.map(
-                      (
-                        day
-                      ) => (
-                        <option
-                          key={
-                            day.value
-                          }
-                          value={
-                            day.value
-                          }
-                        >
-                          {
-                            day.label
-                          }
-                        </option>
-                      )
-                    )}
-                  </Select>
-                </FilterField>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <FilterField
-                    label="Início"
-                  >
-                    <Input
-                      type="time"
-                      value={
-                        startTime
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setStartTime(
-                          event.target.value
-                        )
-                      }
-                    />
-                  </FilterField>
-
-                  <FilterField
-                    label="Fim"
-                  >
-                    <Input
-                      type="time"
-                      value={
-                        endTime
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setEndTime(
-                          event.target.value
-                        )
-                      }
-                    />
-                  </FilterField>
-                </div>
-
-                <FilterField
-                  label="Válido a partir de"
-                >
-                  <Input
-                    type="date"
-                    value={
-                      startDate
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setStartDate(
-                        event.target.value
+                    onChange={() =>
+                      setBillingMode(
+                        "Plano"
                       )
                     }
                   />
-                </FilterField>
 
-                <FilterField
-                  label="Válido até (opcional)"
-                >
-                  <Input
-                    type="date"
-                    value={
-                      endDate
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setEndDate(
-                        event.target.value
-                      )
-                    }
-                  />
-                </FilterField>
-
-                <div className="md:col-span-2">
-                  <FilterField
-                    label="Observação"
-                  >
-                    <Input
-                      value={
-                        observations
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setObservations(
-                          event.target.value
-                        )
-                      }
-                      placeholder="Opcional"
-                    />
-                  </FilterField>
-                </div>
-              </div>
-
-              {selectedProfessional && (
-                <div className="mt-4 rounded-xl border border-[#e8e4ff] bg-[#faf9ff] px-4 py-3">
-                  <p className="text-xs font-bold text-[#6847f5]">
-                    {
-                      selectedProfessional.specialty
-                    }
-                  </p>
-
-                  <p className="mt-1 text-[10px] font-medium text-[#7d89a8]">
-                    Especialidade preenchida automaticamente pelo cadastro do profissional.
-                  </p>
-                </div>
-              )}
-
-              {feedback && (
-                <div
-                  className={`mt-4 rounded-xl border px-4 py-3 text-xs font-semibold ${
-                    feedbackType ===
-                      "success"
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-red-200 bg-red-50 text-red-700"
-                  }`}
-                >
-                  {
-                    feedback
-                  }
-                </div>
-              )}
-
-              <div className="mt-5 flex justify-end">
-                <Button
-                  type="button"
-                  onClick={
-                    saveProfessionalSchedule
-                  }
-                >
-                  {
-                    editingId
-                      ? (
-                        <Save
-                          size={16}
-                        />
-                      )
-                      : (
-                        <Plus
-                          size={16}
-                        />
-                      )
-                  }
-
-                  {
-                    editingId
-                      ? "Salvar alterações"
-                      : "Adicionar à agenda fixa"
-                  }
-                </Button>
+                  Plano
+                </label>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-[#e8eaf3] bg-[#fbfbfe] p-4">
-              <h3 className="text-sm font-extrabold text-[#263765]">
-                Rotina semanal de {
-                  selectedPatient.nome
-                }
-              </h3>
+            {billingMode ===
+              "Plano" && (
+              <FilterField
+                label="Plano"
+              >
+                <Select
+                  value={
+                    packagePlanId
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setPackagePlanId(
+                      event.target.value
+                    )
+                  }
+                >
+                  <option value="">
+                    Selecione o plano
+                  </option>
 
-              <p className="mt-1 text-[10px] font-medium text-[#929bb3]">
-                Todos os profissionais e horários vinculados a este agendamento.
-              </p>
-
-              <div className="mt-4 max-h-[500px] space-y-2 overflow-y-auto pr-1">
-                {patientSchedules.map(
-                  (
-                    schedule
-                  ) => {
-                    const day =
-                      dayLabels.find(
-                        (
-                          item
-                        ) =>
-                          item.value ===
-                          schedule.weekDay
-                      )?.label ??
-                      "";
-
-                    return (
-                      <div
+                  {packagePlans.map(
+                    (
+                      plan
+                    ) => (
+                      <option
                         key={
-                          schedule.id
+                          plan.id
                         }
-                        className="rounded-xl border border-[#e5e7f0] bg-white p-3"
+                        value={
+                          plan.id
+                        }
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-extrabold text-[#263765]">
-                              {
-                                schedule.professionalName
-                              }
-                            </p>
+                        {
+                          plan.name
+                        }
+                      </option>
+                    )
+                  )}
+                </Select>
+              </FilterField>
+            )}
 
-                            <p className="mt-1 text-[10px] font-bold text-[#6847f5]">
-                              {
-                                schedule.specialty
-                              }
-                            </p>
+            <FilterField
+              label="Procedimento"
+            >
+              <Select
+                value={
+                  procedure
+                }
+                disabled={
+                  !selectedProfessional
+                }
+                onChange={(
+                  event
+                ) =>
+                  setProcedure(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="">
+                  {
+                    selectedProfessional
+                      ? "Selecione o procedimento"
+                      : "Selecione primeiro o profissional"
+                  }
+                </option>
 
-                            <p className="mt-1 text-[10px] font-semibold text-[#65718f]">
-                              {
-                                day
-                              } • {
-                                schedule.startTime
-                              } – {
-                                schedule.endTime
-                              }
-                            </p>
+                {availableProcedures.map(
+                  (
+                    item
+                  ) => (
+                    <option
+                      key={
+                        item.id
+                      }
+                      value={
+                        item.name
+                      }
+                    >
+                      {
+                        item.name
+                      }
+                    </option>
+                  )
+                )}
+              </Select>
+            </FilterField>
 
-                            <p className="mt-1 truncate text-[9px] font-medium text-[#8d96ad]">
-                              {
-                                schedule.procedure
-                              } • {
-                                schedule.roomName
-                              }
-                            </p>
-                          </div>
+            <FilterField
+              label="Convênio"
+            >
+              <Select
+                value={
+                  convenioId
+                }
+                onChange={(
+                  event
+                ) => {
+                  setConvenioId(
+                    event.target.value
+                  );
 
-                          <div className="flex shrink-0 gap-1">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                editSchedule(
-                                  schedule
-                                )
-                              }
-                              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#ddd8ff] text-[#6847f5] hover:bg-[#faf9ff]"
-                              title="Editar atendimento"
-                            >
-                              <Pencil
-                                size={14}
-                              />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                remove(
-                                  schedule
-                                )
-                              }
-                              className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
-                              title="Remover atendimento"
-                            >
-                              <Trash2
-                                size={14}
-                              />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+                  if (
+                    !event.target.value
+                  ) {
+                    setAuthorization(
+                      ""
                     );
                   }
-                )}
+                }}
+              >
+                <option value="">
+                  Sem convênio
+                </option>
 
-                {patientSchedules.length ===
-                  0 && (
-                  <div className="rounded-xl border border-dashed border-[#dfe2ed] bg-white px-4 py-10 text-center">
-                    <CalendarDays
-                      size={24}
-                      className="mx-auto text-[#b7becf]"
-                    />
-
-                    <p className="mt-2 text-[10px] font-semibold text-[#8d96ad]">
-                      Ainda não existem profissionais vinculados à rotina fixa deste paciente.
-                    </p>
-                  </div>
+                {convenios.map(
+                  (
+                    item
+                  ) => (
+                    <option
+                      key={
+                        item.id
+                      }
+                      value={
+                        item.id
+                      }
+                    >
+                      {
+                        item.name
+                      }
+                    </option>
+                  )
                 )}
-              </div>
+              </Select>
+            </FilterField>
+
+            <FilterField
+              label="Senha / Autorização / Guia"
+            >
+              <Input
+                value={
+                  authorization
+                }
+                disabled={
+                  !selectedConvenio
+                }
+                onChange={(
+                  event
+                ) =>
+                  setAuthorization(
+                    event.target.value
+                  )
+                }
+                placeholder="Autorização do convênio"
+              />
+            </FilterField>
+
+            <div className="md:col-span-2 xl:col-span-4">
+              <FilterField
+                label="Observações"
+              >
+                <Input
+                  value={
+                    observations
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setObservations(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Observações do agendamento"
+                />
+              </FilterField>
             </div>
           </div>
-        )}
+
+          {feedback && (
+            <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700">
+              {
+                feedback
+              }
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-7 py-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={
+              onClose
+            }
+          >
+            Fechar
+          </Button>
+
+          <Button
+            type="button"
+            onClick={
+              save
+            }
+          >
+            <Save
+              size={15}
+            />
+
+            Salvar
+          </Button>
+        </div>
       </div>
-    </section>
+    </div>
   );
 }
 
