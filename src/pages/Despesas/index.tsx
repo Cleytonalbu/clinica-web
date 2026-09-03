@@ -205,26 +205,21 @@ function getStatusClass(
 ========================================= */
 
 export default function Despesas() {
-  const {
-    activeUnitId,
-  } =
-    useUnit();
-
   const navigate =
     useNavigate();
+
+  const {
+    selectedUnitIds,
+    isAllUnits,
+  } =
+    useUnit();
 
   const [
     expenses,
   ] =
     useState<FinancialExpense[]>(
       () =>
-        getFinancialExpenses().filter(
-          (
-            expense
-          ) =>
-            expense.unitId ===
-            activeUnitId
-        )
+        getFinancialExpenses()
     );
 
   const [
@@ -259,6 +254,23 @@ export default function Despesas() {
   ] =
     useState("");
 
+  const scopedExpenses =
+    useMemo(
+      () =>
+        expenses.filter(
+          (
+            expense
+          ) =>
+            selectedUnitIds.includes(
+              expense.unitId
+            )
+        ),
+      [
+        expenses,
+        selectedUnitIds,
+      ]
+    );
+
   /* =======================================
      DESPESAS DA COMPETÊNCIA
   ======================================= */
@@ -277,7 +289,7 @@ export default function Despesas() {
               competence
         ),
       [
-        expenses,
+        scopedExpenses,
         competence,
       ]
     );
@@ -476,11 +488,21 @@ export default function Despesas() {
 
           <Button
             type="button"
-            onClick={() =>
+            onClick={() => {
+              if (
+                isAllUnits
+              ) {
+                window.alert(
+                  "Selecione uma unidade específica para cadastrar uma nova despesa."
+                );
+
+                return;
+              }
+
               navigate(
                 "/financeiro/despesas/nova"
-              )
-            }
+              );
+            }}
           >
             <Plus
               size={18}

@@ -20,9 +20,7 @@ import {
   DashboardLayout,
 } from "@/layouts/DashboardLayout";
 
-import {
-  useUnit,
-} from "@/providers/UnitContext";
+import { useUnit } from "@/providers/UnitContext";
 
 import {
   createStockItem,
@@ -58,8 +56,12 @@ const emptyMovementForm = {
 };
 
 export default function Estoque() {
-  const { activeUnitId } = useUnit();
-
+  const {
+    activeUnitId,
+    selectedUnitIds,
+    isAllUnits,
+  } =
+    useUnit();
   const [items, setItems] = useState<StockItem[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [search, setSearch] = useState("");
@@ -72,14 +74,24 @@ export default function Estoque() {
   function load() {
     setItems(
       getStockItems().filter(
-        (item) => item.unitId === activeUnitId,
-      ),
+        (
+          item
+        ) =>
+          selectedUnitIds.includes(
+            item.unitId
+          )
+      )
     );
 
     setMovements(
       getStockMovements().filter(
-        (movement) => movement.unitId === activeUnitId,
-      ),
+        (
+          movement
+        ) =>
+          selectedUnitIds.includes(
+            movement.unitId
+          )
+      )
     );
   }
 
@@ -95,9 +107,7 @@ export default function Estoque() {
         "stock-changed",
         refresh,
       );
-  }, [
-    activeUnitId,
-  ]);
+  }, [selectedUnitIds]);
 
   const filteredItems = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -140,6 +150,15 @@ export default function Estoque() {
   function submitItem(event: FormEvent) {
     event.preventDefault();
 
+    if (
+      isAllUnits
+    ) {
+      window.alert(
+        "Selecione uma unidade específica para cadastrar um item de estoque."
+      );
+      return;
+    }
+
     if (!itemForm.name.trim()) {
       window.alert("Informe o nome do item.");
       return;
@@ -178,6 +197,15 @@ export default function Estoque() {
 
   function submitMovement(event: FormEvent) {
     event.preventDefault();
+
+    if (
+      isAllUnits
+    ) {
+      window.alert(
+        "Selecione uma unidade específica para registrar movimentações de estoque."
+      );
+      return;
+    }
 
     const quantity = Number(movementForm.quantity);
 
@@ -241,7 +269,17 @@ export default function Estoque() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => setShowMovementForm(true)}
+              onClick={() => {
+                if (
+                  isAllUnits
+                ) {
+                  window.alert(
+                    "Selecione uma unidade específica para registrar uma movimentação de estoque."
+                  );
+                  return;
+                }
+                setShowMovementForm(true);
+              }}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               <ArrowDownToLine size={18} />
@@ -250,7 +288,17 @@ export default function Estoque() {
 
             <button
               type="button"
-              onClick={() => setShowItemForm(true)}
+              onClick={() => {
+                if (
+                  isAllUnits
+                ) {
+                  window.alert(
+                    "Selecione uma unidade específica para cadastrar um item de estoque."
+                  );
+                  return;
+                }
+                setShowItemForm(true);
+              }}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
             >
               <Plus size={18} />

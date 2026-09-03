@@ -3,11 +3,18 @@ import { getActiveClinicUnits, getClinicUnitById, getStoredActiveUnitId, setStor
 import { useAuth } from "@/auth/AuthContext";
 import { getAllowedUnitIdsForUser } from "@/pages/Configuracoes/userUnitAccessStorage";
 
+export type UnitViewMode = "unit" | "all";
+
 interface UnitContextValue {
   activeUnit: ClinicUnit;
   activeUnitId: number;
   availableUnits: ClinicUnit[];
   hasMultipleUnits: boolean;
+  viewMode: UnitViewMode;
+  isAllUnits: boolean;
+  selectedUnitIds: number[];
+  canViewAllUnits: boolean;
+  setAllUnitsView: () => void;
   setActiveUnit: (unitId: number) => void;
   refreshUnits: () => void;
 }
@@ -93,6 +100,13 @@ export function UnitProvider({ children }: { children: ReactNode }) {
         )
     );
 
+  const canViewAllUnits =
+    user?.profile === "Administrativo" &&
+    state.availableUnits.length > 1;
+
+  const [viewMode, setViewMode] =
+    useState<UnitViewMode>("unit");
+
   useEffect(
     () => {
       setState(
@@ -105,6 +119,18 @@ export function UnitProvider({ children }: { children: ReactNode }) {
       user,
     ]
   );
+
+  useEffect(() => {
+    if (!canViewAllUnits && viewMode === "all") {
+      setViewMode("unit");
+    }
+  }, [canViewAllUnits, viewMode]);
+
+  const setAllUnitsView =
+    useCallback(() => {
+      if (!canViewAllUnits) return;
+      setViewMode("all");
+    }, [canViewAllUnits]);
 
   const setActiveUnit =
     useCallback(
@@ -131,6 +157,8 @@ export function UnitProvider({ children }: { children: ReactNode }) {
         setStoredActiveUnitId(
           unitId
         );
+
+        setViewMode("unit");
 
         setState(
           loadUnitState(
@@ -163,9 +191,17 @@ export function UnitProvider({ children }: { children: ReactNode }) {
     activeUnitId: state.activeUnit.id,
     availableUnits: state.availableUnits,
     hasMultipleUnits: state.availableUnits.length > 1,
+    viewMode,
+    isAllUnits: viewMode === "all" && canViewAllUnits,
+    selectedUnitIds:
+      viewMode === "all" && canViewAllUnits
+        ? state.availableUnits.map((unit) => unit.id)
+        : [state.activeUnit.id],
+    canViewAllUnits,
+    setAllUnitsView,
     setActiveUnit,
     refreshUnits,
-  }), [state, setActiveUnit, refreshUnits]);
+  }), [state, viewMode, canViewAllUnits, setAllUnitsView, setActiveUnit, refreshUnits]);
 
   return <UnitContext.Provider value={value}>{children}</UnitContext.Provider>;
 }

@@ -34,10 +34,21 @@ const emptyForm = {
 };
 
 export default function Fornecedores() {
-  const { activeUnitId } = useUnit();
-
+  const {
+    activeUnitId,
+    selectedUnitIds,
+    isAllUnits,
+  } =
+    useUnit();
   const [suppliers, setSuppliers] = useState<Supplier[]>(() =>
-    getSuppliers().filter((supplier) => supplier.unitId === activeUnitId)
+    getSuppliers().filter(
+      (
+        supplier
+      ) =>
+        selectedUnitIds.includes(
+          supplier.unitId
+        )
+    )
   );
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("Todos");
@@ -47,9 +58,16 @@ export default function Fornecedores() {
 
   useEffect(() => {
     setSuppliers(
-      getSuppliers().filter((supplier) => supplier.unitId === activeUnitId)
+      getSuppliers().filter(
+        (
+          supplier
+        ) =>
+          selectedUnitIds.includes(
+            supplier.unitId
+          )
+      )
     );
-  }, [activeUnitId]);
+  }, [selectedUnitIds]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -71,6 +89,16 @@ export default function Fornecedores() {
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
+
+    if (
+      isAllUnits
+    ) {
+      window.alert(
+        "Selecione uma unidade específica para cadastrar um fornecedor."
+      );
+      return;
+    }
+
     if (!form.name.trim()) return;
     saveSupplier({
       ...form,
@@ -82,17 +110,38 @@ export default function Fornecedores() {
       email: form.email.trim(),
     });
     setSuppliers(
-      getSuppliers().filter((supplier) => supplier.unitId === activeUnitId)
+      getSuppliers().filter(
+        (
+          supplier
+        ) =>
+          selectedUnitIds.includes(
+            supplier.unitId
+          )
+      )
     );
     setForm(emptyForm);
     setModalOpen(false);
   }
 
   function toggleStatus(supplier: Supplier) {
+    if (
+      isAllUnits
+    ) {
+      window.alert(
+        "Na visão consolidada os fornecedores são apenas para consulta. Selecione uma unidade para alterar o status."
+      );
+      return;
+    }
+
     const next: SupplierStatus = supplier.status === "Ativo" ? "Inativo" : "Ativo";
     setSuppliers(
       updateSupplierStatus(supplier.id, next).filter(
-        (item) => item.unitId === activeUnitId
+        (
+          item
+        ) =>
+          selectedUnitIds.includes(
+            item.unitId
+          )
       )
     );
   }
@@ -106,7 +155,20 @@ export default function Fornecedores() {
             <h1 className="mt-1 text-2xl font-extrabold text-[#102a78]">Fornecedores</h1>
             <p className="mt-1 text-sm text-slate-500">Cadastro e acompanhamento dos fornecedores da clínica.</p>
           </div>
-          <Button onClick={() => setModalOpen(true)} className="gap-2">
+          <Button
+            onClick={() => {
+              if (
+                isAllUnits
+              ) {
+                window.alert(
+                  "Selecione uma unidade específica para cadastrar um fornecedor."
+                );
+                return;
+              }
+              setModalOpen(true);
+            }}
+            className="gap-2"
+          >
             <Plus size={18} /> Novo fornecedor
           </Button>
         </div>

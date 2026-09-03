@@ -144,6 +144,7 @@ function isInsideClinicSchedule(
 
 export function isAppointmentSlotAvailable({
   unitId,
+  professionalId,
   professional,
   date,
   startTime,
@@ -342,6 +343,7 @@ export function getAvailableAppointmentSlots({
       isAppointmentSlotAvailable(
         {
           unitId,
+          professionalId,
           professional,
           date,
           startTime:

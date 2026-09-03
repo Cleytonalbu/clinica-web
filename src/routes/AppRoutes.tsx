@@ -58,6 +58,8 @@ import MovimentacoesBancarias from "@/pages/MovimentacoesBancarias";
 
 import Faturamento from "@/pages/Faturamento";
 
+import Auditoria from "@/pages/Auditoria";
+
 import ConveniosEPlanos from "@/pages/ConveniosEPlanos";
 
 import GuiasConvenios from "@/pages/GuiasConvenios";
@@ -579,7 +581,7 @@ export function AppRoutes() {
 
       {/* ========================================= */}
       {/* CONTAS BANCÁRIAS */}
-      {/* SOMENTE ADMINISTRATIVO */}
+      {/* GESTOR + ADMINISTRATIVO */}
       {/* ========================================= */}
 
       <Route
@@ -587,6 +589,7 @@ export function AppRoutes() {
         element={
           <ProfileRoute
             allowedProfiles={[
+              "Gestor",
               "Administrativo",
             ]}
           >
@@ -609,13 +612,13 @@ export function AppRoutes() {
 
       {/* ========================================= */}
       {/* MOVIMENTAÇÕES BANCÁRIAS */}
-      {/* SOMENTE ADMINISTRATIVO */}
+      {/* GESTOR + ADMINISTRATIVO */}
       {/* ========================================= */}
 
       <Route
         path="/contas-bancarias/:accountId/movimentacoes"
         element={
-          <ProfileRoute allowedProfiles={["Administrativo"]}>
+          <ProfileRoute allowedProfiles={["Gestor", "Administrativo"]}>
             <ProtectedRoute module="financial" action="view">
               <MovimentacoesBancarias />
             </ProtectedRoute>
@@ -630,6 +633,7 @@ export function AppRoutes() {
         element={
           <ProfileRoute
             allowedProfiles={[
+              "Gestor",
               "Administrativo",
             ]}
           >
@@ -645,11 +649,35 @@ export function AppRoutes() {
 
       {/* ========================================= */}
 
+      {/* ========================================= */}
+      {/* AUDITORIA ADMINISTRATIVA */}
+      {/* SOMENTE ADMINISTRATIVO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/auditoria"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Administrativo",
+            ]}
+          >
+            <ProtectedRoute
+              module="financial"
+              action="view"
+            >
+              <Auditoria />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
       <Route
         path="/faturamento"
         element={
           <ProfileRoute
             allowedProfiles={[
+              "Gestor",
               "Administrativo",
             ]}
           >
@@ -667,12 +695,12 @@ export function AppRoutes() {
 
       {/* ========================================= */}
       {/* REPASSES AOS PROFISSIONAIS */}
-      {/* SOMENTE ADMINISTRATIVO */}
+      {/* GESTOR + ADMINISTRATIVO */}
 
 
       {/* ========================================= */}
       {/* CONVÊNIOS E PLANOS */}
-      {/* SOMENTE ADMINISTRATIVO */}
+      {/* GESTOR + ADMINISTRATIVO */}
       {/* ========================================= */}
 
       <Route
@@ -680,6 +708,7 @@ export function AppRoutes() {
         element={
           <ProfileRoute
             allowedProfiles={[
+              "Gestor",
               "Administrativo",
             ]}
           >
@@ -718,6 +747,7 @@ export function AppRoutes() {
         element={
           <ProfileRoute
             allowedProfiles={[
+              "Gestor",
               "Administrativo",
             ]}
           >
@@ -733,7 +763,7 @@ export function AppRoutes() {
 
       {/* ========================================= */}
       {/* DESPESAS */}
-      {/* SOMENTE ADMINISTRATIVO */}
+      {/* GESTOR + ADMINISTRATIVO */}
       {/* ========================================= */}
 
       <Route
@@ -741,6 +771,7 @@ export function AppRoutes() {
         element={
           <ProfileRoute
             allowedProfiles={[
+              "Gestor",
               "Administrativo",
             ]}
           >

@@ -188,6 +188,9 @@ export function Header() {
     activeUnitId,
     availableUnits,
     hasMultipleUnits,
+    isAllUnits,
+    canViewAllUnits,
+    setAllUnitsView,
     setActiveUnit,
   } =
     useUnit();
@@ -585,17 +588,16 @@ export function Header() {
               >
                 <select
                   value={
-                    activeUnitId
+                    isAllUnits ? "all" : String(activeUnitId)
                   }
-                  onChange={(
-                    event
-                  ) =>
-                    setActiveUnit(
-                      Number(
-                        event.target.value
-                      )
-                    )
-                  }
+                  onChange={(event) => {
+                    if (event.target.value === "all") {
+                      setAllUnitsView();
+                      return;
+                    }
+
+                    setActiveUnit(Number(event.target.value));
+                  }}
                   className="
                     w-full
                     cursor-pointer
@@ -609,6 +611,12 @@ export function Header() {
                   "
                   aria-label="Selecionar unidade"
                 >
+                  {canViewAllUnits && (
+                    <option value="all">
+                      Todas as unidades
+                    </option>
+                  )}
+
                   {availableUnits.map(
                     (
                       unit

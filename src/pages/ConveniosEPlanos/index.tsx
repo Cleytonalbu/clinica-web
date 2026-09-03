@@ -81,6 +81,8 @@ function badge(item: ConvenioPlano) {
 export default function ConveniosEPlanos() {
   const {
     activeUnitId,
+    selectedUnitIds,
+    isAllUnits,
   } =
     useUnit();
 
@@ -101,11 +103,22 @@ export default function ConveniosEPlanos() {
   const convenios = useMemo(
     () =>
       getActiveConvenios()
-        .filter((convenio) =>
-          convenioWorksAtUnit(convenio.id, activeUnitId)
+        .filter(
+          (
+            convenio
+          ) =>
+            selectedUnitIds.some(
+              (
+                unitId
+              ) =>
+                convenioWorksAtUnit(
+                  convenio.id,
+                  unitId
+                )
+            )
         )
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
-    [activeUnitId]
+    [selectedUnitIds]
   );
 
   function handleConvenioChange(convenioName: string) {
@@ -138,9 +151,12 @@ export default function ConveniosEPlanos() {
   function load() {
     setItems(
       getConveniosPlanos().filter(
-        (item) =>
-          item.unitId ===
-          activeUnitId
+        (
+          item
+        ) =>
+          selectedUnitIds.includes(
+            item.unitId
+          )
       )
     );
   }
@@ -152,7 +168,7 @@ export default function ConveniosEPlanos() {
     return () =>
       window.removeEventListener("convenios-planos-changed", refresh);
   }, [
-    activeUnitId,
+    selectedUnitIds,
   ]);
 
   const filtered = useMemo(() => {
@@ -254,7 +270,21 @@ export default function ConveniosEPlanos() {
           </div>
 
           <button
-            onClick={() => setOpen(true)}
+            onClick={() => {
+              if (
+                isAllUnits
+              ) {
+                window.alert(
+                  "Selecione uma unidade específica para cadastrar uma nova autorização."
+                );
+
+                return;
+              }
+
+              setOpen(
+                true
+              );
+            }}
             className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white"
           >
             <Plus size={18} />

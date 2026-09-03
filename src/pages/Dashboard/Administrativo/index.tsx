@@ -55,39 +55,25 @@ function getStatusBadgeClass(status: string) {
 
 export default function DashboardAdministrativo() {
   const navigate = useNavigate();
-
-  const {
-    activeUnitId,
-  } =
-    useUnit();
+  const { selectedUnitIds } = useUnit();
 
   const charges = useMemo(
-    () => getFinancialCharges().filter((charge) => charge.unitId === activeUnitId),
-    [activeUnitId]
+    () => getFinancialCharges().filter((charge) => selectedUnitIds.includes(charge.unitId)),
+    [selectedUnitIds]
   );
   const expenses = useMemo(
-    () => getFinancialExpenses().filter((expense) => expense.unitId === activeUnitId),
-    [activeUnitId]
+    () => getFinancialExpenses().filter((expense) => selectedUnitIds.includes(expense.unitId)),
+    [selectedUnitIds]
   );
   const payouts = useMemo(
-    () => syncProfessionalPayoutsFromAppointments().filter(
-      (payout) => payout.unitId === activeUnitId
-    ),
-    [activeUnitId]
+    () => syncProfessionalPayoutsFromAppointments().filter((payout) => selectedUnitIds.includes(payout.unitId)),
+    [selectedUnitIds]
   );
-  const documents = useMemo(
-    () => getAdministrativeDocuments().filter(
-      (document) => document.unitId === activeUnitId
-    ),
-    [activeUnitId]
-  );
-  const suppliers = useMemo(
-    () => getSuppliers().filter((supplier) => supplier.unitId === activeUnitId),
-    [activeUnitId]
-  );
+  const documents = useMemo(() => getAdministrativeDocuments(), []);
+  const suppliers = useMemo(() => getSuppliers(), []);
   const bankAccounts = useMemo(
-    () => getBankAccounts().filter((account) => account.unitId === activeUnitId),
-    [activeUnitId]
+    () => getBankAccounts().filter((account) => selectedUnitIds.includes(account.unitId)),
+    [selectedUnitIds]
   );
   const bankTransactions = useMemo(() => getBankTransactions(), []);
   const bankReconciliations = useMemo(() => getBankReconciliations(), []);
@@ -175,51 +161,6 @@ export default function DashboardAdministrativo() {
     (transaction) =>
       !reconciledTransactionIds.has(transaction.id)
   ).length;
-
-  const reconciledBankTransactions =
-    Math.max(
-      monthBankTransactions.length -
-        pendingBankReconciliations,
-      0
-    );
-
-  const bankMovementTotal =
-    bankEntries +
-    bankExits;
-
-  const bankEntriesPercent =
-    bankMovementTotal > 0
-      ? (bankEntries / bankMovementTotal) * 100
-      : 0;
-
-  const bankExitsPercent =
-    bankMovementTotal > 0
-      ? (bankExits / bankMovementTotal) * 100
-      : 0;
-
-  const financialFlowMax =
-    Math.max(
-      received,
-      expensesPaid,
-      1
-    );
-
-  const receivedPercent =
-    (received / financialFlowMax) * 100;
-
-  const expensesPercent =
-    (expensesPaid / financialFlowMax) * 100;
-
-  const reconciliationTotal =
-    reconciledBankTransactions +
-    pendingBankReconciliations;
-
-  const reconciledPercent =
-    reconciliationTotal > 0
-      ? (reconciledBankTransactions /
-          reconciliationTotal) *
-        100
-      : 0;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -346,6 +287,16 @@ export default function DashboardAdministrativo() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">
+            Dashboard Administrativo
+          </h1>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Acompanhe a rotina financeira e administrativa da clínica.
+          </p>
+        </div>
+
         {/* ========================================= */}
         {/* MOVIMENTO BANCÁRIO NO TOPO */}
         {/* ========================================= */}
@@ -474,271 +425,6 @@ export default function DashboardAdministrativo() {
             },
           )}
         </div>
-
-        {/* ========================================= */}
-        {/* GRÁFICOS DO MÊS */}
-        {/* ========================================= */}
-
-        <section className="space-y-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              Visão gráfica
-            </p>
-
-            <h2 className="mt-1 text-lg font-bold text-slate-900">
-              Desempenho financeiro do mês
-            </h2>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-3">
-            {/* ENTRADAS X SAÍDAS BANCÁRIAS */}
-
-            <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">
-                    Entradas x saídas bancárias
-                  </h3>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Movimento real das contas no mês atual.
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-sky-50 p-2.5 text-sky-600">
-                  <Landmark size={19} />
-                </div>
-              </div>
-
-              <div className="mt-6 flex h-44 items-end justify-center gap-10 rounded-xl bg-slate-50 px-6 pb-4 pt-5">
-                <div className="flex h-full flex-col items-center justify-end gap-2">
-                  <span className="text-xs font-bold text-emerald-700">
-                    {formatCurrency(bankEntries)}
-                  </span>
-
-                  <div className="flex h-28 w-14 items-end overflow-hidden rounded-t-xl bg-emerald-100">
-                    <div
-                      className="w-full rounded-t-xl bg-emerald-500 transition-all"
-                      style={{
-                        height: `${Math.max(
-                          bankEntriesPercent,
-                          bankEntries > 0 ? 8 : 0,
-                        )}%`,
-                      }}
-                    />
-                  </div>
-
-                  <span className="text-xs font-semibold text-slate-600">
-                    Entradas
-                  </span>
-                </div>
-
-                <div className="flex h-full flex-col items-center justify-end gap-2">
-                  <span className="text-xs font-bold text-rose-700">
-                    {formatCurrency(bankExits)}
-                  </span>
-
-                  <div className="flex h-28 w-14 items-end overflow-hidden rounded-t-xl bg-rose-100">
-                    <div
-                      className="w-full rounded-t-xl bg-rose-500 transition-all"
-                      style={{
-                        height: `${Math.max(
-                          bankExitsPercent,
-                          bankExits > 0 ? 8 : 0,
-                        )}%`,
-                      }}
-                    />
-                  </div>
-
-                  <span className="text-xs font-semibold text-slate-600">
-                    Saídas
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* RECEBIMENTOS X DESPESAS */}
-
-            <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">
-                    Recebimentos x despesas
-                  </h3>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Comparação do financeiro no mês atual.
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-violet-50 p-2.5 text-violet-600">
-                  <TrendingUp size={19} />
-                </div>
-              </div>
-
-              <div className="mt-7 space-y-6">
-                <div>
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <span className="text-xs font-semibold text-slate-600">
-                      Recebido
-                    </span>
-
-                    <span className="text-sm font-bold text-emerald-700">
-                      {formatCurrency(received)}
-                    </span>
-                  </div>
-
-                  <div className="h-4 overflow-hidden rounded-full bg-emerald-100">
-                    <div
-                      className="h-full rounded-full bg-emerald-500 transition-all"
-                      style={{
-                        width: `${Math.max(
-                          receivedPercent,
-                          received > 0 ? 5 : 0,
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <span className="text-xs font-semibold text-slate-600">
-                      Despesas
-                    </span>
-
-                    <span className="text-sm font-bold text-rose-700">
-                      {formatCurrency(expensesPaid)}
-                    </span>
-                  </div>
-
-                  <div className="h-4 overflow-hidden rounded-full bg-rose-100">
-                    <div
-                      className="h-full rounded-full bg-rose-500 transition-all"
-                      style={{
-                        width: `${Math.max(
-                          expensesPercent,
-                          expensesPaid > 0 ? 5 : 0,
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="rounded-xl bg-slate-50 px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs font-semibold text-slate-500">
-                      Resultado do mês
-                    </span>
-
-                    <span
-                      className={`text-sm font-bold ${
-                        received - expensesPaid >= 0
-                          ? "text-emerald-700"
-                          : "text-rose-700"
-                      }`}
-                    >
-                      {formatCurrency(
-                        received -
-                          expensesPaid,
-                      )}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* CONCILIAÇÃO */}
-
-            <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">
-                    Conciliação bancária
-                  </h3>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Movimentações conferidas no mês atual.
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-amber-50 p-2.5 text-amber-600">
-                  <AlertTriangle size={19} />
-                </div>
-              </div>
-
-              <div className="mt-6 flex items-center gap-6">
-                <div
-                  className="relative flex h-32 w-32 shrink-0 items-center justify-center rounded-full"
-                  style={{
-                    background:
-                      reconciliationTotal > 0
-                        ? `conic-gradient(rgb(16 185 129) 0% ${reconciledPercent}%, rgb(251 191 36) ${reconciledPercent}% 100%)`
-                        : "conic-gradient(rgb(226 232 240) 0% 100%)",
-                  }}
-                >
-                  <div className="flex h-20 w-20 flex-col items-center justify-center rounded-full bg-white shadow-sm">
-                    <span className="text-2xl font-bold text-slate-900">
-                      {reconciliationTotal > 0
-                        ? Math.round(
-                            reconciledPercent,
-                          )
-                        : 0}
-                      %
-                    </span>
-
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                      conciliado
-                    </span>
-                  </div>
-                </div>
-
-                <div className="min-w-0 flex-1 space-y-3">
-                  <div className="flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-
-                      <span className="text-xs font-semibold text-emerald-800">
-                        Conciliadas
-                      </span>
-                    </div>
-
-                    <span className="text-base font-bold text-emerald-700">
-                      {reconciledBankTransactions}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-xl bg-amber-50 px-3 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-
-                      <span className="text-xs font-semibold text-amber-800">
-                        Pendentes
-                      </span>
-                    </div>
-
-                    <span className="text-base font-bold text-amber-700">
-                      {pendingBankReconciliations}
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      navigate(
-                        "/contas-bancarias",
-                      )
-                    }
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
-                  >
-                    Conferir movimentações
-                    <ArrowRight size={14} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
 
         {/* ========================================= */}
         {/* CONTEÚDO PRINCIPAL + LATERAL */}
@@ -921,7 +607,105 @@ export default function DashboardAdministrativo() {
           {/* ========================================= */}
 
           <aside className="space-y-6">
-<section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+            <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">
+                  Acesso rápido
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Principais rotinas administrativas.
+                </p>
+              </div>
+
+              <div className="mt-5 space-y-2">
+                <QuickAccessButton
+                  title="Financeiro"
+                  description="Contas a receber e despesas."
+                  icon={WalletCards}
+                  iconClassName="bg-indigo-50 text-indigo-600"
+                  onClick={() =>
+                    navigate(
+                      "/financeiro",
+                    )
+                  }
+                />
+
+                <QuickAccessButton
+                  title="Faturamento"
+                  description="Cobranças e recebimentos."
+                  icon={CircleDollarSign}
+                  iconClassName="bg-emerald-50 text-emerald-600"
+                  onClick={() =>
+                    navigate(
+                      "/faturamento",
+                    )
+                  }
+                />
+
+                <QuickAccessButton
+                  title="Repasses"
+                  description="Valores dos profissionais."
+                  icon={HandCoins}
+                  iconClassName="bg-amber-50 text-amber-600"
+                  onClick={() =>
+                    navigate(
+                      "/repasses",
+                    )
+                  }
+                />
+
+                <QuickAccessButton
+                  title="Despesas"
+                  description="Contas e pagamentos."
+                  icon={Banknote}
+                  iconClassName="bg-rose-50 text-rose-600"
+                  onClick={() =>
+                    navigate(
+                      "/despesas",
+                    )
+                  }
+                />
+
+                <QuickAccessButton
+                  title="Fornecedores"
+                  description="Cadastros administrativos."
+                  icon={UsersRound}
+                  iconClassName="bg-violet-50 text-violet-600"
+                  onClick={() =>
+                    navigate(
+                      "/fornecedores",
+                    )
+                  }
+                />
+
+                <QuickAccessButton
+                  title="Documentos"
+                  description="Contratos e vencimentos."
+                  icon={FileClock}
+                  iconClassName="bg-orange-50 text-orange-600"
+                  onClick={() =>
+                    navigate(
+                      "/documentos-administrativos",
+                    )
+                  }
+                />
+
+                <QuickAccessButton
+                  title="Relatórios"
+                  description="Relatórios administrativos."
+                  icon={FileBarChart}
+                  iconClassName="bg-sky-50 text-sky-600"
+                  onClick={() =>
+                    navigate(
+                      "/relatorios",
+                    )
+                  }
+                />
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
                   <AlertTriangle size={20} />
@@ -1053,6 +837,44 @@ function DashboardStatCard({
         </div>
       </div>
     </div>
+  );
+}
+
+function QuickAccessButton({
+  title,
+  description,
+  icon: Icon,
+  iconClassName,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  icon: typeof Landmark;
+  iconClassName: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-xl border border-slate-100 p-3 text-left transition hover:border-slate-200 hover:bg-slate-50"
+    >
+      <div
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClassName}`}
+      >
+        <Icon size={19} />
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-sm font-bold text-slate-800">
+          {title}
+        </p>
+
+        <p className="truncate text-xs text-slate-500">
+          {description}
+        </p>
+      </div>
+    </button>
   );
 }
 

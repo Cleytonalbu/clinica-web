@@ -118,8 +118,13 @@ function getPeriodLabel(startDate: string, endDate: string) {
 ========================================= */
 
 export default function RelatoriosAdministrativos() {
+  /*
+   * MULTIUNIDADES:
+   * o relatório administrativo usa somente os dados financeiros
+   * pertencentes à unidade atualmente selecionada.
+   */
   const {
-    activeUnitId,
+    selectedUnitIds,
   } =
     useUnit();
 
@@ -129,41 +134,60 @@ export default function RelatoriosAdministrativos() {
   const charges = useMemo(
     () =>
       getFinancialCharges().filter(
-        (charge) => charge.unitId === activeUnitId
+        (charge) =>
+          selectedUnitIds.includes(
+            charge.unitId
+          )
       ),
-    [activeUnitId]
+    [selectedUnitIds]
   );
 
   const expenses = useMemo(
     () =>
       getFinancialExpenses().filter(
-        (expense) => expense.unitId === activeUnitId
+        (expense) =>
+          selectedUnitIds.includes(
+            expense.unitId
+          )
       ),
-    [activeUnitId]
+    [selectedUnitIds]
   );
 
   const payouts = useMemo(
     () =>
       syncProfessionalPayoutsFromAppointments().filter(
-        (payout) => payout.unitId === activeUnitId
+        (payout) =>
+          selectedUnitIds.includes(
+            payout.unitId
+          )
       ),
-    [activeUnitId]
+    [selectedUnitIds]
   );
 
   const suppliers = useMemo(
     () =>
       getSuppliers().filter(
-        (supplier) => supplier.unitId === activeUnitId
+        (
+          supplier
+        ) =>
+          selectedUnitIds.includes(
+            supplier.unitId
+          )
       ),
-    [activeUnitId]
+    [selectedUnitIds]
   );
 
   const documents = useMemo(
     () =>
       getAdministrativeDocuments().filter(
-        (document) => document.unitId === activeUnitId
+        (
+          document
+        ) =>
+          selectedUnitIds.includes(
+            document.unitId
+          )
       ),
-    [activeUnitId]
+    [selectedUnitIds]
   );
 
   const periodCharges = charges.filter((charge) =>

@@ -20,9 +20,7 @@ import {
   DashboardLayout,
 } from "@/layouts/DashboardLayout";
 
-import {
-  useUnit,
-} from "@/providers/UnitContext";
+import { useUnit } from "@/providers/UnitContext";
 
 import {
   getSuppliers,
@@ -96,8 +94,12 @@ function statusClass(status: PurchaseStatus) {
 }
 
 export default function Compras() {
-  const { activeUnitId } = useUnit();
-
+  const {
+    activeUnitId,
+    selectedUnitIds,
+    isAllUnits,
+  } =
+    useUnit();
   const [requests, setRequests] = useState<PurchaseRequest[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [search, setSearch] = useState("");
@@ -108,16 +110,26 @@ export default function Compras() {
   function load() {
     setRequests(
       getPurchaseRequests().filter(
-        (request) => request.unitId === activeUnitId,
-      ),
+        (
+          request
+        ) =>
+          selectedUnitIds.includes(
+            request.unitId
+          )
+      )
     );
 
     setSuppliers(
       getSuppliers().filter(
-        (supplier) =>
-          supplier.status === "Ativo" &&
-          supplier.unitId === activeUnitId,
-      ),
+        (
+          supplier
+        ) =>
+          supplier.status ===
+            "Ativo" &&
+          selectedUnitIds.includes(
+            supplier.unitId
+          )
+      )
     );
   }
 
@@ -133,9 +145,7 @@ export default function Compras() {
         "purchase-requests-changed",
         refresh,
       );
-  }, [
-    activeUnitId,
-  ]);
+  }, [selectedUnitIds]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -178,6 +188,15 @@ export default function Compras() {
 
   function submit(event: FormEvent) {
     event.preventDefault();
+
+    if (
+      isAllUnits
+    ) {
+      window.alert(
+        "Selecione uma unidade específica para criar uma solicitação de compra."
+      );
+      return;
+    }
 
     if (!form.description.trim()) {
       window.alert("Informe o item ou descrição da compra.");
@@ -226,6 +245,15 @@ export default function Compras() {
   }
 
   function nextStatus(request: PurchaseRequest) {
+    if (
+      isAllUnits
+    ) {
+      window.alert(
+        "Na visão consolidada as compras são apenas para consulta. Selecione uma unidade para alterar o status."
+      );
+      return;
+    }
+
     if (request.status === "Solicitado") {
       updatePurchaseRequest(request.id, {
         status: "Aprovado",
@@ -271,7 +299,17 @@ export default function Compras() {
 
           <button
             type="button"
-            onClick={() => setShowForm(true)}
+            onClick={() => {
+              if (
+                isAllUnits
+              ) {
+                window.alert(
+                  "Selecione uma unidade específica para criar uma solicitação de compra."
+                );
+                return;
+              }
+              setShowForm(true);
+            }}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
           >
             <Plus size={18} />

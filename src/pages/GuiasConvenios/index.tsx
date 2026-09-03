@@ -162,7 +162,12 @@ function loteBadge(
 }
 
 export default function GuiasConvenios() {
-  const { activeUnitId } = useUnit();
+  const {
+    activeUnitId,
+    selectedUnitIds,
+    isAllUnits,
+  } =
+    useUnit();
 
   const [
     activeTab,
@@ -461,8 +466,9 @@ export default function GuiasConvenios() {
               (
                 plan
               ) =>
-                plan.unitId ===
-                  activeUnitId &&
+                selectedUnitIds.includes(
+                  plan.unitId
+                ) &&
                 plan.status ===
                   "Ativo"
             )
@@ -552,8 +558,9 @@ export default function GuiasConvenios() {
             (
               plan
             ) =>
-              plan.unitId ===
-                activeUnitId &&
+              selectedUnitIds.includes(
+                plan.unitId
+              ) &&
               plan.status ===
                 "Ativo" &&
               (
@@ -789,7 +796,7 @@ export default function GuiasConvenios() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((item) => {
-      const matchesUnit = item.unitId === activeUnitId;
+      const matchesUnit = selectedUnitIds.includes(item.unitId);
       const matchesCompetencia = !competencia || item.competencia === competencia;
       const matchesStatus = status === "Todos" || item.status === status;
       const matchesSearch =
@@ -800,7 +807,7 @@ export default function GuiasConvenios() {
         item.numeroGuia.toLowerCase().includes(q);
       return matchesUnit && matchesCompetencia && matchesStatus && matchesSearch;
     });
-  }, [items, search, competencia, status, activeUnitId]);
+  }, [items, search, competencia, status, activeUnitId, selectedUnitIds]);
 
   const availableGroups =
     useMemo(
@@ -825,8 +832,9 @@ export default function GuiasConvenios() {
         items
           .filter(
             (item) =>
-              item.unitId ===
-                activeUnitId &&
+              selectedUnitIds.includes(
+                item.unitId
+              ) &&
               item.status ===
                 "Pendente de envio" &&
               !item.loteId &&
@@ -887,6 +895,7 @@ export default function GuiasConvenios() {
       [
         items,
         activeUnitId,
+        selectedUnitIds,
         competencia,
       ]
     );
@@ -902,8 +911,9 @@ export default function GuiasConvenios() {
         return lotes.filter(
           (lote) => {
             const matchesUnit =
-              lote.unitId ===
-              activeUnitId;
+              selectedUnitIds.includes(
+              lote.unitId
+            );
 
             const matchesCompetencia =
               !competencia ||
@@ -944,6 +954,7 @@ export default function GuiasConvenios() {
         search,
         competencia,
         activeUnitId,
+        selectedUnitIds,
       ]
     );
 
@@ -955,8 +966,9 @@ export default function GuiasConvenios() {
             (
               item
             ) =>
-              item.unitId ===
-                activeUnitId &&
+              selectedUnitIds.includes(
+                item.unitId
+              ) &&
               (
                 (
                   item.valorGlosado ??
@@ -990,6 +1002,7 @@ export default function GuiasConvenios() {
       [
         items,
         activeUnitId,
+        selectedUnitIds,
         competencia,
       ]
     );
@@ -1001,12 +1014,14 @@ export default function GuiasConvenios() {
           (
             recurso
           ) =>
-            recurso.unitId ===
-            activeUnitId
+            selectedUnitIds.includes(
+            recurso.unitId
+          )
         ),
       [
         recursosGlosa,
         activeUnitId,
+        selectedUnitIds,
       ]
     );
 
@@ -1105,9 +1120,12 @@ export default function GuiasConvenios() {
       () => {
         const base =
           lotes.filter(
-            (lote) =>
-              lote.unitId ===
-                activeUnitId &&
+            (
+              lote
+            ) =>
+              selectedUnitIds.includes(
+                lote.unitId
+              ) &&
               (
                 !competencia ||
                 lote.competencia ===
@@ -1156,6 +1174,7 @@ export default function GuiasConvenios() {
       [
         lotes,
         activeUnitId,
+        selectedUnitIds,
         competencia,
       ]
     );
@@ -1163,7 +1182,7 @@ export default function GuiasConvenios() {
   const summary = useMemo(() => {
     const base = items.filter(
       (item) =>
-        item.unitId === activeUnitId &&
+        selectedUnitIds.includes(item.unitId) &&
         (!competencia || item.competencia === competencia)
     );
 
@@ -1179,10 +1198,21 @@ export default function GuiasConvenios() {
         .filter((item) => item.status === "Pago")
         .reduce((sum, item) => sum + item.valorTotal, 0),
     };
-  }, [items, competencia, activeUnitId]);
+  }, [items, competencia, activeUnitId, selectedUnitIds]);
 
   function submit(e: FormEvent) {
     e.preventDefault();
+
+    if (
+      isAllUnits
+    ) {
+      alert(
+        "Selecione uma unidade específica para cadastrar uma nova guia."
+      );
+
+      return;
+    }
+
     const qtd = Number(form.quantidadeSessoes);
     const unit = Number(form.valorUnitario.replace(/\./g, "").replace(",", "."));
 
@@ -1251,6 +1281,16 @@ export default function GuiasConvenios() {
     convenio: string,
     competenciaLote: string
   ) {
+    if (
+      isAllUnits
+    ) {
+      window.alert(
+        "Selecione uma unidade específica para criar um lote de convênio."
+      );
+
+      return;
+    }
+
     try {
       const lote =
         createLoteConvenio({
@@ -2225,11 +2265,21 @@ export default function GuiasConvenios() {
           </div>
 
           <button
-            onClick={() =>
+            onClick={() => {
+              if (
+                isAllUnits
+              ) {
+                window.alert(
+                  "Selecione uma unidade específica para cadastrar uma nova guia."
+                );
+
+                return;
+              }
+
               setOpen(
                 true
-              )
-            }
+              );
+            }}
             className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white"
           >
             <Plus
@@ -2281,16 +2331,20 @@ export default function GuiasConvenios() {
 
               {lotes.filter(
                 (lote) =>
-                  lote.unitId ===
-                  activeUnitId
+                  selectedUnitIds.includes(
+                  lote.unitId
+                )
               ).length >
                 0 && (
                 <span className="ml-2 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700">
                   {
                     lotes.filter(
-                      (lote) =>
-                        lote.unitId ===
-                        activeUnitId
+                      (
+                        lote
+                      ) =>
+                        selectedUnitIds.includes(
+                          lote.unitId
+                        )
                     ).length
                   }
                 </span>

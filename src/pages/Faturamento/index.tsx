@@ -173,8 +173,14 @@ export default function Faturamento() {
   const navigate =
     useNavigate();
 
+  /*
+   * MULTIUNIDADES:
+   * O Administrativo pode visualizar uma unidade específica
+   * ou consolidar todas as unidades às quais possui acesso.
+   * Os filtros e o visual existentes permanecem inalterados.
+   */
   const {
-    activeUnitId,
+    selectedUnitIds,
   } =
     useUnit();
 
@@ -216,6 +222,11 @@ export default function Faturamento() {
       "Todos"
     );
 
+  /*
+   * Primeiro isolamos os lançamentos da unidade.
+   * Depois os filtros já existentes continuam funcionando
+   * exatamente da mesma forma sobre esses lançamentos.
+   */
   const unitCharges =
     useMemo(
       () =>
@@ -223,12 +234,13 @@ export default function Faturamento() {
           (
             charge
           ) =>
-            charge.unitId ===
-            activeUnitId
+            selectedUnitIds.includes(
+              charge.unitId
+            )
         ),
       [
         charges,
-        activeUnitId,
+        selectedUnitIds,
       ]
     );
 
