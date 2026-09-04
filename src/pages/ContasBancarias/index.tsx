@@ -6,9 +6,15 @@ import {
 } from "react";
 
 import {
+  useNavigate,
+} from "react-router-dom";
+
+import {
+  Eye,
   Landmark,
   Plus,
   Search,
+  Upload,
   WalletCards,
   X,
 } from "lucide-react";
@@ -78,6 +84,8 @@ function statusClass(
 }
 
 export default function ContasBancarias() {
+  const navigate = useNavigate();
+
   const {
     activeUnitId,
     selectedUnitIds,
@@ -270,28 +278,43 @@ export default function ContasBancarias() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (
-                isAllUnits
-              ) {
-                window.alert(
-                  "Selecione uma unidade específica para cadastrar uma nova conta bancária."
-                );
-
-                return;
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  "/financeiro/importar-extrato",
+                )
               }
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <Upload size={18} />
+              Importar extrato
+            </button>
 
-              setShowForm(
-                true
-              );
-            }}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
-          >
-            <Plus size={18} />
-            Nova conta
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (
+                  isAllUnits
+                ) {
+                  window.alert(
+                    "Selecione uma unidade específica para cadastrar uma nova conta bancária."
+                  );
+
+                  return;
+                }
+
+                setShowForm(
+                  true
+                );
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
+            >
+              <Plus size={18} />
+              Nova conta
+            </button>
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -448,6 +471,19 @@ export default function ContasBancarias() {
                       </td>
 
                       <td className="whitespace-nowrap px-4 py-4">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigate(
+                              `/contas-bancarias/${account.id}/movimentacoes`,
+                            )
+                          }
+                          className="mr-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                        >
+                          <Eye size={15} />
+                          Ver movimentações
+                        </button>
+
                         <button
                           type="button"
                           onClick={() =>

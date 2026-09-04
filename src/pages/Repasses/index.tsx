@@ -35,6 +35,14 @@ import {
   type ProfessionalPayout,
 } from "@/pages/Financeiro/professionalPayoutStorage";
 
+import {
+  getActiveProfessionals,
+} from "@/pages/Configuracoes/settingsStorage";
+
+import {
+  professionalWorksAtUnit,
+} from "@/pages/Configuracoes/professionalUnitStorage";
+
 /* =========================================
    TIPOS
 ========================================= */
@@ -57,19 +65,52 @@ interface ProfessionalSummary {
    HELPERS
 ========================================= */
 
-function getCurrentCompetence() {
-  const now =
-    new Date();
+function getTodayValue() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
-  const month =
-    String(
-      now.getMonth() + 1
-    ).padStart(
-      2,
-      "0"
-    );
+type PeriodMode = "Dia" | "Semana" | "Mês";
 
-  return `${now.getFullYear()}-${month}`;
+function parseLocalDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, (month || 1) - 1, day || 1, 12, 0, 0, 0);
+}
+
+function toDateValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getPeriodBounds(mode: PeriodMode, referenceDate: string) {
+  const reference = parseLocalDate(referenceDate || getTodayValue());
+  const start = new Date(reference);
+  const end = new Date(reference);
+
+  if (mode === "Semana") {
+    const day = reference.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    start.setDate(reference.getDate() + diffToMonday);
+    end.setTime(start.getTime());
+    end.setDate(start.getDate() + 6);
+  } else if (mode === "Mês") {
+    start.setDate(1);
+    end.setMonth(start.getMonth() + 1, 0);
+  }
+
+  return { start: toDateValue(start), end: toDateValue(end) };
+}
+
+function getPeriodLabel(mode: PeriodMode, referenceDate: string) {
+  const bounds = getPeriodBounds(mode, referenceDate);
+  if (mode === "Dia") return formatDate(bounds.start);
+  if (mode === "Semana") return `${formatDate(bounds.start)} a ${formatDate(bounds.end)}`;
+  return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(parseLocalDate(referenceDate));
 }
 
 function formatDate(
@@ -105,15 +146,6 @@ function formatDate(
     "pt-BR"
   ).format(
     date
-  );
-}
-
-function getPayoutCompetence(
-  payout: ProfessionalPayout
-) {
-  return payout.serviceDate.slice(
-    0,
-    7
   );
 }
 
@@ -233,12 +265,19 @@ export default function Repasses() {
     );
 
   const [
-    competence,
-    setCompetence,
-  ] =
-    useState(
-      getCurrentCompetence()
-    );
+    periodMode,
+    setPeriodMode,
+  ] = useState<PeriodMode>("Dia");
+
+  const [
+    referenceDate,
+    setReferenceDate,
+  ] = useState(getTodayValue());
+
+  const [
+    professionalFilter,
+    setProfessionalFilter,
+  ] = useState("Todos");
 
   const [
     search,
@@ -279,22 +318,66 @@ export default function Repasses() {
       ]
     );
 
+  const periodBounds =
+    useMemo(
+      () => getPeriodBounds(periodMode, referenceDate),
+      [periodMode, referenceDate]
+    );
+
+  const professionalOptions =
+    useMemo(
+      () =>
+        getActiveProfessionals()
+          .filter(
+            (professional) =>
+              isAllUnits ||
+              selectedUnitIds.some(
+                (unitId) =>
+                  professionalWorksAtUnit(
+                    professional.id,
+                    unitId
+                  )
+              )
+          )
+          .map(
+            (professional) => ({
+              id: professional.id,
+              name: professional.name,
+              specialty: professional.specialty,
+            })
+          )
+          .sort(
+            (a, b) =>
+              a.name.localeCompare(
+                b.name,
+                "pt-BR"
+              )
+          ),
+      [
+        isAllUnits,
+        selectedUnitIds,
+      ]
+    );
+
   const competencePayouts =
     useMemo(
       () =>
-        scopedPayouts.filter(
-          (
-            payout
-          ) =>
-            !competence ||
-            getPayoutCompetence(
-              payout
-            ) ===
-              competence
-        ),
+        scopedPayouts.filter((payout) => {
+          const serviceDate = payout.serviceDate.slice(0, 10);
+          const matchesPeriod =
+            serviceDate >= periodBounds.start &&
+            serviceDate <= periodBounds.end;
+          const matchesProfessional =
+            professionalFilter === "Todos" ||
+            payout.professional === professionalFilter;
+
+          return matchesPeriod && matchesProfessional;
+        }),
       [
         scopedPayouts,
-        competence,
+        periodBounds.start,
+        periodBounds.end,
+        professionalFilter,
       ]
     );
 
@@ -663,129 +746,130 @@ export default function Repasses() {
         </div>
 
         {/* ===================================== */}
-        {/* RESUMO */}
+        {/* FILTROS NO TOPO */}
         {/* ===================================== */}
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard
-            title="Total da competência"
-            value={formatCurrency(
-              totals.total
-            )}
-            description={`${competencePayouts.length} atendimento${
-              competencePayouts.length ===
-              1
-                ? ""
-                : "s"
-            } realizado${
-              competencePayouts.length ===
-              1
-                ? ""
-                : "s"
-            }`}
-            icon={CircleDollarSign}
-          />
+        <div className="rounded-2xl border border-violet-100 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Período dos repasses</p>
+              <p className="mt-1 text-xs text-gray-500">{getPeriodLabel(periodMode, referenceDate)}</p>
+            </div>
 
-          <SummaryCard
-            title="Repasses pagos"
-            value={formatCurrency(
-              totals.paid
-            )}
-            description="Pagamentos já confirmados"
-            icon={CheckCircle2}
-          />
+            <div className="inline-flex w-fit rounded-xl bg-gray-100 p-1">
+              {(["Dia", "Semana", "Mês"] as PeriodMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setPeriodMode(mode)}
+                  className={`rounded-lg px-5 py-2 text-sm font-semibold transition ${
+                    periodMode === mode
+                      ? "bg-violet-600 text-white shadow-sm"
+                      : "text-gray-600 hover:bg-white hover:text-violet-700"
+                  }`}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+          </div>
 
-          <SummaryCard
-            title="Repasses pendentes"
-            value={formatCurrency(
-              totals.pending
-            )}
-            description="Valor ainda a pagar"
-            icon={Clock3}
-          />
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[190px_240px_1fr_180px]">
+            <div className="relative">
+              <CalendarDays
+                size={18}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-500"
+              />
+              <input
+                type="date"
+                value={referenceDate}
+                onChange={(event) => setReferenceDate(event.target.value)}
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-3 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              />
+            </div>
 
-          <SummaryCard
-            title="Profissionais"
-            value={String(
-              totals.professionals
-            )}
-            description="Com atendimentos na competência"
-            icon={Users}
-          />
-        </div>
+            <select
+              value={professionalFilter}
+              onChange={(event) => setProfessionalFilter(event.target.value)}
+              className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+            >
+              <option value="Todos">Todos os profissionais</option>
+              {professionalOptions.map((professional) => (
+                <option
+                  key={professional.id}
+                  value={professional.name}
+                >
+                  {professional.name}
+                  {professional.specialty
+                    ? ` — ${professional.specialty}`
+                    : ""}
+                </option>
+              ))}
+            </select>
 
-        {/* ===================================== */}
-        {/* FILTROS */}
-        {/* ===================================== */}
-
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="grid gap-4 lg:grid-cols-[1fr_190px_180px]">
             <div className="relative">
               <Search
                 size={18}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
               />
-
               <input
                 type="text"
                 value={search}
-                onChange={(
-                  event
-                ) =>
-                  setSearch(
-                    event.target.value
-                  )
-                }
+                onChange={(event) => setSearch(event.target.value)}
                 placeholder="Buscar profissional ou especialidade..."
-                className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-4 text-sm outline-none transition focus:border-[#e54747] focus:ring-2 focus:ring-[#e54747]/10"
-              />
-            </div>
-
-            <div className="relative">
-              <CalendarDays
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-
-              <input
-                type="month"
-                value={competence}
-                onChange={(
-                  event
-                ) =>
-                  setCompetence(
-                    event.target.value
-                  )
-                }
-                className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-3 text-sm outline-none transition focus:border-[#e54747] focus:ring-2 focus:ring-[#e54747]/10"
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-4 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
               />
             </div>
 
             <select
               value={status}
-              onChange={(
-                event
-              ) =>
-                setStatus(
-                  event.target.value
-                )
-              }
-              className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none transition focus:border-[#e54747] focus:ring-2 focus:ring-[#e54747]/10"
+              onChange={(event) => setStatus(event.target.value)}
+              className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
             >
-              <option value="Todos">
-                Todos os status
-              </option>
-              <option value="Pendente">
-                Pendente
-              </option>
-              <option value="Parcial">
-                Parcial
-              </option>
-              <option value="Pago">
-                Pago
-              </option>
+              <option value="Todos">Todos os status</option>
+              <option value="Pendente">Pendente</option>
+              <option value="Parcial">Parcial</option>
+              <option value="Pago">Pago</option>
             </select>
           </div>
+        </div>
+
+        {/* ===================================== */}
+        {/* RESUMO */}
+        {/* ===================================== */}
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard
+            title={periodMode === "Dia" ? "Total do dia" : periodMode === "Semana" ? "Total da semana" : "Total do mês"}
+            value={formatCurrency(totals.total)}
+            description={`${competencePayouts.length} atendimento${competencePayouts.length === 1 ? "" : "s"} realizado${competencePayouts.length === 1 ? "" : "s"}`}
+            icon={CircleDollarSign}
+            tone="violet"
+          />
+
+          <SummaryCard
+            title="Repasses pagos"
+            value={formatCurrency(totals.paid)}
+            description="Pagamentos já confirmados"
+            icon={CheckCircle2}
+            tone="emerald"
+          />
+
+          <SummaryCard
+            title="Repasses pendentes"
+            value={formatCurrency(totals.pending)}
+            description="Valor ainda a pagar"
+            icon={Clock3}
+            tone="amber"
+          />
+
+          <SummaryCard
+            title="Profissionais"
+            value={String(totals.professionals)}
+            description="Com atendimentos no período"
+            icon={Users}
+            tone="blue"
+          />
         </div>
 
         {/* ===================================== */}
@@ -1126,33 +1210,34 @@ function SummaryCard({
   value,
   description,
   icon: Icon,
+  tone = "violet",
 }: {
   title: string;
   value: string;
   description: string;
   icon: typeof CircleDollarSign;
+  tone?: "violet" | "emerald" | "amber" | "blue";
 }) {
+  const tones = {
+    violet: { card: "border-violet-100 bg-violet-50/40", icon: "bg-violet-100 text-violet-700" },
+    emerald: { card: "border-emerald-100 bg-emerald-50/40", icon: "bg-emerald-100 text-emerald-700" },
+    amber: { card: "border-amber-100 bg-amber-50/40", icon: "bg-amber-100 text-amber-700" },
+    blue: { card: "border-blue-100 bg-blue-50/40", icon: "bg-blue-100 text-blue-700" },
+  } as const;
+
+  const selectedTone = tones[tone];
+
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+    <div className={`rounded-2xl border p-5 shadow-sm ${selectedTone.card}`}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-gray-500">
-            {title}
-          </p>
-
-          <p className="mt-2 text-2xl font-bold text-gray-900">
-            {value}
-          </p>
-
-          <p className="mt-1 text-xs text-gray-500">
-            {description}
-          </p>
+          <p className="text-sm font-medium text-gray-600">{title}</p>
+          <p className="mt-2 text-2xl font-bold text-gray-900">{value}</p>
+          <p className="mt-1 text-xs text-gray-500">{description}</p>
         </div>
 
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-[#e54747]">
-          <Icon
-            size={21}
-          />
+        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${selectedTone.icon}`}>
+          <Icon size={21} />
         </div>
       </div>
     </div>
