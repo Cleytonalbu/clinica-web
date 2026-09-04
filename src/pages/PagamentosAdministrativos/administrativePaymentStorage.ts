@@ -6,6 +6,7 @@ export type AdministrativePaymentType =
   | "Prestação de serviço"
   | "Diária"
   | "Benefício"
+  | "Férias"
   | "Outro";
 
 export type AdministrativePaymentStatus =
@@ -31,6 +32,9 @@ export interface AdministrativePayment {
   paymentDate?: string;
   paymentMethod?: string;
   notes?: string;
+  /* Vínculos opcionais para pagamentos gerados por outros módulos. */
+  sourceLeaveId?: string;
+  financialExpenseId?: number;
   createdAt: string;
   updatedAt: string;
 }

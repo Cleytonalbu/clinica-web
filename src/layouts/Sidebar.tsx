@@ -278,6 +278,14 @@ const menuItems: MenuItem[] = [
   },
 
   {
+    id: "auditoria",
+    label: "Auditoria",
+    icon: ClipboardList,
+    path: "/auditoria",
+    module: "financial",
+  },
+
+  {
     id: "relatorios-administrativos",
     label: "Relatórios",
     icon: BarChart3,
@@ -347,6 +355,7 @@ const profileMenuAccess: Record<
     "pagamentos-administrativos",
     "ferias-afastamentos",
     "documentos-administrativos",
+    "auditoria",
     "relatorios-administrativos",
     "configuracoes",
   ],

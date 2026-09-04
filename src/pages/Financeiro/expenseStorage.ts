@@ -1,3 +1,5 @@
+import { markAdministrativePaymentAsPaid } from "@/pages/PagamentosAdministrativos/administrativePaymentStorage";
+
 export type ExpenseStatus =
   | "Pendente"
   | "Pago"
@@ -72,6 +74,10 @@ export interface FinancialExpense {
   bankAccountId?: string;
 
   bankAccountName?: string;
+
+  /* Vínculos opcionais com módulos administrativos. */
+  sourceAdministrativePaymentId?: string;
+  sourceLeaveId?: string;
 
   createdAt: string;
 }
@@ -327,6 +333,27 @@ export function payFinancialExpense(
         data.bankAccountName,
     }
   );
+
+  /*
+   * INTEGRAÇÃO COM PAGAMENTOS ADMINISTRATIVOS
+   *
+   * Quando uma despesa tiver sido gerada a partir de um
+   * pagamento administrativo (ex.: férias), a confirmação
+   * do pagamento em Despesas também quita automaticamente
+   * o pagamento administrativo vinculado.
+   *
+   * Dessa forma:
+   * Despesas = Pago
+   * Pagamentos Administrativos = Pago
+   * Férias = Pago
+   */
+  if (expense.sourceAdministrativePaymentId) {
+    markAdministrativePaymentAsPaid(
+      expense.sourceAdministrativePaymentId,
+      data.paymentDate,
+      data.paymentMethod
+    );
+  }
 }
 
 /* =========================================
