@@ -6,7 +6,6 @@ import type {
   EvolutionMaterialFormData,
   EvolutionObjectiveFormData,
   NutritionEvolutionData,
-  PhysiotherapyEvolutionData,
   ReferralPriority,
   SessionResult,
 } from "@/components/pacientes/profile/evolutions/evolutionForm.types";
@@ -31,6 +30,12 @@ export interface StoredEvolutionAttachment {
   type: string;
 
   size: number;
+
+  /**
+   * Pasta do prontuário onde o anexo deve aparecer.
+   * Opcional para preservar anexos antigos, que continuam em "Sem pasta".
+   */
+  folderId?: string;
 }
 
 export interface StoredEvolution {
@@ -64,9 +69,6 @@ export interface StoredEvolution {
 
   nutrition:
     NutritionEvolutionData;
-
-  physiotherapy:
-    PhysiotherapyEvolutionData;
 
   writtenEvolution: string;
 
@@ -141,11 +143,6 @@ export interface CreateEvolutionData {
   nutrition?:
     Partial<
       NutritionEvolutionData
-    >;
-
-  physiotherapy?:
-    Partial<
-      PhysiotherapyEvolutionData
     >;
 
   writtenEvolution?: string;
@@ -276,19 +273,13 @@ export function getEvolutions():
                 evolution.nutrition
               );
 
-            const physiotherapy =
-              normalizePhysiotherapy(
-                evolution.physiotherapy
-              );
-
             if (
               normalizedUnitId !==
                 evolution.unitId ||
               !Array.isArray(
                 evolution.materials
               ) ||
-              !evolution.nutrition ||
-              !evolution.physiotherapy
+              !evolution.nutrition
             ) {
               changed =
                 true;
@@ -300,7 +291,6 @@ export function getEvolutions():
                 normalizedUnitId,
               materials,
               nutrition,
-              physiotherapy,
             };
           }
         );
@@ -525,11 +515,6 @@ export function createEvolution(
         data.nutrition
       ),
 
-    physiotherapy:
-      normalizePhysiotherapy(
-        data.physiotherapy
-      ),
-
     writtenEvolution:
       cleanText(
         data.writtenEvolution
@@ -704,14 +689,6 @@ export function updateEvolution(
             data.nutrition
           )
         : existing.nutrition,
-
-    physiotherapy:
-      data.physiotherapy !==
-      undefined
-        ? normalizePhysiotherapy(
-            data.physiotherapy
-          )
-        : existing.physiotherapy,
 
     writtenEvolution:
       data.writtenEvolution !==
@@ -1264,99 +1241,6 @@ function normalizeNutrition(
     nextSessionPlan:
       cleanText(
         nutrition?.nextSessionPlan
-      ),
-  };
-}
-
-/* =========================================
-   NORMALIZAR DADOS FISIOTERAPÊUTICOS
-========================================= */
-
-function normalizePhysiotherapy(
-  physiotherapy:
-    Partial<
-      PhysiotherapyEvolutionData
-    > |
-    undefined
-):
-  PhysiotherapyEvolutionData {
-  return {
-    painLevel:
-      physiotherapy?.painLevel ??
-      "",
-
-    painLocation:
-      cleanText(
-        physiotherapy?.painLocation
-      ),
-
-    mobility:
-      cleanText(
-        physiotherapy?.mobility
-      ),
-
-    rangeOfMotion:
-      cleanText(
-        physiotherapy?.rangeOfMotion
-      ),
-
-    muscleStrength:
-      cleanText(
-        physiotherapy?.muscleStrength
-      ),
-
-    balance:
-      cleanText(
-        physiotherapy?.balance
-      ),
-
-    coordination:
-      cleanText(
-        physiotherapy?.coordination
-      ),
-
-    gait:
-      cleanText(
-        physiotherapy?.gait
-      ),
-
-    posture:
-      cleanText(
-        physiotherapy?.posture
-      ),
-
-    functionalLevel:
-      physiotherapy?.functionalLevel ??
-      "",
-
-    functionalActivities:
-      cleanText(
-        physiotherapy?.functionalActivities
-      ),
-
-    techniquesApplied:
-      cleanText(
-        physiotherapy?.techniquesApplied
-      ),
-
-    resourcesUsed:
-      cleanText(
-        physiotherapy?.resourcesUsed
-      ),
-
-    patientResponse:
-      cleanText(
-        physiotherapy?.patientResponse
-      ),
-
-    familyGuidance:
-      cleanText(
-        physiotherapy?.familyGuidance
-      ),
-
-    nextSessionPlan:
-      cleanText(
-        physiotherapy?.nextSessionPlan
       ),
   };
 }

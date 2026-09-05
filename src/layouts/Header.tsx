@@ -35,6 +35,15 @@ import {
   userCanAccessModule,
 } from "@/auth/permissions";
 
+import {
+  WEB_NOTIFICATIONS_CHANGED_EVENT,
+  getWebNotificationsForUser,
+  markAllWebNotificationsAsReadForUser,
+  markWebNotificationAsRead,
+  type WebNotification,
+  type WebNotificationRecipientProfile,
+} from "@/components/common/webNotificationStorage";
+
 /* =========================================
    TIPOS
 ========================================= */
@@ -60,6 +69,12 @@ interface HeaderNotification {
     | "payment"
     | "patient"
     | "system";
+
+  route?:
+    string;
+
+  dynamic?:
+    boolean;
 }
 
 /* =========================================
@@ -173,6 +188,84 @@ const initialNotifications:
    COMPONENTE
 ========================================= */
 
+
+function formatNotificationTime(
+  value:
+    string
+) {
+  const date =
+    new Date(
+      value
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  const diffMs =
+    Date.now() -
+    date.getTime();
+
+  const diffMinutes =
+    Math.max(
+      0,
+      Math.floor(
+        diffMs /
+        60000
+      )
+    );
+
+  if (
+    diffMinutes <
+    1
+  ) {
+    return "agora";
+  }
+
+  if (
+    diffMinutes <
+    60
+  ) {
+    return `há ${diffMinutes} min`;
+  }
+
+  const diffHours =
+    Math.floor(
+      diffMinutes /
+      60
+    );
+
+  if (
+    diffHours <
+    24
+  ) {
+    return `há ${diffHours} h`;
+  }
+
+  return new Intl.DateTimeFormat(
+    "pt-BR",
+    {
+      day:
+        "2-digit",
+
+      month:
+        "2-digit",
+
+      hour:
+        "2-digit",
+
+      minute:
+        "2-digit",
+    }
+  ).format(
+    date
+  );
+}
+
 export function Header() {
   const navigate =
     useNavigate();
@@ -219,6 +312,16 @@ export function Header() {
       HeaderNotification[]
     >(
       initialNotifications
+    );
+
+  const [
+    dynamicNotifications,
+    setDynamicNotifications,
+  ] =
+    useState<
+      WebNotification[]
+    >(
+      []
     );
 
   const userMenuRef =
@@ -282,23 +385,115 @@ export function Header() {
     []
   );
 
+  const notificationProfile =
+    user?.profile as
+      WebNotificationRecipientProfile |
+      undefined;
+
+  const notificationName =
+    user?.professionalName ??
+    user?.name ??
+    "";
+
+  useEffect(
+    () => {
+      if (
+        !notificationProfile
+      ) {
+        setDynamicNotifications(
+          []
+        );
+
+        return;
+      }
+
+      function refreshDynamicNotifications() {
+        setDynamicNotifications(
+          getWebNotificationsForUser(
+            notificationProfile,
+            notificationName
+          )
+        );
+      }
+
+      refreshDynamicNotifications();
+
+      window.addEventListener(
+        WEB_NOTIFICATIONS_CHANGED_EVENT,
+        refreshDynamicNotifications
+      );
+
+      window.addEventListener(
+        "storage",
+        refreshDynamicNotifications
+      );
+
+      return () => {
+        window.removeEventListener(
+          WEB_NOTIFICATIONS_CHANGED_EVENT,
+          refreshDynamicNotifications
+        );
+
+        window.removeEventListener(
+          "storage",
+          refreshDynamicNotifications
+        );
+      };
+    },
+    [
+      notificationProfile,
+      notificationName,
+    ]
+  );
+
+  const visibleNotifications:
+    HeaderNotification[] = [
+      ...dynamicNotifications.map(
+        (
+          notification
+        ) => ({
+          id:
+            notification.id,
+
+          title:
+            notification.title,
+
+          description:
+            notification.description,
+
+          time:
+            formatNotificationTime(
+              notification.createdAt
+            ),
+
+          read:
+            notification.read,
+
+          type:
+            "system" as const,
+
+          route:
+            notification.route,
+
+          dynamic:
+            true,
+        })
+      ),
+
+      ...notifications,
+    ];
+
   /* =======================================
      NOTIFICAÇÕES NÃO LIDAS
   ======================================= */
 
   const unreadCount =
-    useMemo(
-      () =>
-        notifications.filter(
-          (
-            notification
-          ) =>
-            !notification.read
-        ).length,
-      [
-        notifications,
-      ]
-    );
+    visibleNotifications.filter(
+      (
+        notification
+      ) =>
+        !notification.read
+    ).length;
 
   /* =======================================
      PRIMEIRO NOME
@@ -371,31 +566,60 @@ export function Header() {
           })
         )
     );
+
+    if (
+      notificationProfile
+    ) {
+      markAllWebNotificationsAsReadForUser(
+        notificationProfile,
+        notificationName
+      );
+    }
   }
 
   function handleMarkAsRead(
-    id:
-      number
+    notification:
+      HeaderNotification
   ) {
-    setNotifications(
-      (
-        current
-      ) =>
-        current.map(
-          (
-            notification
-          ) =>
-            notification.id ===
-            id
-              ? {
-                  ...notification,
+    if (
+      notification.dynamic
+    ) {
+      markWebNotificationAsRead(
+        notification.id
+      );
+    } else {
+      setNotifications(
+        (
+          current
+        ) =>
+          current.map(
+            (
+              item
+            ) =>
+              item.id ===
+              notification.id
+                ? {
+                    ...item,
 
-                  read:
-                    true,
-                }
-              : notification
-        )
-    );
+                    read:
+                      true,
+                  }
+                : item
+          )
+      );
+    }
+
+    if (
+      notification.route
+    ) {
+      setNotificationsOpen(
+        false
+      );
+
+      navigate(
+        notification.route
+      );
+    }
   }
 
   /* =======================================
@@ -821,7 +1045,7 @@ export function Header() {
 
               {/* LISTA */}
 
-              {notifications.length >
+              {visibleNotifications.length >
               0 ? (
                 <>
                   <div
@@ -830,7 +1054,7 @@ export function Header() {
                       overflow-y-auto
                     "
                   >
-                    {notifications.map(
+                    {visibleNotifications.map(
                       (
                         notification
                       ) => (
@@ -841,7 +1065,7 @@ export function Header() {
                           type="button"
                           onClick={() =>
                             handleMarkAsRead(
-                              notification.id
+                              notification
                             )
                           }
                           className={`

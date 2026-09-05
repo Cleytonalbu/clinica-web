@@ -8,6 +8,7 @@ import {
   FileImage,
   FileText,
   FolderOpen,
+  FolderPlus,
   MoreVertical,
   Plus,
   Search,
@@ -43,6 +44,16 @@ import {
 import {
   getEvolutionsByPatientId,
 } from "@/pages/Pacientes/evolutionStorage";
+
+import {
+  countDocumentsInPatientFolder,
+  createPatientDocumentFolder,
+  deletePatientDocumentFolder,
+  getPatientDocumentFolderId,
+  getPatientDocumentFolders,
+  movePatientDocumentToFolder,
+  renamePatientDocumentFolder,
+} from "@/pages/Pacientes/patientDocumentFolderStorage";
 
 /* =========================================
    TIPOS DE EXIBIÇÃO
@@ -85,6 +96,9 @@ type DisplayDocument = {
     number;
 
   attachmentId?:
+    string;
+
+  folderId?:
     string;
 };
 
@@ -137,6 +151,38 @@ export function PatientDocuments() {
     );
 
   const [
+    selectedFolder,
+    setSelectedFolder,
+  ] =
+    useState<string>(
+      "all"
+    );
+
+  const [
+    uploadFolderId,
+    setUploadFolderId,
+  ] =
+    useState<string>(
+      ""
+    );
+
+  const [
+    createFolderOpen,
+    setCreateFolderOpen,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    newFolderName,
+    setNewFolderName,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
     feedback,
     setFeedback,
   ] =
@@ -182,6 +228,9 @@ export function PatientDocuments() {
 
   const canDelete =
     isGestor;
+
+  const canManageFolders =
+    canUpload;
 
   /* =======================================
      TEXTO DE UPLOAD
@@ -305,6 +354,9 @@ export function PatientDocuments() {
 
                 attachmentId:
                   attachment.id,
+
+                folderId:
+                  attachment.folderId,
               })
             )
         );
@@ -356,6 +408,48 @@ export function PatientDocuments() {
     );
 
   /* =======================================
+     PASTAS DO PACIENTE
+  ======================================= */
+
+  const folders =
+    useMemo(
+      () => {
+        void refreshKey;
+
+        if (
+          !Number.isFinite(
+            patientId
+          ) ||
+          patientId <=
+            0
+        ) {
+          return [];
+        }
+
+        return getPatientDocumentFolders(
+          patientId
+        );
+      },
+      [
+        patientId,
+        refreshKey,
+      ]
+    );
+
+  function getDocumentFolderId(
+    document:
+      DisplayDocument
+  ) {
+    return (
+      document.folderId ||
+      getPatientDocumentFolderId(
+        patientId,
+        document.key
+      )
+    );
+  }
+
+  /* =======================================
      FILTROS
   ======================================= */
 
@@ -396,9 +490,26 @@ export function PatientDocuments() {
               document.category ===
                 category;
 
+            const documentFolderId =
+              getDocumentFolderId(
+                document
+              );
+
+            const matchesFolder =
+              selectedFolder ===
+                "all" ||
+              (
+                selectedFolder ===
+                  "unfiled" &&
+                !documentFolderId
+              ) ||
+              documentFolderId ===
+                selectedFolder;
+
             return (
               matchesSearch &&
-              matchesCategory
+              matchesCategory &&
+              matchesFolder
             );
           }
         );
@@ -407,6 +518,9 @@ export function PatientDocuments() {
         documents,
         search,
         category,
+        patientId,
+        selectedFolder,
+        refreshKey,
       ]
     );
 
@@ -437,6 +551,327 @@ export function PatientDocuments() {
         current
       ) =>
         current + 1
+    );
+  }
+
+  function handleCreateFolder() {
+    if (
+      !canManageFolders
+    ) {
+      return;
+    }
+
+    setNewFolderName(
+      ""
+    );
+
+    setCreateFolderOpen(
+      true
+    );
+  }
+
+  function handleConfirmCreateFolder() {
+    const name =
+      newFolderName.trim();
+
+    if (
+      !name
+    ) {
+      showFeedback(
+        "Informe o nome da pasta.",
+        "error"
+      );
+
+      return;
+    }
+
+    try {
+      const folder =
+        createPatientDocumentFolder(
+          patientId,
+          name,
+          user?.name ||
+            "Profissional"
+        );
+
+      setSelectedFolder(
+        folder.id
+      );
+
+      setUploadFolderId(
+        folder.id
+      );
+
+      setCreateFolderOpen(
+        false
+      );
+
+      setNewFolderName(
+        ""
+      );
+
+      refreshDocuments();
+
+      showFeedback(
+        "Pasta criada com sucesso.",
+        "success"
+      );
+    } catch (
+      error
+    ) {
+      showFeedback(
+        error instanceof
+          Error
+          ? error.message
+          : "Não foi possível criar a pasta.",
+        "error"
+      );
+    }
+  }
+
+  function handleFolderOptions(
+    folderId:
+      string
+  ) {
+    if (
+      !canManageFolders
+    ) {
+      return;
+    }
+
+    const folder =
+      folders.find(
+        (
+          item
+        ) =>
+          item.id ===
+          folderId
+      );
+
+    if (
+      !folder
+    ) {
+      return;
+    }
+
+    const action =
+      window.prompt(
+        [
+          `Pasta: ${folder.name}`,
+          "",
+          "1 - Renomear pasta",
+          "2 - Excluir pasta",
+        ].join(
+          "\n"
+        )
+      );
+
+    if (
+      action ===
+      "1"
+    ) {
+      const newName =
+        window.prompt(
+          "Novo nome da pasta:",
+          folder.name
+        );
+
+      if (
+        !newName
+      ) {
+        return;
+      }
+
+      try {
+        renamePatientDocumentFolder(
+          folder.id,
+          newName
+        );
+
+        refreshDocuments();
+
+        showFeedback(
+          "Pasta renomeada com sucesso.",
+          "success"
+        );
+      } catch (
+        error
+      ) {
+        showFeedback(
+          error instanceof
+            Error
+            ? error.message
+            : "Não foi possível renomear a pasta.",
+          "error"
+        );
+      }
+
+      return;
+    }
+
+    if (
+      action ===
+      "2"
+    ) {
+      const count =
+        countDocumentsInPatientFolder(
+          patientId,
+          folder.id,
+          documents.map(
+            (
+              document
+            ) =>
+              document.key
+          )
+        );
+
+      const confirmed =
+        window.confirm(
+          count >
+            0
+            ? `A pasta "${folder.name}" possui ${count} documento(s). Ao excluir a pasta, esses documentos irão para "Sem pasta". Deseja continuar?`
+            : `Deseja excluir a pasta "${folder.name}"?`
+        );
+
+      if (
+        !confirmed
+      ) {
+        return;
+      }
+
+      deletePatientDocumentFolder(
+        patientId,
+        folder.id
+      );
+
+      if (
+        selectedFolder ===
+          folder.id
+      ) {
+        setSelectedFolder(
+          "all"
+        );
+      }
+
+      if (
+        uploadFolderId ===
+          folder.id
+      ) {
+        setUploadFolderId(
+          ""
+        );
+      }
+
+      refreshDocuments();
+
+      showFeedback(
+        "Pasta excluída. Os documentos foram preservados.",
+        "success"
+      );
+    }
+  }
+
+  function handleMoveDocument(
+    document:
+      DisplayDocument
+  ) {
+    const options =
+      folders.map(
+        (
+          folder,
+          index
+        ) =>
+          `${index + 1} - ${folder.name}`
+      );
+
+    const currentFolderId =
+      getPatientDocumentFolderId(
+        patientId,
+        document.key
+      );
+
+    const currentFolder =
+      folders.find(
+        (
+          folder
+        ) =>
+          folder.id ===
+          currentFolderId
+      );
+
+    const answer =
+      window.prompt(
+        [
+          `Mover "${document.name}"`,
+          `Pasta atual: ${currentFolder?.name || "Sem pasta"}`,
+          "",
+          "0 - Sem pasta",
+          ...options,
+        ].join(
+          "\n"
+        )
+      );
+
+    if (
+      answer ===
+        null
+    ) {
+      return;
+    }
+
+    const choice =
+      Number(
+        answer
+      );
+
+    if (
+      choice ===
+        0
+    ) {
+      movePatientDocumentToFolder(
+        patientId,
+        document.key,
+        null
+      );
+
+      refreshDocuments();
+
+      showFeedback(
+        "Documento movido para Sem pasta.",
+        "success"
+      );
+
+      return;
+    }
+
+    const folder =
+      folders[
+        choice -
+          1
+      ];
+
+    if (
+      !folder
+    ) {
+      showFeedback(
+        "Pasta inválida.",
+        "error"
+      );
+
+      return;
+    }
+
+    movePatientDocumentToFolder(
+      patientId,
+      document.key,
+      folder.id
+    );
+
+    refreshDocuments();
+
+    showFeedback(
+      `Documento movido para "${folder.name}".`,
+      "success"
     );
   }
 
@@ -547,6 +982,18 @@ export function PatientDocuments() {
         (
           file
         ) => {
+          const beforeIds =
+            new Set(
+              getDocumentsByPatientId(
+                patientId
+              ).map(
+                (
+                  document
+                ) =>
+                  document.id
+              )
+            );
+
           createPatientDocumentFromFile(
             patientId,
             file,
@@ -563,6 +1010,29 @@ export function PatientDocuments() {
                 ),
             }
           );
+
+          const createdDocument =
+            getDocumentsByPatientId(
+              patientId
+            ).find(
+              (
+                document
+              ) =>
+                !beforeIds.has(
+                  document.id
+                )
+            );
+
+          if (
+            createdDocument &&
+            uploadFolderId
+          ) {
+            movePatientDocumentToFolder(
+              patientId,
+              `document-${createdDocument.id}`,
+              uploadFolderId
+            );
+          }
         }
       );
 
@@ -804,36 +1274,54 @@ export function PatientDocuments() {
           </p>
         </div>
 
-        {canUpload && (
-          <label>
-            <input
-              type="file"
-              multiple
-              accept=".pdf,.jpg,.jpeg,.png"
-              className="hidden"
-              onChange={(
-                event
-              ) => {
-                handleFiles(
-                  event
-                    .target
-                    .files
-                );
-
-                event.target.value =
-                  "";
-              }}
-            />
-
-            <span className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-700">
-              <Plus
+        <div className="flex flex-wrap gap-2">
+          {canManageFolders && (
+            <button
+              type="button"
+              onClick={
+                handleCreateFolder
+              }
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+            >
+              <FolderPlus
                 size={18}
               />
 
-              Novo documento
-            </span>
-          </label>
-        )}
+              Nova pasta
+            </button>
+          )}
+
+          {canUpload && (
+            <label>
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="hidden"
+                onChange={(
+                  event
+                ) => {
+                  handleFiles(
+                    event
+                      .target
+                      .files
+                  );
+
+                  event.target.value =
+                    "";
+                }}
+              />
+
+              <span className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-700">
+                <Plus
+                  size={18}
+                />
+
+                Novo documento
+              </span>
+            </label>
+          )}
+        </div>
       </div>
 
       {/* ================================= */}
@@ -901,6 +1389,166 @@ export function PatientDocuments() {
           }
           className="bg-violet-100 text-violet-600"
         />
+      </div>
+
+      {/* ================================= */}
+      {/* PASTAS */}
+      {/* ================================= */}
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-slate-800">
+              Pastas
+            </p>
+
+            <p className="mt-1 text-xs text-slate-500">
+              Organize os documentos do prontuário sem alterar os arquivos originais.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          <button
+            type="button"
+            onClick={() =>
+              setSelectedFolder(
+                "all"
+              )
+            }
+            className={`min-w-[150px] rounded-xl border p-3 text-left transition ${
+              selectedFolder ===
+                "all"
+                ? "border-indigo-300 bg-indigo-50 shadow-sm"
+                : "border-slate-200 bg-white hover:bg-slate-50"
+            }`}
+          >
+            <FolderOpen
+              size={18}
+              className="text-indigo-600"
+            />
+
+            <p className="mt-2 text-xs font-bold text-slate-800">
+              Todos os documentos
+            </p>
+
+            <p className="mt-1 text-[10px] text-slate-500">
+              {documents.length} arquivo(s)
+            </p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              setSelectedFolder(
+                "unfiled"
+              )
+            }
+            className={`min-w-[150px] rounded-xl border p-3 text-left transition ${
+              selectedFolder ===
+                "unfiled"
+                ? "border-slate-400 bg-slate-100 shadow-sm"
+                : "border-slate-200 bg-white hover:bg-slate-50"
+            }`}
+          >
+            <FolderOpen
+              size={18}
+              className="text-slate-500"
+            />
+
+            <p className="mt-2 text-xs font-bold text-slate-800">
+              Sem pasta
+            </p>
+
+            <p className="mt-1 text-[10px] text-slate-500">
+              {documents.filter(
+                (
+                  document
+                ) =>
+                  !getDocumentFolderId(
+                    document
+                  )
+              ).length} arquivo(s)
+            </p>
+          </button>
+
+          {folders.map(
+            (
+              folder
+            ) => {
+              const count =
+                documents.filter(
+                  (
+                    document
+                  ) =>
+                    getDocumentFolderId(
+                      document
+                    ) ===
+                    folder.id
+                ).length;
+
+              return (
+                <div
+                  key={
+                    folder.id
+                  }
+                  className={`relative min-w-[165px] rounded-xl border transition ${
+                    selectedFolder ===
+                      folder.id
+                      ? "border-violet-300 bg-violet-50 shadow-sm"
+                      : "border-slate-200 bg-white hover:bg-slate-50"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedFolder(
+                        folder.id
+                      );
+
+                      setUploadFolderId(
+                        folder.id
+                      );
+                    }}
+                    className="w-full p-3 text-left"
+                  >
+                    <FolderOpen
+                      size={18}
+                      className="text-violet-600"
+                    />
+
+                    <p className="mt-2 max-w-[120px] truncate text-xs font-bold text-slate-800">
+                      {
+                        folder.name
+                      }
+                    </p>
+
+                    <p className="mt-1 text-[10px] text-slate-500">
+                      {count} arquivo(s)
+                    </p>
+                  </button>
+
+                  {canManageFolders && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleFolderOptions(
+                          folder.id
+                        )
+                      }
+                      className="absolute right-2 top-2 rounded-lg p-1.5 text-slate-400 transition hover:bg-white hover:text-slate-700"
+                      title="Opções da pasta"
+                    >
+                      <MoreVertical
+                        size={15}
+                      />
+                    </button>
+                  )}
+                </div>
+              );
+            }
+          )}
+        </div>
       </div>
 
       {/* ================================= */}
@@ -1002,7 +1650,7 @@ export function PatientDocuments() {
             </p>
 
             <p className="mt-1 text-sm text-slate-500">
-              Altere os filtros ou envie um novo arquivo.
+              Altere os filtros, escolha outra pasta ou envie um novo arquivo.
             </p>
           </div>
         ) : (
@@ -1012,6 +1660,10 @@ export function PatientDocuments() {
                 <tr className="border-b border-slate-200">
                   <TableHeader>
                     Documento
+                  </TableHeader>
+
+                  <TableHeader>
+                    Pasta
                   </TableHeader>
 
                   <TableHeader>
@@ -1089,6 +1741,27 @@ export function PatientDocuments() {
                       </td>
 
                       <td className="py-4 pr-4">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                          <FolderOpen
+                            size={13}
+                          />
+
+                          {
+                            folders.find(
+                              (
+                                folder
+                              ) =>
+                                folder.id ===
+                                getDocumentFolderId(
+                                  document
+                                )
+                            )?.name ||
+                            "Sem pasta"
+                          }
+                        </span>
+                      </td>
+
+                      <td className="py-4 pr-4">
                         <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
                           {
                             document.category
@@ -1131,6 +1804,21 @@ export function PatientDocuments() {
                             title="Baixar documento"
                           >
                             <Download
+                              size={17}
+                            />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleMoveDocument(
+                                document
+                              )
+                            }
+                            className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-600"
+                            title="Mover para pasta"
+                          >
+                            <FolderOpen
                               size={17}
                             />
                           </button>
@@ -1204,6 +1892,44 @@ export function PatientDocuments() {
               </p>
             </div>
 
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Select
+                value={
+                  uploadFolderId
+                }
+                onChange={(
+                  event
+                ) =>
+                  setUploadFolderId(
+                    event.target.value
+                  )
+                }
+                className="sm:w-52"
+              >
+                <option value="">
+                  Sem pasta
+                </option>
+
+                {folders.map(
+                  (
+                    folder
+                  ) => (
+                    <option
+                      key={
+                        folder.id
+                      }
+                      value={
+                        folder.id
+                      }
+                    >
+                      {
+                        folder.name
+                      }
+                    </option>
+                  )
+                )}
+              </Select>
+
             <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
               <UploadCloud
                 size={17}
@@ -1230,9 +1956,114 @@ export function PatientDocuments() {
                 }}
               />
             </label>
+            </div>
           </div>
         )}
       </PageCard>
+
+      {createFolderOpen && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[1px]"
+          onClick={() =>
+            setCreateFolderOpen(
+              false
+            )
+          }
+        >
+          <div
+            className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            onClick={(
+              event
+            ) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="border-b border-slate-200 bg-gradient-to-r from-indigo-50 via-white to-violet-50 px-5 py-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
+                  <FolderPlus
+                    size={20}
+                  />
+                </div>
+
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Criar nova pasta
+                  </h3>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Organize os documentos deste paciente em uma pasta personalizada.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <form
+              className="p-5"
+              onSubmit={(
+                event
+              ) => {
+                event.preventDefault();
+                handleConfirmCreateFolder();
+              }}
+            >
+              <label className="block text-xs font-semibold text-slate-700">
+                Nome da pasta
+              </label>
+
+              <Input
+                autoFocus
+                value={
+                  newFolderName
+                }
+                onChange={(
+                  event
+                ) =>
+                  setNewFolderName(
+                    event.target.value
+                  )
+                }
+                placeholder="Ex.: Avaliações, Laudos, Exames..."
+                className="mt-2"
+              />
+
+              <p className="mt-2 text-[11px] text-slate-400">
+                A pasta ficará vinculada ao prontuário deste paciente.
+              </p>
+
+              <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setCreateFolderOpen(
+                      false
+                    );
+                    setNewFolderName(
+                      ""
+                    );
+                  }}
+                >
+                  Cancelar
+                </Button>
+
+                <Button
+                  type="submit"
+                  disabled={
+                    !newFolderName.trim()
+                  }
+                >
+                  <FolderPlus
+                    size={16}
+                  />
+
+                  Criar pasta
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

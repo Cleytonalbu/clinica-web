@@ -22,6 +22,8 @@ import {
   useAuth,
 } from "@/auth/AuthContext";
 
+
+
 import {
   Button,
 } from "@/components/ui";
@@ -53,6 +55,7 @@ export function PatientEvolutions() {
   } =
     useAuth();
 
+
   const patientId =
     Number(
       id
@@ -78,6 +81,14 @@ export function PatientEvolutions() {
         )
       : "";
 
+  /*
+   * PRONTUÁRIO GLOBAL:
+   * todas as evoluções do paciente são consideradas,
+   * independentemente da unidade em que ocorreram.
+   *
+   * Para o profissional continuam valendo as regras já
+   * existentes de autoria/especialidade.
+   */
   const evolutions =
     useMemo(
       () => {

@@ -4,10 +4,12 @@ import {
   ArrowLeft,
   CalendarDays,
   ClipboardList,
+  Clock3,
   FileText,
   PackageOpen,
   Plus,
   Save,
+  Send,
   Target,
   Trash2,
   UserRound,
@@ -77,6 +79,18 @@ import {
   getActiveProfessionals,
   getActiveSpecialties,
 } from "@/pages/Configuracoes/settingsStorage";
+
+import {
+  getSavedAppointments,
+  type StoredAppointment,
+} from "@/pages/Agenda/appointmentStorage";
+
+import {
+  EVOLUTION_LATER_REQUESTS_CHANGED_EVENT,
+  getLatestEvolutionLaterRequestForSession,
+  saveEvolutionLaterRequest,
+  type EvolutionLaterRequest,
+} from "@/pages/Pacientes/evolutionLaterRequestStorage";
 
 type ValidationErrors = Partial<
   Record<keyof EvolutionFormData, string>
@@ -382,9 +396,138 @@ export default function NovaEvolucao() {
       [patientIdNumber]
     );
 
+  const linkedAppointment =
+    useMemo<
+      StoredAppointment |
+      undefined
+    >(
+      () => {
+        if (
+          !Number.isFinite(
+            patientIdNumber
+          ) ||
+          patientIdNumber <= 0 ||
+          !effectiveProfessionalName
+        ) {
+          return undefined;
+        }
+
+        const appointments =
+          getSavedAppointments()
+            .filter(
+              (
+                appointment
+              ) =>
+                appointment.patientId ===
+                  patientIdNumber &&
+                appointment.unitId ===
+                  activeUnitId &&
+                appointment.professional ===
+                  effectiveProfessionalName &&
+                appointment.status !==
+                  "Cancelado"
+            );
+
+        if (
+          appointments.length === 0
+        ) {
+          return undefined;
+        }
+
+        const today =
+          new Date()
+            .toISOString()
+            .slice(0, 10);
+
+        const todayAppointment =
+          appointments
+            .filter(
+              (
+                appointment
+              ) =>
+                appointment.date ===
+                today
+            )
+            .sort(
+              (
+                a,
+                b
+              ) =>
+                b.time.localeCompare(
+                  a.time
+                )
+            )[0];
+
+        if (todayAppointment) {
+          return todayAppointment;
+        }
+
+        const previous =
+          appointments
+            .filter(
+              (
+                appointment
+              ) =>
+                appointment.date <
+                today
+            )
+            .sort(
+              (
+                a,
+                b
+              ) =>
+                `${b.date} ${b.time}`
+                  .localeCompare(
+                    `${a.date} ${a.time}`
+                  )
+            )[0];
+
+        if (previous) {
+          return previous;
+        }
+
+        return appointments
+          .filter(
+            (
+              appointment
+            ) =>
+              appointment.date >
+              today
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              `${a.date} ${a.time}`
+                .localeCompare(
+                  `${b.date} ${b.time}`
+                )
+          )[0];
+      },
+      [
+        activeUnitId,
+        effectiveProfessionalName,
+        patientIdNumber,
+      ]
+    );
+
   const [formData, setFormData] =
     useState<EvolutionFormData>(() =>
       createEvolutionDefaultValues(patientId)
+    );
+
+  const [
+    attachmentFolderIds,
+    setAttachmentFolderIds,
+  ] =
+    useState<
+      Array<
+        string |
+        null
+      >
+    >(
+      []
     );
 
   /*
@@ -450,6 +593,49 @@ export default function NovaEvolucao() {
     ]
   );
 
+  useEffect(
+    () => {
+      if (!linkedAppointment) {
+        return;
+      }
+
+      setFormData(
+        (
+          current
+        ) => ({
+          ...current,
+
+          sessionDate:
+            current.sessionDate ||
+            linkedAppointment.date,
+
+          startTime:
+            current.startTime ||
+            linkedAppointment.time,
+
+          endTime:
+            current.endTime ||
+            linkedAppointment.endTime,
+
+          specialty:
+            current.specialty ||
+            linkedAppointment.specialty,
+
+          appointmentType:
+            current.appointmentType ||
+            linkedAppointment.type,
+
+          appointmentLocation:
+            current.appointmentLocation ||
+            "Clinica",
+        })
+      );
+    },
+    [
+      linkedAppointment,
+    ]
+  );
+
   const [savedEvolutionId, setSavedEvolutionId] =
     useState<number | null>(null);
 
@@ -464,6 +650,226 @@ export default function NovaEvolucao() {
 
   const [errors, setErrors] =
     useState<ValidationErrors>({});
+
+  const [
+    requestLaterOpen,
+    setRequestLaterOpen,
+  ] =
+    useState(false);
+
+  const [
+    requestLaterReason,
+    setRequestLaterReason,
+  ] =
+    useState("");
+
+  const [
+    requestLaterSaving,
+    setRequestLaterSaving,
+  ] =
+    useState(false);
+
+  const [
+    requestLaterError,
+    setRequestLaterError,
+  ] =
+    useState<
+      string |
+      null
+    >(null);
+
+  const [
+    currentLaterRequest,
+    setCurrentLaterRequest,
+  ] =
+    useState<
+      EvolutionLaterRequest |
+      undefined
+    >(
+      undefined
+    );
+
+  function refreshCurrentLaterRequest() {
+    const sessionDate =
+      formData.sessionDate ||
+      linkedAppointment?.date ||
+      "";
+
+    const startTime =
+      formData.startTime ||
+      linkedAppointment?.time ||
+      "";
+
+    setCurrentLaterRequest(
+      getLatestEvolutionLaterRequestForSession(
+        {
+          unitId:
+            activeUnitId,
+
+          patientId:
+            patientIdNumber,
+
+          professional:
+            effectiveProfessionalName,
+
+          sessionDate:
+            sessionDate ||
+            undefined,
+
+          startTime:
+            startTime ||
+            undefined,
+        }
+      )
+    );
+  }
+
+  useEffect(
+    () => {
+      refreshCurrentLaterRequest();
+
+      function handleRequestChange() {
+        refreshCurrentLaterRequest();
+      }
+
+      window.addEventListener(
+        EVOLUTION_LATER_REQUESTS_CHANGED_EVENT,
+        handleRequestChange
+      );
+
+      window.addEventListener(
+        "storage",
+        handleRequestChange
+      );
+
+      return () => {
+        window.removeEventListener(
+          EVOLUTION_LATER_REQUESTS_CHANGED_EVENT,
+          handleRequestChange
+        );
+
+        window.removeEventListener(
+          "storage",
+          handleRequestChange
+        );
+      };
+    },
+    [
+      activeUnitId,
+      patientIdNumber,
+      effectiveProfessionalName,
+      formData.sessionDate,
+      formData.startTime,
+      linkedAppointment,
+    ]
+  );
+
+  function handleRequestEvolutionLater() {
+    if (!isProfissional) {
+      return;
+    }
+
+    setRequestLaterReason("");
+    setRequestLaterError(null);
+    setRequestLaterOpen(true);
+  }
+
+  async function handleConfirmRequestEvolutionLater() {
+    const sessionDate =
+      formData.sessionDate ||
+      linkedAppointment?.date ||
+      "";
+
+    const startTime =
+      formData.startTime ||
+      linkedAppointment?.time ||
+      "";
+
+    const endTime =
+      formData.endTime ||
+      linkedAppointment?.endTime ||
+      "";
+
+    if (
+      !sessionDate ||
+      !startTime
+    ) {
+      setRequestLaterError(
+        "Não foi possível identificar a data e o horário do atendimento."
+      );
+      return;
+    }
+
+    if (
+      !requestLaterReason.trim()
+    ) {
+      setRequestLaterError(
+        "Informe o motivo da solicitação."
+      );
+      return;
+    }
+
+    setRequestLaterSaving(true);
+    setRequestLaterError(null);
+
+    try {
+      saveEvolutionLaterRequest({
+        id:
+          Date.now(),
+
+        unitId:
+          activeUnitId,
+
+        patientId:
+          patientIdNumber,
+
+        patientName:
+          patient?.nome ||
+          "Paciente",
+
+        professional:
+          effectiveProfessionalName,
+
+        specialty:
+          formData.specialty ||
+          linkedAppointment?.specialty ||
+          professionalSpecialty,
+
+        appointmentId:
+          linkedAppointment?.id,
+
+        sessionDate,
+        startTime,
+        endTime,
+
+        reason:
+          requestLaterReason.trim(),
+
+        status:
+          "Pendente",
+
+        createdAt:
+          new Date()
+            .toISOString(),
+      });
+
+      setRequestLaterOpen(false);
+      setRequestLaterReason("");
+
+      setFeedback(
+        "Solicitação para realizar a evolução posteriormente enviada ao gestor."
+      );
+      setFeedbackType("success");
+    } catch (error) {
+      setRequestLaterError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível enviar a solicitação."
+      );
+    } finally {
+      setRequestLaterSaving(false);
+    }
+  }
 
   function handleCancel() {
     navigate(`/pacientes/${patientId}?tab=evolucoes`);
@@ -828,6 +1234,28 @@ export default function NovaEvolucao() {
     return Object.keys(nextErrors).length === 0;
   }
 
+  function createAttachmentsWithFolders(
+    files:
+      File[]
+  ) {
+    return createStoredAttachments(
+      files
+    ).map(
+      (
+        attachment,
+        index
+      ) => ({
+        ...attachment,
+
+        folderId:
+          attachmentFolderIds[
+            index
+          ] ||
+          undefined,
+      })
+    );
+  }
+
   async function handleSaveDraft() {
     if (
       !patient ||
@@ -894,7 +1322,7 @@ export default function NovaEvolucao() {
         sessionResultObservation:
           draft.sessionResultObservation,
         attachments:
-          createStoredAttachments(
+          createAttachmentsWithFolders(
             draft.attachments
           ),
         professional:
@@ -1033,7 +1461,7 @@ export default function NovaEvolucao() {
         sessionResultObservation:
           evolution.sessionResultObservation,
         attachments:
-          createStoredAttachments(
+          createAttachmentsWithFolders(
             evolution.attachments
           ),
         professional:
@@ -1118,22 +1546,111 @@ export default function NovaEvolucao() {
       <div className="-m-2 min-h-full rounded-[30px] bg-gradient-to-br from-violet-50/80 via-sky-50/50 to-emerald-50/60 p-2 sm:-m-3 sm:p-3">
         <div className="space-y-6">
         <div className="rounded-2xl border border-white/80 bg-white/70 px-5 py-4 shadow-sm backdrop-blur">
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="mb-3 inline-flex items-center gap-2 rounded-lg px-2 py-1 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-50 hover:text-violet-700"
-          >
-            <ArrowLeft size={17} />
-            Voltar para evoluções
-          </button>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="mb-3 inline-flex items-center gap-2 rounded-lg px-2 py-1 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-50 hover:text-violet-700"
+              >
+                <ArrowLeft size={17} />
+                Voltar para evoluções
+              </button>
 
-          <h1 className="text-3xl font-extrabold tracking-tight text-[#10235f]">
-            Nova Evolução
-          </h1>
+              <h1 className="text-3xl font-extrabold tracking-tight text-[#10235f]">
+                Nova Evolução
+              </h1>
 
-          <p className="mt-2 text-sm text-slate-500">
-            Registre os detalhes da sessão e os indicadores utilizados no acompanhamento do paciente.
-          </p>
+              <p className="mt-2 text-sm text-slate-500">
+                Registre os detalhes da sessão e os indicadores utilizados no acompanhamento do paciente.
+              </p>
+            </div>
+
+            {isProfissional && (
+              <div className="flex w-full flex-col gap-2 lg:w-auto lg:items-end">
+                {currentLaterRequest && (
+                  <div
+                    className={`min-w-[300px] rounded-2xl border px-4 py-3 shadow-sm ${
+                      currentLaterRequest.status ===
+                        "Aprovado"
+                        ? "border-emerald-200 bg-emerald-50"
+                        : currentLaterRequest.status ===
+                            "Recusado"
+                          ? "border-red-200 bg-red-50"
+                          : "border-amber-200 bg-amber-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-500">
+                          Solicitação para evolução posterior
+                        </p>
+
+                        <p
+                          className={`mt-1 text-sm font-extrabold ${
+                            currentLaterRequest.status ===
+                              "Aprovado"
+                              ? "text-emerald-700"
+                              : currentLaterRequest.status ===
+                                  "Recusado"
+                                ? "text-red-700"
+                                : "text-amber-700"
+                          }`}
+                        >
+                          {currentLaterRequest.status ===
+                            "Aprovado"
+                            ? "Aprovada pelo gestor"
+                            : currentLaterRequest.status ===
+                                "Recusado"
+                              ? "Recusada pelo gestor"
+                              : "Aguardando aprovação"}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${
+                          currentLaterRequest.status ===
+                            "Aprovado"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : currentLaterRequest.status ===
+                                "Recusado"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {currentLaterRequest.status}
+                      </span>
+                    </div>
+
+                    <p className="mt-2 text-[11px] font-medium text-slate-500">
+                      {currentLaterRequest.reviewedAt
+                        ? `Respondida em ${formatRequestDateTime(
+                            currentLaterRequest.reviewedAt
+                          )}`
+                        : `Solicitada em ${formatRequestDateTime(
+                            currentLaterRequest.createdAt
+                          )}`}
+                    </p>
+                  </div>
+                )}
+
+                {!currentLaterRequest && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={
+                      handleRequestEvolutionLater
+                    }
+                    className="shrink-0 border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100"
+                  >
+                    <Clock3 size={17} />
+
+                    Solicitar evolução para depois
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {feedback && (
@@ -1514,12 +2031,29 @@ export default function NovaEvolucao() {
 
         <div className="grid grid-cols-1 gap-6 rounded-3xl bg-gradient-to-r from-sky-50/50 via-white/30 to-indigo-50/55 p-1 2xl:grid-cols-2 [&>div]:shadow-[0_10px_30px_rgba(59,130,246,0.05)]">
           <EvolutionAttachmentsSection
-            files={formData.attachments}
-            onChange={(files) =>
+            patientId={
+              patientIdNumber
+            }
+            professionalName={
+              loggedProfessionalName ||
+              formData.professional
+            }
+            files={
+              formData.attachments
+            }
+            folderIds={
+              attachmentFolderIds
+            }
+            onChange={(
+              files
+            ) =>
               updateField(
                 "attachments",
                 files
               )
+            }
+            onFolderIdsChange={
+              setAttachmentFolderIds
             }
           />
 
@@ -1585,7 +2119,196 @@ export default function NovaEvolucao() {
         </div>
       </div>
       </div>
+
+      {requestLaterOpen && (
+        <div
+          className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm"
+          onMouseDown={(
+            event
+          ) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setRequestLaterOpen(false);
+            }
+          }}
+        >
+          <div className="w-full max-w-xl overflow-hidden rounded-3xl border border-violet-100 bg-white shadow-[0_30px_90px_rgba(30,41,59,0.22)]">
+            <div className="flex items-start justify-between gap-4 border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-indigo-50 px-6 py-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-200">
+                  <Clock3 size={21} />
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-extrabold text-[#10235f]">
+                    Solicitar evolução para depois
+                  </h3>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Envie ao gestor uma solicitação para concluir esta evolução posteriormente.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setRequestLaterOpen(false)
+                }
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-white hover:text-slate-700"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4 p-6">
+              {requestLaterError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                  {requestLaterError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                    Paciente
+                  </p>
+
+                  <p className="mt-1 text-sm font-bold text-slate-800">
+                    {patient.nome}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                    Profissional
+                  </p>
+
+                  <p className="mt-1 text-sm font-bold text-slate-800">
+                    {effectiveProfessionalName}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                    Atendimento
+                  </p>
+
+                  <p className="mt-1 text-sm font-bold text-slate-800">
+                    {formData.sessionDate ||
+                      linkedAppointment?.date ||
+                      "Data não identificada"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                    Horário
+                  </p>
+
+                  <p className="mt-1 text-sm font-bold text-slate-800">
+                    {formData.startTime ||
+                      linkedAppointment?.time ||
+                      "--:--"}
+                    {" às "}
+                    {formData.endTime ||
+                      linkedAppointment?.endTime ||
+                      "--:--"}
+                  </p>
+                </div>
+              </div>
+
+              <FormField
+                label="Motivo da solicitação"
+                required
+              >
+                <textarea
+                  value={
+                    requestLaterReason
+                  }
+                  onChange={(
+                    event
+                  ) => {
+                    setRequestLaterReason(
+                      event.target.value
+                    );
+                    setRequestLaterError(null);
+                  }}
+                  placeholder="Ex.: necessidade de concluir o registro após o último atendimento do dia."
+                  rows={4}
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                />
+              </FormField>
+
+              <p className="text-xs font-medium text-slate-500">
+                O gestor poderá aprovar ou recusar a solicitação. Esta ação não finaliza nem altera a evolução atual.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setRequestLaterOpen(false)
+                }
+              >
+                Cancelar
+              </Button>
+
+              <Button
+                type="button"
+                disabled={
+                  requestLaterSaving
+                }
+                onClick={
+                  handleConfirmRequestEvolutionLater
+                }
+              >
+                <Send size={16} />
+
+                {requestLaterSaving
+                  ? "Enviando..."
+                  : "Enviar solicitação"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
+  );
+}
+
+function formatRequestDateTime(
+  value:
+    string
+) {
+  const date =
+    new Date(
+      value
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(
+    "pt-BR",
+    {
+      dateStyle:
+        "short",
+
+      timeStyle:
+        "short",
+    }
+  ).format(
+    date
   );
 }
 
@@ -2277,6 +3000,11 @@ function QuickObjectiveModal({
   onClose,
   onCreated,
 }: QuickObjectiveModalProps) {
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const today =
     new Date()
       .toISOString()
@@ -2530,79 +3258,50 @@ function QuickObjectiveModal({
     );
 
     try {
-      createObjective(
-        {
-          unitId:
-            activeUnitId,
-
-          patientId,
-
-          generalObjective:
-            objectiveData.generalObjective,
-
-          title:
-            objectiveData.title,
-
-          specialty:
-            objectiveData.specialty,
-
-          professional:
-            objectiveData.professional,
-
-          startDate:
-            objectiveData.startDate,
-
-          targetDate:
-            objectiveData.targetDate,
-
-          progress:
-            Number(
-              objectiveData.progress
-            ),
-
-          status:
-            objectiveData.status,
-
-          observation:
-            objectiveData.observation,
-        }
-      );
-
       const createdObjective =
-        getObjectivesByPatientId(
-          patientId
-        )
-          .filter(
-            (
-              objective
-            ) =>
-              objective.title
-                .trim()
-                .toLocaleLowerCase(
-                  "pt-BR"
-                ) ===
-                objectiveData.title
-                  .trim()
-                  .toLocaleLowerCase(
-                    "pt-BR"
-                  ) &&
-              objective.professional ===
-                objectiveData.professional
-          )
-          .sort(
-            (
-              a,
-              b
-            ) =>
-              b.id -
-              a.id
-          )[0];
+        createObjective(
+          {
+            unitId:
+              activeUnitId,
+
+            patientId,
+
+            generalObjective:
+              objectiveData.generalObjective,
+
+            title:
+              objectiveData.title,
+
+            specialty:
+              objectiveData.specialty,
+
+            professional:
+              objectiveData.professional,
+
+            startDate:
+              objectiveData.startDate,
+
+            targetDate:
+              objectiveData.targetDate,
+
+            progress:
+              Number(
+                objectiveData.progress
+              ),
+
+            status:
+              objectiveData.status,
+
+            observation:
+              objectiveData.observation,
+          }
+        );
 
       if (
         !createdObjective
       ) {
         throw new Error(
-          "Objetivo criado, mas não foi possível localizá-lo."
+          "O objetivo não foi retornado após o cadastro."
         );
       }
 
@@ -2618,9 +3317,19 @@ function QuickObjectiveModal({
             createdObjective.specialty,
         }
       );
-    } catch {
+    } catch (
+      error
+    ) {
+      console.error(
+        "Erro ao criar objetivo terapêutico:",
+        error
+      );
+
       setObjectiveError(
-        "Não foi possível criar o objetivo terapêutico."
+        error instanceof
+          Error
+          ? error.message
+          : "Não foi possível criar o objetivo terapêutico."
       );
     } finally {
       setSavingObjective(

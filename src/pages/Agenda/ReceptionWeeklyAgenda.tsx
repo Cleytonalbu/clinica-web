@@ -6,6 +6,8 @@ import {
 
 import {
   CalendarDays,
+  CircleDollarSign,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -47,6 +49,7 @@ import {
   APPOINTMENTS_CHANGED_EVENT,
   getSavedAppointments,
   saveAppointment,
+  updateSavedAppointment,
   type StoredAppointment,
 } from "./appointmentStorage";
 
@@ -129,12 +132,22 @@ import {
 
 import {
   calculateChargeAmount,
+  formatCurrency,
   getDefaultPaymentMethod,
+  type PaymentMethod,
 } from "@/pages/Financeiro/financeRules";
 
 import {
   createChargeFromAppointment,
+  createPaidFinancialReceipt,
+  getFinancialCharges,
+  receiveFinancialCharge,
+  type FinancialCharge,
 } from "@/pages/Financeiro/financeStorage";
+
+import {
+  getBankAccounts,
+} from "@/pages/ContasBancarias/bankAccountStorage";
 
 type ReceptionAgendaView =
   | "day"
@@ -147,7 +160,7 @@ type OperationalStatus =
   | "Realizado"
   | "Cancelado"
   | "Faltou"
-  | "Horário fixo"
+  | ""
   | "Cancelado pelo paciente"
   | "Cancelado pela clínica"
   | "Falta do profissional"
@@ -184,6 +197,15 @@ interface AgendaOperationalItem {
   appointmentId?: number;
 
   fixedScheduleId?: string;
+
+  billingType?:
+    | "Particular"
+    | "Pacote"
+    | "Convênio";
+
+  convenio?: string;
+
+  patientPackageName?: string;
 
   cancelledMakesSlotAvailable:
     boolean;
@@ -617,7 +639,7 @@ function getStatusSolidColor(
     Faltou:
       "#F97316",
 
-    "Horário fixo":
+    "":
       "#2563EB",
 
     "Cancelado pelo paciente":
@@ -758,6 +780,198 @@ function mixWithWhite(
     .toUpperCase();
 }
 
+function getFixedOccurrenceFinancialId(
+  fixedScheduleId: string,
+  date: string,
+) {
+  const source =
+    `${fixedScheduleId}|${date}`;
+
+  let hash =
+    0;
+
+  for (
+    let index = 0;
+    index < source.length;
+    index += 1
+  ) {
+    hash =
+      (
+        (
+          hash << 5
+        ) -
+        hash +
+        source.charCodeAt(
+          index
+        )
+      ) |
+      0;
+  }
+
+  return -(
+    Math.abs(
+      hash
+    ) +
+    1
+  );
+}
+
+function getItemFinancialAppointmentId(
+  item:
+    AgendaOperationalItem
+) {
+  if (
+    item.appointmentId !==
+    undefined
+  ) {
+    return item.appointmentId;
+  }
+
+  if (
+    item.fixedScheduleId
+  ) {
+    return getFixedOccurrenceFinancialId(
+      item.fixedScheduleId,
+      item.date
+    );
+  }
+
+  return undefined;
+}
+
+function isReceptionPaymentApplicable(
+  item:
+    AgendaOperationalItem
+) {
+  return (
+    item.source !==
+      "block" &&
+    !!item.patientId
+  );
+}
+
+function findFinancialChargeForItem(
+  item:
+    AgendaOperationalItem
+) {
+  const appointmentId =
+    getItemFinancialAppointmentId(
+      item
+    );
+
+  if (
+    appointmentId ===
+    undefined
+  ) {
+    return undefined;
+  }
+
+  return getFinancialCharges()
+    .find(
+      (
+        charge
+      ) =>
+        charge.appointmentId ===
+        appointmentId
+    );
+}
+
+function ensureFinancialChargeForItem(
+  item:
+    AgendaOperationalItem,
+  activeUnitId:
+    number
+) {
+  const existing =
+    findFinancialChargeForItem(
+      item
+    );
+
+  if (
+    existing
+  ) {
+    return existing;
+  }
+
+  const appointmentId =
+    getItemFinancialAppointmentId(
+      item
+    );
+
+  if (
+    appointmentId ===
+      undefined ||
+    !item.patientId
+  ) {
+    return undefined;
+  }
+
+  const billingType =
+    item.billingType ??
+    "Particular";
+
+  if (
+    billingType ===
+      "Convênio" ||
+    billingType ===
+      "Pacote" ||
+    item.patientPackageName
+  ) {
+    return undefined;
+  }
+
+  const amount =
+    calculateChargeAmount(
+      {
+        professional:
+          item.professional,
+
+        specialty:
+          item.specialty,
+
+        billingType:
+          "Particular",
+      }
+    );
+
+  return createChargeFromAppointment(
+    {
+      unitId:
+        activeUnitId,
+
+      appointmentId,
+
+      patientId:
+        item.patientId,
+
+      patient:
+        item.patient,
+
+      professionalId:
+        item.professionalId,
+
+      professional:
+        item.professional,
+
+      specialty:
+        item.specialty,
+
+      date:
+        item.date,
+
+      billingType:
+        "Particular",
+
+      paymentMethod:
+        getDefaultPaymentMethod(
+          "Particular"
+        ),
+
+      amount,
+    }
+  );
+}
+
 function appointmentToItem(
   appointment:
     StoredAppointment
@@ -808,6 +1022,15 @@ function appointmentToItem(
     appointmentId:
       appointment.id,
 
+    billingType:
+      appointment.billingType,
+
+    convenio:
+      appointment.convenio,
+
+    patientPackageName:
+      appointment.patientPackageName,
+
     cancelledMakesSlotAvailable:
       appointment.status ===
         "Cancelado" ||
@@ -826,7 +1049,7 @@ function fixedOccurrenceToItem(
 
   let status:
     OperationalStatus =
-      "Horário fixo";
+      "";
 
   if (
     exceptionStatus ===
@@ -925,6 +1148,15 @@ function fixedOccurrenceToItem(
     fixedScheduleId:
       occurrence.fixedScheduleId,
 
+    billingType:
+      occurrence.billingType,
+
+    convenio:
+      occurrence.convenioName,
+
+    patientPackageName:
+      occurrence.patientPackageName,
+
     cancelledMakesSlotAvailable:
       status ===
         "Cancelado pelo paciente" ||
@@ -1014,7 +1246,7 @@ export default function ReceptionWeeklyAgenda() {
     setView,
   ] =
     useState<ReceptionAgendaView>(
-      "week"
+      "day"
     );
 
   const [
@@ -1103,6 +1335,17 @@ export default function ReceptionWeeklyAgenda() {
   const [
     selectedFixedOccurrence,
     setSelectedFixedOccurrence,
+  ] =
+    useState<
+      AgendaOperationalItem |
+      null
+    >(
+      null
+    );
+
+  const [
+    selectedPaymentItem,
+    setSelectedPaymentItem,
   ] =
     useState<
       AgendaOperationalItem |
@@ -1979,6 +2222,184 @@ export default function ReceptionWeeklyAgenda() {
     );
   }
 
+  function handleDragMove(
+    item:
+      AgendaOperationalItem,
+
+    slot:
+      VacantSlot
+  ) {
+    if (
+      item.source ===
+        "block" ||
+      !item.patientId ||
+      isCancelledStatus(
+        item.status
+      )
+    ) {
+      window.alert(
+        "Este registro não pode ser movido."
+      );
+
+      return;
+    }
+
+    const targetProfessionalBusy =
+      rawItems.some(
+        (
+          current
+        ) =>
+          current.key !==
+            item.key &&
+          current.date ===
+            slot.date &&
+          current.professionalId ===
+            slot.professionalId &&
+          !current.cancelledMakesSlotAvailable &&
+          periodsOverlap(
+            slot.startTime,
+            slot.endTime,
+            current.startTime,
+            current.endTime
+          )
+      );
+
+    if (
+      targetProfessionalBusy
+    ) {
+      window.alert(
+        "Este profissional não está mais disponível neste horário."
+      );
+
+      return;
+    }
+
+    const roomConflict =
+      !!item.room &&
+      rawItems.some(
+        (
+          current
+        ) =>
+          current.key !==
+            item.key &&
+          current.date ===
+            slot.date &&
+          current.room ===
+            item.room &&
+          !current.cancelledMakesSlotAvailable &&
+          periodsOverlap(
+            slot.startTime,
+            slot.endTime,
+            current.startTime,
+            current.endTime
+          )
+      );
+
+    if (
+      roomConflict
+    ) {
+      window.alert(
+        `A sala ${item.room} já está ocupada neste horário.`
+      );
+
+      return;
+    }
+
+    if (
+      item.fixedScheduleId
+    ) {
+      const room =
+        rooms.find(
+          (
+            current
+          ) =>
+            current.name ===
+            item.room
+        );
+
+      setFixedScheduleException(
+        {
+          fixedScheduleId:
+            item.fixedScheduleId,
+
+          unitId:
+            activeUnitId,
+
+          date:
+            item.date,
+
+          status:
+            "Remarcado",
+
+          reason:
+            "Remarcado pela recepção por arrastar e soltar.",
+
+          replacementDate:
+            slot.date,
+
+          replacementStartTime:
+            slot.startTime,
+
+          replacementEndTime:
+            slot.endTime,
+
+          replacementProfessionalId:
+            slot.professionalId,
+
+          replacementProfessionalName:
+            slot.professional,
+
+          replacementRoomId:
+            room?.id,
+
+          replacementRoomName:
+            item.room ||
+            undefined,
+
+          source:
+            "recepcao",
+        }
+      );
+    } else if (
+      item.appointmentId !==
+      undefined
+    ) {
+      updateSavedAppointment(
+        item.appointmentId,
+        {
+          date:
+            slot.date,
+
+          time:
+            slot.startTime,
+
+          endTime:
+            slot.endTime,
+
+          professionalId:
+            slot.professionalId,
+
+          professional:
+            slot.professional,
+        }
+      );
+    } else {
+      window.alert(
+        "Não foi possível identificar o agendamento para a remarcação."
+      );
+
+      return;
+    }
+
+    setRefreshKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    );
+  }
+
   const totalAppointments =
     filteredItems.filter(
       (
@@ -2750,6 +3171,35 @@ export default function ReceptionWeeklyAgenda() {
         />
       )}
 
+      {selectedPaymentItem && (
+        <QuickReceptionPaymentModal
+          item={
+            selectedPaymentItem
+          }
+          activeUnitId={
+            activeUnitId
+          }
+          onClose={() =>
+            setSelectedPaymentItem(
+              null
+            )
+          }
+          onPaid={() => {
+            setSelectedPaymentItem(
+              null
+            );
+
+            setRefreshKey(
+              (
+                current
+              ) =>
+                current +
+                1
+            );
+          }}
+        />
+      )}
+
       {selectedFixedOccurrence && (
         <FixedScheduleOccurrenceManager
           item={
@@ -2831,6 +3281,12 @@ export default function ReceptionWeeklyAgenda() {
           }
           onFixedQuickStatus={
             applyFixedOccurrenceQuickStatus
+          }
+          onPayment={
+            setSelectedPaymentItem
+          }
+          onMove={
+            handleDragMove
           }
         />
       )}
@@ -2959,17 +3415,6 @@ export default function ReceptionWeeklyAgenda() {
           refreshKey={
             refreshKey
           }
-          onSelectDate={(
-            date
-          ) => {
-            setSelectedDate(
-              date
-            );
-
-            setView(
-              "day"
-            );
-          }}
         />
       )}
     </div>
@@ -5799,6 +6244,8 @@ function DailyOperationalView({
   onVacant,
   onFixedOccurrence,
   onFixedQuickStatus,
+  onPayment,
+  onMove,
 }: {
   date:
     string;
@@ -5841,7 +6288,43 @@ function DailyOperationalView({
       status:
         FixedScheduleExceptionStatus
     ) => void;
+
+  onPayment:
+    (
+      item:
+        AgendaOperationalItem
+    ) => void;
+
+  onMove:
+    (
+      item:
+        AgendaOperationalItem,
+
+      slot:
+        VacantSlot
+    ) => void;
 }) {
+  const [
+    draggingItemKey,
+    setDraggingItemKey,
+  ] =
+    useState<
+      string | null
+    >(null);
+
+  const [
+    pendingMove,
+    setPendingMove,
+  ] =
+    useState<{
+      item:
+        AgendaOperationalItem;
+      slot:
+        VacantSlot;
+    } | null>(
+      null
+    );
+
   const times =
     Array.from(
       new Set(
@@ -5891,7 +6374,7 @@ function DailyOperationalView({
   }
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-[#e8eaf3] bg-white shadow-[0_4px_16px_rgba(51,65,120,0.04)]">
+    <section className="relative overflow-hidden rounded-2xl border border-[#e8eaf3] bg-white shadow-[0_4px_16px_rgba(51,65,120,0.04)]">
       <div className="border-b border-[#eceef5] bg-[#fbfbfe] px-5 py-4">
         <h2 className="text-base font-extrabold text-[#10235f]">
           Agenda detalhada do dia
@@ -5972,6 +6455,21 @@ function DailyOperationalView({
                           onFixedQuickStatus={
                             onFixedQuickStatus
                           }
+                          onPayment={
+                            onPayment
+                          }
+                          onDragStart={(
+                            draggedItem
+                          ) =>
+                            setDraggingItemKey(
+                              draggedItem.key
+                            )
+                          }
+                          onDragEnd={() =>
+                            setDraggingItemKey(
+                              null
+                            )
+                          }
                         />
                       )
                     )}
@@ -5995,6 +6493,40 @@ function DailyOperationalView({
                               slot
                             )
                           }
+                          dragActive={
+                            !!draggingItemKey
+                          }
+                          onDropItem={(
+                            itemKey
+                          ) => {
+                            const draggedItem =
+                              items.find(
+                                (
+                                  current
+                                ) =>
+                                  current.key ===
+                                  itemKey
+                              );
+
+                            setDraggingItemKey(
+                              null
+                            );
+
+                            if (
+                              !draggedItem
+                            ) {
+                              return;
+                            }
+
+                            setPendingMove(
+                              {
+                                item:
+                                  draggedItem,
+
+                                slot,
+                              }
+                            );
+                          }}
                         />
                       )
                     )}
@@ -6005,6 +6537,105 @@ function DailyOperationalView({
           }
         )}
       </div>
+
+      {pendingMove && (
+        <div
+          className="fixed inset-0 z-[105] flex items-center justify-center bg-slate-950/35 p-4"
+          onClick={() =>
+            setPendingMove(
+              null
+            )
+          }
+        >
+          <div
+            className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            onClick={(
+              event
+            ) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="border-b border-slate-200 px-5 py-4">
+              <h3 className="text-base font-extrabold text-[#10235f]">
+                Confirmar encaixe
+              </h3>
+
+              <p className="mt-1 text-xs font-medium text-slate-500">
+                Esta alteração vale somente para este atendimento.
+              </p>
+            </div>
+
+            <div className="space-y-3 p-5">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-extrabold text-[#263765]">
+                  {
+                    pendingMove.item.patient
+                  }
+                </p>
+
+                <p className="mt-1 text-[11px] font-medium text-slate-500">
+                  {pendingMove.item.startTime} - {pendingMove.item.endTime}
+                  {" "}
+                  →{" "}
+                  {pendingMove.slot.startTime} - {pendingMove.slot.endTime}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
+                <p className="text-[10px] font-extrabold uppercase tracking-wide text-emerald-600">
+                  Novo horário
+                </p>
+
+                <p className="mt-1 text-xs font-bold text-emerald-800">
+                  {
+                    pendingMove.slot.professional
+                  }
+                </p>
+
+                <p className="mt-1 text-[11px] font-medium text-emerald-700">
+                  {pendingMove.slot.startTime} - {pendingMove.slot.endTime}
+                </p>
+              </div>
+
+              {pendingMove.item.fixedScheduleId && (
+                <p className="text-[11px] font-semibold text-amber-700">
+                  O horário fixo das próximas semanas não será alterado. Será criada apenas uma exceção para esta data.
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setPendingMove(
+                    null
+                  )
+                }
+              >
+                Cancelar
+              </Button>
+
+              <Button
+                type="button"
+                onClick={() => {
+                  onMove(
+                    pendingMove.item,
+                    pendingMove.slot
+                  );
+
+                  setPendingMove(
+                    null
+                  );
+                }}
+              >
+                Confirmar encaixe
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -6021,7 +6652,6 @@ function ReceptionMonthView({
   patientFilter,
   search,
   refreshKey,
-  onSelectDate,
 }: {
   selectedDate:
     string;
@@ -6055,14 +6685,16 @@ function ReceptionMonthView({
 
   refreshKey:
     number;
-
-  onSelectDate:
-    (
-      date:
-        string
-    ) => void;
 }) {
   void refreshKey;
+
+  const [
+    selectedMonthDate,
+    setSelectedMonthDate,
+  ] =
+    useState<
+      string | null
+    >(null);
 
   const date =
     parseDate(
@@ -6294,6 +6926,48 @@ function ReceptionMonthView({
         1
     );
 
+  const selectedDayItems =
+    selectedMonthDate
+      ? items
+          .filter(
+            (
+              item
+            ) =>
+              item.date ===
+              selectedMonthDate
+          )
+          .sort(
+            (
+              first,
+              second
+            ) =>
+              first.startTime.localeCompare(
+                second.startTime
+              )
+          )
+      : [];
+
+  const selectedDayLabel =
+    selectedMonthDate
+      ? new Intl.DateTimeFormat(
+          "pt-BR",
+          {
+            weekday:
+              "long",
+            day:
+              "2-digit",
+            month:
+              "long",
+            year:
+              "numeric",
+          }
+        ).format(
+          parseDate(
+            selectedMonthDate
+          )
+        )
+      : "";
+
   return (
     <section className="overflow-hidden rounded-2xl border border-[#e8eaf3] bg-white shadow-[0_4px_16px_rgba(51,65,120,0.04)]">
       <div className="grid grid-cols-7 border-b border-[#e8eaf3] bg-[#fbfbfe]">
@@ -6382,7 +7056,7 @@ function ReceptionMonthView({
                 }
                 type="button"
                 onClick={() =>
-                  onSelectDate(
+                  setSelectedMonthDate(
                     currentDate
                   )
                 }
@@ -6477,6 +7151,134 @@ function ReceptionMonthView({
           }
         )}
       </div>
+
+      {selectedMonthDate && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/20 p-4 backdrop-blur-[1px]"
+          onClick={() =>
+            setSelectedMonthDate(
+              null
+            )
+          }
+        >
+          <div
+            role="dialog"
+            aria-modal="false"
+            aria-label="Detalhes dos atendimentos do dia"
+            onClick={(
+              event
+            ) =>
+              event.stopPropagation()
+            }
+            className="flex max-h-[86vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[#e5e7f2] bg-white shadow-[0_24px_70px_rgba(31,42,84,0.24)]"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-[#edf0f5] bg-[#fbfbfe] px-5 py-4">
+              <div>
+                <p className="text-[10px] font-extrabold uppercase tracking-wide text-[#8d96ad]">
+                  Agenda do dia
+                </p>
+
+                <h3 className="mt-1 text-base font-extrabold capitalize text-[#20315f]">
+                  {selectedDayLabel}
+                </h3>
+
+                <p className="mt-1 text-xs font-semibold text-[#7c879f]">
+                  {selectedDayItems.length}{" "}
+                  {selectedDayItems.length === 1
+                    ? "registro"
+                    : "registros"}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedMonthDate(
+                    null
+                  )
+                }
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e6e9f1] bg-white text-[#7c879f] transition hover:bg-[#f5f6fb] hover:text-[#20315f]"
+                aria-label="Fechar detalhes do dia"
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+              {selectedDayItems.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[#dfe3ee] bg-[#fafbfe] px-5 py-8 text-center">
+                  <CalendarDays size={24} className="mx-auto text-[#b1b8c9]" />
+                  <p className="mt-3 text-sm font-bold text-[#536180]">Nenhum atendimento neste dia</p>
+                  <p className="mt-1 text-xs text-[#9099ad]">Esta visualização é apenas para conferência da agenda mensal.</p>
+                </div>
+              ) : (
+                selectedDayItems.map((item) => {
+                  const statusColor = getStatusSolidColor(item.status);
+                  const procedureColor = getProcedureColor(item.procedure);
+
+                  return (
+                    <div
+                      key={item.key}
+                      className="relative overflow-hidden rounded-xl border border-[#e7eaf2] bg-white p-4 shadow-[0_3px_10px_rgba(40,52,100,0.04)]"
+                    >
+                      <span
+                        className="absolute inset-y-0 left-0 w-1"
+                        style={{ backgroundColor: statusColor }}
+                      />
+
+                      <div className="flex flex-col gap-3 pl-1 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#f5f6fb] px-2.5 py-1 text-xs font-extrabold text-[#3c4d75]">
+                              <Clock3 size={13} />
+                              {item.startTime} - {item.endTime}
+                            </span>
+                          </div>
+
+                          <div className="mt-3 flex items-start gap-2">
+                            <UserRound size={17} className="mt-0.5 shrink-0 text-[#6847f5]" />
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-extrabold text-[#25345f]">{item.patient}</p>
+                              <p className="mt-0.5 truncate text-xs font-semibold text-[#7f8aa2]">{item.professional}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid min-w-0 gap-2 text-xs sm:w-[255px]">
+                          <div className="flex items-center gap-2 rounded-lg bg-[#fafbfe] px-3 py-2">
+                            <Stethoscope size={14} className="shrink-0 text-[#7a67ef]" />
+                            <div className="min-w-0">
+                              <p className="truncate font-bold text-[#536180]">
+                                {item.specialty || "Especialidade não informada"}
+                              </p>
+                              <p className="mt-0.5 flex items-center gap-1.5 truncate text-[10px] font-semibold text-[#929bb0]">
+                                <span
+                                  className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                  style={{ backgroundColor: procedureColor }}
+                                />
+                                {item.procedure}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 rounded-lg bg-[#fafbfe] px-3 py-2">
+                            <DoorOpen size={14} className="shrink-0 text-[#75829f]" />
+                            <p className="truncate font-bold text-[#536180]">{item.room || "Sem sala"}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="border-t border-[#edf0f5] bg-[#fbfbfe] px-5 py-3 text-[10px] font-semibold text-[#8d96ad]">
+              Visualização rápida • nenhuma informação pode ser alterada por este painel.
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -6881,6 +7683,9 @@ function OperationalCard({
   onAppointment,
   onFixedOccurrence,
   onFixedQuickStatus,
+  onPayment,
+  onDragStart,
+  onDragEnd,
 }: {
   item:
     AgendaOperationalItem;
@@ -6911,6 +7716,21 @@ function OperationalCard({
       status:
         FixedScheduleExceptionStatus
     ) => void;
+
+  onPayment:
+    (
+      item:
+        AgendaOperationalItem
+    ) => void;
+
+  onDragStart:
+    (
+      item:
+        AgendaOperationalItem
+    ) => void;
+
+  onDragEnd:
+    () => void;
 }) {
   /*
    * COR PRINCIPAL DO CARD:
@@ -6991,8 +7811,56 @@ function OperationalCard({
     item.appointmentId !==
     undefined;
 
+  const paymentApplicable =
+    isReceptionPaymentApplicable(
+      item
+    );
+
+  const paymentCharge =
+    paymentApplicable
+      ? findFinancialChargeForItem(
+          item
+        )
+      : undefined;
+
+  const paymentPaid =
+    paymentCharge?.status ===
+    "Pago";
+
+  const canDrag =
+    !block &&
+    !!item.patientId &&
+    !cancelled;
+
   return (
     <div
+      draggable={
+        canDrag
+      }
+      onDragStart={(
+        event
+      ) => {
+        if (
+          !canDrag
+        ) {
+          return;
+        }
+
+        event.dataTransfer.effectAllowed =
+          "move";
+
+        event.dataTransfer.setData(
+          "text/plain",
+          item.key
+        );
+
+        onDragStart(
+          item
+        );
+      }}
+      onDragEnd={
+        onDragEnd
+      }
       role={
         clickable
           ? "button"
@@ -7035,9 +7903,11 @@ function OperationalCard({
         }
       }}
       className={`relative w-full overflow-hidden rounded-xl border p-3 text-left transition ${
-        clickable
-          ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md"
-          : "cursor-default"
+        canDrag
+          ? "cursor-grab active:cursor-grabbing hover:-translate-y-0.5 hover:shadow-md"
+          : clickable
+            ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md"
+            : "cursor-default"
       } ${
         cancelled
           ? "opacity-80"
@@ -7107,7 +7977,7 @@ function OperationalCard({
         </div>
 
         {item.status !==
-          "Horário fixo" && (
+          "" && (
           <span
             className="shrink-0 rounded-full border bg-white/80 px-2 py-0.5 text-[8px] font-extrabold"
             style={{
@@ -7243,6 +8113,37 @@ function OperationalCard({
             Cancelou
           </button>
 
+          {paymentApplicable && (
+            <button
+              type="button"
+              onClick={() =>
+                onPayment(
+                  item
+                )
+              }
+              className={`flex h-6 w-7 items-center justify-center rounded-md border transition ${
+                paymentPaid
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                  : "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+              }`}
+              title={
+                paymentPaid
+                  ? "Pagamento recebido"
+                  : "Registrar pagamento"
+              }
+            >
+              {paymentPaid ? (
+                <CheckCircle2
+                  size={13}
+                />
+              ) : (
+                <CircleDollarSign
+                  size={13}
+                />
+              )}
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() =>
@@ -7269,10 +8170,883 @@ function OperationalCard({
   );
 }
 
+function QuickReceptionPaymentModal({
+  item,
+  activeUnitId,
+  onClose,
+  onPaid,
+}: {
+  item:
+    AgendaOperationalItem;
+
+  activeUnitId:
+    number;
+
+  onClose:
+    () => void;
+
+  onPaid:
+    () => void;
+}) {
+  const [
+    charge,
+    setCharge,
+  ] =
+    useState<
+      FinancialCharge |
+      undefined
+    >(
+      () =>
+        ensureFinancialChargeForItem(
+          item,
+          activeUnitId
+        )
+    );
+
+  const bankAccounts =
+    useMemo(
+      () =>
+        getBankAccounts()
+          .filter(
+            (
+              account
+            ) =>
+              account.unitId ===
+                activeUnitId &&
+              account.status ===
+                "Ativa"
+          ),
+      [
+        activeUnitId,
+      ]
+    );
+
+  const [
+    paymentMethod,
+    setPaymentMethod,
+  ] =
+    useState<
+      PaymentMethod
+    >(
+      charge?.paymentMethod ??
+        "Pix"
+    );
+
+  const [
+    bankAccountId,
+    setBankAccountId,
+  ] =
+    useState(
+      () =>
+        bankAccounts[0]?.id ??
+        ""
+    );
+
+  const [
+    paymentDate,
+    setPaymentDate,
+  ] =
+    useState(
+      () =>
+        new Date()
+          .toISOString()
+          .slice(
+            0,
+            10
+          )
+    );
+
+  const [
+    discount,
+    setDiscount,
+  ] =
+    useState(
+      0
+    );
+
+  const [
+    surcharge,
+    setSurcharge,
+  ] =
+    useState(
+      0
+    );
+
+  const [
+    observation,
+    setObservation,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    feedback,
+    setFeedback,
+  ] =
+    useState(
+      ""
+    );
+
+  const isConvenio =
+    item.billingType ===
+      "Convênio";
+
+  const isPacote =
+    item.billingType ===
+      "Pacote" ||
+    !!item.patientPackageName;
+
+  const [
+    paymentMode,
+    setPaymentMode,
+  ] =
+    useState<
+      "principal" |
+      "outro"
+    >(
+      isConvenio ||
+      isPacote
+        ? "outro"
+        : "principal"
+    );
+
+  const [
+    manualAmount,
+    setManualAmount,
+  ] =
+    useState(
+      () =>
+        charge?.originalAmount ??
+        charge?.amount ??
+        0
+    );
+
+  const originalAmount =
+    paymentMode ===
+      "principal"
+      ? charge?.originalAmount ??
+        charge?.amount ??
+        manualAmount
+      : manualAmount;
+
+  const finalAmount =
+    Math.max(
+      originalAmount -
+        discount +
+        surcharge,
+      0
+    );
+
+  const selectedBankAccount =
+    bankAccounts.find(
+      (
+        account
+      ) =>
+        account.id ===
+        bankAccountId
+    );
+
+  const alreadyPaid =
+    charge?.status ===
+    "Pago";
+
+  function confirmPayment() {
+    if (
+      alreadyPaid
+    ) {
+      return;
+    }
+
+    if (
+      !bankAccountId ||
+      !selectedBankAccount
+    ) {
+      setFeedback(
+        "Selecione a conta de recebimento."
+      );
+
+      return;
+    }
+
+    if (
+      !paymentDate
+    ) {
+      setFeedback(
+        "Informe a data do pagamento."
+      );
+
+      return;
+    }
+
+    try {
+      if (
+        charge &&
+        paymentMode ===
+          "principal"
+      ) {
+        receiveFinancialCharge(
+          charge.id,
+          {
+            paymentMethod,
+
+            receivedAmount:
+              finalAmount,
+
+            discount,
+
+            surcharge,
+
+            paymentDate,
+
+            observation:
+              observation.trim(),
+
+            bankAccountId:
+              selectedBankAccount.id,
+
+            bankAccountName:
+              `${selectedBankAccount.accountName} — ${selectedBankAccount.bankName}`,
+          }
+        );
+
+        const refreshed =
+          getFinancialCharges()
+            .find(
+              (
+                current
+              ) =>
+                current.id ===
+                charge.id
+            );
+
+        setCharge(
+          refreshed
+        );
+      } else {
+        if (
+          finalAmount <=
+          0
+        ) {
+          setFeedback(
+            "Informe um valor maior que zero para o recebimento."
+          );
+
+          return;
+        }
+
+        createPaidFinancialReceipt(
+          {
+            unitId:
+              activeUnitId,
+
+            patientId:
+              item.patientId!,
+
+            patient:
+              item.patient,
+
+            description:
+              isConvenio
+                ? `Pagamento adicional - Convênio - ${item.specialty}`
+                : isPacote
+                  ? `Pagamento adicional - Pacote - ${item.specialty}`
+                  : `Recebimento avulso - ${item.specialty}`,
+
+            date:
+              paymentDate,
+
+            paymentMethod,
+
+            amount:
+              finalAmount,
+
+            specialty:
+              item.specialty,
+
+            professional:
+              item.professional,
+
+            observation:
+              [
+                `Atendimento ${item.date} ${item.startTime}`,
+                item.billingType
+                  ? `Origem: ${item.billingType}${item.convenio ? ` - ${item.convenio}` : ""}`
+                  : "",
+                observation.trim(),
+              ]
+                .filter(
+                  Boolean
+                )
+                .join(
+                  " | "
+                ),
+
+            sourceId:
+              Math.abs(
+                getItemFinancialAppointmentId(
+                  item
+                ) ??
+                  Date.now()
+              ),
+
+            billingType:
+              "Particular",
+
+            bankAccountId:
+              selectedBankAccount.id,
+
+            bankAccountName:
+              `${selectedBankAccount.accountName} — ${selectedBankAccount.bankName}`,
+
+            sourceType:
+              "AgendaRecepcao",
+
+            sourceReference:
+              `agenda-extra:${getItemFinancialAppointmentId(item) ?? item.key}:${paymentDate}:${Date.now()}`,
+          }
+        );
+      }
+
+      onPaid();
+    } catch (
+      error
+    ) {
+      setFeedback(
+        error instanceof
+          Error
+          ? error.message
+          : "Não foi possível registrar o pagamento."
+      );
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/40 p-4"
+      onClick={
+        onClose
+      }
+    >
+      <div
+        className="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+        onClick={(
+          event
+        ) =>
+          event.stopPropagation()
+        }
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/70 px-5 py-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                <CircleDollarSign
+                  size={18}
+                />
+              </div>
+
+              <div>
+                <h2 className="text-base font-extrabold text-[#10235f]">
+                  Receber pagamento
+                </h2>
+
+                <p className="mt-0.5 text-xs font-medium text-slate-500">
+                  Pagamento rápido sem sair da agenda.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={
+              onClose
+            }
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+            title="Fechar"
+          >
+            <X
+              size={17}
+            />
+          </button>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-400">
+                Paciente
+              </p>
+
+              <p className="mt-1 text-sm font-extrabold text-[#263765]">
+                {
+                  item.patient
+                }
+              </p>
+
+              <p className="mt-1 text-xs font-medium text-slate-500">
+                {item.startTime} - {item.endTime} • {item.professional}
+              </p>
+            </div>
+
+            <div className={`rounded-xl border p-3 ${
+              isConvenio
+                ? "border-cyan-100 bg-cyan-50/70"
+                : isPacote
+                  ? "border-violet-100 bg-violet-50/70"
+                  : "border-blue-100 bg-blue-50/60"
+            }`}>
+              <p className={`text-[10px] font-extrabold uppercase tracking-wide ${
+                isConvenio
+                  ? "text-cyan-600"
+                  : isPacote
+                    ? "text-violet-600"
+                    : "text-blue-500"
+              }`}>
+                {isConvenio
+                  ? "Atendimento por convênio"
+                  : isPacote
+                    ? "Atendimento por pacote"
+                    : paymentMode === "principal"
+                      ? "Valor da cobrança"
+                      : "Outro pagamento"}
+              </p>
+
+              <p className={`mt-1 text-xl font-extrabold ${
+                isConvenio
+                  ? "text-cyan-800"
+                  : isPacote
+                    ? "text-violet-800"
+                    : "text-blue-800"
+              }`}>
+                {
+                  formatCurrency(
+                    originalAmount
+                  )
+                }
+              </p>
+
+              <p className={`mt-1 text-xs font-medium ${
+                isConvenio
+                  ? "text-cyan-700"
+                  : isPacote
+                    ? "text-violet-700"
+                    : "text-blue-600"
+              }`}>
+                {item.billingType || "Particular"}
+                {item.convenio
+                  ? ` • ${item.convenio}`
+                  : ""}
+                {" • "}
+                {item.specialty}
+              </p>
+            </div>
+          </div>
+
+          {!alreadyPaid && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+              <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
+                Tipo de recebimento
+              </p>
+
+              <div className="mt-2 flex flex-wrap gap-2">
+                {charge && !isConvenio && !isPacote && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPaymentMode(
+                        "principal"
+                      )
+                    }
+                    className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${
+                      paymentMode ===
+                        "principal"
+                        ? "border-blue-300 bg-blue-50 text-blue-700"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    Pagamento do atendimento
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPaymentMode(
+                      "outro"
+                    )
+                  }
+                  className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${
+                    paymentMode ===
+                      "outro"
+                      ? "border-violet-300 bg-violet-50 text-violet-700"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  Outro pagamento
+                </button>
+              </div>
+
+              {(isConvenio ||
+                isPacote) && (
+                <p className="mt-2 text-[11px] font-medium text-slate-600">
+                  {isConvenio
+                    ? "Este atendimento é de convênio. Use “Outro pagamento” apenas para coparticipação, taxa ou outro valor recebido por fora."
+                    : "Este atendimento é de pacote. Use “Outro pagamento” apenas para algum valor adicional recebido por fora."}
+                </p>
+              )}
+            </div>
+          )}
+
+          {alreadyPaid ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+              <div className="flex items-center gap-2 text-emerald-700">
+                <CheckCircle2
+                  size={18}
+                />
+
+                <p className="text-sm font-extrabold">
+                  Pagamento já recebido
+                </p>
+              </div>
+
+              <div className="mt-3 grid gap-2 text-xs text-emerald-800 sm:grid-cols-3">
+                <p>
+                  <strong>Valor:</strong>{" "}
+                  {formatCurrency(
+                    charge?.receivedAmount ??
+                      charge?.amount ??
+                      0
+                  )}
+                </p>
+
+                <p>
+                  <strong>Forma:</strong>{" "}
+                  {charge?.paymentMethod}
+                </p>
+
+                <p>
+                  <strong>Data:</strong>{" "}
+                  {charge?.paymentDate ||
+                    "-"}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {paymentMode ===
+                "outro" && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-xs font-bold text-amber-800">
+                    Registro de pagamento adicional
+                  </p>
+
+                  <p className="mt-1 text-[11px] font-medium text-amber-700">
+                    Informe somente o valor recebido por fora. Este lançamento será registrado separadamente no Financeiro e não altera o tipo original do atendimento.
+                  </p>
+                </div>
+              )}
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {paymentMode ===
+                  "outro" && (
+                  <label>
+                    <span className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
+                      Valor do recebimento
+                    </span>
+
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={
+                        manualAmount
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setManualAmount(
+                          Math.max(
+                            Number(
+                              event.target.value
+                            ) ||
+                              0,
+                            0
+                          )
+                        )
+                      }
+                      className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400"
+                    />
+                  </label>
+                )}
+
+                <label>
+                  <span className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
+                    Forma de pagamento
+                  </span>
+
+                  <select
+                    value={
+                      paymentMethod
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setPaymentMethod(
+                        event.target.value as PaymentMethod
+                      )
+                    }
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400"
+                  >
+                    <option value="Pix">
+                      Pix
+                    </option>
+
+                    <option value="Dinheiro">
+                      Dinheiro
+                    </option>
+
+                    <option value="Cartão de débito">
+                      Cartão de débito
+                    </option>
+
+                    <option value="Cartão de crédito">
+                      Cartão de crédito
+                    </option>
+
+                    <option value="Transferência">
+                      Transferência
+                    </option>
+                  </select>
+                </label>
+
+                <label>
+                  <span className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
+                    Conta de recebimento
+                  </span>
+
+                  <select
+                    value={
+                      bankAccountId
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setBankAccountId(
+                        event.target.value
+                      )
+                    }
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400"
+                  >
+                    <option value="">
+                      Selecione
+                    </option>
+
+                    {bankAccounts.map(
+                      (
+                        account
+                      ) => (
+                        <option
+                          key={
+                            account.id
+                          }
+                          value={
+                            account.id
+                          }
+                        >
+                          {account.accountName} — {account.bankName}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
+
+                <label>
+                  <span className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
+                    Data
+                  </span>
+
+                  <input
+                    type="date"
+                    value={
+                      paymentDate
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setPaymentDate(
+                        event.target.value
+                      )
+                    }
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400"
+                  />
+                </label>
+
+                <label>
+                  <span className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
+                    Desconto
+                  </span>
+
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={
+                      discount
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setDiscount(
+                        Math.max(
+                          Number(
+                            event.target.value
+                          ) ||
+                            0,
+                          0
+                        )
+                      )
+                    }
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400"
+                  />
+                </label>
+
+                <label>
+                  <span className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
+                    Acréscimo
+                  </span>
+
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={
+                      surcharge
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setSurcharge(
+                        Math.max(
+                          Number(
+                            event.target.value
+                          ) ||
+                            0,
+                          0
+                        )
+                      )
+                    }
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400"
+                  />
+                </label>
+
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2.5">
+                  <p className="text-[10px] font-extrabold uppercase tracking-wide text-indigo-500">
+                    Total a receber
+                  </p>
+
+                  <p className="mt-1 text-lg font-extrabold text-indigo-800">
+                    {
+                      formatCurrency(
+                        finalAmount
+                      )
+                    }
+                  </p>
+                </div>
+              </div>
+
+              <label>
+                <span className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
+                  Observação
+                </span>
+
+                <textarea
+                  rows={2}
+                  value={
+                    observation
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setObservation(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Opcional"
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-700 outline-none focus:border-blue-400"
+                />
+              </label>
+
+              {bankAccounts.length ===
+                0 && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-700">
+                  Nenhuma conta bancária ativa foi encontrada para esta unidade.
+                </div>
+              )}
+            </>
+          )}
+
+          {feedback && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700">
+              {
+                feedback
+              }
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/60 px-5 py-4">
+          <p className="text-[10px] font-semibold text-slate-500">
+            {alreadyPaid
+              ? "O recebimento já está registrado no Financeiro."
+              : paymentMode ===
+                  "principal" &&
+                charge
+                ? "Ao confirmar, a cobrança principal será quitada no Financeiro da recepção."
+                : "Ao confirmar, será criado um pagamento adicional separado no Financeiro, sem alterar o convênio, pacote ou tipo original do atendimento."}
+          </p>
+
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={
+                onClose
+              }
+            >
+              Fechar
+            </Button>
+
+            {!alreadyPaid && (
+              <Button
+                type="button"
+                onClick={
+                  confirmPayment
+                }
+              >
+                <CircleDollarSign
+                  size={15}
+                />
+
+                {paymentMode ===
+                  "principal"
+                  ? "Confirmar recebimento"
+                  : "Registrar outro pagamento"}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function VacantCard({
   slot,
   activeUnitId,
   onClick,
+  dragActive = false,
+  onDropItem,
 }: {
   slot:
     VacantSlot;
@@ -7282,6 +9056,15 @@ function VacantCard({
 
   onClick:
     () => void;
+
+  dragActive?:
+    boolean;
+
+  onDropItem?:
+    (
+      itemKey:
+        string
+    ) => void;
 }) {
   void activeUnitId;
 
@@ -7291,7 +9074,49 @@ function VacantCard({
       onClick={
         onClick
       }
-      className="w-full rounded-xl border border-dashed border-emerald-300 bg-emerald-50/60 p-3 text-left transition hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-sm"
+      onDragOver={(
+        event
+      ) => {
+        if (
+          !onDropItem
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+
+        event.dataTransfer.dropEffect =
+          "move";
+      }}
+      onDrop={(
+        event
+      ) => {
+        if (
+          !onDropItem
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+
+        const itemKey =
+          event.dataTransfer.getData(
+            "text/plain"
+          );
+
+        if (
+          itemKey
+        ) {
+          onDropItem(
+            itemKey
+          );
+        }
+      }}
+      className={`w-full rounded-xl border border-dashed p-3 text-left transition ${
+        dragActive
+          ? "border-emerald-500 bg-emerald-100/80 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]"
+          : "border-emerald-300 bg-emerald-50/60 hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-sm"
+      }`}
     >
       <div className="flex items-center justify-between gap-2">
         <p className="text-[11px] font-extrabold text-emerald-700">
@@ -7321,7 +9146,9 @@ function VacantCard({
       </div>
 
       <p className="mt-2 text-[9px] font-extrabold text-emerald-700">
-        Clique para encaixar
+        {dragActive
+          ? "Solte aqui para encaixar"
+          : "Clique para encaixar"}
       </p>
     </button>
   );

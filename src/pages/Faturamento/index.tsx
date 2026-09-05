@@ -4,9 +4,11 @@ import {
   CheckCircle2,
   CircleDollarSign,
   Clock3,
+  Filter,
   ReceiptText,
   Search,
   WalletCards,
+  X,
 } from "lucide-react";
 
 import {
@@ -54,6 +56,40 @@ function getCurrentCompetence() {
   return `${now.getFullYear()}-${month}`;
 }
 
+function getCurrentDate() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getCurrentYear() {
+  return String(new Date().getFullYear());
+}
+
+type PeriodMode = "Dia" | "Mês" | "Ano";
+
+function chargeMatchesPeriod(
+  charge: FinancialCharge,
+  periodMode: PeriodMode,
+  selectedDate: string,
+  selectedMonth: string,
+  selectedYear: string
+) {
+  const chargeDate = charge.date.slice(0, 10);
+
+  if (periodMode === "Dia") {
+    return !selectedDate || chargeDate === selectedDate;
+  }
+
+  if (periodMode === "Ano") {
+    return !selectedYear || chargeDate.slice(0, 4) === selectedYear;
+  }
+
+  return !selectedMonth || chargeDate.slice(0, 7) === selectedMonth;
+}
+
 function formatDate(
   value: string
 ) {
@@ -83,14 +119,6 @@ function formatDate(
   );
 }
 
-function getChargeCompetence(
-  charge: FinancialCharge
-) {
-  return charge.date.slice(
-    0,
-    7
-  );
-}
 
 function isOverdue(
   charge: FinancialCharge
@@ -199,12 +227,24 @@ export default function Faturamento() {
     useState("");
 
   const [
-    competence,
-    setCompetence,
-  ] =
-    useState(
-      getCurrentCompetence()
-    );
+    periodMode,
+    setPeriodMode,
+  ] = useState<PeriodMode>("Mês");
+
+  const [
+    selectedDate,
+    setSelectedDate,
+  ] = useState(getCurrentDate());
+
+  const [
+    selectedMonth,
+    setSelectedMonth,
+  ] = useState(getCurrentCompetence());
+
+  const [
+    selectedYear,
+    setSelectedYear,
+  ] = useState(getCurrentYear());
 
   const [
     status,
@@ -221,6 +261,21 @@ export default function Faturamento() {
     useState(
       "Todos"
     );
+
+  const [
+    professionalFilter,
+    setProfessionalFilter,
+  ] = useState("Todos");
+
+  const [
+    specialtyFilter,
+    setSpecialtyFilter,
+  ] = useState("Todas");
+
+  const [
+    convenioFilter,
+    setConvenioFilter,
+  ] = useState("Todos");
 
   /*
    * Primeiro isolamos os lançamentos da unidade.
@@ -244,24 +299,54 @@ export default function Faturamento() {
       ]
     );
 
-  const competenceCharges =
+  const periodCharges =
     useMemo(
       () =>
-        unitCharges.filter(
-          (
-            charge
-          ) =>
-            !competence ||
-            getChargeCompetence(
-              charge
-            ) ===
-              competence
+        unitCharges.filter((charge) =>
+          chargeMatchesPeriod(
+            charge,
+            periodMode,
+            selectedDate,
+            selectedMonth,
+            selectedYear
+          )
         ),
       [
         unitCharges,
-        competence,
+        periodMode,
+        selectedDate,
+        selectedMonth,
+        selectedYear,
       ]
     );
+
+  const professionalOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(unitCharges.map((charge) => charge.professional).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [unitCharges]
+  );
+
+  const specialtyOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(unitCharges.map((charge) => charge.specialty).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [unitCharges]
+  );
+
+  const convenioOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          unitCharges
+            .map((charge) => charge.convenio)
+            .filter((value): value is string => Boolean(value))
+        )
+      ).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [unitCharges]
+  );
 
   const filteredCharges =
     useMemo(
@@ -271,7 +356,7 @@ export default function Faturamento() {
             .trim()
             .toLowerCase();
 
-        return competenceCharges.filter(
+        return periodCharges.filter(
           (
             charge
           ) => {
@@ -320,19 +405,37 @@ export default function Faturamento() {
               charge.billingType ===
                 billingType;
 
+            const matchesProfessional =
+              professionalFilter === "Todos" ||
+              charge.professional === professionalFilter;
+
+            const matchesSpecialty =
+              specialtyFilter === "Todas" ||
+              charge.specialty === specialtyFilter;
+
+            const matchesConvenio =
+              convenioFilter === "Todos" ||
+              charge.convenio === convenioFilter;
+
             return (
               matchesSearch &&
               matchesStatus &&
-              matchesBillingType
+              matchesBillingType &&
+              matchesProfessional &&
+              matchesSpecialty &&
+              matchesConvenio
             );
           }
         );
       },
       [
-        competenceCharges,
+        periodCharges,
         search,
         status,
         billingType,
+        professionalFilter,
+        specialtyFilter,
+        convenioFilter,
       ]
     );
 
@@ -340,7 +443,7 @@ export default function Faturamento() {
     useMemo(
       () => {
         const activeCharges =
-          competenceCharges.filter(
+          periodCharges.filter(
             (
               charge
             ) =>
@@ -427,9 +530,18 @@ export default function Faturamento() {
         };
       },
       [
-        competenceCharges,
+        periodCharges,
       ]
     );
+
+  function clearFilters() {
+    setSearch("");
+    setStatus("Todos");
+    setBillingType("Todos");
+    setProfessionalFilter("Todos");
+    setSpecialtyFilter("Todas");
+    setConvenioFilter("Todos");
+  }
 
   function handleRefresh() {
     setCharges(
@@ -462,6 +574,178 @@ export default function Faturamento() {
           >
             Atualizar dados
           </button>
+        </div>
+
+        {/* FILTROS */}
+
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Filter size={18} className="text-[#5b69d8]" />
+                  <h2 className="font-bold text-[#142a78]">Filtros do faturamento</h2>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">Selecione o período e refine os lançamentos conforme necessário.</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+              >
+                <X size={15} />
+                Limpar filtros
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {(["Dia", "Mês", "Ano"] as PeriodMode[]).map((mode) => {
+                const selected = periodMode === mode;
+
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setPeriodMode(mode)}
+                    className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-semibold transition ${
+                      selected
+                        ? "border-[#5b69d8]/40 bg-[#5b69d8]/10 text-[#142a78]"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    <CalendarDays
+                      size={15}
+                      className={
+                        selected
+                          ? "text-[#5b69d8]"
+                          : "text-slate-400"
+                      }
+                    />
+                    {mode}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-500">Período selecionado</label>
+                {periodMode === "Dia" ? (
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(event) => setSelectedDate(event.target.value)}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#5b69d8] focus:ring-2 focus:ring-[#5b69d8]/10"
+                  />
+                ) : periodMode === "Mês" ? (
+                  <input
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(event) => setSelectedMonth(event.target.value)}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#5b69d8] focus:ring-2 focus:ring-[#5b69d8]/10"
+                  />
+                ) : (
+                  <select
+                    value={selectedYear}
+                    onChange={(event) => setSelectedYear(event.target.value)}
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#5b69d8] focus:ring-2 focus:ring-[#5b69d8]/10"
+                  >
+                    {Array.from({ length: 8 }, (_, index) => String(new Date().getFullYear() - 4 + index)).map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-500">Status</label>
+                <select
+                  value={status}
+                  onChange={(event) => setStatus(event.target.value)}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#5b69d8] focus:ring-2 focus:ring-[#5b69d8]/10"
+                >
+                  <option>Todos</option>
+                  <option>Pendente</option>
+                  <option>Vencido</option>
+                  <option>Pago</option>
+                  <option>Cancelado</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-500">Tipo de cobrança</label>
+                <select
+                  value={billingType}
+                  onChange={(event) => setBillingType(event.target.value)}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#5b69d8] focus:ring-2 focus:ring-[#5b69d8]/10"
+                >
+                  <option>Todos</option>
+                  <option>Particular</option>
+                  <option>Convênio</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-500">Profissional</label>
+                <select
+                  value={professionalFilter}
+                  onChange={(event) => setProfessionalFilter(event.target.value)}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#5b69d8] focus:ring-2 focus:ring-[#5b69d8]/10"
+                >
+                  <option value="Todos">Todos os profissionais</option>
+                  {professionalOptions.map((professional) => (
+                    <option key={professional} value={professional}>{professional}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-500">Especialidade</label>
+                <select
+                  value={specialtyFilter}
+                  onChange={(event) => setSpecialtyFilter(event.target.value)}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#5b69d8] focus:ring-2 focus:ring-[#5b69d8]/10"
+                >
+                  <option value="Todas">Todas as especialidades</option>
+                  {specialtyOptions.map((specialty) => (
+                    <option key={specialty} value={specialty}>{specialty}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-500">Convênio</label>
+                <select
+                  value={convenioFilter}
+                  onChange={(event) => setConvenioFilter(event.target.value)}
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#5b69d8] focus:ring-2 focus:ring-[#5b69d8]/10"
+                >
+                  <option value="Todos">Todos os convênios</option>
+                  {convenioOptions.map((convenio) => (
+                    <option key={convenio} value={convenio}>{convenio}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-1.5 block text-xs font-semibold text-slate-500">Busca</label>
+                <div className="relative">
+                  <Search
+                    size={18}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Buscar paciente, profissional, especialidade, descrição ou convênio"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-700 outline-none transition focus:border-[#5b69d8] focus:ring-2 focus:ring-[#5b69d8]/10"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* RESUMO */}
@@ -553,121 +837,6 @@ export default function Faturamento() {
                 />
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* FILTROS */}
-
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <div className="grid gap-4 xl:grid-cols-[minmax(260px,1fr)_180px_180px_180px]">
-            <div className="relative">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-
-              <input
-                type="text"
-                value={
-                  search
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    setSearch(
-                      event.target.value
-                    )
-                }
-                placeholder="Buscar paciente, profissional, especialidade ou convênio"
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-700 outline-none transition focus:border-[#5b69d8] focus:ring-2 focus:ring-[#5b69d8]/10"
-              />
-            </div>
-
-            <div className="relative">
-              <CalendarDays
-                size={17}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-
-              <input
-                type="month"
-                value={
-                  competence
-                }
-                onChange={
-                  (
-                    event
-                  ) =>
-                    setCompetence(
-                      event.target.value
-                    )
-                }
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-700 outline-none transition focus:border-[#5b69d8] focus:ring-2 focus:ring-[#5b69d8]/10"
-              />
-            </div>
-
-            <select
-              value={
-                status
-              }
-              onChange={
-                (
-                  event
-                ) =>
-                  setStatus(
-                    event.target.value
-                  )
-              }
-              className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#5b69d8] focus:ring-2 focus:ring-[#5b69d8]/10"
-            >
-              <option>
-                Todos
-              </option>
-
-              <option>
-                Pendente
-              </option>
-
-              <option>
-                Vencido
-              </option>
-
-              <option>
-                Pago
-              </option>
-
-              <option>
-                Cancelado
-              </option>
-            </select>
-
-            <select
-              value={
-                billingType
-              }
-              onChange={
-                (
-                  event
-                ) =>
-                  setBillingType(
-                    event.target.value
-                  )
-              }
-              className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#5b69d8] focus:ring-2 focus:ring-[#5b69d8]/10"
-            >
-              <option>
-                Todos
-              </option>
-
-              <option>
-                Particular
-              </option>
-
-              <option>
-                Convênio
-              </option>
-            </select>
           </div>
         </div>
 

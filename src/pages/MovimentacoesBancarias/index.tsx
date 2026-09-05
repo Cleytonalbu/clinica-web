@@ -11,11 +11,8 @@ import {
   ArrowUpCircle,
   CalendarDays,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Landmark,
   Link2,
-  Plus,
   Search,
   Tags,
   X,
@@ -31,10 +28,6 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
-  useUnit,
-} from "@/providers/UnitContext";
-
-import {
   getBankAccounts,
 } from "@/pages/ContasBancarias/bankAccountStorage";
 
@@ -43,7 +36,6 @@ import type {
 } from "@/pages/ContasBancarias/bankAccountStorage";
 
 import {
-  createManualBankTransaction,
   getBankTransactions,
 } from "@/pages/ImportarExtrato/bankTransactionStorage";
 
@@ -105,76 +97,73 @@ function date(
     : "—";
 }
 
-function getCurrentMonth() {
-  const now =
-    new Date();
+type PeriodMode =
+  | "Dia"
+  | "Mês"
+  | "Ano";
 
-  return `${now.getFullYear()}-${String(
-    now.getMonth() + 1,
-  ).padStart(2, "0")}`;
+function currentDateValue() {
+  return new Date()
+    .toISOString()
+    .slice(0, 10);
 }
 
-function monthLabel(
-  value: string,
-) {
-  if (!value) {
-    return "Todos os meses";
-  }
+function currentMonthValue() {
+  return new Date()
+    .toISOString()
+    .slice(0, 7);
+}
 
-  const [
-    year,
-    month,
-  ] =
-    value.split("-");
+function currentYearValue() {
+  return String(
+    new Date().getFullYear(),
+  );
+}
+
+function matchesPeriod(
+  transactionDate: string,
+  mode: PeriodMode,
+  selectedDate: string,
+  selectedMonth: string,
+  selectedYear: string,
+) {
+  const value =
+    transactionDate.slice(
+      0,
+      10,
+    );
 
   if (
-    !year ||
-    !month
+    mode === "Dia"
   ) {
-    return value;
+    return (
+      !selectedDate ||
+      value ===
+        selectedDate
+    );
   }
 
-  const reference =
-    new Date(
-      Number(year),
-      Number(month) - 1,
-      1,
+  if (
+    mode === "Ano"
+  ) {
+    return (
+      !selectedYear ||
+      value.slice(
+        0,
+        4,
+      ) ===
+        selectedYear
     );
+  }
 
-  const label =
-    reference.toLocaleDateString(
-      "pt-BR",
-      {
-        month: "long",
-        year: "numeric",
-      },
-    );
-
-  return label.charAt(0).toUpperCase() +
-    label.slice(1);
-}
-
-function changeMonth(
-  value: string,
-  difference: number,
-) {
-  const [
-    year,
-    month,
-  ] =
-    value.split("-");
-
-  const reference =
-    new Date(
-      Number(year),
-      Number(month) - 1 +
-        difference,
-      1,
-    );
-
-  return `${reference.getFullYear()}-${String(
-    reference.getMonth() + 1,
-  ).padStart(2, "0")}`;
+  return (
+    !selectedMonth ||
+    value.slice(
+      0,
+      7,
+    ) ===
+      selectedMonth
+  );
 }
 
 function sameAmount(
@@ -217,17 +206,11 @@ interface FinancialMatch {
   description: string;
   amount: number;
   date: string;
-  bankAccountDefined: boolean;
 }
 
 export default function MovimentacoesBancarias() {
   const navigate =
     useNavigate();
-
-  const {
-    activeUnitId,
-  } =
-    useUnit();
 
   const {
     accountId,
@@ -275,6 +258,38 @@ export default function MovimentacoesBancarias() {
     >([]);
 
   const [
+    periodMode,
+    setPeriodMode,
+  ] =
+    useState<
+      PeriodMode
+    >("Mês");
+
+  const [
+    selectedDate,
+    setSelectedDate,
+  ] =
+    useState(
+      currentDateValue()
+    );
+
+  const [
+    selectedMonth,
+    setSelectedMonth,
+  ] =
+    useState(
+      currentMonthValue()
+    );
+
+  const [
+    selectedYear,
+    setSelectedYear,
+  ] =
+    useState(
+      currentYearValue()
+    );
+
+  const [
     search,
     setSearch,
   ] =
@@ -299,14 +314,6 @@ export default function MovimentacoesBancarias() {
       | "Conciliados"
       | "Não conciliados"
     >("Todos");
-
-  const [
-    selectedMonth,
-    setSelectedMonth,
-  ] =
-    useState(
-      getCurrentMonth(),
-    );
 
   const [
     selected,
@@ -342,56 +349,12 @@ export default function MovimentacoesBancarias() {
   ] =
     useState("");
 
-  const [
-    showManualForm,
-    setShowManualForm,
-  ] =
-    useState(false);
-
-  const [
-    manualType,
-    setManualType,
-  ] =
-    useState<
-      "Entrada" | "Saída"
-    >("Entrada");
-
-  const [
-    manualDate,
-    setManualDate,
-  ] =
-    useState(
-      new Date()
-        .toISOString()
-        .slice(0, 10),
-    );
-
-  const [
-    manualDescription,
-    setManualDescription,
-  ] =
-    useState("");
-
-  const [
-    manualAmount,
-    setManualAmount,
-  ] =
-    useState("");
-
-  const [
-    manualNotes,
-    setManualNotes,
-  ] =
-    useState("");
-
   function load() {
     setAccount(
       getBankAccounts().find(
         (item) =>
           item.id ===
-            accountId &&
-          item.unitId ===
-            activeUnitId,
+          accountId,
       ) ?? null,
     );
 
@@ -415,15 +378,11 @@ export default function MovimentacoesBancarias() {
     );
 
     setCharges(
-      getFinancialCharges().filter(
-        (charge) => charge.unitId === activeUnitId,
-      ),
+      getFinancialCharges(),
     );
 
     setExpenses(
-      getFinancialExpenses().filter(
-        (expense) => expense.unitId === activeUnitId,
-      ),
+      getFinancialExpenses(),
     );
   }
 
@@ -466,7 +425,6 @@ export default function MovimentacoesBancarias() {
     };
   }, [
     accountId,
-    activeUnitId,
   ]);
 
   const reconciliationMap =
@@ -549,19 +507,20 @@ export default function MovimentacoesBancarias() {
               !reconciliation
             );
 
-          const matchesMonth =
-            !selectedMonth ||
-            item.date.slice(
-              0,
-              7,
-            ) ===
-              selectedMonth;
+          const matchesDate =
+            matchesPeriod(
+              item.date,
+              periodMode,
+              selectedDate,
+              selectedMonth,
+              selectedYear,
+            );
 
           return (
             matchesSearch &&
             matchesType &&
             matchesStatus &&
-            matchesMonth
+            matchesDate
           );
         },
       );
@@ -570,7 +529,10 @@ export default function MovimentacoesBancarias() {
       search,
       type,
       status,
+      periodMode,
+      selectedDate,
       selectedMonth,
+      selectedYear,
       reconciliationMap,
     ]);
 
@@ -613,7 +575,7 @@ export default function MovimentacoesBancarias() {
           );
 
       const reconciled =
-        items.filter(
+        filtered.filter(
           (item) =>
             reconciliationMap.has(
               item.id,
@@ -625,12 +587,11 @@ export default function MovimentacoesBancarias() {
         exits,
         reconciled,
         pending:
-          items.length -
+          filtered.length -
           reconciled,
       };
     }, [
       filtered,
-      items,
       reconciliationMap,
     ]);
 
@@ -656,11 +617,6 @@ export default function MovimentacoesBancarias() {
               sameAmount(
                 charge.amount,
                 selected.amount,
-              ) &&
-              (
-                !charge.bankAccountId ||
-                charge.bankAccountId ===
-                  accountId
               ),
           )
           .map(
@@ -682,8 +638,6 @@ export default function MovimentacoesBancarias() {
               date:
                 charge.dueDate ||
                 charge.date,
-              bankAccountDefined:
-                !!charge.bankAccountId,
             }),
           );
       }
@@ -702,11 +656,6 @@ export default function MovimentacoesBancarias() {
               sameAmount(
                 expense.amount,
                 selected.amount,
-              ) &&
-              (
-                !expense.bankAccountId ||
-                expense.bankAccountId ===
-                  accountId
               ),
           )
           .map(
@@ -728,8 +677,6 @@ export default function MovimentacoesBancarias() {
                 expense.amount,
               date:
                 expense.dueDate,
-              bankAccountDefined:
-                !!expense.bankAccountId,
             }),
           );
       }
@@ -740,7 +687,6 @@ export default function MovimentacoesBancarias() {
       reconciliationType,
       charges,
       expenses,
-      accountId,
     ]);
 
   const existingSelectedReconciliation =
@@ -885,14 +831,6 @@ export default function MovimentacoesBancarias() {
                 selected.date,
               observation:
                 `Conciliado com movimentação bancária: ${selected.description}`,
-
-              bankAccountId:
-                account?.id,
-
-              bankAccountName:
-                account
-                  ? `${account.accountName} — ${account.bankName}`
-                  : undefined,
             },
           );
         } else {
@@ -911,14 +849,6 @@ export default function MovimentacoesBancarias() {
               surcharge: 0,
               observation:
                 `Conciliado com movimentação bancária: ${selected.description}`,
-
-              bankAccountId:
-                account?.id,
-
-              bankAccountName:
-                account
-                  ? `${account.accountName} — ${account.bankName}`
-                  : undefined,
             },
           );
         }
@@ -960,78 +890,10 @@ export default function MovimentacoesBancarias() {
     load();
   }
 
-  function submitManualTransaction(
-    event: FormEvent,
-  ) {
-    event.preventDefault();
-
-    const parsed =
-      Number(
-        manualAmount
-          .replace(/\./g, "")
-          .replace(",", "."),
-      );
-
-    if (
-      !Number.isFinite(parsed) ||
-      parsed <= 0
-    ) {
-      window.alert(
-        "Informe um valor válido.",
-      );
-
-      return;
-    }
-
-    try {
-      createManualBankTransaction({
-        accountId:
-          accountId ?? "",
-        date:
-          manualDate,
-        description:
-          manualDescription.trim(),
-        amount:
-          manualType === "Entrada"
-            ? Math.abs(parsed)
-            : -Math.abs(parsed),
-      });
-
-      setShowManualForm(false);
-
-      setManualType(
-        "Entrada",
-      );
-
-      setManualDate(
-        new Date()
-          .toISOString()
-          .slice(0, 10),
-      );
-
-      setManualDescription(
-        "",
-      );
-
-      setManualAmount(
-        "",
-      );
-
-      setManualNotes(
-        "",
-      );
-
-      load();
-    } catch (
-      error
-    ) {
-      window.alert(
-        error instanceof
-          Error
-          ? error.message
-          : "Não foi possível salvar o lançamento.",
-      );
-    }
+  function clearFilters() {
+    setSearch("");
+    setType("Todos");
+    setStatus("Todos");
   }
 
   const availableCategories =
@@ -1050,186 +912,183 @@ export default function MovimentacoesBancarias() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <button
-              type="button"
-              onClick={() =>
-                navigate(
-                  "/contas-bancarias",
-                )
-              }
-              className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800"
-            >
-              <ArrowLeft
-                size={17}
-              />
-              Voltar para contas bancárias
-            </button>
-
-            <h1 className="text-2xl font-semibold text-slate-900">
-              Movimentações bancárias
-            </h1>
-
-            <p className="mt-1 text-sm text-slate-500">
-              {account
-                ? `${account.accountName} — ${account.bankName}`
-                : "Conta bancária"}
-            </p>
-          </div>
-
+        <div>
           <button
             type="button"
             onClick={() =>
-              setShowManualForm(true)
+              navigate(
+                "/contas-bancarias",
+              )
             }
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
+            className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-800"
           >
-            <Plus size={18} />
-            Novo lançamento
+            <ArrowLeft
+              size={17}
+            />
+            Voltar para contas bancárias
           </button>
+
+          <h1 className="text-2xl font-semibold text-slate-900">
+            Movimentações bancárias
+          </h1>
+
+          <p className="mt-1 text-sm text-slate-500">
+            {account
+              ? `${account.accountName} — ${account.bankName}`
+              : "Conta bancária"}
+          </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <Card
-            icon={
-              Landmark
-            }
-            label="Saldo atual"
-            value={money(
-              account
-                ?.currentBalance ??
-                0,
-            )}
-          />
-
-          <Card
-            icon={
-              ArrowUpCircle
-            }
-            label="Entradas exibidas"
-            value={money(
-              summary.entries,
-            )}
-          />
-
-          <Card
-            icon={
-              ArrowDownCircle
-            }
-            label="Saídas exibidas"
-            value={money(
-              summary.exits,
-            )}
-          />
-
-          <Card
-            icon={
-              CheckCircle2
-            }
-            label="Não conciliadas"
-            value={String(
-              summary.pending,
-            )}
-          />
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white">
-          <div className="flex flex-col gap-4 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-slate-100 p-2.5 text-slate-600">
-                <CalendarDays
-                  size={20}
-                />
-              </div>
-
+        <div className="rounded-2xl border border-violet-100 bg-white p-4 shadow-sm">
+          <div className="space-y-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Competência
+                <p className="text-sm font-semibold text-slate-900">
+                  Período das movimentações
                 </p>
 
-                <p className="text-base font-semibold text-slate-900">
-                  {monthLabel(
-                    selectedMonth,
-                  )}
+                <p className="mt-1 text-xs text-slate-500">
+                  Selecione dia, mês ou ano e refine a movimentação bancária.
                 </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    "Dia",
+                    "Mês",
+                    "Ano",
+                  ] as PeriodMode[]
+                ).map(
+                  (
+                    mode,
+                  ) => {
+                    const active =
+                      periodMode ===
+                      mode;
+
+                    return (
+                      <button
+                        key={
+                          mode
+                        }
+                        type="button"
+                        onClick={() =>
+                          setPeriodMode(
+                            mode,
+                          )
+                        }
+                        className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-semibold transition ${
+                          active
+                            ? "border-violet-300 bg-violet-50 text-violet-700"
+                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        <CalendarDays
+                          size={
+                            15
+                          }
+                        />
+
+                        {
+                          mode
+                        }
+                      </button>
+                    );
+                  },
+                )}
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedMonth(
-                    changeMonth(
-                      selectedMonth,
-                      -1,
-                    ),
-                  )
-                }
-                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
-                title="Mês anterior"
-              >
-                <ChevronLeft
-                  size={18}
-                />
-              </button>
+            <div className="grid gap-3 lg:grid-cols-[190px_1fr_200px_220px_auto]">
+              <div>
+                {periodMode ===
+                "Dia" ? (
+                  <input
+                    type="date"
+                    value={
+                      selectedDate
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setSelectedDate(
+                        event.target.value,
+                      )
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  />
+                ) : periodMode ===
+                  "Mês" ? (
+                  <input
+                    type="month"
+                    value={
+                      selectedMonth
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setSelectedMonth(
+                        event.target.value,
+                      )
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  />
+                ) : (
+                  <select
+                    value={
+                      selectedYear
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      setSelectedYear(
+                        event.target.value,
+                      )
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  >
+                    {Array.from(
+                      {
+                        length:
+                          8,
+                      },
+                      (
+                        _,
+                        index,
+                      ) =>
+                        String(
+                          new Date().getFullYear() -
+                            4 +
+                            index,
+                        ),
+                    ).map(
+                      (
+                        year,
+                      ) => (
+                        <option
+                          key={
+                            year
+                          }
+                          value={
+                            year
+                          }
+                        >
+                          {
+                            year
+                          }
+                        </option>
+                      ),
+                    )}
+                  </select>
+                )}
+              </div>
 
-              <input
-                type="month"
-                value={
-                  selectedMonth
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setSelectedMonth(
-                    event.target.value,
-                  )
-                }
-                className="h-10 rounded-lg border border-slate-200 px-3 text-sm text-slate-700 outline-none focus:border-slate-400"
-              />
-
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedMonth(
-                    changeMonth(
-                      selectedMonth,
-                      1,
-                    ),
-                  )
-                }
-                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
-                title="Próximo mês"
-              >
-                <ChevronRight
-                  size={18}
-                />
-              </button>
-
-              {selectedMonth !==
-                getCurrentMonth() && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSelectedMonth(
-                      getCurrentMonth(),
-                    )
-                  }
-                  className="h-10 rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200"
-                >
-                  Mês atual
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="p-4">
-            <div className="grid gap-3 lg:grid-cols-[1fr_200px_220px]">
               <label className="relative">
                 <Search
-                  size={18}
+                  size={
+                    18
+                  }
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                 />
 
@@ -1245,7 +1104,7 @@ export default function MovimentacoesBancarias() {
                     )
                   }
                   placeholder="Buscar movimentação, categoria ou vínculo"
-                  className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-slate-400"
+                  className="h-11 w-full rounded-xl border border-slate-200 pl-10 pr-3 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
                 />
               </label>
 
@@ -1261,7 +1120,7 @@ export default function MovimentacoesBancarias() {
                       .value as typeof type,
                   )
                 }
-                className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
+                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
               >
                 <option>
                   Todos
@@ -1288,7 +1147,7 @@ export default function MovimentacoesBancarias() {
                       .value as typeof status,
                   )
                 }
-                className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
+                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
               >
                 <option>
                   Todos
@@ -1302,8 +1161,66 @@ export default function MovimentacoesBancarias() {
                   Não conciliados
                 </option>
               </select>
+
+              <button
+                type="button"
+                onClick={
+                  clearFilters
+                }
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+              >
+                Limpar
+              </button>
             </div>
           </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <Card
+            icon={
+              Landmark
+            }
+            label="Saldo atual"
+            tone="violet"
+            value={money(
+              account
+                ?.currentBalance ??
+                0,
+            )}
+          />
+
+          <Card
+            icon={
+              ArrowUpCircle
+            }
+            label="Entradas exibidas"
+            tone="emerald"
+            value={money(
+              summary.entries,
+            )}
+          />
+
+          <Card
+            icon={
+              ArrowDownCircle
+            }
+            label="Saídas exibidas"
+            tone="rose"
+            value={money(
+              summary.exits,
+            )}
+          />
+
+          <Card
+            icon={
+              CheckCircle2
+            }
+            label="Não conciliadas"
+            tone="amber"
+            value={String(
+              summary.pending,
+            )}
+          />
         </div>
 
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -1354,7 +1271,7 @@ export default function MovimentacoesBancarias() {
                         key={
                           item.id
                         }
-                        className="hover:bg-slate-50"
+                        className="transition hover:bg-violet-50/30"
                       >
                         <td className="whitespace-nowrap px-4 py-4 text-sm text-slate-700">
                           {date(
@@ -1531,7 +1448,7 @@ export default function MovimentacoesBancarias() {
                       }
                       className="px-4 py-12 text-center text-sm text-slate-500"
                     >
-                      Nenhuma movimentação encontrada nesta competência.
+                      Nenhuma movimentação encontrada.
                     </td>
                   </tr>
                 )}
@@ -1539,161 +1456,6 @@ export default function MovimentacoesBancarias() {
             </table>
           </div>
         </div>
-
-        {showManualForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl">
-              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">
-                    Novo lançamento bancário
-                  </h2>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    Registre uma entrada ou saída que não veio do extrato importado.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setShowManualForm(false)
-                  }
-                  className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <form
-                onSubmit={
-                  submitManualTransaction
-                }
-                className="space-y-5 p-6"
-              >
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Tipo *">
-                    <select
-                      value={
-                        manualType
-                      }
-                      onChange={(
-                        event,
-                      ) =>
-                        setManualType(
-                          event.target
-                            .value as
-                            | "Entrada"
-                            | "Saída",
-                        )
-                      }
-                      className="input-reconciliation"
-                    >
-                      <option>
-                        Entrada
-                      </option>
-
-                      <option>
-                        Saída
-                      </option>
-                    </select>
-                  </Field>
-
-                  <Field label="Data *">
-                    <input
-                      required
-                      type="date"
-                      value={
-                        manualDate
-                      }
-                      onChange={(
-                        event,
-                      ) =>
-                        setManualDate(
-                          event.target.value,
-                        )
-                      }
-                      className="input-reconciliation"
-                    />
-                  </Field>
-                </div>
-
-                <Field label="Descrição *">
-                  <input
-                    required
-                    value={
-                      manualDescription
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      setManualDescription(
-                        event.target.value,
-                      )
-                    }
-                    placeholder="Ex.: depósito em dinheiro, tarifa bancária..."
-                    className="input-reconciliation"
-                  />
-                </Field>
-
-                <Field label="Valor *">
-                  <input
-                    required
-                    inputMode="decimal"
-                    value={
-                      manualAmount
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      setManualAmount(
-                        event.target.value,
-                      )
-                    }
-                    placeholder="0,00"
-                    className="input-reconciliation"
-                  />
-                </Field>
-
-                <Field label="Observação">
-                  <textarea
-                    rows={3}
-                    value={
-                      manualNotes
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      setManualNotes(
-                        event.target.value,
-                      )
-                    }
-                    className="input-reconciliation resize-none"
-                  />
-                </Field>
-
-                <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowManualForm(false)
-                    }
-                    className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  >
-                    Cancelar
-                  </button>
-
-                  <button
-                    type="submit"
-                    className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
-                  >
-                    Salvar lançamento
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
 
         {selected && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -1919,24 +1681,20 @@ export default function MovimentacoesBancarias() {
                               — venc.{" "}
                               {date(
                                 match.date,
-                              )}{" "}
-                              —{" "}
-                              {match.bankAccountDefined
-                                ? "mesma conta"
-                                : "conta ainda não definida"}
+                              )}
                             </option>
                           ),
                         )}
                       </select>
 
                       <p className="mt-2 text-xs leading-5 text-slate-500">
-                        O sistema mostra lançamentos pendentes com o mesmo valor e compatíveis com esta conta bancária. Lançamentos antigos sem conta definida também podem aparecer para você confirmar.
+                        O sistema mostra apenas lançamentos pendentes com o mesmo valor da movimentação bancária.
                       </p>
 
                       {financialMatches.length ===
                         0 && (
                         <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                          Nenhum lançamento pendente com esse valor e compatível com esta conta foi encontrado no Financeiro. Você pode salvar apenas a categorização.
+                          Nenhum lançamento pendente com esse mesmo valor foi encontrado no Financeiro. Você pode salvar apenas a categorização.
                         </p>
                       )}
                     </Field>
@@ -2017,6 +1775,8 @@ function Card({
   icon: Icon,
   label,
   value,
+  tone =
+    "violet",
 }: {
   icon:
     typeof Landmark;
@@ -2024,12 +1784,30 @@ function Card({
     string;
   value:
     string;
+  tone?:
+    | "violet"
+    | "emerald"
+    | "rose"
+    | "amber";
 }) {
+  const tones = {
+    violet:
+      "border-violet-100 bg-violet-50/40 text-violet-700",
+    emerald:
+      "border-emerald-100 bg-emerald-50/40 text-emerald-700",
+    rose:
+      "border-rose-100 bg-rose-50/40 text-rose-700",
+    amber:
+      "border-amber-100 bg-amber-50/40 text-amber-700",
+  } as const;
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5">
+    <div
+      className={`rounded-xl border p-5 shadow-sm ${tones[tone]}`}
+    >
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-600">
             {
               label
             }
@@ -2042,7 +1820,7 @@ function Card({
           </p>
         </div>
 
-        <div className="rounded-xl bg-slate-100 p-3 text-slate-600">
+        <div className="rounded-xl bg-white/80 p-3">
           <Icon
             size={
               22

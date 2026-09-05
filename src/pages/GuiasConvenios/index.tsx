@@ -95,6 +95,48 @@ const statuses: GuiaConvenioStatus[] = [
 
 const currentMonth = () => new Date().toISOString().slice(0, 7);
 
+const currentDate = () => new Date().toISOString().slice(0, 10);
+const currentYear = () => String(new Date().getFullYear());
+
+type BillingPeriodMode = "Dia" | "Mês" | "Ano";
+
+function guideMatchesPeriod(
+  item: GuiaConvenio,
+  mode: BillingPeriodMode,
+  date: string,
+  month: string,
+  year: string
+) {
+  if (mode === "Dia") {
+    return !date || item.dataAtendimento.slice(0, 10) === date;
+  }
+
+  if (mode === "Ano") {
+    return !year || item.competencia.slice(0, 4) === year;
+  }
+
+  return !month || item.competencia === month;
+}
+
+function loteMatchesPeriod(
+  lote: LoteConvenio,
+  mode: BillingPeriodMode,
+  date: string,
+  month: string,
+  year: string
+) {
+  if (mode === "Dia") {
+    const loteDate = (lote.dataEnvio || lote.dataFechamento || lote.createdAt || "").slice(0, 10);
+    return !date || loteDate === date;
+  }
+
+  if (mode === "Ano") {
+    return !year || lote.competencia.slice(0, 4) === year;
+  }
+
+  return !month || lote.competencia === month;
+}
+
 const emptyForm = {
   convenio: "",
   plano: "",
@@ -183,9 +225,20 @@ export default function GuiasConvenios() {
   const [lotes, setLotes] = useState<LoteConvenio[]>([]);
   const [search, setSearch] = useState("");
   const [competencia, setCompetencia] = useState(currentMonth());
+  const [periodMode, setPeriodMode] = useState<BillingPeriodMode>("Mês");
+  const [selectedDate, setSelectedDate] = useState(currentDate());
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth());
+  const [selectedYear, setSelectedYear] = useState(currentYear());
+  const [convenioFilter, setConvenioFilter] = useState("Todos");
   const [status, setStatus] = useState<"Todos" | GuiaConvenioStatus>("Todos");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
+
+  useEffect(() => {
+    if (periodMode === "Mês") {
+      setCompetencia(selectedMonth);
+    }
+  }, [periodMode, selectedMonth]);
 
   const [
     selectedLote,
@@ -797,17 +850,38 @@ export default function GuiasConvenios() {
     const q = search.trim().toLowerCase();
     return items.filter((item) => {
       const matchesUnit = selectedUnitIds.includes(item.unitId);
-      const matchesCompetencia = !competencia || item.competencia === competencia;
+      const matchesPeriod = guideMatchesPeriod(
+        item,
+        periodMode,
+        selectedDate,
+        selectedMonth,
+        selectedYear
+      );
+      const matchesConvenio =
+        convenioFilter === "Todos" || item.convenio === convenioFilter;
       const matchesStatus = status === "Todos" || item.status === status;
       const matchesSearch =
         !q ||
         item.convenio.toLowerCase().includes(q) ||
         item.plano.toLowerCase().includes(q) ||
         item.paciente.toLowerCase().includes(q) ||
-        item.numeroGuia.toLowerCase().includes(q);
-      return matchesUnit && matchesCompetencia && matchesStatus && matchesSearch;
+        item.numeroGuia.toLowerCase().includes(q) ||
+        (item.professional || "").toLowerCase().includes(q) ||
+        (item.specialty || "").toLowerCase().includes(q);
+      return matchesUnit && matchesPeriod && matchesConvenio && matchesStatus && matchesSearch;
     });
-  }, [items, search, competencia, status, activeUnitId, selectedUnitIds]);
+  }, [
+    items,
+    search,
+    periodMode,
+    selectedDate,
+    selectedMonth,
+    selectedYear,
+    convenioFilter,
+    status,
+    activeUnitId,
+    selectedUnitIds,
+  ]);
 
   const availableGroups =
     useMemo(
@@ -838,11 +912,14 @@ export default function GuiasConvenios() {
               item.status ===
                 "Pendente de envio" &&
               !item.loteId &&
-              (
-                !competencia ||
-                item.competencia ===
-                  competencia
-              )
+              guideMatchesPeriod(
+                item,
+                periodMode,
+                selectedDate,
+                selectedMonth,
+                selectedYear
+              ) &&
+              (convenioFilter === "Todos" || item.convenio === convenioFilter)
           )
           .forEach(
             (item) => {
@@ -897,6 +974,11 @@ export default function GuiasConvenios() {
         activeUnitId,
         selectedUnitIds,
         competencia,
+        periodMode,
+        selectedDate,
+        selectedMonth,
+        selectedYear,
+        convenioFilter,
       ]
     );
 
@@ -915,10 +997,18 @@ export default function GuiasConvenios() {
               lote.unitId
             );
 
-            const matchesCompetencia =
-              !competencia ||
-              lote.competencia ===
-                competencia;
+            const matchesPeriod =
+              loteMatchesPeriod(
+                lote,
+                periodMode,
+                selectedDate,
+                selectedMonth,
+                selectedYear
+              );
+
+            const matchesConvenio =
+              convenioFilter === "Todos" ||
+              lote.convenio === convenioFilter;
 
             const matchesSearch =
               !q ||
@@ -943,7 +1033,8 @@ export default function GuiasConvenios() {
 
             return (
               matchesUnit &&
-              matchesCompetencia &&
+              matchesPeriod &&
+              matchesConvenio &&
               matchesSearch
             );
           }
@@ -953,6 +1044,11 @@ export default function GuiasConvenios() {
         lotes,
         search,
         competencia,
+        periodMode,
+        selectedDate,
+        selectedMonth,
+        selectedYear,
+        convenioFilter,
         activeUnitId,
         selectedUnitIds,
       ]
@@ -2379,6 +2475,103 @@ export default function GuiasConvenios() {
           </div>
         </div>
 
+        <div className="rounded-2xl border border-violet-100 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+              <div>
+                <p className="text-sm font-bold text-slate-900">Filtros do faturamento</p>
+                <p className="mt-1 text-xs text-slate-500">Refine a produção e os lotes sem alterar os lançamentos.</p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {(["Dia", "Mês", "Ano"] as BillingPeriodMode[]).map((mode) => {
+                  const selected = periodMode === mode;
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setPeriodMode(mode)}
+                      className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-semibold transition ${
+                        selected
+                          ? "border-violet-300 bg-violet-50 text-violet-700"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <CalendarCheck2 size={15} />
+                      {mode}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[190px_260px_1fr_220px]">
+              <div>
+                {periodMode === "Dia" ? (
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  />
+                ) : periodMode === "Mês" ? (
+                  <input
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  />
+                ) : (
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  >
+                    {Array.from({ length: 8 }, (_, index) => String(new Date().getFullYear() - 4 + index)).map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <select
+                value={convenioFilter}
+                onChange={(e) => setConvenioFilter(e.target.value)}
+                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              >
+                <option value="Todos">Todos os convênios</option>
+                {convenios.map((convenio) => (
+                  <option key={convenio} value={convenio}>{convenio}</option>
+                ))}
+              </select>
+
+              <label className="relative">
+                <Search
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar convênio, paciente, guia, profissional ou especialidade"
+                  className="h-11 w-full rounded-xl border border-slate-200 pl-10 pr-3 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                />
+              </label>
+
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as typeof status)}
+                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              >
+                <option>Todos</option>
+                {statuses.map((item) => (
+                  <option key={item}>{item}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
         {activeTab ===
         "producao" ? (
           <>
@@ -2388,6 +2581,7 @@ export default function GuiasConvenios() {
                   CircleDollarSign
                 }
                 label="Produção"
+                tone="violet"
                 value={
                   money(
                     summary.faturado
@@ -2400,6 +2594,7 @@ export default function GuiasConvenios() {
                   FolderClosed
                 }
                 label="Disponível para lote"
+                tone="blue"
                 value={
                   String(
                     availableGroups.reduce(
@@ -2420,6 +2615,7 @@ export default function GuiasConvenios() {
                   Send
                 }
                 label="Enviado"
+                tone="emerald"
                 value={
                   money(
                     summary.enviado
@@ -2432,6 +2628,7 @@ export default function GuiasConvenios() {
                   FileWarning
                 }
                 label="Glosado"
+                tone="rose"
                 value={
                   money(
                     summary.glosado
@@ -2783,6 +2980,7 @@ export default function GuiasConvenios() {
                   Box
                 }
                 label="Lotes abertos"
+                tone="blue"
                 value={
                   String(
                     loteSummary.abertos
@@ -2795,6 +2993,7 @@ export default function GuiasConvenios() {
                   FolderClosed
                 }
                 label="Lotes fechados"
+                tone="violet"
                 value={
                   String(
                     loteSummary.fechados
@@ -2807,6 +3006,7 @@ export default function GuiasConvenios() {
                   Send
                 }
                 label="Lotes enviados"
+                tone="emerald"
                 value={
                   String(
                     loteSummary.enviados
@@ -2819,55 +3019,13 @@ export default function GuiasConvenios() {
                   CircleDollarSign
                 }
                 label="Valor em lotes"
+                tone="amber"
                 value={
                   money(
                     loteSummary.valor
                   )
                 }
               />
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="grid gap-3 lg:grid-cols-[1fr_190px]">
-                <label className="relative">
-                  <Search
-                    size={
-                      18
-                    }
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-
-                  <input
-                    value={
-                      search
-                    }
-                    onChange={(
-                      e
-                    ) =>
-                      setSearch(
-                        e.target.value
-                      )
-                    }
-                    placeholder="Buscar por convênio, protocolo ou lote"
-                    className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-3 text-sm"
-                  />
-                </label>
-
-                <input
-                  type="month"
-                  value={
-                    competencia
-                  }
-                  onChange={(
-                    e
-                  ) =>
-                    setCompetencia(
-                      e.target.value
-                    )
-                  }
-                  className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
-                />
-              </div>
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(340px,0.75fr)]">
@@ -5214,12 +5372,20 @@ function InfoLine({
   );
 }
 
-function Card({ icon: Icon, label, value }: { icon: typeof CircleDollarSign; label: string; value: string }) {
+function Card({ icon: Icon, label, value, tone = "violet" }: { icon: typeof CircleDollarSign; label: string; value: string; tone?: "violet" | "blue" | "emerald" | "amber" | "rose" }) {
+  const tones = {
+    violet: "border-violet-100 bg-violet-50/40 text-violet-700",
+    blue: "border-blue-100 bg-blue-50/40 text-blue-700",
+    emerald: "border-emerald-100 bg-emerald-50/40 text-emerald-700",
+    amber: "border-amber-100 bg-amber-50/40 text-amber-700",
+    rose: "border-rose-100 bg-rose-50/40 text-rose-700",
+  } as const;
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5">
+    <div className={`rounded-xl border p-5 shadow-sm ${tones[tone]}`}>
       <div className="flex items-center justify-between gap-4">
-        <div><p className="text-sm text-slate-500">{label}</p><p className="mt-2 text-xl font-semibold text-slate-900">{value}</p></div>
-        <div className="rounded-xl bg-slate-100 p-3 text-slate-600"><Icon size={22} /></div>
+        <div><p className="text-sm text-slate-600">{label}</p><p className="mt-2 text-xl font-semibold text-slate-900">{value}</p></div>
+        <div className="rounded-xl bg-white/80 p-3"><Icon size={22} /></div>
       </div>
     </div>
   );

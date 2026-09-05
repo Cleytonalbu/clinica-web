@@ -30,12 +30,7 @@ import {
   DashboardLayout,
 } from "@/layouts/DashboardLayout";
 
-import {
-  useUnit,
-} from "@/providers/UnitContext";
-
-import reportLogo from "@/assets/report-logo.png";
-import reportTopStrip from "@/assets/report-top-strip.png";
+import reportLetterhead from "@/assets/timbre-relatorios-entre-afetos-2026.jpeg";
 
 import {
   getPatientById,
@@ -257,59 +252,11 @@ function professionLabel(
   return specialty;
 }
 
-function reportCoverText(
-  reportType: string
-) {
-  if (
-    reportType ===
-    "Relatório terapêutico"
-  ) {
-    return {
-      first: "Relatório",
-      main: "Terapêutico",
-      last: "da criança",
-    };
-  }
-
-  if (
-    reportType ===
-    "Declaração de acompanhamento"
-  ) {
-    return {
-      first: "Declaração de",
-      main: "Acompanhamento",
-      last: "da criança",
-    };
-  }
-
-  if (
-    reportType ===
-    "Relatório psicológico"
-  ) {
-    return {
-      first: "Relatório",
-      main: "Psicológico",
-      last: "da criança",
-    };
-  }
-
-  return {
-    first: "Relatório de",
-    main: "Acompanhamento",
-    last: "da criança",
-  };
-}
-
 export default function RelatorioSolicitado() {
   const {
     user,
   } =
     useAuth();
-
-  const {
-    activeUnitId,
-  } =
-    useUnit();
 
   const navigate =
     useNavigate();
@@ -328,13 +275,10 @@ export default function RelatorioSolicitado() {
             item
           ) =>
             item.id ===
-              requestId &&
-            item.unitId ===
-              activeUnitId
+            requestId
         ),
       [
         requestId,
-        activeUnitId,
       ]
     );
 
@@ -345,12 +289,6 @@ export default function RelatorioSolicitado() {
       ) =>
         item.id ===
         itemId
-    );
-
-  const coverText =
-    reportCoverText(
-      request?.reportType ??
-      "Relatório de acompanhamento"
     );
 
   const patient =
@@ -392,22 +330,14 @@ export default function RelatorioSolicitado() {
 
   const existingDocument =
     useMemo(
-      () => {
-        const document =
-          getRequestedReportDocument(
-            requestId,
-            itemId
-          );
-
-        return document?.unitId ===
-          activeUnitId
-          ? document
-          : undefined;
-      },
+      () =>
+        getRequestedReportDocument(
+          requestId,
+          itemId
+        ),
       [
         requestId,
         itemId,
-        activeUnitId,
       ]
     );
 
@@ -664,6 +594,50 @@ export default function RelatorioSolicitado() {
     professional?.specialty ||
     "";
 
+  const requestedReportType =
+    (
+      request.reportType ||
+      "Relatório de acompanhamento"
+    )
+      .toString()
+      .trim();
+
+  const normalizedRequestedReportType =
+    requestedReportType
+      .replace(
+        /^relatório\s+de\s+/i,
+        ""
+      )
+      .replace(
+        /^relatório\s+/i,
+        ""
+      )
+      .replace(
+        /^declaração\s+de\s+/i,
+        ""
+      )
+      .replace(
+        /^declaração\s+/i,
+        ""
+      )
+      .trim();
+
+  const coverTitlePrefix =
+    /^declaração/i.test(
+      requestedReportType
+    )
+      ? "Declaração"
+      : "Relatório";
+
+  const coverTitleMain =
+    normalizedRequestedReportType ||
+    (
+      coverTitlePrefix ===
+        "Declaração"
+        ? "Acompanhamento"
+        : "Acompanhamento"
+    );
+
   const registration =
     professional?.registration ||
     (
@@ -715,9 +689,6 @@ export default function RelatorioSolicitado() {
   ) {
     return saveRequestedReportDocument(
       {
-        unitId:
-          activeUnitId,
-
         requestId:
           request.id,
 
@@ -936,7 +907,7 @@ export default function RelatorioSolicitado() {
             </button>
 
             <h1 className="mt-3 text-xl font-extrabold text-[#10235f]">
-              {request.reportType}
+              Relatório de acompanhamento
             </h1>
 
             <p className="mt-1 text-sm font-medium text-slate-500">
@@ -1045,46 +1016,40 @@ export default function RelatorioSolicitado() {
         <div className="report-print-area space-y-6">
           {/* CAPA */}
 
-          <article className="report-page report-cover mx-auto overflow-hidden bg-white shadow-xl">
-            <div className="report-cover-border">
-              <img
-                src={
-                  reportLogo
-                }
-                alt="Entre Afetos"
-                className="mx-auto mt-16 w-[250px] object-contain"
-              />
+          <article className="report-page report-cover report-letterhead-page mx-auto overflow-hidden bg-white shadow-xl">
+            <img
+              src={
+                reportLetterhead
+              }
+              alt=""
+              aria-hidden="true"
+              className="report-letterhead-background"
+            />
 
-              <div className="mt-16 bg-[#42a8d1] px-12 py-10 text-white">
-                <p className="text-4xl font-light uppercase leading-none tracking-wide">
-                  {coverText.first}
-                </p>
+            <div className="report-cover-title">
+              <p className="report-cover-title-line">
+                {coverTitlePrefix}
+              </p>
 
-                <p className="mt-2 text-5xl font-extrabold uppercase leading-none">
-                  {coverText.main}
-                </p>
-
-                <p className="mt-2 text-4xl font-light uppercase leading-none tracking-wide">
-                  {coverText.last}
-                </p>
-              </div>
-
-              <div className="report-cover-art">
-                <div className="report-heart report-heart-left" />
-                <div className="report-heart report-heart-right" />
-
-                <div className="report-wave report-wave-one" />
-                <div className="report-wave report-wave-two" />
-              </div>
+              <p className="report-cover-title-main">
+                {coverTitleMain}
+              </p>
             </div>
           </article>
 
           {/* CONTEÚDO */}
 
-          <article className="report-page mx-auto overflow-hidden bg-white shadow-xl">
-            <DocumentTopStrip />
+          <article className="report-page report-letterhead-page mx-auto overflow-hidden bg-white shadow-xl">
+            <img
+              src={
+                reportLetterhead
+              }
+              alt=""
+              aria-hidden="true"
+              className="report-letterhead-background"
+            />
 
-            <div className="report-content">
+            <div className="report-content report-content-on-letterhead">
               <SectionTitle>
                 DADOS DE IDENTIFICAÇÃO DA CRIANÇA
               </SectionTitle>
@@ -1212,13 +1177,19 @@ export default function RelatorioSolicitado() {
               />
             </div>
 
-            <DocumentFooter />
           </article>
 
-          <article className="report-page mx-auto overflow-hidden bg-white shadow-xl">
-            <DocumentTopStrip />
+          <article className="report-page report-letterhead-page mx-auto overflow-hidden bg-white shadow-xl">
+            <img
+              src={
+                reportLetterhead
+              }
+              alt=""
+              aria-hidden="true"
+              className="report-letterhead-background"
+            />
 
-            <div className="report-content">
+            <div className="report-content report-content-on-letterhead">
               <SectionTitle>
                 OBJETIVOS TERAPÊUTICOS
               </SectionTitle>
@@ -1371,7 +1342,6 @@ export default function RelatorioSolicitado() {
               </div>
             </div>
 
-            <DocumentFooter />
           </article>
         </div>
 
@@ -1402,66 +1372,79 @@ export default function RelatorioSolicitado() {
             color: #111827;
           }
 
+          .report-letterhead-page {
+            isolation: isolate;
+            background: #ffffff;
+          }
+
+          .report-letterhead-background {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: fill;
+            pointer-events: none;
+            user-select: none;
+          }
+
+          .report-content-on-letterhead {
+            position: relative;
+            z-index: 1;
+          }
+
           .report-cover {
+            position: relative;
+            z-index: 1;
             height: 1123px;
           }
 
-          .report-cover-border {
+          .report-cover-title {
             position: absolute;
-            inset: 50px 78px 72px 78px;
-            border: 3px solid #f7b8b5;
+            z-index: 2;
+            top: 245px;
+            left: 0;
+            width: 84%;
+            padding: 30px 54px 32px 54px;
+            text-align: left;
+            background: #42a8d1;
           }
 
-          .report-cover-art {
-            position: absolute;
-            left: -79px;
-            right: -79px;
-            bottom: -73px;
-            height: 430px;
-            overflow: hidden;
+          .report-cover-title-line {
+            margin: 0;
+            color: #ffffff;
+            font-size: 30px;
+            font-weight: 300;
+            line-height: 1.08;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
           }
 
-          .report-heart {
-            position: absolute;
-            width: 315px;
-            height: 315px;
-            background: rgba(248, 181, 185, .5);
-            transform: rotate(45deg);
-            border-radius: 70px 0 70px 0;
-          }
-
-          .report-heart-left {
-            right: 190px;
-            bottom: 25px;
-          }
-
-          .report-heart-right {
-            right: -35px;
-            bottom: 10px;
-          }
-
-          .report-wave {
-            position: absolute;
-            width: 540px;
-            height: 130px;
-            border-radius: 50%;
-            transform: rotate(-12deg);
-          }
-
-          .report-wave-one {
-            right: -110px;
-            bottom: -5px;
-            background: rgba(128, 202, 229, .45);
-          }
-
-          .report-wave-two {
-            right: -55px;
-            bottom: 22px;
-            background: rgba(114, 180, 211, .28);
+          .report-cover-title-main {
+            margin: 4px 0;
+            color: #ffffff;
+            font-size: 40px;
+            font-weight: 800;
+            line-height: 1.02;
+            text-transform: uppercase;
+            overflow-wrap: anywhere;
           }
 
           .report-content {
             padding: 36px 92px 110px 92px;
+          }
+
+          .report-letterhead-page .report-content {
+            padding:
+              150px
+              86px
+              150px
+              86px;
+          }
+
+          .report-cover > *:not(.report-letterhead-background) {
+            position: relative;
+            z-index: 1;
           }
 
           .report-identification {
@@ -1607,6 +1590,16 @@ export default function RelatorioSolicitado() {
               page-break-after: always;
               break-after: page;
               overflow: hidden !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+
+            .report-letterhead-background {
+              display: block !important;
+              visibility: visible !important;
+              width: 210mm !important;
+              height: 297mm !important;
+              object-fit: fill !important;
             }
 
             .report-page:last-child {
@@ -1765,26 +1758,6 @@ function ReportTextField({
     <div className="report-box">
       {value ||
         "Não informado."}
-    </div>
-  );
-}
-
-function DocumentTopStrip() {
-  return (
-    <img
-      src={
-        reportTopStrip
-      }
-      alt=""
-      className="h-[58px] w-full object-cover"
-    />
-  );
-}
-
-function DocumentFooter() {
-  return (
-    <div className="absolute bottom-0 left-0 right-0 bg-[#f5aaa6] px-6 py-4 text-center text-[11px] font-extrabold uppercase tracking-wide text-white">
-      CLÍNICA INTEGRADA DE DESENVOLVIMENTO INFANTO-JUVENIL ENTRE AFETOS
     </div>
   );
 }
