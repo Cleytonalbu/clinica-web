@@ -31,6 +31,12 @@ import {
   createPatient,
 } from "./patientStorage";
 
+import {
+  findResponsible,
+  linkResponsibleToPatient,
+  saveResponsible,
+} from "./responsiblePatientStorage";
+
 /* =========================================
    COMPONENTE
 ========================================= */
@@ -95,7 +101,7 @@ export default function NovoPaciente() {
     );
 
   /* =======================================
-     DESTINO DE CANCELAMENTO
+     CANCELAR
   ======================================= */
 
   function handleCancel() {
@@ -115,7 +121,7 @@ export default function NovoPaciente() {
   }
 
   /* =======================================
-     MONTAR URL DE RETORNO
+     URL DE RETORNO
   ======================================= */
 
   function buildReturnUrl(
@@ -139,6 +145,209 @@ export default function NovoPaciente() {
   }
 
   /* =======================================
+     SALVAR RESPONSÁVEIS
+  ======================================= */
+
+  function savePatientResponsibles(
+    patientId: number,
+    data: PatientSchema
+  ) {
+    const responsibles =
+      data
+        .responsaveisVinculados ??
+      [];
+
+    /*
+     * Caso o formulário ainda venha
+     * apenas com o responsável antigo,
+     * continuamos criando o vínculo.
+     */
+    const normalizedResponsibles =
+      responsibles.length >
+      0
+        ? responsibles
+        : data.responsavelNome
+          ? [
+              {
+                responsibleId:
+                  null,
+
+                nome:
+                  data.responsavelNome,
+
+                cpf:
+                  data.responsavelCpf,
+
+                parentesco:
+                  data.responsavelParentesco,
+
+                telefone:
+                  data.responsavelTelefone,
+
+                email:
+                  data.responsavelEmail,
+
+                responsavelPrincipal:
+                  true,
+
+                acessoApp:
+                  true,
+
+                acessoFinanceiro:
+                  true,
+
+                acessoDocumentos:
+                  true,
+
+                ativo:
+                  true,
+              },
+            ]
+          : [];
+
+    normalizedResponsibles.forEach(
+      (
+        responsibleData,
+        index
+      ) => {
+        if (
+          !responsibleData.nome
+            ?.trim()
+        ) {
+          return;
+        }
+
+        /*
+         * Primeiro procuramos se esse
+         * responsável já existe.
+         *
+         * Isso é o que permite:
+         *
+         * Juliana
+         * ├── Maria
+         * └── Pedro
+         *
+         * sem criar duas Julianas.
+         */
+        const existing =
+          responsibleData
+            .responsibleId
+            ? null
+            : findResponsible({
+                cpf:
+                  responsibleData.cpf,
+
+                email:
+                  responsibleData.email,
+
+                nome:
+                  responsibleData.nome,
+              });
+
+        /*
+         * Se já veio com ID,
+         * salvamos/atualizamos esse registro.
+         *
+         * Se foi encontrado pelo CPF,
+         * e-mail ou nome, reutilizamos.
+         */
+        const responsible =
+          saveResponsible({
+            id:
+              responsibleData
+                .responsibleId ??
+              existing?.id,
+
+            nome:
+              responsibleData.nome,
+
+            cpf:
+              responsibleData.cpf ??
+              "",
+
+            telefone:
+              responsibleData.telefone ??
+              "",
+
+            email:
+              responsibleData.email ??
+              "",
+
+            ativo:
+              responsibleData.ativo ??
+              true,
+          });
+
+        /*
+         * Cria a relação
+         * RESPONSÁVEL ↔ PACIENTE.
+         */
+        linkResponsibleToPatient({
+          responsibleId:
+            responsible.id,
+
+          patientId,
+
+          parentesco:
+            (
+              responsibleData.parentesco ||
+              "Responsável legal"
+            ) as
+              | "Mãe"
+              | "Pai"
+              | "Avó"
+              | "Avô"
+              | "Tia"
+              | "Tio"
+              | "Irmã"
+              | "Irmão"
+              | "Responsável legal"
+              | "Outro",
+
+          /*
+           * Se por algum motivo nenhum
+           * estiver marcado como principal,
+           * o primeiro se torna principal.
+           */
+          responsavelPrincipal:
+            responsibleData
+              .responsavelPrincipal ||
+            (
+              index ===
+                0 &&
+              !normalizedResponsibles.some(
+                (
+                  item
+                ) =>
+                  item
+                    .responsavelPrincipal
+              )
+            ),
+
+          acessoApp:
+            responsibleData
+              .acessoApp ??
+            true,
+
+          acessoFinanceiro:
+            responsibleData
+              .acessoFinanceiro ??
+            true,
+
+          acessoDocumentos:
+            responsibleData
+              .acessoDocumentos ??
+            true,
+
+          ativo:
+            responsibleData.ativo ??
+            true,
+        });
+      }
+    );
+  }
+
+  /* =======================================
      SALVAR PACIENTE
   ======================================= */
 
@@ -159,15 +368,28 @@ export default function NovoPaciente() {
     );
 
     try {
+      /*
+       * 1. Mantemos exatamente o cadastro
+       *    atual do paciente.
+       */
       const patient =
         createPatient(
           data
         );
 
+      /*
+       * 2. Depois criamos os vínculos
+       *    dos responsáveis.
+       */
+      savePatientResponsibles(
+        patient.id,
+        data
+      );
+
       setFeedback(
         cameFromAppointment
           ? "Paciente cadastrado. Retornando ao agendamento..."
-          : "Paciente cadastrado com sucesso."
+          : "Paciente e responsáveis cadastrados com sucesso."
       );
 
       setFeedbackType(
@@ -211,6 +433,7 @@ export default function NovoPaciente() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
+
         {/* ================================= */}
         {/* CABEÇALHO */}
         {/* ================================= */}
@@ -303,16 +526,8 @@ export default function NovoPaciente() {
           onSubmit={
             handleSubmit
           }
-          onCancel={
-            handleCancel
-          }
           loading={
             loading
-          }
-          submitLabel={
-            cameFromAppointment
-              ? "Cadastrar e continuar"
-              : "Salvar Paciente"
           }
         />
       </div>

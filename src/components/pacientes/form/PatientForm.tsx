@@ -1,4 +1,8 @@
 import {
+  useEffect,
+} from "react";
+
+import {
   useForm,
 } from "react-hook-form";
 
@@ -43,28 +47,40 @@ import {
   ResponsibleSection,
 } from "./ResponsibleSection";
 
+import {
+  getPatientResponsibles,
+} from "@/pages/Pacientes/responsiblePatientStorage";
+
 /* =========================================
    PROPS
 ========================================= */
 
 interface PatientFormProps {
-  onSubmit?:
-    (
-      data:
-        PatientSchema
-    ) => void;
+  onSubmit?: (
+    data: PatientSchema
+  ) => void;
 
-  onCancel?:
-    () => void;
+  onCancel?: () => void;
 
-  initialValues?:
-    Partial<PatientSchema>;
+  loading?: boolean;
 
-  loading?:
-    boolean;
+  submitLabel?: string;
 
-  submitLabel?:
-    string;
+  /*
+   * Usado principalmente na edição.
+   *
+   * Não interfere no cadastro novo.
+   */
+  initialValues?: Partial<PatientSchema>;
+
+  /*
+   * ID do paciente em edição.
+   *
+   * Quando informado, carregamos
+   * automaticamente todos os responsáveis
+   * vinculados.
+   */
+  patientId?: number;
 }
 
 /* =========================================
@@ -73,16 +89,11 @@ interface PatientFormProps {
 
 export function PatientForm({
   onSubmit,
-
   onCancel,
-
+  loading = false,
+  submitLabel = "Salvar Paciente",
   initialValues,
-
-  loading =
-    false,
-
-  submitLabel =
-    "Salvar Paciente",
+  patientId,
 }: PatientFormProps) {
   /* =======================================
      FORMULÁRIO
@@ -98,6 +109,17 @@ export function PatientForm({
       defaultValues: {
         ...defaultValues,
 
+        /*
+         * Garante que o campo exista
+         * mesmo em pacientes novos.
+         */
+        responsaveisVinculados:
+          [],
+
+        /*
+         * Na edição, os dados recebidos
+         * têm prioridade.
+         */
         ...initialValues,
       },
 
@@ -105,8 +127,154 @@ export function PatientForm({
         "onBlur",
     });
 
+  const {
+    reset,
+  } =
+    form;
+
   /* =======================================
-     SUBMIT
+     CARREGAR DADOS DE EDIÇÃO
+  ======================================= */
+
+  useEffect(
+    () => {
+      /*
+       * Se não existir initialValues,
+       * estamos provavelmente em um
+       * cadastro novo.
+       */
+      if (
+        !initialValues
+      ) {
+        return;
+      }
+
+      /*
+       * Começamos preservando todos os
+       * dados atuais do paciente.
+       */
+      let values:
+        PatientSchema =
+        {
+          ...defaultValues,
+
+          responsaveisVinculados:
+            [],
+
+          ...initialValues,
+        } as PatientSchema;
+
+      /* =====================================
+         RESPONSÁVEIS VINCULADOS
+      ===================================== */
+
+      if (
+        patientId &&
+        Number.isFinite(
+          patientId
+        )
+      ) {
+        const linked =
+          getPatientResponsibles(
+            patientId
+          );
+
+        /*
+         * Se já houver vínculos no novo
+         * armazenamento, carregamos todos.
+         */
+        if (
+          linked.length >
+          0
+        ) {
+          values = {
+            ...values,
+
+            responsaveisVinculados:
+              linked.map(
+                (
+                  responsible
+                ) => ({
+                  responsibleId:
+                    responsible.id,
+
+                  nome:
+                    responsible.nome,
+
+                  cpf:
+                    responsible.cpf ??
+                    "",
+
+                  parentesco:
+                    responsible
+                      .link
+                      .parentesco ??
+                    "Responsável legal",
+
+                  telefone:
+                    responsible.telefone ??
+                    "",
+
+                  email:
+                    responsible.email ??
+                    "",
+
+                  responsavelPrincipal:
+                    responsible
+                      .link
+                      .responsavelPrincipal,
+
+                  acessoApp:
+                    responsible
+                      .link
+                      .acessoApp,
+
+                  acessoFinanceiro:
+                    responsible
+                      .link
+                      .acessoFinanceiro,
+
+                  acessoDocumentos:
+                    responsible
+                      .link
+                      .acessoDocumentos,
+
+                  ativo:
+                    responsible
+                      .link
+                      .ativo,
+                })
+              ),
+          };
+        }
+
+        /*
+         * Caso seja paciente antigo,
+         * ainda sem vínculo criado,
+         * ResponsibleSection fará a migração
+         * automática usando:
+         *
+         * responsavelNome
+         * responsavelCpf
+         * responsavelParentesco
+         * responsavelTelefone
+         * responsavelEmail
+         */
+      }
+
+      reset(
+        values
+      );
+    },
+    [
+      initialValues,
+      patientId,
+      reset,
+    ]
+  );
+
+  /* =======================================
+     ENVIAR
   ======================================= */
 
   function handleFormSubmit(
@@ -116,6 +284,14 @@ export function PatientForm({
     onSubmit?.(
       data
     );
+  }
+
+  /* =======================================
+     CANCELAR
+  ======================================= */
+
+  function handleCancel() {
+    onCancel?.();
   }
 
   /* =======================================
@@ -172,7 +348,7 @@ export function PatientForm({
       />
 
       {/* ================================= */}
-      {/* RESPONSÁVEL */}
+      {/* RESPONSÁVEIS */}
       {/* ================================= */}
 
       <ResponsibleSection
@@ -190,10 +366,6 @@ export function PatientForm({
         description="Confira as informações antes de salvar."
       >
         <div className="flex justify-end gap-3">
-          {/* ============================= */}
-          {/* CANCELAR */}
-          {/* ============================= */}
-
           <Button
             type="button"
             variant="outline"
@@ -201,15 +373,11 @@ export function PatientForm({
               loading
             }
             onClick={
-              onCancel
+              handleCancel
             }
           >
             Cancelar
           </Button>
-
-          {/* ============================= */}
-          {/* SALVAR */}
-          {/* ============================= */}
 
           <Button
             type="submit"
