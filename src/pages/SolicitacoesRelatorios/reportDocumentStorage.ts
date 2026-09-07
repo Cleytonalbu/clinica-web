@@ -30,6 +30,15 @@ export interface RequestedReportDocument {
 
   conclusionReferrals: string;
 
+  /**
+   * Campos exclusivos do Relatório mensal.
+   * Opcionais para manter compatibilidade com todos os relatórios já existentes.
+   */
+  monthlyAttendanceDescription?: string;
+  monthlyContinuityJustification?: string;
+  monthlyPrognosis?: string;
+  monthlyDischargeForecastConclusion?: string;
+
   reportDate: string;
   city: string;
   state: string;

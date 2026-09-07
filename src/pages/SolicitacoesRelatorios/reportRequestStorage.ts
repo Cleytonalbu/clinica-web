@@ -12,6 +12,7 @@ export type ReportRequestDisplayStatus =
 export type ReportDocumentType =
   | "Relatório de acompanhamento"
   | "Relatório terapêutico"
+  | "Relatório mensal"
   | "Declaração de acompanhamento"
   | "Relatório psicológico";
 
@@ -33,6 +34,12 @@ export const REPORT_DOCUMENT_TYPES: ReportDocumentTypeDefinition[] = [
     label: "Relatório terapêutico",
     description:
       "Relatório solicitado para acompanhamento do desenvolvimento terapêutico.",
+  },
+  {
+    value: "Relatório mensal",
+    label: "Relatório mensal",
+    description:
+      "Relatório mensal com descrição dos atendimentos, justificativa de continuidade, prognóstico e previsão de alta/conclusão.",
   },
   {
     value: "Declaração de acompanhamento",

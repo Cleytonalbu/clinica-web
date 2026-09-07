@@ -437,6 +437,46 @@ export default function RelatorioSolicitado() {
     );
 
   const [
+    monthlyAttendanceDescription,
+    setMonthlyAttendanceDescription,
+  ] =
+    useState(
+      existingDocument
+        ?.monthlyAttendanceDescription ??
+        ""
+    );
+
+  const [
+    monthlyContinuityJustification,
+    setMonthlyContinuityJustification,
+  ] =
+    useState(
+      existingDocument
+        ?.monthlyContinuityJustification ??
+        ""
+    );
+
+  const [
+    monthlyPrognosis,
+    setMonthlyPrognosis,
+  ] =
+    useState(
+      existingDocument
+        ?.monthlyPrognosis ??
+        ""
+    );
+
+  const [
+    monthlyDischargeForecastConclusion,
+    setMonthlyDischargeForecastConclusion,
+  ] =
+    useState(
+      existingDocument
+        ?.monthlyDischargeForecastConclusion ??
+        ""
+    );
+
+  const [
     reportDate,
     setReportDate,
   ] =
@@ -505,6 +545,30 @@ export default function RelatorioSolicitado() {
         setConclusionReferrals(
           existingDocument
             .conclusionReferrals
+        );
+
+        setMonthlyAttendanceDescription(
+          existingDocument
+            .monthlyAttendanceDescription ??
+            ""
+        );
+
+        setMonthlyContinuityJustification(
+          existingDocument
+            .monthlyContinuityJustification ??
+            ""
+        );
+
+        setMonthlyPrognosis(
+          existingDocument
+            .monthlyPrognosis ??
+            ""
+        );
+
+        setMonthlyDischargeForecastConclusion(
+          existingDocument
+            .monthlyDischargeForecastConclusion ??
+            ""
         );
 
         setReportDate(
@@ -638,6 +702,10 @@ export default function RelatorioSolicitado() {
         : "Acompanhamento"
     );
 
+  const isMonthlyReport =
+    request.reportType ===
+    "Relatório mensal";
+
   const registration =
     professional?.registration ||
     (
@@ -736,6 +804,18 @@ export default function RelatorioSolicitado() {
         conclusionReferrals:
           conclusionReferrals.trim(),
 
+        monthlyAttendanceDescription:
+          monthlyAttendanceDescription.trim(),
+
+        monthlyContinuityJustification:
+          monthlyContinuityJustification.trim(),
+
+        monthlyPrognosis:
+          monthlyPrognosis.trim(),
+
+        monthlyDischargeForecastConclusion:
+          monthlyDischargeForecastConclusion.trim(),
+
         reportDate,
 
         city,
@@ -828,6 +908,25 @@ export default function RelatorioSolicitado() {
 
   function finalizeAndSend() {
     if (
+      isMonthlyReport
+    ) {
+      if (
+        !monthlyAttendanceDescription
+          .trim() ||
+        !monthlyContinuityJustification
+          .trim() ||
+        !monthlyPrognosis
+          .trim() ||
+        !monthlyDischargeForecastConclusion
+          .trim()
+      ) {
+        window.alert(
+          "Preencha Descrição dos Atendimentos, Justificativa para Continuidade dos Atendimentos, Prognóstico e Previsão de Alta e Conclusão antes de finalizar."
+        );
+
+        return;
+      }
+    } else if (
       !developmentHistory
         .trim() ||
       !evaluationResults
@@ -907,7 +1006,7 @@ export default function RelatorioSolicitado() {
             </button>
 
             <h1 className="mt-3 text-xl font-extrabold text-[#10235f]">
-              Relatório de acompanhamento
+              {request.reportType}
             </h1>
 
             <p className="mt-1 text-sm font-medium text-slate-500">
@@ -1039,6 +1138,253 @@ export default function RelatorioSolicitado() {
 
           {/* CONTEÚDO */}
 
+          {isMonthlyReport ? (
+            <article className="report-page report-letterhead-page mx-auto overflow-hidden bg-white shadow-xl">
+              <img
+                src={
+                  reportLetterhead
+                }
+                alt=""
+                aria-hidden="true"
+                className="report-letterhead-background"
+              />
+
+              <div className="report-content report-content-on-letterhead">
+                <SectionTitle>
+                  DADOS DE IDENTIFICAÇÃO DA CRIANÇA
+                </SectionTitle>
+
+                <div className="report-identification">
+                  <InfoRow
+                    label="NOME"
+                    value={
+                      patient?.nome ??
+                      request.patientName
+                    }
+                  />
+
+                  <div className="report-info-date-row">
+                    <strong className="report-info-label">
+                      DATA DE NASCIMENTO
+                    </strong>
+
+                    <span className="report-info-value">
+                      {formatDate(
+                        patient?.nascimento ??
+                          ""
+                      ) || "-"}
+                    </span>
+
+                    <strong className="report-info-date-age-label">
+                      IDADE
+                    </strong>
+
+                    <span className="report-info-date-age-value">
+                      {calculateAge(
+                        patient?.nascimento ??
+                          ""
+                      ) || "-"}
+                    </span>
+                  </div>
+
+                  <InfoRow
+                    label="RESPONSÁVEIS"
+                    value={
+                      patient
+                        ?.responsavelNome ??
+                      request
+                        .responsibleName
+                    }
+                  />
+
+                  <div className="report-info-row">
+                    <strong className="report-info-label">
+                      DIAGNÓSTICO
+                    </strong>
+
+                    {editable ? (
+                      <input
+                        value={
+                          diagnosis
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          setDiagnosis(
+                            event.target.value
+                          )
+                        }
+                        placeholder="Informe o diagnóstico, se aplicável"
+                        className="report-inline-input"
+                      />
+                    ) : (
+                      <span className="report-info-value">
+                        {existingDocument
+                          ?.diagnosis ||
+                          diagnosis ||
+                          "-"}
+                      </span>
+                    )}
+                  </div>
+
+                  <InfoRow
+                    label="PROFISSIONAL"
+                    value={
+                      professionalName
+                    }
+                  />
+
+                  <InfoRow
+                    label="ESPECIALIDADE"
+                    value={
+                      specialty
+                    }
+                  />
+                </div>
+
+                <SectionTitle>
+                  DESCRIÇÃO DOS ATENDIMENTOS
+                </SectionTitle>
+
+                <ReportTextField
+                  value={
+                    monthlyAttendanceDescription
+                  }
+                  onChange={
+                    setMonthlyAttendanceDescription
+                  }
+                  editable={
+                    editable
+                  }
+                  placeholder="Escreva de forma resumida, mas clara, os objetivos trabalhados durante o mês com a criança e os resultados. Relate as dificuldades da criança para justificar a não conquista de objetivos, quando necessário."
+                  minHeight="145px"
+                />
+
+                <SectionTitle>
+                  JUSTIFICATIVA PARA CONTINUIDADE DOS ATENDIMENTOS
+                </SectionTitle>
+
+                <ReportTextField
+                  value={
+                    monthlyContinuityJustification
+                  }
+                  onChange={
+                    setMonthlyContinuityJustification
+                  }
+                  editable={
+                    editable
+                  }
+                  placeholder="Relate as necessidades da criança e os motivos pelos quais ela precisa continuar em atendimento."
+                  minHeight="120px"
+                />
+
+                <SectionTitle>
+                  PROGNÓSTICO
+                </SectionTitle>
+
+                <ReportTextField
+                  value={
+                    monthlyPrognosis
+                  }
+                  onChange={
+                    setMonthlyPrognosis
+                  }
+                  editable={
+                    editable
+                  }
+                  placeholder="Descreva os objetivos para o próximo mês e os resultados esperados da criança a curto prazo."
+                  minHeight="120px"
+                />
+
+                <SectionTitle>
+                  PREVISÃO DE ALTA E CONCLUSÃO
+                </SectionTitle>
+
+                <ReportTextField
+                  value={
+                    monthlyDischargeForecastConclusion
+                  }
+                  onChange={
+                    setMonthlyDischargeForecastConclusion
+                  }
+                  editable={
+                    editable
+                  }
+                  placeholder="Apresente suas percepções e justificativas."
+                  minHeight="120px"
+                />
+
+                <div className="mt-8 flex justify-end">
+                  <div className="min-w-[340px] text-center">
+                    <p className="text-base font-bold text-slate-900">
+                      {city}/{state},{" "}
+                      {formatLongDate(
+                        reportDate
+                      )}
+                    </p>
+
+                    {editable && (
+                      <div className="no-print mt-2">
+                        <input
+                          type="date"
+                          value={
+                            reportDate
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            setReportDate(
+                              event.target.value
+                            )
+                          }
+                          className="rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-7 flex justify-start">
+                  <div className="w-[360px] text-center">
+                    {signatureDataUrl ? (
+                      <img
+                        src={
+                          signatureDataUrl
+                        }
+                        alt="Assinatura eletrônica"
+                        className="mx-auto h-[80px] max-w-[280px] object-contain"
+                      />
+                    ) : (
+                      <div className="mx-auto h-[80px] w-[280px]" />
+                    )}
+
+                    <div className="mx-auto w-[280px] border-t border-slate-900" />
+
+                    <p className="mt-2 text-base font-extrabold text-slate-900">
+                      {
+                        professionalName
+                      }
+                    </p>
+
+                    <p className="text-sm font-semibold text-slate-800">
+                      {professionLabel(
+                        specialty
+                      )}
+                    </p>
+
+                    {registration && (
+                      <p className="text-sm font-semibold text-slate-800">
+                        {
+                          registration
+                        }
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </article>
+          ) : (
+            <>
           <article className="report-page report-letterhead-page mx-auto overflow-hidden bg-white shadow-xl">
             <img
               src={
@@ -1343,6 +1689,8 @@ export default function RelatorioSolicitado() {
             </div>
 
           </article>
+            </>
+          )}
         </div>
 
         {showSignature && (

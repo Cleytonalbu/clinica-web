@@ -10,31 +10,32 @@ import {
   Sidebar,
 } from "./Sidebar";
 
+import {
+  BirthdayReminderPopup,
+} from "@/components/common/BirthdayReminderPopup";
+
 interface DashboardLayoutProps {
-  children: ReactNode;
+  children:
+    ReactNode;
 }
 
 export function DashboardLayout({
   children,
 }: DashboardLayoutProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F7F7FC]">
-      {/* SIDEBAR */}
+    <div className="flex h-screen overflow-hidden bg-slate-50">
+      <BirthdayReminderPopup />
 
       <Sidebar />
 
-      {/* ÁREA PRINCIPAL */}
-
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* HEADER */}
-
         <Header />
 
-        {/* CONTEÚDO */}
-
-        <main className="min-h-0 flex-1 overflow-y-auto bg-[#F7F7FC]">
-          <div className="px-8 py-7">
-            {children}
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-8">
+            {
+              children
+            }
           </div>
         </main>
       </div>
