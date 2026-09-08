@@ -9,6 +9,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
+  Copy,
   CreditCard,
   Save,
   Stethoscope,
@@ -42,9 +43,14 @@ import {
 } from "./appointmentAvailability";
 
 import {
+  getSavedAppointments,
   saveAppointment,
   type StoredAppointment,
 } from "./appointmentStorage";
+
+import {
+  getFixedSchedulesByUnit,
+} from "./fixedScheduleStorage";
 
 import {
   getPatients,
@@ -245,6 +251,80 @@ export default function NovoAgendamento() {
     ) ??
     "";
 
+  const copyFromId =
+    Number(
+      searchParams.get(
+        "copyFrom"
+      ) ??
+        ""
+    );
+
+  const copySource =
+    useMemo(
+      () => {
+        if (
+          !Number.isFinite(
+            copyFromId
+          ) ||
+          copyFromId <= 0
+        ) {
+          return undefined;
+        }
+
+        return getSavedAppointments()
+          .find(
+            (item) =>
+              item.id ===
+                copyFromId &&
+              item.unitId ===
+                activeUnitId
+          );
+      },
+      [
+        copyFromId,
+        activeUnitId,
+      ]
+    );
+
+  const copyFixedFromId =
+    searchParams.get(
+      "copyFixedFrom"
+    ) ??
+    "";
+
+  const fixedCopySource =
+    useMemo(
+      () => {
+        if (
+          !copyFixedFromId
+        ) {
+          return undefined;
+        }
+
+        return getFixedSchedulesByUnit(
+          activeUnitId
+        ).find(
+          (item) =>
+            item.id ===
+            copyFixedFromId
+        );
+      },
+      [
+        copyFixedFromId,
+        activeUnitId,
+      ]
+    );
+
+  const copyRequested =
+    Boolean(
+      searchParams.get(
+        "copyFrom"
+      ) ||
+      searchParams.get(
+        "copyFixedFrom"
+      )
+    );
+
   const patientFromUrl =
     useMemo(
       () =>
@@ -350,20 +430,102 @@ export default function NovoAgendamento() {
     setFormData,
   ] =
     useState<AppointmentFormData>(
-      () => ({
-        ...initialValues,
+      () => {
+        if (copySource) {
+          const billingType =
+            copySource.billingType ??
+            "Particular";
 
-        patientId:
-          patientFromUrl
-            ? String(
-                patientFromUrl.id
-              )
-            : "",
+          return {
+            ...initialValues,
+            patientId: String(copySource.patientId),
+            patient: copySource.patient,
+            professional: copySource.professional,
+            specialty: copySource.specialty,
+            date: "",
+            startTime: copySource.time,
+            endTime: copySource.endTime,
+            room: copySource.room,
+            appointmentType: copySource.type,
+            status: "Agendado",
+            observations: copySource.observations ?? "",
+            billingType,
+            convenio: copySource.convenio ?? "",
+            paymentMethod:
+              copySource.paymentMethod ??
+              getDefaultPaymentMethod(billingType),
+            patientPackageId:
+              copySource.patientPackageId
+                ? String(copySource.patientPackageId)
+                : "",
+          };
+        }
 
-        patient:
-          patientFromUrl?.nome ??
-          "",
-      })
+        if (fixedCopySource) {
+          const hasPackage =
+            fixedCopySource.billingType ===
+            "Pacote";
+
+          const billingType:
+            BillingType =
+            fixedCopySource.billingType ===
+            "Convênio"
+              ? "Convênio"
+              : "Particular";
+
+          return {
+            ...initialValues,
+            patientId: String(
+              fixedCopySource.patientId
+            ),
+            patient:
+              fixedCopySource.patientName,
+            professional:
+              fixedCopySource.professionalName,
+            specialty:
+              fixedCopySource.specialty,
+            date: "",
+            startTime:
+              fixedCopySource.startTime,
+            endTime:
+              fixedCopySource.endTime,
+            room:
+              fixedCopySource.roomName,
+            appointmentType:
+              fixedCopySource.procedure,
+            status: "Agendado",
+            observations:
+              fixedCopySource.observations ??
+              "",
+            billingType,
+            convenio:
+              fixedCopySource.convenioName ??
+              "",
+            paymentMethod:
+              getDefaultPaymentMethod(
+                billingType
+              ),
+            patientPackageId:
+              hasPackage &&
+              fixedCopySource.patientPackageId
+                ? String(
+                    fixedCopySource.patientPackageId
+                  )
+                : "",
+          };
+        }
+
+        return {
+          ...initialValues,
+          patientId:
+            patientFromUrl
+              ? String(patientFromUrl.id)
+              : "",
+          patient:
+            patientFromUrl?.nome ??
+            "",
+        };
+      }
     );
 
   const availableProcedures =
@@ -1355,17 +1517,46 @@ export default function NovoAgendamento() {
           </button>
 
           <h1 className="text-3xl font-bold text-slate-900">
-            Novo Agendamento
+            {copySource
+              ? "Copiar Agendamento"
+              : "Novo Agendamento"}
           </h1>
 
           <p className="mt-2 text-sm text-slate-500">
-            Cadastre o atendimento, horário e informações financeiras.
+            {copySource
+              ? "Os dados do atendimento anterior foram preenchidos. Escolha a nova data, revise as informações e salve como um novo agendamento."
+              : "Cadastre o atendimento, horário e informações financeiras."}
           </p>
 
           <p className="mt-2 text-xs font-bold text-[#6543ef]">
             Unidade: {activeUnit.name}
           </p>
         </div>
+
+        {(copySource || fixedCopySource) && (
+          <div className="flex items-start gap-3 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-800">
+            <Copy
+              size={18}
+              className="mt-0.5 shrink-0"
+            />
+
+            <div>
+              <p className="font-bold">
+                Agendamento copiado
+              </p>
+
+              <p className="mt-1 text-xs leading-5 text-violet-700">
+                Os dados do atendimento anterior foram reaproveitados. A data ficou em branco para você escolher a nova sessão. Status, pagamentos e cobranças não são copiados.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {copyRequested && !copySource && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+            Não foi possível localizar o agendamento que seria copiado nesta unidade. Você pode preencher o novo agendamento normalmente.
+          </div>
+        )}
 
         {/* ================================= */}
         {/* FEEDBACK */}

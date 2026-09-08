@@ -4,6 +4,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
+  Copy,
   FileText,
   MapPin,
   Stethoscope,
@@ -1041,6 +1042,23 @@ export default function DetalheAgendamento() {
   }
 
   /* =======================================
+     COPIAR AGENDAMENTO
+  ======================================= */
+
+  function handleCopyAppointment() {
+    if (
+      !canManageSchedule ||
+      !isSavedAppointment
+    ) {
+      return;
+    }
+
+    navigate(
+      `/agenda/novo?copyFrom=${appointment.id}`
+    );
+  }
+
+  /* =======================================
      ABRIR PRONTUÁRIO
   ======================================= */
 
@@ -1494,6 +1512,29 @@ export default function DetalheAgendamento() {
         {/* ================================= */}
 
         <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:justify-end">
+          {/* =============================== */}
+          {/* COPIAR AGENDAMENTO */}
+          {/* GESTOR + RECEPÇÃO */}
+          {/* =============================== */}
+
+          {canManageSchedule && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={
+                !isSavedAppointment
+              }
+              onClick={
+                handleCopyAppointment
+              }
+            >
+              <Copy
+                size={17}
+              />
+              Copiar agendamento
+            </Button>
+          )}
+
           {/* =============================== */}
           {/* REMARCAR */}
           {/* GESTOR + RECEPÇÃO */}

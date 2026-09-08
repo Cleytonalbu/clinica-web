@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Copy,
   DoorOpen,
   Filter,
   Grid3X3,
@@ -49,7 +50,6 @@ import {
   APPOINTMENTS_CHANGED_EVENT,
   getSavedAppointments,
   saveAppointment,
-  updateSavedAppointment,
   type StoredAppointment,
 } from "./appointmentStorage";
 
@@ -1333,6 +1333,14 @@ export default function ReceptionWeeklyAgenda() {
     );
 
   const [
+    fixedScheduleCopySource,
+    setFixedScheduleCopySource,
+  ] =
+    useState<FixedSchedule | null>(
+      null
+    );
+
+  const [
     selectedFixedOccurrence,
     setSelectedFixedOccurrence,
   ] =
@@ -1380,6 +1388,30 @@ export default function ReceptionWeeklyAgenda() {
     useState(
       0
     );
+
+  function handleCopyFixedSchedule(
+    item: AgendaOperationalItem
+  ) {
+    if (!item.fixedScheduleId) return;
+
+    const source =
+      getFixedSchedulesByUnit(
+        activeUnitId
+      ).find(
+        (current) =>
+          current.id ===
+          item.fixedScheduleId
+      );
+
+    if (!source) return;
+
+    setFixedScheduleCopySource(
+      source
+    );
+    setShowFixedScheduleManager(
+      true
+    );
+  }
 
   const weekDates =
     useMemo(
@@ -2222,184 +2254,6 @@ export default function ReceptionWeeklyAgenda() {
     );
   }
 
-  function handleDragMove(
-    item:
-      AgendaOperationalItem,
-
-    slot:
-      VacantSlot
-  ) {
-    if (
-      item.source ===
-        "block" ||
-      !item.patientId ||
-      isCancelledStatus(
-        item.status
-      )
-    ) {
-      window.alert(
-        "Este registro não pode ser movido."
-      );
-
-      return;
-    }
-
-    const targetProfessionalBusy =
-      rawItems.some(
-        (
-          current
-        ) =>
-          current.key !==
-            item.key &&
-          current.date ===
-            slot.date &&
-          current.professionalId ===
-            slot.professionalId &&
-          !current.cancelledMakesSlotAvailable &&
-          periodsOverlap(
-            slot.startTime,
-            slot.endTime,
-            current.startTime,
-            current.endTime
-          )
-      );
-
-    if (
-      targetProfessionalBusy
-    ) {
-      window.alert(
-        "Este profissional não está mais disponível neste horário."
-      );
-
-      return;
-    }
-
-    const roomConflict =
-      !!item.room &&
-      rawItems.some(
-        (
-          current
-        ) =>
-          current.key !==
-            item.key &&
-          current.date ===
-            slot.date &&
-          current.room ===
-            item.room &&
-          !current.cancelledMakesSlotAvailable &&
-          periodsOverlap(
-            slot.startTime,
-            slot.endTime,
-            current.startTime,
-            current.endTime
-          )
-      );
-
-    if (
-      roomConflict
-    ) {
-      window.alert(
-        `A sala ${item.room} já está ocupada neste horário.`
-      );
-
-      return;
-    }
-
-    if (
-      item.fixedScheduleId
-    ) {
-      const room =
-        rooms.find(
-          (
-            current
-          ) =>
-            current.name ===
-            item.room
-        );
-
-      setFixedScheduleException(
-        {
-          fixedScheduleId:
-            item.fixedScheduleId,
-
-          unitId:
-            activeUnitId,
-
-          date:
-            item.date,
-
-          status:
-            "Remarcado",
-
-          reason:
-            "Remarcado pela recepção por arrastar e soltar.",
-
-          replacementDate:
-            slot.date,
-
-          replacementStartTime:
-            slot.startTime,
-
-          replacementEndTime:
-            slot.endTime,
-
-          replacementProfessionalId:
-            slot.professionalId,
-
-          replacementProfessionalName:
-            slot.professional,
-
-          replacementRoomId:
-            room?.id,
-
-          replacementRoomName:
-            item.room ||
-            undefined,
-
-          source:
-            "recepcao",
-        }
-      );
-    } else if (
-      item.appointmentId !==
-      undefined
-    ) {
-      updateSavedAppointment(
-        item.appointmentId,
-        {
-          date:
-            slot.date,
-
-          time:
-            slot.startTime,
-
-          endTime:
-            slot.endTime,
-
-          professionalId:
-            slot.professionalId,
-
-          professional:
-            slot.professional,
-        }
-      );
-    } else {
-      window.alert(
-        "Não foi possível identificar o agendamento para a remarcação."
-      );
-
-      return;
-    }
-
-    setRefreshKey(
-      (
-        current
-      ) =>
-        current +
-        1
-    );
-  }
-
   const totalAppointments =
     filteredItems.filter(
       (
@@ -2507,14 +2361,12 @@ export default function ReceptionWeeklyAgenda() {
           <Button
             type="button"
             variant="outline"
-            onClick={() =>
+            onClick={() => {
+              setFixedScheduleCopySource(null);
               setShowFixedScheduleManager(
-                (
-                  current
-                ) =>
-                  !current
-              )
-            }
+                (current) => !current
+              );
+            }}
           >
             <Settings2
               size={16}
@@ -2566,6 +2418,9 @@ export default function ReceptionWeeklyAgenda() {
           packagePlans={
             packagePlans
           }
+          copyFrom={
+            fixedScheduleCopySource
+          }
           onChanged={() =>
             setRefreshKey(
               (
@@ -2575,11 +2430,10 @@ export default function ReceptionWeeklyAgenda() {
                 1
             )
           }
-          onClose={() =>
-            setShowFixedScheduleManager(
-              false
-            )
-          }
+          onClose={() => {
+            setShowFixedScheduleManager(false);
+            setFixedScheduleCopySource(null);
+          }}
         />
       )}
 
@@ -3282,11 +3136,11 @@ export default function ReceptionWeeklyAgenda() {
           onFixedQuickStatus={
             applyFixedOccurrenceQuickStatus
           }
+          onCopyFixedSchedule={
+            handleCopyFixedSchedule
+          }
           onPayment={
             setSelectedPaymentItem
-          }
-          onMove={
-            handleDragMove
           }
         />
       )}
@@ -3370,6 +3224,9 @@ export default function ReceptionWeeklyAgenda() {
                     }
                     onFixedQuickStatus={
                       applyFixedOccurrenceQuickStatus
+                    }
+                    onCopyFixedSchedule={
+                      handleCopyFixedSchedule
                     }
                   />
                 );
@@ -4634,6 +4491,7 @@ function FixedScheduleManager({
   procedures,
   convenios,
   packagePlans,
+  copyFrom,
   onChanged,
   onClose,
 }: {
@@ -4678,6 +4536,8 @@ function FixedScheduleManager({
       active: boolean;
     }>;
 
+  copyFrom?: FixedSchedule | null;
+
   onChanged:
     () => void;
 
@@ -4688,68 +4548,58 @@ function FixedScheduleManager({
     patientId,
     setPatientId,
   ] =
-    useState(
-      ""
-    );
+    useState(copyFrom ? String(copyFrom.patientId) : "");
 
   const [
     professionalId,
     setProfessionalId,
   ] =
-    useState(
-      ""
-    );
+    useState(copyFrom ? String(copyFrom.professionalId) : "");
 
   const [
     roomId,
     setRoomId,
   ] =
-    useState(
-      ""
-    );
+    useState(copyFrom?.roomId ? String(copyFrom.roomId) : "");
 
   const [
     procedure,
     setProcedure,
   ] =
-    useState(
-      ""
-    );
+    useState(copyFrom?.procedure ?? "");
 
   const [
     startDate,
     setStartDate,
   ] =
-    useState(
-      () =>
-        formatDate(
-          new Date()
-        )
-    );
+    useState(() => copyFrom?.startDate ?? formatDate(new Date()));
 
   const [
     startTime,
     setStartTime,
   ] =
-    useState(
-      "08:00"
-    );
+    useState(copyFrom?.startTime ?? "08:00");
 
   const [
     endTime,
     setEndTime,
   ] =
-    useState(
-      "08:50"
-    );
+    useState(copyFrom?.endTime ?? "08:50");
+
+  const copiedObservations = copyFrom?.observations ?? "";
+  const copiedRecurrence = copiedObservations.match(/Recorrência:\s*([^|]+)/i)?.[1]?.trim() ?? "Semanalmente";
+  const copiedAuthorization = copiedObservations.match(/Autorização:\s*([^|]+)/i)?.[1]?.trim() ?? "";
+  const copiedPlainObservations = copiedObservations
+    .split("|")
+    .map((part) => part.trim())
+    .filter((part) => part && !/^Recorrência:/i.test(part) && !/^Autorização:/i.test(part))
+    .join(" | ");
 
   const [
     recurrence,
     setRecurrence,
   ] =
-    useState(
-      "Semanalmente"
-    );
+    useState(copiedRecurrence);
 
   const [
     billingMode,
@@ -4758,41 +4608,31 @@ function FixedScheduleManager({
     useState<
       "Avulso" |
       "Plano"
-    >(
-      "Avulso"
-    );
+    >(copyFrom?.billingType === "Pacote" ? "Plano" : "Avulso");
 
   const [
     packagePlanId,
     setPackagePlanId,
   ] =
-    useState(
-      ""
-    );
+    useState(copyFrom?.patientPackageId ? String(copyFrom.patientPackageId) : "");
 
   const [
     convenioId,
     setConvenioId,
   ] =
-    useState(
-      ""
-    );
+    useState(copyFrom?.convenioId ? String(copyFrom.convenioId) : "");
 
   const [
     authorization,
     setAuthorization,
   ] =
-    useState(
-      ""
-    );
+    useState(copiedAuthorization);
 
   const [
     observations,
     setObservations,
   ] =
-    useState(
-      ""
-    );
+    useState(copiedPlainObservations);
 
   const [
     feedback,
@@ -6244,8 +6084,8 @@ function DailyOperationalView({
   onVacant,
   onFixedOccurrence,
   onFixedQuickStatus,
+  onCopyFixedSchedule,
   onPayment,
-  onMove,
 }: {
   date:
     string;
@@ -6289,42 +6129,15 @@ function DailyOperationalView({
         FixedScheduleExceptionStatus
     ) => void;
 
+  onCopyFixedSchedule:
+    (item: AgendaOperationalItem) => void;
+
   onPayment:
     (
       item:
         AgendaOperationalItem
     ) => void;
-
-  onMove:
-    (
-      item:
-        AgendaOperationalItem,
-
-      slot:
-        VacantSlot
-    ) => void;
 }) {
-  const [
-    draggingItemKey,
-    setDraggingItemKey,
-  ] =
-    useState<
-      string | null
-    >(null);
-
-  const [
-    pendingMove,
-    setPendingMove,
-  ] =
-    useState<{
-      item:
-        AgendaOperationalItem;
-      slot:
-        VacantSlot;
-    } | null>(
-      null
-    );
-
   const times =
     Array.from(
       new Set(
@@ -6455,20 +6268,11 @@ function DailyOperationalView({
                           onFixedQuickStatus={
                             onFixedQuickStatus
                           }
+                          onCopyFixedSchedule={
+                            onCopyFixedSchedule
+                          }
                           onPayment={
                             onPayment
-                          }
-                          onDragStart={(
-                            draggedItem
-                          ) =>
-                            setDraggingItemKey(
-                              draggedItem.key
-                            )
-                          }
-                          onDragEnd={() =>
-                            setDraggingItemKey(
-                              null
-                            )
                           }
                         />
                       )
@@ -6493,40 +6297,6 @@ function DailyOperationalView({
                               slot
                             )
                           }
-                          dragActive={
-                            !!draggingItemKey
-                          }
-                          onDropItem={(
-                            itemKey
-                          ) => {
-                            const draggedItem =
-                              items.find(
-                                (
-                                  current
-                                ) =>
-                                  current.key ===
-                                  itemKey
-                              );
-
-                            setDraggingItemKey(
-                              null
-                            );
-
-                            if (
-                              !draggedItem
-                            ) {
-                              return;
-                            }
-
-                            setPendingMove(
-                              {
-                                item:
-                                  draggedItem,
-
-                                slot,
-                              }
-                            );
-                          }}
                         />
                       )
                     )}
@@ -6537,105 +6307,6 @@ function DailyOperationalView({
           }
         )}
       </div>
-
-      {pendingMove && (
-        <div
-          className="fixed inset-0 z-[105] flex items-center justify-center bg-slate-950/35 p-4"
-          onClick={() =>
-            setPendingMove(
-              null
-            )
-          }
-        >
-          <div
-            className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-            onClick={(
-              event
-            ) =>
-              event.stopPropagation()
-            }
-          >
-            <div className="border-b border-slate-200 px-5 py-4">
-              <h3 className="text-base font-extrabold text-[#10235f]">
-                Confirmar encaixe
-              </h3>
-
-              <p className="mt-1 text-xs font-medium text-slate-500">
-                Esta alteração vale somente para este atendimento.
-              </p>
-            </div>
-
-            <div className="space-y-3 p-5">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-extrabold text-[#263765]">
-                  {
-                    pendingMove.item.patient
-                  }
-                </p>
-
-                <p className="mt-1 text-[11px] font-medium text-slate-500">
-                  {pendingMove.item.startTime} - {pendingMove.item.endTime}
-                  {" "}
-                  →{" "}
-                  {pendingMove.slot.startTime} - {pendingMove.slot.endTime}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
-                <p className="text-[10px] font-extrabold uppercase tracking-wide text-emerald-600">
-                  Novo horário
-                </p>
-
-                <p className="mt-1 text-xs font-bold text-emerald-800">
-                  {
-                    pendingMove.slot.professional
-                  }
-                </p>
-
-                <p className="mt-1 text-[11px] font-medium text-emerald-700">
-                  {pendingMove.slot.startTime} - {pendingMove.slot.endTime}
-                </p>
-              </div>
-
-              {pendingMove.item.fixedScheduleId && (
-                <p className="text-[11px] font-semibold text-amber-700">
-                  O horário fixo das próximas semanas não será alterado. Será criada apenas uma exceção para esta data.
-                </p>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  setPendingMove(
-                    null
-                  )
-                }
-              >
-                Cancelar
-              </Button>
-
-              <Button
-                type="button"
-                onClick={() => {
-                  onMove(
-                    pendingMove.item,
-                    pendingMove.slot
-                  );
-
-                  setPendingMove(
-                    null
-                  );
-                }}
-              >
-                Confirmar encaixe
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 }
@@ -7365,6 +7036,7 @@ function DayColumn({
   onVacant,
   onFixedOccurrence,
   onFixedQuickStatus,
+  onCopyFixedSchedule,
 }: {
   date:
     string;
@@ -7410,6 +7082,9 @@ function DayColumn({
       status:
         FixedScheduleExceptionStatus
     ) => void;
+
+  onCopyFixedSchedule:
+    (item: AgendaOperationalItem) => void;
 }) {
   const today =
     formatDate(
@@ -7534,6 +7209,9 @@ function DayColumn({
                   }
                   onFixedQuickStatus={
                     onFixedQuickStatus
+                  }
+                  onCopyFixedSchedule={
+                    onCopyFixedSchedule
                   }
                 />
               )
@@ -7683,9 +7361,8 @@ function OperationalCard({
   onAppointment,
   onFixedOccurrence,
   onFixedQuickStatus,
+  onCopyFixedSchedule,
   onPayment,
-  onDragStart,
-  onDragEnd,
 }: {
   item:
     AgendaOperationalItem;
@@ -7717,21 +7394,16 @@ function OperationalCard({
         FixedScheduleExceptionStatus
     ) => void;
 
-  onPayment:
+  onCopyFixedSchedule:
+    (item: AgendaOperationalItem) => void;
+
+  onPayment?:
     (
       item:
         AgendaOperationalItem
     ) => void;
-
-  onDragStart:
-    (
-      item:
-        AgendaOperationalItem
-    ) => void;
-
-  onDragEnd:
-    () => void;
 }) {
+
   /*
    * COR PRINCIPAL DO CARD:
    * a especialidade define a cor-base e cada profissional
@@ -7812,6 +7484,7 @@ function OperationalCard({
     undefined;
 
   const paymentApplicable =
+    Boolean(onPayment) &&
     isReceptionPaymentApplicable(
       item
     );
@@ -7827,40 +7500,8 @@ function OperationalCard({
     paymentCharge?.status ===
     "Pago";
 
-  const canDrag =
-    !block &&
-    !!item.patientId &&
-    !cancelled;
-
   return (
     <div
-      draggable={
-        canDrag
-      }
-      onDragStart={(
-        event
-      ) => {
-        if (
-          !canDrag
-        ) {
-          return;
-        }
-
-        event.dataTransfer.effectAllowed =
-          "move";
-
-        event.dataTransfer.setData(
-          "text/plain",
-          item.key
-        );
-
-        onDragStart(
-          item
-        );
-      }}
-      onDragEnd={
-        onDragEnd
-      }
       role={
         clickable
           ? "button"
@@ -7903,11 +7544,9 @@ function OperationalCard({
         }
       }}
       className={`relative w-full overflow-hidden rounded-xl border p-3 text-left transition ${
-        canDrag
-          ? "cursor-grab active:cursor-grabbing hover:-translate-y-0.5 hover:shadow-md"
-          : clickable
-            ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md"
-            : "cursor-default"
+        clickable
+          ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md"
+          : "cursor-default"
       } ${
         cancelled
           ? "opacity-80"
@@ -8117,7 +7756,7 @@ function OperationalCard({
             <button
               type="button"
               onClick={() =>
-                onPayment(
+                onPayment?.(
                   item
                 )
               }
@@ -8141,6 +7780,24 @@ function OperationalCard({
                   size={13}
                 />
               )}
+            </button>
+          )}
+
+          {item.fixedScheduleId && (
+            <button
+              type="button"
+              onClick={() =>
+                onCopyFixedSchedule(
+                  item
+                )
+              }
+              className="inline-flex h-6 items-center justify-center gap-1 rounded-md border border-violet-200 bg-violet-50 px-2 text-[8px] font-extrabold text-violet-700 transition hover:bg-violet-100"
+              title="Copiar agendamento"
+            >
+              <Copy
+                size={12}
+              />
+              Copiar
             </button>
           )}
 
@@ -9045,8 +8702,6 @@ function VacantCard({
   slot,
   activeUnitId,
   onClick,
-  dragActive = false,
-  onDropItem,
 }: {
   slot:
     VacantSlot;
@@ -9056,15 +8711,6 @@ function VacantCard({
 
   onClick:
     () => void;
-
-  dragActive?:
-    boolean;
-
-  onDropItem?:
-    (
-      itemKey:
-        string
-    ) => void;
 }) {
   void activeUnitId;
 
@@ -9074,49 +8720,7 @@ function VacantCard({
       onClick={
         onClick
       }
-      onDragOver={(
-        event
-      ) => {
-        if (
-          !onDropItem
-        ) {
-          return;
-        }
-
-        event.preventDefault();
-
-        event.dataTransfer.dropEffect =
-          "move";
-      }}
-      onDrop={(
-        event
-      ) => {
-        if (
-          !onDropItem
-        ) {
-          return;
-        }
-
-        event.preventDefault();
-
-        const itemKey =
-          event.dataTransfer.getData(
-            "text/plain"
-          );
-
-        if (
-          itemKey
-        ) {
-          onDropItem(
-            itemKey
-          );
-        }
-      }}
-      className={`w-full rounded-xl border border-dashed p-3 text-left transition ${
-        dragActive
-          ? "border-emerald-500 bg-emerald-100/80 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]"
-          : "border-emerald-300 bg-emerald-50/60 hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-sm"
-      }`}
+      className="w-full rounded-xl border border-dashed border-emerald-300 bg-emerald-50/60 p-3 text-left transition hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-sm"
     >
       <div className="flex items-center justify-between gap-2">
         <p className="text-[11px] font-extrabold text-emerald-700">
@@ -9146,9 +8750,7 @@ function VacantCard({
       </div>
 
       <p className="mt-2 text-[9px] font-extrabold text-emerald-700">
-        {dragActive
-          ? "Solte aqui para encaixar"
-          : "Clique para encaixar"}
+        Clique para encaixar
       </p>
     </button>
   );
