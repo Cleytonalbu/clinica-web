@@ -12,6 +12,8 @@ import {
   Search,
   Stethoscope,
   UserRound,
+  UsersRound,
+  X,
 } from "lucide-react";
 
 import {
@@ -41,6 +43,14 @@ import {
   type StoredAppointment,
 } from "@/pages/Agenda/appointmentStorage";
 
+import {
+  MEETING_ROOMS_CHANGED_EVENT,
+  cancelMeetingRoomBooking,
+  createMeetingRoomBooking,
+  getMeetingRoomBookingsByUnit,
+  type MeetingRoomBooking,
+} from "./meetingRoomStorage";
+
 type RoomVisualStatus =
   | "Em uso"
   | "Reservada"
@@ -56,6 +66,12 @@ interface RoomViewData {
   nextAppointment:
     StoredAppointment |
     null;
+}
+
+interface MeetingRoomViewData {
+  status: RoomVisualStatus;
+  currentMeeting: MeetingRoomBooking | null;
+  nextMeeting: MeetingRoomBooking | null;
 }
 
 function formatDateForInput(
@@ -176,6 +192,58 @@ export default function Salas() {
       0
     );
 
+  const [
+    meetingModalOpen,
+    setMeetingModalOpen,
+  ] = useState(false);
+
+  const [
+    meetingTitle,
+    setMeetingTitle,
+  ] = useState("");
+
+  const [
+    meetingRoomName,
+    setMeetingRoomName,
+  ] = useState("Sala de Reunião");
+
+  const [
+    meetingDate,
+    setMeetingDate,
+  ] = useState(() =>
+    formatDateForInput(new Date())
+  );
+
+  const [
+    meetingStartTime,
+    setMeetingStartTime,
+  ] = useState("");
+
+  const [
+    meetingEndTime,
+    setMeetingEndTime,
+  ] = useState("");
+
+  const [
+    meetingOrganizer,
+    setMeetingOrganizer,
+  ] = useState("");
+
+  const [
+    meetingParticipants,
+    setMeetingParticipants,
+  ] = useState("");
+
+  const [
+    meetingNotes,
+    setMeetingNotes,
+  ] = useState("");
+
+  const [
+    meetingError,
+    setMeetingError,
+  ] = useState("");
+
   const today =
     formatDateForInput(
       new Date()
@@ -233,6 +301,11 @@ export default function Salas() {
         refresh
       );
 
+      window.addEventListener(
+        MEETING_ROOMS_CHANGED_EVENT,
+        refresh
+      );
+
       const handleStorage =
         (
           event:
@@ -240,7 +313,9 @@ export default function Salas() {
         ) => {
           if (
             event.key ===
-            "entre-afetos-appointments"
+              "entre-afetos-appointments" ||
+            event.key ===
+              "entre-afetos-meeting-room-bookings"
           ) {
             refresh();
           }
@@ -254,6 +329,11 @@ export default function Salas() {
       return () => {
         window.removeEventListener(
           APPOINTMENTS_CHANGED_EVENT,
+          refresh
+        );
+
+        window.removeEventListener(
+          MEETING_ROOMS_CHANGED_EVENT,
           refresh
         );
 
@@ -393,6 +473,53 @@ export default function Salas() {
       ]
     );
 
+  const meetingBookings =
+    useMemo(
+      () =>
+        getMeetingRoomBookingsByUnit(
+          activeUnitId,
+          selectedDate
+        ),
+      [
+        activeUnitId,
+        selectedDate,
+        refreshKey,
+      ]
+    );
+
+  const meetingRoomData =
+    useMemo<MeetingRoomViewData>(
+      () => {
+        const currentMeeting =
+          meetingBookings.find(
+            (meeting) =>
+              isTimeInside(
+                selectedTime,
+                meeting.startTime,
+                meeting.endTime
+              )
+          ) ?? null;
+
+        const nextMeeting =
+          meetingBookings.find(
+            (meeting) =>
+              meeting.startTime >
+              selectedTime
+          ) ?? null;
+
+        return {
+          status: currentMeeting
+            ? "Em uso"
+            : nextMeeting
+              ? "Reservada"
+              : "Livre",
+          currentMeeting,
+          nextMeeting,
+        };
+      },
+      [meetingBookings, selectedTime]
+    );
+
   const filteredRooms =
     useMemo(
       () =>
@@ -471,7 +598,11 @@ export default function Salas() {
       ) =>
         room.status ===
         "Em uso"
-    ).length;
+    ).length +
+    (meetingRoomData.status ===
+    "Em uso"
+      ? 1
+      : 0);
 
   const reservedCount =
     roomData.filter(
@@ -480,7 +611,11 @@ export default function Salas() {
       ) =>
         room.status ===
         "Reservada"
-    ).length;
+    ).length +
+    (meetingRoomData.status ===
+    "Reservada"
+      ? 1
+      : 0);
 
   const freeCount =
     roomData.filter(
@@ -489,7 +624,11 @@ export default function Salas() {
       ) =>
         room.status ===
         "Livre"
-    ).length;
+    ).length +
+    (meetingRoomData.status ===
+    "Livre"
+      ? 1
+      : 0);
 
   function handleTodayNow() {
     setSelectedDate(
@@ -502,6 +641,101 @@ export default function Salas() {
       getCurrentTime()
     );
   }
+
+  function openMeetingModal() {
+    setMeetingError("");
+    setMeetingTitle("");
+    setMeetingRoomName("Sala de Reunião");
+    setMeetingDate(selectedDate);
+    setMeetingStartTime(selectedTime);
+    setMeetingEndTime("");
+    setMeetingOrganizer("");
+    setMeetingParticipants("");
+    setMeetingNotes("");
+    setMeetingModalOpen(true);
+  }
+
+  function handleSaveMeeting() {
+    try {
+      createMeetingRoomBooking({
+        unitId: activeUnitId,
+        roomName: meetingRoomName,
+        title: meetingTitle,
+        date: meetingDate,
+        startTime: meetingStartTime,
+        endTime: meetingEndTime,
+        organizer: meetingOrganizer,
+        participants: meetingParticipants,
+        notes: meetingNotes,
+      });
+
+      setSelectedDate(meetingDate);
+      setSelectedTime(meetingStartTime);
+      setMeetingModalOpen(false);
+      setMeetingError("");
+      setRefreshKey((current) =>
+        current + 1
+      );
+    } catch (error) {
+      setMeetingError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível agendar a reunião."
+      );
+    }
+  }
+
+  function handleCancelMeeting(
+    meetingId: number
+  ) {
+    if (
+      !window.confirm(
+        "Deseja cancelar esta reserva da sala de reunião?"
+      )
+    ) {
+      return;
+    }
+
+    cancelMeetingRoomBooking(
+      meetingId
+    );
+
+    setRefreshKey((current) =>
+      current + 1
+    );
+  }
+
+  const normalizedSearch =
+    search
+      .trim()
+      .toLocaleLowerCase("pt-BR");
+
+  const meetingMatchesSearch =
+    !normalizedSearch ||
+    "sala de reunião".includes(
+      normalizedSearch
+    ) ||
+    meetingRoomData.currentMeeting?.title
+      .toLocaleLowerCase("pt-BR")
+      .includes(normalizedSearch) ||
+    meetingRoomData.nextMeeting?.title
+      .toLocaleLowerCase("pt-BR")
+      .includes(normalizedSearch) ||
+    meetingRoomData.currentMeeting?.organizer
+      .toLocaleLowerCase("pt-BR")
+      .includes(normalizedSearch) ||
+    meetingRoomData.nextMeeting?.organizer
+      .toLocaleLowerCase("pt-BR")
+      .includes(normalizedSearch);
+
+  const meetingMatchesStatus =
+    statusFilter === "Todos" ||
+    meetingRoomData.status ===
+      statusFilter;
+
+  const showMeetingRoom =
+    meetingMatchesSearch &&
+    meetingMatchesStatus;
 
   return (
     <DashboardLayout>
@@ -517,18 +751,33 @@ export default function Salas() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={
-              handleTodayNow
-            }
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#dfe3f2] bg-white px-4 text-sm font-bold text-[#263765] transition hover:border-[#d4ceff] hover:bg-[#faf9ff] hover:text-[#6543ef]"
-          >
-            <Clock3
-              size={17}
-            />
-            Agora
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={
+                openMeetingModal
+              }
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#6847f5] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#5b3de1]"
+            >
+              <UsersRound
+                size={17}
+              />
+              Agendar reunião
+            </button>
+
+            <button
+              type="button"
+              onClick={
+                handleTodayNow
+              }
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#dfe3f2] bg-white px-4 text-sm font-bold text-[#263765] transition hover:border-[#d4ceff] hover:bg-[#faf9ff] hover:text-[#6543ef]"
+            >
+              <Clock3
+                size={17}
+              />
+              Agora
+            </button>
+          </div>
         </div>
 
         <section className="rounded-2xl border border-[#e8eaf3] bg-white px-5 py-4 shadow-[0_4px_16px_rgba(51,65,120,0.04)]">
@@ -549,8 +798,8 @@ export default function Salas() {
 
                 <p className="mt-0.5 text-xs font-medium text-[#8a94af]">
                   {
-                    roomData.length
-                  } sala(s) cadastrada(s) nesta unidade
+                    roomData.length + 1
+                  } sala(s) nesta unidade, incluindo a sala de reunião
                 </p>
               </div>
             </div>
@@ -691,8 +940,25 @@ export default function Salas() {
         </section>
 
         {filteredRooms.length >
-        0 ? (
+          0 || showMeetingRoom ? (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3">
+            {showMeetingRoom && (
+              <MeetingRoomCard
+                room={
+                  meetingRoomData
+                }
+                selectedDate={
+                  selectedDate
+                }
+                selectedTime={
+                  selectedTime
+                }
+                onCancelMeeting={
+                  handleCancelMeeting
+                }
+              />
+            )}
+
             {filteredRooms.map(
               (
                 room
@@ -731,8 +997,361 @@ export default function Salas() {
             </p>
           </section>
         )}
+
+        {meetingModalOpen && (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[1px]"
+            onMouseDown={(event) => {
+              if (
+                event.target ===
+                event.currentTarget
+              ) {
+                setMeetingModalOpen(false);
+              }
+            }}
+          >
+            <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-[#e7e9f3] bg-white shadow-2xl">
+              <div className="flex items-start justify-between gap-4 border-b border-[#eceef5] px-6 py-5">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#eeeaff] text-[#6847f5]">
+                    <UsersRound size={20} />
+                  </span>
+
+                  <div>
+                    <h2 className="text-lg font-extrabold text-[#10235f]">
+                      Agendar reunião
+                    </h2>
+                    <p className="mt-1 text-xs font-medium text-[#8792ad]">
+                      Reserve a única sala de reunião da {activeUnit.name}.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMeetingModalOpen(false)
+                  }
+                  className="flex h-9 w-9 items-center justify-center rounded-xl text-[#7884a3] transition hover:bg-[#f4f2ff] hover:text-[#6847f5]"
+                  aria-label="Fechar"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-4 px-6 py-5">
+                {meetingError && (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">
+                    {meetingError}
+                  </div>
+                )}
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-[#526080]">
+                    Assunto da reunião *
+                  </label>
+                  <Input
+                    value={meetingTitle}
+                    onChange={(event) =>
+                      setMeetingTitle(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Ex.: Reunião da equipe clínica"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-[#526080]">
+                    Sala *
+                  </label>
+                  <Select
+                    value={meetingRoomName}
+                    onChange={(event) =>
+                      setMeetingRoomName(
+                        event.target.value
+                      )
+                    }
+                  >
+                    <option value="Sala de Reunião">
+                      Sala de Reunião
+                    </option>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-[#526080]">
+                      Data *
+                    </label>
+                    <Input
+                      type="date"
+                      value={meetingDate}
+                      onChange={(event) =>
+                        setMeetingDate(
+                          event.target.value
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-[#526080]">
+                      Início *
+                    </label>
+                    <Input
+                      type="time"
+                      value={meetingStartTime}
+                      onChange={(event) =>
+                        setMeetingStartTime(
+                          event.target.value
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-[#526080]">
+                      Fim *
+                    </label>
+                    <Input
+                      type="time"
+                      value={meetingEndTime}
+                      onChange={(event) =>
+                        setMeetingEndTime(
+                          event.target.value
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-[#526080]">
+                      Responsável / organizador
+                    </label>
+                    <Input
+                      value={meetingOrganizer}
+                      onChange={(event) =>
+                        setMeetingOrganizer(
+                          event.target.value
+                        )
+                      }
+                      placeholder="Quem está organizando"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-[#526080]">
+                      Participantes
+                    </label>
+                    <Input
+                      value={meetingParticipants}
+                      onChange={(event) =>
+                        setMeetingParticipants(
+                          event.target.value
+                        )
+                      }
+                      placeholder="Ex.: Recepção, equipe clínica"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-[#526080]">
+                    Observações
+                  </label>
+                  <textarea
+                    value={meetingNotes}
+                    onChange={(event) =>
+                      setMeetingNotes(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Informações adicionais da reunião"
+                    className="min-h-24 w-full resize-none rounded-xl border border-[#e1e4f1] bg-white px-4 py-3 text-sm text-[#33415c] outline-none transition focus:border-[#8d73ff] focus:ring-4 focus:ring-[#eeeaff]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 border-t border-[#eceef5] bg-[#fbfbfe] px-6 py-4 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMeetingModalOpen(false)
+                  }
+                  className="h-10 rounded-xl border border-[#dde1ef] bg-white px-4 text-sm font-bold text-[#526080] transition hover:bg-[#f7f7fb]"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSaveMeeting}
+                  className="h-10 rounded-xl bg-[#6847f5] px-5 text-sm font-bold text-white transition hover:bg-[#5b3de1]"
+                >
+                  Salvar reunião
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
+  );
+}
+
+function MeetingRoomCard({
+  room,
+  selectedDate,
+  selectedTime,
+  onCancelMeeting,
+}: {
+  room: MeetingRoomViewData;
+  selectedDate: string;
+  selectedTime: string;
+  onCancelMeeting: (
+    meetingId: number
+  ) => void;
+}) {
+  const statusStyle =
+    room.status === "Em uso"
+      ? {
+          badge: "bg-rose-50 text-rose-700",
+          icon: "bg-rose-50 text-rose-600",
+          border: "border-rose-100",
+        }
+      : room.status === "Reservada"
+        ? {
+            badge: "bg-amber-50 text-amber-700",
+            icon: "bg-amber-50 text-amber-600",
+            border: "border-amber-100",
+          }
+        : {
+            badge: "bg-emerald-50 text-emerald-700",
+            icon: "bg-emerald-50 text-emerald-600",
+            border: "border-emerald-100",
+          };
+
+  const mainMeeting =
+    room.currentMeeting ??
+    room.nextMeeting;
+
+  return (
+    <article
+      className={`overflow-hidden rounded-2xl border bg-white shadow-[0_5px_18px_rgba(51,65,120,0.04)] ${statusStyle.border}`}
+    >
+      <div className="flex items-start justify-between gap-4 border-b border-[#eef0f6] px-5 py-4">
+        <div className="flex items-center gap-3">
+          <span
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${statusStyle.icon}`}
+          >
+            <UsersRound size={20} />
+          </span>
+
+          <div>
+            <h2 className="text-sm font-extrabold text-[#263765]">
+              Sala de Reunião
+            </h2>
+            <p className="mt-1 text-[10px] font-semibold text-[#929bb5]">
+              {selectedDate
+                .split("-")
+                .reverse()
+                .join("/")} às {selectedTime}
+            </p>
+          </div>
+        </div>
+
+        <span
+          className={`rounded-full px-3 py-1.5 text-[10px] font-extrabold ${statusStyle.badge}`}
+        >
+          {room.status}
+        </span>
+      </div>
+
+      {mainMeeting ? (
+        <div className="space-y-4 p-5">
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-wide text-[#9aa3b9]">
+              {room.currentMeeting
+                ? "Reunião atual"
+                : "Próxima reunião"}
+            </p>
+
+            <div className="mt-3 flex items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#eeeaff] text-[#6847f5]">
+                <UsersRound size={16} />
+              </span>
+
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-extrabold text-[#263765]">
+                  {mainMeeting.title}
+                </p>
+                <p className="mt-1 text-xs font-semibold text-[#697699]">
+                  {mainMeeting.startTime} às {mainMeeting.endTime}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <InfoBox
+              icon={UserRound}
+              label="Organizador"
+              value={
+                mainMeeting.organizer ||
+                "Não informado"
+              }
+            />
+
+            <InfoBox
+              icon={UsersRound}
+              label="Participantes"
+              value={
+                mainMeeting.participants ||
+                "Não informado"
+              }
+            />
+          </div>
+
+          {mainMeeting.notes && (
+            <div className="rounded-xl border border-[#eceef5] bg-[#fbfbfe] px-4 py-3">
+              <p className="text-[9px] font-bold uppercase tracking-wide text-[#9aa3b9]">
+                Observações
+              </p>
+              <p className="mt-1 text-xs font-semibold leading-5 text-[#526080]">
+                {mainMeeting.notes}
+              </p>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() =>
+              onCancelMeeting(
+                mainMeeting.id
+              )
+            }
+            className="w-full rounded-xl border border-rose-100 bg-rose-50 px-4 py-2.5 text-xs font-bold text-rose-700 transition hover:bg-rose-100"
+          >
+            Cancelar reunião
+          </button>
+        </div>
+      ) : (
+        <div className="flex min-h-48 flex-col items-center justify-center px-6 py-8 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+            <CheckCircle2 size={21} />
+          </span>
+          <p className="mt-4 text-sm font-extrabold text-[#263765]">
+            Sala de reunião livre
+          </p>
+          <p className="mt-1 text-xs font-medium text-[#8a94af]">
+            Nenhuma reunião reservada após este horário.
+          </p>
+        </div>
+      )}
+    </article>
   );
 }
 
