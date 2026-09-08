@@ -110,6 +110,8 @@ import RelatorioProfissionais from "@/pages/Relatorios/RelatorioProfissionais";
 
 import SolicitacoesRelatorios from "@/pages/SolicitacoesRelatorios";
 
+import LembretesApp from "@/pages/LembretesApp";
+
 import RelatorioSolicitado from "@/pages/SolicitacoesRelatorios/RelatorioSolicitado";
 
 import Configuracoes from "@/pages/Configuracoes";
@@ -1140,6 +1142,31 @@ export function AppRoutes() {
               action="view"
             >
               <DocumentosAdministrativos />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+
+      {/* ========================================= */}
+      {/* LEMBRETES DO APP */}
+      {/* GESTOR + RECEPÇÃO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/lembretes-app"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Gestor",
+              "Recepção",
+            ]}
+          >
+            <ProtectedRoute
+              module="patients"
+              action="view"
+            >
+              <LembretesApp />
             </ProtectedRoute>
           </ProfileRoute>
         }

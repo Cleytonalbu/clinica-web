@@ -5,6 +5,7 @@ import type {
 import {
   BarChart3,
   BadgeDollarSign,
+  BellRing,
   CalendarDays,
   CalendarRange,
   CircleDollarSign,
@@ -127,18 +128,18 @@ const menuItems: MenuItem[] = [
   },
 
   {
-    id: "responsaveis",
-    label: "Responsáveis",
-    icon: Users,
-    path: "/responsaveis",
-    module: "patients",
-  },
-
-  {
     id: "solicitacoes-relatorios",
     label: "Solicitações",
     icon: ClipboardList,
     path: "/solicitacoes-relatorios",
+    module: "patients",
+  },
+
+  {
+    id: "lembretes-app",
+    label: "Lembretes do App",
+    icon: BellRing,
+    path: "/lembretes-app",
     module: "patients",
   },
 
@@ -323,8 +324,8 @@ const profileMenuAccess: Record<
     "agenda",
     "salas",
     "pacientes",
-    "responsaveis",
     "solicitacoes-relatorios",
+    "lembretes-app",
     "profissionais",
     "indicadores",
     "financeiro",
@@ -337,8 +338,8 @@ const profileMenuAccess: Record<
     "agenda",
     "salas",
     "pacientes",
-    "responsaveis",
     "solicitacoes-relatorios",
+    "lembretes-app",
     "financeiro",
   ],
 

@@ -50,6 +50,7 @@ import {
   APPOINTMENTS_CHANGED_EVENT,
   getSavedAppointments,
   saveAppointment,
+  updateSavedAppointment,
   type StoredAppointment,
 } from "./appointmentStorage";
 
@@ -2254,6 +2255,184 @@ export default function ReceptionWeeklyAgenda() {
     );
   }
 
+  function handleDragMove(
+    item:
+      AgendaOperationalItem,
+
+    slot:
+      VacantSlot
+  ) {
+    if (
+      item.source ===
+        "block" ||
+      !item.patientId ||
+      isCancelledStatus(
+        item.status
+      )
+    ) {
+      window.alert(
+        "Este registro não pode ser movido."
+      );
+
+      return;
+    }
+
+    const targetProfessionalBusy =
+      rawItems.some(
+        (
+          current
+        ) =>
+          current.key !==
+            item.key &&
+          current.date ===
+            slot.date &&
+          current.professionalId ===
+            slot.professionalId &&
+          !current.cancelledMakesSlotAvailable &&
+          periodsOverlap(
+            slot.startTime,
+            slot.endTime,
+            current.startTime,
+            current.endTime
+          )
+      );
+
+    if (
+      targetProfessionalBusy
+    ) {
+      window.alert(
+        "Este profissional não está mais disponível neste horário."
+      );
+
+      return;
+    }
+
+    const roomConflict =
+      !!item.room &&
+      rawItems.some(
+        (
+          current
+        ) =>
+          current.key !==
+            item.key &&
+          current.date ===
+            slot.date &&
+          current.room ===
+            item.room &&
+          !current.cancelledMakesSlotAvailable &&
+          periodsOverlap(
+            slot.startTime,
+            slot.endTime,
+            current.startTime,
+            current.endTime
+          )
+      );
+
+    if (
+      roomConflict
+    ) {
+      window.alert(
+        `A sala ${item.room} já está ocupada neste horário.`
+      );
+
+      return;
+    }
+
+    if (
+      item.fixedScheduleId
+    ) {
+      const room =
+        rooms.find(
+          (
+            current
+          ) =>
+            current.name ===
+            item.room
+        );
+
+      setFixedScheduleException(
+        {
+          fixedScheduleId:
+            item.fixedScheduleId,
+
+          unitId:
+            activeUnitId,
+
+          date:
+            item.date,
+
+          status:
+            "Remarcado",
+
+          reason:
+            "Remarcado pela recepção por arrastar e soltar.",
+
+          replacementDate:
+            slot.date,
+
+          replacementStartTime:
+            slot.startTime,
+
+          replacementEndTime:
+            slot.endTime,
+
+          replacementProfessionalId:
+            slot.professionalId,
+
+          replacementProfessionalName:
+            slot.professional,
+
+          replacementRoomId:
+            room?.id,
+
+          replacementRoomName:
+            item.room ||
+            undefined,
+
+          source:
+            "recepcao",
+        }
+      );
+    } else if (
+      item.appointmentId !==
+      undefined
+    ) {
+      updateSavedAppointment(
+        item.appointmentId,
+        {
+          date:
+            slot.date,
+
+          time:
+            slot.startTime,
+
+          endTime:
+            slot.endTime,
+
+          professionalId:
+            slot.professionalId,
+
+          professional:
+            slot.professional,
+        }
+      );
+    } else {
+      window.alert(
+        "Não foi possível identificar o agendamento para a remarcação."
+      );
+
+      return;
+    }
+
+    setRefreshKey(
+      (
+        current
+      ) =>
+        current +
+        1
+    );
+  }
+
   const totalAppointments =
     filteredItems.filter(
       (
@@ -3141,6 +3320,9 @@ export default function ReceptionWeeklyAgenda() {
           }
           onPayment={
             setSelectedPaymentItem
+          }
+          onMove={
+            handleDragMove
           }
         />
       )}
@@ -6086,6 +6268,7 @@ function DailyOperationalView({
   onFixedQuickStatus,
   onCopyFixedSchedule,
   onPayment,
+  onMove,
 }: {
   date:
     string;
@@ -6137,7 +6320,37 @@ function DailyOperationalView({
       item:
         AgendaOperationalItem
     ) => void;
+
+  onMove:
+    (
+      item:
+        AgendaOperationalItem,
+
+      slot:
+        VacantSlot
+    ) => void;
 }) {
+  const [
+    draggingItemKey,
+    setDraggingItemKey,
+  ] =
+    useState<
+      string | null
+    >(null);
+
+  const [
+    pendingMove,
+    setPendingMove,
+  ] =
+    useState<{
+      item:
+        AgendaOperationalItem;
+      slot:
+        VacantSlot;
+    } | null>(
+      null
+    );
+
   const times =
     Array.from(
       new Set(
@@ -6274,6 +6487,18 @@ function DailyOperationalView({
                           onPayment={
                             onPayment
                           }
+                          onDragStart={(
+                            draggedItem
+                          ) =>
+                            setDraggingItemKey(
+                              draggedItem.key
+                            )
+                          }
+                          onDragEnd={() =>
+                            setDraggingItemKey(
+                              null
+                            )
+                          }
                         />
                       )
                     )}
@@ -6297,6 +6522,40 @@ function DailyOperationalView({
                               slot
                             )
                           }
+                          dragActive={
+                            !!draggingItemKey
+                          }
+                          onDropItem={(
+                            itemKey
+                          ) => {
+                            const draggedItem =
+                              items.find(
+                                (
+                                  current
+                                ) =>
+                                  current.key ===
+                                  itemKey
+                              );
+
+                            setDraggingItemKey(
+                              null
+                            );
+
+                            if (
+                              !draggedItem
+                            ) {
+                              return;
+                            }
+
+                            setPendingMove(
+                              {
+                                item:
+                                  draggedItem,
+
+                                slot,
+                              }
+                            );
+                          }}
                         />
                       )
                     )}
@@ -6307,6 +6566,98 @@ function DailyOperationalView({
           }
         )}
       </div>
+
+      {pendingMove && (
+        <div
+          className="fixed inset-0 z-[105] flex items-center justify-center bg-slate-950/35 p-4"
+          onClick={() =>
+            setPendingMove(
+              null
+            )
+          }
+        >
+          <div
+            className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            onClick={(
+              event
+            ) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="border-b border-slate-200 px-5 py-4">
+              <h3 className="text-base font-extrabold text-[#10235f]">
+                Confirmar encaixe
+              </h3>
+
+              <p className="mt-1 text-xs font-medium text-slate-500">
+                Esta alteração vale somente para este atendimento.
+              </p>
+            </div>
+
+            <div className="space-y-3 p-5">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-extrabold text-[#263765]">
+                  {pendingMove.item.patient}
+                </p>
+
+                <p className="mt-1 text-[11px] font-medium text-slate-500">
+                  {pendingMove.item.startTime} - {pendingMove.item.endTime} → {pendingMove.slot.startTime} - {pendingMove.slot.endTime}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
+                <p className="text-[10px] font-extrabold uppercase tracking-wide text-emerald-600">
+                  Novo horário
+                </p>
+
+                <p className="mt-1 text-xs font-bold text-emerald-800">
+                  {pendingMove.slot.professional}
+                </p>
+
+                <p className="mt-1 text-[11px] font-medium text-emerald-700">
+                  {pendingMove.slot.startTime} - {pendingMove.slot.endTime}
+                </p>
+              </div>
+
+              {pendingMove.item.fixedScheduleId && (
+                <p className="text-[11px] font-semibold text-amber-700">
+                  O horário fixo das próximas semanas não será alterado. Será criada apenas uma exceção para esta data.
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setPendingMove(
+                    null
+                  )
+                }
+              >
+                Cancelar
+              </Button>
+
+              <Button
+                type="button"
+                onClick={() => {
+                  onMove(
+                    pendingMove.item,
+                    pendingMove.slot
+                  );
+
+                  setPendingMove(
+                    null
+                  );
+                }}
+              >
+                Confirmar encaixe
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -7363,6 +7714,8 @@ function OperationalCard({
   onFixedQuickStatus,
   onCopyFixedSchedule,
   onPayment,
+  onDragStart,
+  onDragEnd,
 }: {
   item:
     AgendaOperationalItem;
@@ -7402,6 +7755,15 @@ function OperationalCard({
       item:
         AgendaOperationalItem
     ) => void;
+
+  onDragStart?:
+    (
+      item:
+        AgendaOperationalItem
+    ) => void;
+
+  onDragEnd?:
+    () => void;
 }) {
 
   /*
@@ -7500,8 +7862,41 @@ function OperationalCard({
     paymentCharge?.status ===
     "Pago";
 
+  const canDrag =
+    !block &&
+    !!item.patientId &&
+    !cancelled &&
+    Boolean(onDragStart);
+
   return (
     <div
+      draggable={
+        canDrag
+      }
+      onDragStart={(
+        event
+      ) => {
+        if (
+          !canDrag
+        ) {
+          return;
+        }
+
+        event.dataTransfer.effectAllowed =
+          "move";
+
+        event.dataTransfer.setData(
+          "text/plain",
+          item.key
+        );
+
+        onDragStart?.(
+          item
+        );
+      }}
+      onDragEnd={() =>
+        onDragEnd?.()
+      }
       role={
         clickable
           ? "button"
@@ -7890,6 +8285,12 @@ function QuickReceptionPaymentModal({
     );
 
   const [
+    installments,
+    setInstallments,
+  ] =
+    useState(1);
+
+  const [
     bankAccountId,
     setBankAccountId,
   ] =
@@ -7995,6 +8396,39 @@ function QuickReceptionPaymentModal({
       0
     );
 
+  const isCreditCard =
+    paymentMethod ===
+    "Cartão de crédito";
+
+  const safeInstallments =
+    isCreditCard
+      ? Math.min(
+          Math.max(
+            Math.trunc(
+              installments
+            ) || 1,
+            1
+          ),
+          12
+        )
+      : 1;
+
+  const installmentAmount =
+    safeInstallments > 0
+      ? finalAmount /
+        safeInstallments
+      : finalAmount;
+
+  const paymentObservation =
+    [
+      isCreditCard
+        ? `Cartão de crédito em ${safeInstallments}x de ${formatCurrency(installmentAmount)}`
+        : "",
+      observation.trim(),
+    ]
+      .filter(Boolean)
+      .join(" | " );
+
   const selectedBankAccount =
     bankAccounts.find(
       (
@@ -8057,7 +8491,7 @@ function QuickReceptionPaymentModal({
             paymentDate,
 
             observation:
-              observation.trim(),
+              paymentObservation,
 
             bankAccountId:
               selectedBankAccount.id,
@@ -8130,7 +8564,7 @@ function QuickReceptionPaymentModal({
                 item.billingType
                   ? `Origem: ${item.billingType}${item.convenio ? ` - ${item.convenio}` : ""}`
                   : "",
-                observation.trim(),
+                paymentObservation,
               ]
                 .filter(
                   Boolean
@@ -8448,11 +8882,21 @@ function QuickReceptionPaymentModal({
                     }
                     onChange={(
                       event
-                    ) =>
+                    ) => {
+                      const nextMethod =
+                        event.target.value as PaymentMethod;
+
                       setPaymentMethod(
-                        event.target.value as PaymentMethod
-                      )
-                    }
+                        nextMethod
+                      );
+
+                      if (
+                        nextMethod !==
+                        "Cartão de crédito"
+                      ) {
+                        setInstallments(1);
+                      }
+                    }}
                     className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400"
                   >
                     <option value="Pix">
@@ -8476,6 +8920,48 @@ function QuickReceptionPaymentModal({
                     </option>
                   </select>
                 </label>
+
+                {isCreditCard && (
+                  <label>
+                    <span className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
+                      Parcelamento
+                    </span>
+
+                    <select
+                      value={
+                        safeInstallments
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setInstallments(
+                          Math.max(
+                            Number(
+                              event.target.value
+                            ) || 1,
+                            1
+                          )
+                        )
+                      }
+                      className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400"
+                    >
+                      {Array.from(
+                        { length: 12 },
+                        (_, index) =>
+                          index + 1
+                      ).map((count) => (
+                        <option
+                          key={count}
+                          value={count}
+                        >
+                          {count}x — {formatCurrency(
+                            finalAmount / count
+                          )}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
 
                 <label>
                   <span className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
@@ -8609,6 +9095,14 @@ function QuickReceptionPaymentModal({
                       )
                     }
                   </p>
+
+                  {isCreditCard && (
+                    <p className="mt-1 text-[10px] font-bold text-indigo-600">
+                      {safeInstallments}x de {formatCurrency(
+                        installmentAmount
+                      )}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -8702,6 +9196,8 @@ function VacantCard({
   slot,
   activeUnitId,
   onClick,
+  dragActive = false,
+  onDropItem,
 }: {
   slot:
     VacantSlot;
@@ -8711,6 +9207,15 @@ function VacantCard({
 
   onClick:
     () => void;
+
+  dragActive?:
+    boolean;
+
+  onDropItem?:
+    (
+      itemKey:
+        string
+    ) => void;
 }) {
   void activeUnitId;
 
@@ -8720,7 +9225,48 @@ function VacantCard({
       onClick={
         onClick
       }
-      className="w-full rounded-xl border border-dashed border-emerald-300 bg-emerald-50/60 p-3 text-left transition hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-sm"
+      onDragOver={(
+        event
+      ) => {
+        if (
+          !onDropItem
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+        event.dataTransfer.dropEffect =
+          "move";
+      }}
+      onDrop={(
+        event
+      ) => {
+        if (
+          !onDropItem
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+
+        const itemKey =
+          event.dataTransfer.getData(
+            "text/plain"
+          );
+
+        if (
+          itemKey
+        ) {
+          onDropItem(
+            itemKey
+          );
+        }
+      }}
+      className={`w-full rounded-xl border border-dashed p-3 text-left transition ${
+        dragActive
+          ? "border-emerald-500 bg-emerald-100/80 shadow-[0_0_0_3px_rgba(16,185,129,0.12)]"
+          : "border-emerald-300 bg-emerald-50/60 hover:-translate-y-0.5 hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-sm"
+      }`}
     >
       <div className="flex items-center justify-between gap-2">
         <p className="text-[11px] font-extrabold text-emerald-700">

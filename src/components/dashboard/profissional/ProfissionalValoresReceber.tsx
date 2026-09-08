@@ -4,10 +4,12 @@ import {
   CheckCircle2,
   Clock3,
   WalletCards,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 import {
-  useMemo,
+  useState,
 } from "react";
 
 import {
@@ -15,13 +17,13 @@ import {
 } from "@/auth/AuthContext";
 
 import {
-  getProfessionalPayoutSummary,
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
+  getPayoutsByProfessional,
   type ProfessionalPayout,
 } from "@/pages/Financeiro/professionalPayoutStorage";
-
-/* =========================================
-   VALORES A RECEBER DO PROFISSIONAL
-========================================= */
 
 export function ProfissionalValoresReceber() {
   const {
@@ -29,27 +31,132 @@ export function ProfissionalValoresReceber() {
   } =
     useAuth();
 
+  const {
+    activeUnitId,
+  } =
+    useUnit();
+
   const professionalName =
     user?.professionalName ??
     user?.name ??
     "";
 
-  const summary =
-    useMemo(
-      () =>
-        getProfessionalPayoutSummary(
-          professionalName
-        ),
-      [
-        professionalName,
-      ]
+  const visibilityKey =
+    `entre-afetos-professional-values-hidden:${professionalName}`;
+
+  const [valuesHidden, setValuesHidden] =
+    useState(() =>
+      localStorage.getItem(visibilityKey) === "1"
     );
 
-  const recentPayouts =
-    summary.payouts.slice(
-      0,
-      4
+  function toggleValuesVisibility() {
+    const next = !valuesHidden;
+    setValuesHidden(next);
+    localStorage.setItem(visibilityKey, next ? "1" : "0");
+  }
+
+  function displayCurrency(value: number) {
+    return valuesHidden ? "R$ •••••" : formatCurrency(value);
+  }
+
+  const now =
+    new Date();
+
+  const payouts =
+    getPayoutsByProfessional(
+      professionalName
+    ).filter(
+      (
+        payout
+      ) => {
+        if (
+          payout.unitId !==
+          activeUnitId
+        ) {
+          return false;
+        }
+
+        const [
+          year,
+          month,
+        ] =
+          payout.serviceDate
+            .split(
+              "-"
+            )
+            .map(
+              Number
+            );
+
+        return (
+          year ===
+            now.getFullYear() &&
+          month ===
+            now.getMonth() +
+              1
+        );
+      }
     );
+
+  const received =
+    payouts
+      .filter(
+        (
+          payout
+        ) =>
+          payout.status ===
+          "Pago"
+      )
+      .reduce(
+        (
+          total,
+          payout
+        ) =>
+          total +
+          payout.amount,
+        0
+      );
+
+  const pending =
+    payouts
+      .filter(
+        (
+          payout
+        ) =>
+          payout.status ===
+          "Pendente"
+      )
+      .reduce(
+        (
+          total,
+          payout
+        ) =>
+          total +
+          payout.amount,
+        0
+      );
+
+  const total =
+    received +
+    pending;
+
+  const recentPayouts =
+    [
+      ...payouts,
+    ]
+      .sort(
+        (
+          a,
+          b
+        ) =>
+          b.serviceDate.localeCompare(
+            a.serviceDate
+          )
+      )
+      .slice(
+        0,
+        4
+      );
 
   return (
     <section className="overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-sm">
@@ -61,15 +168,25 @@ export function ProfissionalValoresReceber() {
             </p>
 
             <p className="mt-1 text-[11px] font-medium text-slate-500">
-              Repasses dos atendimentos realizados no mês
+              Repasses desta unidade no mês
             </p>
           </div>
 
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
-            <WalletCards
-              size={19}
-            />
-          </span>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleValuesVisibility}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-violet-100 bg-white text-violet-600 transition hover:bg-violet-50"
+              title={valuesHidden ? "Mostrar valores" : "Ocultar valores"}
+              aria-label={valuesHidden ? "Mostrar valores" : "Ocultar valores"}
+            >
+              {valuesHidden ? <Eye size={18} /> : <EyeOff size={18} />}
+            </button>
+
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+              <WalletCards size={19} />
+            </span>
+          </div>
         </div>
 
         <div className="mt-5 rounded-2xl bg-gradient-to-br from-[#6543ef] to-[#7c50f5] p-4 text-white shadow-lg shadow-violet-200/60">
@@ -78,17 +195,21 @@ export function ProfissionalValoresReceber() {
           </p>
 
           <p className="mt-1 text-2xl font-extrabold tracking-[-0.03em]">
-            {formatCurrency(
-              summary.total
-            )}
+            {
+              displayCurrency(
+                total
+              )
+            }
           </p>
 
           <div className="mt-3 flex items-center gap-2 text-[10px] font-medium text-violet-100">
             <CalendarCheck2
-              size={13}
+              size={
+                13
+              }
             />
 
-            {summary.appointments} atendimento(s) com repasse
+            {payouts.length} atendimento(s) com repasse
           </div>
         </div>
       </div>
@@ -98,13 +219,15 @@ export function ProfissionalValoresReceber() {
           <ValueBox
             title="Recebido"
             value={
-              formatCurrency(
-                summary.received
+              displayCurrency(
+                received
               )
             }
             icon={
               <CheckCircle2
-                size={16}
+                size={
+                  16
+                }
               />
             }
             className="border-emerald-100 bg-emerald-50/70 text-emerald-700"
@@ -113,13 +236,15 @@ export function ProfissionalValoresReceber() {
           <ValueBox
             title="Pendente"
             value={
-              formatCurrency(
-                summary.pending
+              displayCurrency(
+                pending
               )
             }
             icon={
               <Clock3
-                size={16}
+                size={
+                  16
+                }
               />
             }
             className="border-amber-100 bg-amber-50/80 text-amber-700"
@@ -142,14 +267,17 @@ export function ProfissionalValoresReceber() {
             <div className="space-y-2.5">
               {recentPayouts.map(
                 (
-                  payout
+                  item
                 ) => (
                   <PayoutRow
                     key={
-                      payout.id
+                      item.id
                     }
                     payout={
-                      payout
+                      item
+                    }
+                    valuesHidden={
+                      valuesHidden
                     }
                   />
                 )
@@ -158,7 +286,9 @@ export function ProfissionalValoresReceber() {
           ) : (
             <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-center">
               <Banknote
-                size={22}
+                size={
+                  22
+                }
                 className="mx-auto text-slate-300"
               />
 
@@ -167,23 +297,19 @@ export function ProfissionalValoresReceber() {
               </p>
 
               <p className="mt-1 text-[10px] leading-4 text-slate-400">
-                Quando um atendimento for marcado como realizado, o repasse configurado será lançado automaticamente aqui.
+                Quando um atendimento desta unidade for marcado como realizado, o repasse aparecerá aqui.
               </p>
             </div>
           )}
         </div>
 
         <div className="rounded-xl border border-violet-100 bg-violet-50/60 px-3.5 py-3 text-[10px] leading-4 text-violet-700">
-          O valor exibido é o <strong>repasse profissional</strong> configurado pelo Gestor, e não o valor total cobrado do paciente.
+          O valor exibido é o <strong>repasse profissional</strong> configurado pelo Gestor para os atendimentos desta unidade.
         </div>
       </div>
     </section>
   );
 }
-
-/* =========================================
-   BOX DE VALOR
-========================================= */
 
 function ValueBox({
   title,
@@ -191,17 +317,11 @@ function ValueBox({
   icon,
   className,
 }: {
-  title:
-    string;
-
-  value:
-    string;
-
+  title: string;
+  value: string;
   icon:
     React.ReactNode;
-
-  className:
-    string;
+  className: string;
 }) {
   return (
     <div
@@ -228,61 +348,61 @@ function ValueBox({
   );
 }
 
-/* =========================================
-   LINHA DE REPASSE
-========================================= */
-
 function PayoutRow({
   payout,
+  valuesHidden,
 }: {
   payout:
     ProfessionalPayout;
+  valuesHidden: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-slate-100 bg-slate-50/55 px-3.5 py-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-xs font-bold text-slate-700">
-            {
-              payout.patient
-            }
-          </p>
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 p-3">
+      <div className="min-w-0">
+        <p className="truncate text-xs font-bold text-slate-700">
+          {
+            payout.patient
+          }
+        </p>
 
-          <p className="mt-1 truncate text-[10px] font-medium text-slate-400">
-            {formatDate(
-              payout.serviceDate
-            )} • {payout.specialty}
-          </p>
-        </div>
+        <p className="mt-1 truncate text-[10px] text-slate-400">
+          {formatDate(
+            payout.serviceDate
+          )}{" "}
+          •{" "}
+          {
+            payout.specialty
+          }
+        </p>
+      </div>
 
-        <div className="shrink-0 text-right">
-          <p className="text-xs font-extrabold text-[#6543ef]">
-            {formatCurrency(
-              payout.amount
-            )}
-          </p>
+      <div className="shrink-0 text-right">
+        <p className="text-xs font-extrabold text-slate-800">
+          {
+            valuesHidden
+              ? "R$ •••••"
+              : formatCurrency(
+                  payout.amount
+                )
+          }
+        </p>
 
-          <span
-            className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[9px] font-extrabold ${
-              payout.status ===
-              "Pago"
-                ? "bg-emerald-100 text-emerald-700"
-                : "bg-amber-100 text-amber-700"
-            }`}
-          >
-            {
-              payout.status
-            }
-          </span>
-        </div>
+        <span
+          className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold ${
+            payout.status ===
+            "Pago"
+              ? "bg-emerald-50 text-emerald-600"
+              : "bg-amber-50 text-amber-600"
+          }`}
+        >
+          {
+            payout.status
+          }
+        </span>
       </div>
     </div>
   );
 }
-
-/* =========================================
-   FORMATAÇÃO
-========================================= */
 
 function formatCurrency(
   value: number
@@ -303,12 +423,6 @@ function formatCurrency(
 function formatDate(
   value: string
 ) {
-  if (
-    !value
-  ) {
-    return "—";
-  }
-
   const [
     year,
     month,
@@ -317,14 +431,6 @@ function formatDate(
     value.split(
       "-"
     );
-
-  if (
-    !year ||
-    !month ||
-    !day
-  ) {
-    return value;
-  }
 
   return `${day}/${month}/${year}`;
 }
