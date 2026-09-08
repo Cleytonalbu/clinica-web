@@ -127,6 +127,14 @@ const menuItems: MenuItem[] = [
   },
 
   {
+    id: "responsaveis",
+    label: "Responsáveis",
+    icon: Users,
+    path: "/responsaveis",
+    module: "patients",
+  },
+
+  {
     id: "solicitacoes-relatorios",
     label: "Solicitações",
     icon: ClipboardList,
@@ -315,6 +323,7 @@ const profileMenuAccess: Record<
     "agenda",
     "salas",
     "pacientes",
+    "responsaveis",
     "solicitacoes-relatorios",
     "profissionais",
     "indicadores",
@@ -328,6 +337,7 @@ const profileMenuAccess: Record<
     "agenda",
     "salas",
     "pacientes",
+    "responsaveis",
     "solicitacoes-relatorios",
     "financeiro",
   ],

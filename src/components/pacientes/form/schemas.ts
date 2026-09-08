@@ -149,7 +149,7 @@ export const patientSchema =
         .array(
           linkedResponsibleSchema
         )
-        .default([]),
+        .optional(),
 
     observacoes: z.string(),
   });

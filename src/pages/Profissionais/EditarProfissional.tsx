@@ -1,10 +1,14 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import {
   ArrowLeft,
   BriefcaseMedical,
+  Building2,
   Save,
-  UserRound,
 } from "lucide-react";
 
 import {
@@ -12,12 +16,9 @@ import {
   useParams,
 } from "react-router-dom";
 
-import { DashboardLayout } from "@/layouts/DashboardLayout";
-
 import {
-  getSystemSettings,
-  saveSystemSettings,
-} from "@/pages/Configuracoes/settingsStorage";
+  DashboardLayout,
+} from "@/layouts/DashboardLayout";
 
 import {
   Button,
@@ -26,6 +27,26 @@ import {
   PageCard,
   Select,
 } from "@/components/ui";
+
+import {
+  getActiveSpecialties,
+  getSystemSettings,
+  saveSystemSettings,
+} from "@/pages/Configuracoes/settingsStorage";
+
+import {
+  getActiveClinicUnits,
+} from "@/pages/Configuracoes/clinicUnitStorage";
+
+import {
+  getProfessionalUnitIds,
+  setProfessionalUnits,
+} from "@/pages/Configuracoes/professionalUnitStorage";
+
+import {
+  getProfessionalDetailsById,
+  saveProfessionalDetails,
+} from "./professionalDetailsStorage";
 
 interface ProfessionalFormData {
   name: string;
@@ -43,7 +64,10 @@ interface ProfessionalFormData {
   employmentType: string;
   admissionDate: string;
 
-  status: string;
+  status:
+    | "Ativo"
+    | "Inativo"
+    | "Férias";
 
   observations: string;
 }
@@ -70,7 +94,8 @@ const initialValues: ProfessionalFormData = {
 };
 
 export default function EditarProfissional() {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
   const {
     id,
@@ -82,16 +107,66 @@ export default function EditarProfissional() {
       id
     );
 
-  const [formData, setFormData] =
+  const specialties =
+    useMemo(
+      () =>
+        getActiveSpecialties(),
+      []
+    );
+
+  const units =
+    useMemo(
+      () =>
+        getActiveClinicUnits(),
+      []
+    );
+
+  const [
+    formData,
+    setFormData,
+  ] =
     useState<ProfessionalFormData>(
       initialValues
     );
 
-  const [saving, setSaving] =
-    useState(false);
+  const [
+    selectedUnitIds,
+    setSelectedUnitIds,
+  ] =
+    useState<number[]>(
+      []
+    );
 
-  const [feedback, setFeedback] =
-    useState<string | null>(null);
+  const [
+    saving,
+    setSaving,
+  ] =
+    useState(
+      false
+    );
+
+  const [
+    feedback,
+    setFeedback,
+  ] =
+    useState<
+      string |
+      null
+    >(
+      null
+    );
+
+  const [
+    feedbackType,
+    setFeedbackType,
+  ] =
+    useState<
+      "success" |
+      "error" |
+      null
+    >(
+      null
+    );
 
   useEffect(
     () => {
@@ -100,6 +175,14 @@ export default function EditarProfissional() {
           professionalId
         )
       ) {
+        setFeedback(
+          "Profissional não encontrado."
+        );
+
+        setFeedbackType(
+          "error"
+        );
+
         return;
       }
 
@@ -107,7 +190,9 @@ export default function EditarProfissional() {
         getSystemSettings()
           .professionals
           .find(
-            (item) =>
+            (
+              item
+            ) =>
               item.id ===
               professionalId
           );
@@ -119,8 +204,17 @@ export default function EditarProfissional() {
           "Profissional não encontrado."
         );
 
+        setFeedbackType(
+          "error"
+        );
+
         return;
       }
+
+      const details =
+        getProfessionalDetailsById(
+          professionalId
+        );
 
       const registration =
         professional.registration ??
@@ -138,29 +232,79 @@ export default function EditarProfissional() {
           name:
             professional.name,
 
+          birthDate:
+            details?.birthDate ??
+            "",
+
+          cpf:
+            details?.cpf ??
+            "",
+
+          rg:
+            details?.rg ??
+            "",
+
+          phone:
+            details?.phone ??
+            "",
+
+          email:
+            details?.email ??
+            "",
+
           specialty:
             professional.specialty,
 
           councilType:
-            firstSpace > 0
-              ? registration.slice(
-                  0,
-                  firstSpace
-                )
-              : "",
+            details?.councilType ??
+            (
+              firstSpace >
+              0
+                ? registration.slice(
+                    0,
+                    firstSpace
+                  )
+                : ""
+            ),
 
           councilNumber:
-            firstSpace > 0
-              ? registration.slice(
-                  firstSpace + 1
-                )
-              : registration,
+            details?.councilNumber ??
+            (
+              firstSpace >
+              0
+                ? registration.slice(
+                    firstSpace +
+                      1
+                  )
+                : registration
+            ),
+
+          employmentType:
+            details?.employmentType ??
+            "",
+
+          admissionDate:
+            details?.admissionDate ??
+            "",
 
           status:
-            professional.active
-              ? "Ativo"
-              : "Inativo",
+            details?.status ??
+            (
+              professional.active
+                ? "Ativo"
+                : "Inativo"
+            ),
+
+          observations:
+            details?.observations ??
+            "",
         }
+      );
+
+      setSelectedUnitIds(
+        getProfessionalUnitIds(
+          professionalId
+        )
       );
     },
     [
@@ -172,22 +316,116 @@ export default function EditarProfissional() {
     K extends keyof ProfessionalFormData
   >(
     field: K,
-    value: ProfessionalFormData[K]
+    value:
+      ProfessionalFormData[K]
   ) {
-    setFormData((current) => ({
-      ...current,
-      [field]: value,
-    }));
+    setFormData(
+      (
+        current
+      ) => ({
+        ...current,
+        [field]:
+          value,
+      })
+    );
 
-    setFeedback(null);
+    setFeedback(
+      null
+    );
+
+    setFeedbackType(
+      null
+    );
+  }
+
+  function toggleUnit(
+    unitId: number
+  ) {
+    setSelectedUnitIds(
+      (
+        current
+      ) =>
+        current.includes(
+          unitId
+        )
+          ? current.filter(
+              (
+                id
+              ) =>
+                id !==
+                unitId
+            )
+          : [
+              ...current,
+              unitId,
+            ]
+    );
+
+    setFeedback(
+      null
+    );
+
+    setFeedbackType(
+      null
+    );
+  }
+
+  function showError(
+    message: string
+  ) {
+    setFeedback(
+      message
+    );
+
+    setFeedbackType(
+      "error"
+    );
   }
 
   function handleCancel() {
-    navigate("/profissionais");
+    navigate(
+      `/profissionais/${professionalId}`
+    );
   }
 
   async function handleSave() {
-    setSaving(true);
+    const name =
+      formData.name.trim();
+
+    if (
+      !name
+    ) {
+      showError(
+        "Informe o nome do profissional."
+      );
+
+      return;
+    }
+
+    if (
+      !formData.specialty
+    ) {
+      showError(
+        "Selecione a especialidade."
+      );
+
+      return;
+    }
+
+    if (
+      selectedUnitIds.length ===
+      0
+    ) {
+      showError(
+        "Selecione pelo menos uma unidade para o profissional."
+      );
+
+      return;
+    }
+
+    setSaving(
+      true
+    );
 
     try {
       const settings =
@@ -195,15 +433,18 @@ export default function EditarProfissional() {
 
       const professionalIndex =
         settings.professionals.findIndex(
-          (professional) =>
+          (
+            professional
+          ) =>
             professional.id ===
             professionalId
         );
 
       if (
-        professionalIndex < 0
+        professionalIndex <
+        0
       ) {
-        setFeedback(
+        showError(
           "Profissional não encontrado."
         );
 
@@ -227,30 +468,102 @@ export default function EditarProfissional() {
             " "
           );
 
-      settings.professionals[
-        professionalIndex
-      ] = {
-        ...currentProfessional,
+      const nextSettings = {
+        ...settings,
 
-        name:
-          formData.name.trim(),
+        professionals:
+          settings.professionals.map(
+            (
+              professional
+            ) =>
+              professional.id ===
+              professionalId
+                ? {
+                    ...currentProfessional,
 
-        specialty:
-          formData.specialty,
+                    name,
 
-        registration,
+                    specialty:
+                      formData.specialty,
 
-        active:
-          formData.status !==
-          "Inativo",
+                    registration,
+
+                    active:
+                      formData.status !==
+                      "Inativo",
+                  }
+                : professional
+          ),
       };
 
       saveSystemSettings(
-        settings
+        nextSettings
       );
+
+      setProfessionalUnits(
+        professionalId,
+        selectedUnitIds
+      );
+
+      const existingDetails =
+        getProfessionalDetailsById(
+          professionalId
+        );
+
+      const now =
+        new Date()
+          .toISOString();
+
+      saveProfessionalDetails({
+        professionalId,
+
+        birthDate:
+          formData.birthDate,
+
+        cpf:
+          formData.cpf.trim(),
+
+        rg:
+          formData.rg.trim(),
+
+        phone:
+          formData.phone.trim(),
+
+        email:
+          formData.email.trim(),
+
+        councilType:
+          formData.councilType,
+
+        councilNumber:
+          formData.councilNumber.trim(),
+
+        employmentType:
+          formData.employmentType,
+
+        admissionDate:
+          formData.admissionDate,
+
+        status:
+          formData.status,
+
+        observations:
+          formData.observations.trim(),
+
+        createdAt:
+          existingDetails?.createdAt ??
+          now,
+
+        updatedAt:
+          now,
+      });
 
       setFeedback(
         "Profissional atualizado com sucesso."
+      );
+
+      setFeedbackType(
+        "success"
       );
 
       setTimeout(
@@ -261,8 +574,19 @@ export default function EditarProfissional() {
         },
         500
       );
+    } catch (
+      error
+    ) {
+      showError(
+        error instanceof
+          Error
+          ? error.message
+          : "Não foi possível atualizar o profissional."
+      );
     } finally {
-      setSaving(false);
+      setSaving(
+        false
+      );
     }
   }
 
@@ -272,11 +596,18 @@ export default function EditarProfissional() {
         <div>
           <button
             type="button"
-            onClick={handleCancel}
+            onClick={
+              handleCancel
+            }
             className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-indigo-600"
           >
-            <ArrowLeft size={17} />
-            Voltar para profissionais
+            <ArrowLeft
+              size={
+                17
+              }
+            />
+
+            Voltar para profissional
           </button>
 
           <h1 className="text-3xl font-bold text-slate-900">
@@ -284,13 +615,22 @@ export default function EditarProfissional() {
           </h1>
 
           <p className="mt-2 text-sm text-slate-500">
-            Atualize os dados pessoais e profissionais.
+            Atualize os dados do profissional e as unidades onde ele poderá atender.
           </p>
         </div>
 
         {feedback && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-            {feedback}
+          <div
+            className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+              feedbackType ===
+              "error"
+                ? "border-red-200 bg-red-50 text-red-700"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+            }`}
+          >
+            {
+              feedback
+            }
           </div>
         )}
 
@@ -305,8 +645,12 @@ export default function EditarProfissional() {
                 required
               >
                 <Input
-                  value={formData.name}
-                  onChange={(event) =>
+                  value={
+                    formData.name
+                  }
+                  onChange={(
+                    event
+                  ) =>
                     updateField(
                       "name",
                       event.target.value
@@ -317,13 +661,15 @@ export default function EditarProfissional() {
               </FormField>
             </div>
 
-            <FormField
-              label="Data de nascimento"
-            >
+            <FormField label="Data de nascimento">
               <Input
                 type="date"
-                value={formData.birthDate}
-                onChange={(event) =>
+                value={
+                  formData.birthDate
+                }
+                onChange={(
+                  event
+                ) =>
                   updateField(
                     "birthDate",
                     event.target.value
@@ -334,11 +680,16 @@ export default function EditarProfissional() {
 
             <FormField label="Status">
               <Select
-                value={formData.status}
-                onChange={(event) =>
+                value={
+                  formData.status
+                }
+                onChange={(
+                  event
+                ) =>
                   updateField(
                     "status",
-                    event.target.value
+                    event.target.value as
+                      ProfessionalFormData["status"]
                   )
                 }
               >
@@ -358,8 +709,12 @@ export default function EditarProfissional() {
 
             <FormField label="CPF">
               <Input
-                value={formData.cpf}
-                onChange={(event) =>
+                value={
+                  formData.cpf
+                }
+                onChange={(
+                  event
+                ) =>
                   updateField(
                     "cpf",
                     event.target.value
@@ -371,8 +726,12 @@ export default function EditarProfissional() {
 
             <FormField label="RG">
               <Input
-                value={formData.rg}
-                onChange={(event) =>
+                value={
+                  formData.rg
+                }
+                onChange={(
+                  event
+                ) =>
                   updateField(
                     "rg",
                     event.target.value
@@ -384,8 +743,12 @@ export default function EditarProfissional() {
 
             <FormField label="Telefone">
               <Input
-                value={formData.phone}
-                onChange={(event) =>
+                value={
+                  formData.phone
+                }
+                onChange={(
+                  event
+                ) =>
                   updateField(
                     "phone",
                     event.target.value
@@ -398,8 +761,12 @@ export default function EditarProfissional() {
             <FormField label="E-mail">
               <Input
                 type="email"
-                value={formData.email}
-                onChange={(event) =>
+                value={
+                  formData.email
+                }
+                onChange={(
+                  event
+                ) =>
                   updateField(
                     "email",
                     event.target.value
@@ -421,8 +788,12 @@ export default function EditarProfissional() {
               required
             >
               <Select
-                value={formData.specialty}
-                onChange={(event) =>
+                value={
+                  formData.specialty
+                }
+                onChange={(
+                  event
+                ) =>
                   updateField(
                     "specialty",
                     event.target.value
@@ -433,36 +804,35 @@ export default function EditarProfissional() {
                   Selecione
                 </option>
 
-                <option value="Psicologia">
-                  Psicologia
-                </option>
-
-                <option value="Fonoaudiologia">
-                  Fonoaudiologia
-                </option>
-
-                <option value="Terapia Ocupacional">
-                  Terapia Ocupacional
-                </option>
-
-                <option value="Fisioterapia">
-                  Fisioterapia
-                </option>
-
-                <option value="Psicopedagogia">
-                  Psicopedagogia
-                </option>
-
-                <option value="Nutrição">
-                  Nutrição
-                </option>
+                {specialties.map(
+                  (
+                    specialty
+                  ) => (
+                    <option
+                      key={
+                        specialty.id
+                      }
+                      value={
+                        specialty.name
+                      }
+                    >
+                      {
+                        specialty.name
+                      }
+                    </option>
+                  )
+                )}
               </Select>
             </FormField>
 
             <FormField label="Conselho">
               <Select
-                value={formData.councilType}
-                onChange={(event) =>
+                value={
+                  formData.councilType
+                }
+                onChange={(
+                  event
+                ) =>
                   updateField(
                     "councilType",
                     event.target.value
@@ -497,8 +867,12 @@ export default function EditarProfissional() {
 
             <FormField label="Número do conselho">
               <Input
-                value={formData.councilNumber}
-                onChange={(event) =>
+                value={
+                  formData.councilNumber
+                }
+                onChange={(
+                  event
+                ) =>
                   updateField(
                     "councilNumber",
                     event.target.value
@@ -510,8 +884,12 @@ export default function EditarProfissional() {
 
             <FormField label="Tipo de vínculo">
               <Select
-                value={formData.employmentType}
-                onChange={(event) =>
+                value={
+                  formData.employmentType
+                }
+                onChange={(
+                  event
+                ) =>
                   updateField(
                     "employmentType",
                     event.target.value
@@ -543,8 +921,12 @@ export default function EditarProfissional() {
             <FormField label="Data de admissão">
               <Input
                 type="date"
-                value={formData.admissionDate}
-                onChange={(event) =>
+                value={
+                  formData.admissionDate
+                }
+                onChange={(
+                  event
+                ) =>
                   updateField(
                     "admissionDate",
                     event.target.value
@@ -556,12 +938,91 @@ export default function EditarProfissional() {
         </PageCard>
 
         <PageCard
+          title="Unidades de Atendimento"
+          description="Selecione todas as unidades onde este profissional poderá atender."
+        >
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {units.map(
+              (
+                unit
+              ) => {
+                const selected =
+                  selectedUnitIds.includes(
+                    unit.id
+                  );
+
+                return (
+                  <button
+                    key={
+                      unit.id
+                    }
+                    type="button"
+                    onClick={
+                      () =>
+                        toggleUnit(
+                          unit.id
+                        )
+                    }
+                    className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition ${
+                      selected
+                        ? "border-indigo-300 bg-indigo-50 ring-2 ring-indigo-100"
+                        : "border-slate-200 bg-white hover:border-indigo-200"
+                    }`}
+                  >
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                        selected
+                          ? "bg-indigo-600 text-white"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      <Building2
+                        size={
+                          18
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <p className="font-semibold text-slate-800">
+                        {
+                          unit.name
+                        }
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        {
+                          unit.isMain
+                            ? "Unidade Principal"
+                            : unit.code
+                        }
+                      </p>
+                    </div>
+                  </button>
+                );
+              }
+            )}
+          </div>
+
+          {selectedUnitIds.length ===
+            0 && (
+            <p className="mt-3 text-xs font-semibold text-red-600">
+              Selecione pelo menos uma unidade.
+            </p>
+          )}
+        </PageCard>
+
+        <PageCard
           title="Observações"
           description="Informações adicionais sobre o profissional."
         >
           <textarea
-            value={formData.observations}
-            onChange={(event) =>
+            value={
+              formData.observations
+            }
+            onChange={(
+              event
+            ) =>
               updateField(
                 "observations",
                 event.target.value
@@ -575,11 +1036,15 @@ export default function EditarProfissional() {
         <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3 text-slate-500">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-              <BriefcaseMedical size={19} />
+              <BriefcaseMedical
+                size={
+                  19
+                }
+              />
             </div>
 
             <p className="text-sm">
-              Após salvar, os horários poderão ser configurados no perfil do profissional.
+              O profissional ficará disponível apenas nas unidades selecionadas.
             </p>
           </div>
 
@@ -587,18 +1052,32 @@ export default function EditarProfissional() {
             <Button
               type="button"
               variant="outline"
-              disabled={saving}
-              onClick={handleCancel}
+              disabled={
+                saving
+              }
+              onClick={
+                handleCancel
+              }
             >
               Cancelar
             </Button>
 
             <Button
               type="button"
-              disabled={saving}
-              onClick={handleSave}
+              disabled={
+                saving ||
+                selectedUnitIds.length ===
+                  0
+              }
+              onClick={
+                handleSave
+              }
             >
-              <Save size={17} />
+              <Save
+                size={
+                  17
+                }
+              />
 
               {saving
                 ? "Salvando..."

@@ -19,6 +19,7 @@ import {
 import {
   useNavigate,
   useParams,
+  useSearchParams,
 } from "react-router-dom";
 
 import { DashboardLayout } from "@/layouts/DashboardLayout";
@@ -42,6 +43,7 @@ import { ObservedImpactsSection } from "@/components/pacientes/profile/evolution
 import { SessionResultSection } from "@/components/pacientes/profile/evolutions/SessionResultSection";
 import { EvolutionAttachmentsSection } from "@/components/pacientes/profile/evolutions/EvolutionAttachmentsSection";
 import { ProfessionalSignatureSection } from "@/components/pacientes/profile/evolutions/ProfessionalSignatureSection";
+import { AbaEvolutionForm } from "@/components/pacientes/profile/evolutions/AbaEvolutionForm";
 
 import { createEvolutionDefaultValues } from "@/components/pacientes/profile/evolutions/evolutionForm.defaults";
 
@@ -72,6 +74,7 @@ import {
   createEvolution,
   createStoredAttachments,
   getLastEvolutionByPatientId,
+  getPatientEvolutionById,
   updateEvolution as updateStoredEvolution,
 } from "@/pages/Pacientes/evolutionStorage";
 
@@ -171,12 +174,40 @@ export default function NovaEvolucao() {
 
   const navigate = useNavigate();
   const { id } = useParams();
+  const [searchParams] =
+    useSearchParams();
 
   const patientIdNumber = Number(id);
   const patientId = id ?? "";
 
   const patient =
     getPatientById(patientIdNumber);
+
+  const requestedEvolutionId =
+    Number(
+      searchParams.get(
+        "evolutionId"
+      )
+    );
+
+  const draftEvolution =
+    Number.isFinite(
+      requestedEvolutionId
+    ) &&
+    requestedEvolutionId > 0
+      ? getPatientEvolutionById(
+          patientIdNumber,
+          requestedEvolutionId
+        )
+      : undefined;
+
+  const editableAbaDraft =
+    draftEvolution?.status ===
+      "RASCUNHO" &&
+    draftEvolution.evolutionType ===
+      "ABA"
+      ? draftEvolution
+      : undefined;
 
   const {
     user,
@@ -518,6 +549,19 @@ export default function NovaEvolucao() {
     );
 
   const [
+    evolutionType,
+    setEvolutionType,
+  ] =
+    useState<
+      "PADRAO" |
+      "ABA"
+    >(
+      editableAbaDraft
+        ? "ABA"
+        : "PADRAO"
+    );
+
+  const [
     attachmentFolderIds,
     setAttachmentFolderIds,
   ] =
@@ -637,7 +681,10 @@ export default function NovaEvolucao() {
   );
 
   const [savedEvolutionId, setSavedEvolutionId] =
-    useState<number | null>(null);
+    useState<number | null>(
+      editableAbaDraft?.id ??
+        null
+    );
 
   const [saving, setSaving] =
     useState(false);
@@ -1541,6 +1588,142 @@ export default function NovaEvolucao() {
     );
   }
 
+  if (
+    evolutionType ===
+    "ABA"
+  ) {
+    return (
+      <DashboardLayout>
+        <div className="-m-2 min-h-full rounded-[30px] bg-gradient-to-br from-violet-50/80 via-sky-50/50 to-emerald-50/60 p-2 sm:-m-3 sm:p-3">
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-white/80 bg-white/70 px-5 py-4 shadow-sm backdrop-blur">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="mb-3 inline-flex items-center gap-2 rounded-lg px-2 py-1 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-50 hover:text-violet-700"
+              >
+                <ArrowLeft size={17} />
+                Voltar para evoluções
+              </button>
+
+              <h1 className="text-3xl font-extrabold tracking-tight text-[#10235f]">
+                {editableAbaDraft
+                  ? "Continuar Evolução"
+                  : "Nova Evolução"}
+              </h1>
+
+              <p className="mt-2 text-sm text-slate-500">
+                Selecione o modelo de evolução e registre os dados do atendimento.
+              </p>
+            </div>
+
+            <PageCard
+              title="Modelo da Evolução"
+              description="Escolha qual formulário será utilizado neste atendimento."
+            >
+              <div className="max-w-xl">
+                <FormField label="Tipo de evolução">
+                  <Select
+                    value={evolutionType}
+                    onChange={(event) =>
+                      setEvolutionType(
+                        event.target.value as
+                          | "PADRAO"
+                          | "ABA"
+                      )
+                    }
+                  >
+                    <option value="PADRAO">
+                      Evolução Padrão
+                    </option>
+
+                    <option value="ABA">
+                      Evolução Diária - ABA
+                    </option>
+                  </Select>
+                </FormField>
+              </div>
+            </PageCard>
+
+            <div className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-white via-indigo-50/70 to-cyan-50/70 p-5 shadow-[0_12px_30px_rgba(79,70,229,0.08)]">
+              <div className="flex items-center gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-indigo-200/70">
+                  <UserRound size={27} />
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    {patient.nome}
+                  </h2>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Evolução Diária - ABA
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <AbaEvolutionForm
+              patientId={patientIdNumber}
+              unitId={activeUnitId}
+              professional={
+                editableAbaDraft?.professional ||
+                effectiveProfessionalName
+              }
+              specialty={
+                editableAbaDraft?.specialty ||
+                professionalSpecialty ||
+                linkedAppointment?.specialty ||
+                "ABA"
+              }
+              sessionDate={
+                editableAbaDraft?.sessionDate ||
+                linkedAppointment?.date
+              }
+              startTime={
+                editableAbaDraft?.startTime ||
+                linkedAppointment?.time
+              }
+              endTime={
+                editableAbaDraft?.endTime ||
+                linkedAppointment?.endTime
+              }
+              appointmentType={
+                editableAbaDraft?.appointmentType ||
+                linkedAppointment?.type ||
+                "Individual"
+              }
+              appointmentLocation={
+                editableAbaDraft?.appointmentLocation ||
+                "Clinica"
+              }
+              evolutionId={
+                editableAbaDraft?.id
+              }
+              initialData={
+                editableAbaDraft?.abaData
+              }
+              initialAttachments={
+                editableAbaDraft?.attachments ??
+                []
+              }
+              onSaved={() =>
+                setTimeout(
+                  () => {
+                    navigate(
+                      `/pacientes/${patientId}?tab=evolucoes`
+                    );
+                  },
+                  700
+                )
+              }
+            />
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="-m-2 min-h-full rounded-[30px] bg-gradient-to-br from-violet-50/80 via-sky-50/50 to-emerald-50/60 p-2 sm:-m-3 sm:p-3">
@@ -1664,6 +1847,34 @@ export default function NovaEvolucao() {
             {feedback}
           </div>
         )}
+
+        <PageCard
+          title="Modelo da Evolução"
+          description="Escolha qual formulário será utilizado neste atendimento."
+        >
+          <div className="max-w-xl">
+            <FormField label="Tipo de evolução">
+              <Select
+                value={evolutionType}
+                onChange={(event) =>
+                  setEvolutionType(
+                    event.target.value as
+                      | "PADRAO"
+                      | "ABA"
+                  )
+                }
+              >
+                <option value="PADRAO">
+                  Evolução Padrão
+                </option>
+
+                <option value="ABA">
+                  Evolução Diária - ABA
+                </option>
+              </Select>
+            </FormField>
+          </div>
+        </PageCard>
 
         <div className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-white via-indigo-50/70 to-cyan-50/70 p-5 shadow-[0_12px_30px_rgba(79,70,229,0.08)]">
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">

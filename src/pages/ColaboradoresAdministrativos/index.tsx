@@ -24,6 +24,16 @@ import {
 } from "@/providers/UnitContext";
 
 import {
+  getActiveClinicUnits,
+} from "@/pages/Configuracoes/clinicUnitStorage";
+
+import {
+  collaboratorWorksAtUnit,
+  getCollaboratorUnitIds,
+  setCollaboratorUnits,
+} from "@/pages/Configuracoes/collaboratorUnitStorage";
+
+import {
   createAdministrativeCollaborator,
   getAdministrativeCollaborators,
   setAdministrativeCollaboratorStatus,
@@ -80,13 +90,25 @@ export default function ColaboradoresAdministrativos() {
   );
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [formUnitIds, setFormUnitIds] = useState<number[]>([activeUnitId]);
+  const [unitEditorCollaborator, setUnitEditorCollaborator] = useState<
+    AdministrativeCollaborator | null
+  >(null);
+  const [unitEditorIds, setUnitEditorIds] = useState<number[]>([]);
+
+  const activeUnits = useMemo(
+    () => getActiveClinicUnits(),
+    [],
+  );
 
   const load = () => {
     setCollaborators(
       getAdministrativeCollaborators().filter(
         (collaborator) =>
-          collaborator.unitId ===
-          activeUnitId,
+          collaboratorWorksAtUnit(
+            collaborator.id,
+            activeUnitId,
+          ),
       ),
     );
   };
@@ -99,12 +121,21 @@ export default function ColaboradoresAdministrativos() {
       "administrative-collaborators-changed",
       handleChange,
     );
+    window.addEventListener(
+      "collaborator-units-changed",
+      handleChange,
+    );
 
-    return () =>
+    return () => {
       window.removeEventListener(
         "administrative-collaborators-changed",
         handleChange,
       );
+      window.removeEventListener(
+        "collaborator-units-changed",
+        handleChange,
+      );
+    };
   }, [
     activeUnitId,
   ]);
@@ -146,6 +177,58 @@ export default function ColaboradoresAdministrativos() {
     [collaborators],
   );
 
+  useEffect(() => {
+    if (!showForm) {
+      setFormUnitIds([activeUnitId]);
+    }
+  }, [activeUnitId, showForm]);
+
+  function toggleFormUnit(unitId: number) {
+    setFormUnitIds((current) =>
+      current.includes(unitId)
+        ? current.filter((id) => id !== unitId)
+        : [...current, unitId],
+    );
+  }
+
+  function toggleEditorUnit(unitId: number) {
+    setUnitEditorIds((current) =>
+      current.includes(unitId)
+        ? current.filter((id) => id !== unitId)
+        : [...current, unitId],
+    );
+  }
+
+  function openUnitEditor(collaborator: AdministrativeCollaborator) {
+    setUnitEditorCollaborator(collaborator);
+    setUnitEditorIds(getCollaboratorUnitIds(collaborator.id));
+  }
+
+  function saveUnitEditor() {
+    if (!unitEditorCollaborator) return;
+
+    if (unitEditorIds.length === 0) {
+      window.alert("Selecione pelo menos uma unidade para o colaborador.");
+      return;
+    }
+
+    try {
+      setCollaboratorUnits(
+        unitEditorCollaborator.id,
+        unitEditorIds,
+      );
+      setUnitEditorCollaborator(null);
+      setUnitEditorIds([]);
+      load();
+    } catch (error) {
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível atualizar as unidades do colaborador.",
+      );
+    }
+  }
+
   function submit(event: FormEvent) {
     event.preventDefault();
 
@@ -154,7 +237,12 @@ export default function ColaboradoresAdministrativos() {
       return;
     }
 
-    createAdministrativeCollaborator({
+    if (formUnitIds.length === 0) {
+      window.alert("Selecione pelo menos uma unidade para o colaborador.");
+      return;
+    }
+
+    const collaborator = createAdministrativeCollaborator({
       unitId:
         activeUnitId,
       name: form.name.trim(),
@@ -169,7 +257,13 @@ export default function ColaboradoresAdministrativos() {
       status: "Ativo",
     });
 
+    setCollaboratorUnits(
+      collaborator.id,
+      formUnitIds,
+    );
+
     setForm(emptyForm);
+    setFormUnitIds([activeUnitId]);
     setShowForm(false);
     load();
   }
@@ -276,6 +370,7 @@ export default function ColaboradoresAdministrativos() {
                   "Função",
                   "Contato",
                   "Admissão",
+                  "Unidades",
                   "Situação",
                   "Ação",
                 ].map((heading) => (
@@ -326,6 +421,23 @@ export default function ColaboradoresAdministrativos() {
                       : "—"}
                   </td>
 
+                  <td className="px-4 py-4 text-sm text-slate-700">
+                    <div className="flex flex-wrap gap-1.5">
+                      {getCollaboratorUnitIds(collaborator.id).map((unitId) => {
+                        const unit = activeUnits.find((item) => item.id === unitId);
+
+                        return (
+                          <span
+                            key={unitId}
+                            className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-medium text-violet-700"
+                          >
+                            {unit?.name ?? `Unidade ${unitId}`}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </td>
+
                   <td className="whitespace-nowrap px-4 py-4">
                     <span
                       className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${statusClass(
@@ -337,22 +449,31 @@ export default function ColaboradoresAdministrativos() {
                   </td>
 
                   <td className="whitespace-nowrap px-4 py-4">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setAdministrativeCollaboratorStatus(
-                          collaborator.id,
-                          collaborator.status === "Ativo"
-                            ? "Inativo"
-                            : "Ativo",
-                        )
-                      }
-                      className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                    >
-                      {collaborator.status === "Ativo"
-                        ? "Inativar"
-                        : "Reativar"}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openUnitEditor(collaborator)}
+                        className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-medium text-violet-700 hover:bg-violet-100"
+                      >
+                        Unidades
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAdministrativeCollaboratorStatus(
+                            collaborator.id,
+                            collaborator.status === "Ativo"
+                              ? "Inativo"
+                              : "Ativo",
+                          )
+                        }
+                        className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      >
+                        {collaborator.status === "Ativo"
+                          ? "Inativar"
+                          : "Reativar"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -360,7 +481,7 @@ export default function ColaboradoresAdministrativos() {
               {filtered.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-12 text-center text-sm text-slate-500"
                   >
                     Nenhum colaborador encontrado.
@@ -494,6 +615,37 @@ export default function ColaboradoresAdministrativos() {
                 </Field>
               </div>
 
+              <Field label="Unidades de trabalho *">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {activeUnits.map((unit) => (
+                    <label
+                      key={unit.id}
+                      className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm transition ${
+                        formUnitIds.includes(unit.id)
+                          ? "border-violet-300 bg-violet-50 text-violet-800"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formUnitIds.includes(unit.id)}
+                        onChange={() => toggleFormUnit(unit.id)}
+                        className="h-4 w-4 rounded border-slate-300"
+                      />
+                      <span>
+                        <span className="block font-medium">{unit.name}</span>
+                        <span className="block text-xs opacity-70">
+                          {unit.city || unit.code}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  O mesmo colaborador pode trabalhar em uma ou mais unidades sem duplicar o cadastro.
+                </p>
+              </Field>
+
               <Field label="Observações">
                 <textarea
                   rows={4}
@@ -521,6 +673,82 @@ export default function ColaboradoresAdministrativos() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {unitEditorCollaborator && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Unidades do colaborador
+                </h2>
+                <p className="text-sm text-slate-500">
+                  {unitEditorCollaborator.name}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setUnitEditorCollaborator(null);
+                  setUnitEditorIds([]);
+                }}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4 p-6">
+              <div className="grid gap-2 sm:grid-cols-2">
+                {activeUnits.map((unit) => (
+                  <label
+                    key={unit.id}
+                    className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm transition ${
+                      unitEditorIds.includes(unit.id)
+                        ? "border-violet-300 bg-violet-50 text-violet-800"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={unitEditorIds.includes(unit.id)}
+                      onChange={() => toggleEditorUnit(unit.id)}
+                      className="h-4 w-4 rounded border-slate-300"
+                    />
+                    <span>
+                      <span className="block font-medium">{unit.name}</span>
+                      <span className="block text-xs opacity-70">
+                        {unit.city || unit.code}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUnitEditorCollaborator(null);
+                    setUnitEditorIds([]);
+                  }}
+                  className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={saveUnitEditor}
+                  className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
+                >
+                  Salvar unidades
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

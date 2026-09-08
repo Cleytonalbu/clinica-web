@@ -14,6 +14,14 @@ import {
   getEvolutionObjectiveMarkerScore,
 } from "@/components/pacientes/profile/evolutions/evolutionForm.types";
 
+import type {
+  AbaEvolutionData,
+} from "@/components/pacientes/profile/evolutions/abaEvolution.types";
+
+import {
+  createDefaultAbaEvolutionData,
+} from "@/components/pacientes/profile/evolutions/abaEvolution.types";
+
 /* =========================================
    TIPOS
 ========================================= */
@@ -48,6 +56,20 @@ export interface StoredEvolution {
    * O prontuário continua global entre unidades.
    */
   unitId: number;
+
+  /**
+   * Tipo do formulário utilizado.
+   * Registros antigos sem este campo são tratados como PADRAO.
+   */
+  evolutionType:
+    | "PADRAO"
+    | "ABA";
+
+  /**
+   * Dados estruturados exclusivos da Evolução Diária - ABA.
+   * Para a evolução padrão, permanece undefined.
+   */
+  abaData?: AbaEvolutionData;
 
   sessionDate: string;
 
@@ -121,6 +143,15 @@ export interface CreateEvolutionData {
   patientId: number;
 
   unitId?: number;
+
+  evolutionType?:
+    | "PADRAO"
+    | "ABA";
+
+  abaData?:
+    Partial<
+      AbaEvolutionData
+    >;
 
   sessionDate?: string;
 
@@ -273,13 +304,34 @@ export function getEvolutions():
                 evolution.nutrition
               );
 
+            const evolutionType =
+              evolution.evolutionType ===
+              "ABA"
+                ? "ABA"
+                : "PADRAO";
+
+            const abaData =
+              evolutionType ===
+              "ABA"
+                ? normalizeAbaData(
+                    evolution.abaData
+                  )
+                : undefined;
+
             if (
               normalizedUnitId !==
                 evolution.unitId ||
               !Array.isArray(
                 evolution.materials
               ) ||
-              !evolution.nutrition
+              !evolution.nutrition ||
+              evolution.evolutionType !==
+                evolutionType ||
+              (
+                evolutionType ===
+                  "ABA" &&
+                !evolution.abaData
+              )
             ) {
               changed =
                 true;
@@ -291,6 +343,8 @@ export function getEvolutions():
                 normalizedUnitId,
               materials,
               nutrition,
+              evolutionType,
+              abaData,
             };
           }
         );
@@ -435,9 +489,18 @@ export function createEvolution(
     data.status ===
     "FINALIZADA"
   ) {
-    validateFinalizedEvolution(
-      data
-    );
+    if (
+      data.evolutionType ===
+      "ABA"
+    ) {
+      validateFinalizedAbaEvolution(
+        data
+      );
+    } else {
+      validateFinalizedEvolution(
+        data
+      );
+    }
   }
 
   const current =
@@ -470,6 +533,20 @@ export function createEvolution(
             data.unitId
           )
         : getDefaultClinicUnitId(),
+
+    evolutionType:
+      data.evolutionType ===
+      "ABA"
+        ? "ABA"
+        : "PADRAO",
+
+    abaData:
+      data.evolutionType ===
+      "ABA"
+        ? normalizeAbaData(
+            data.abaData
+          )
+        : undefined,
 
     sessionDate:
       data.sessionDate ??
@@ -642,6 +719,23 @@ export function updateEvolution(
 
     ...data,
 
+    evolutionType:
+      data.evolutionType ===
+      "ABA"
+        ? "ABA"
+        : data.evolutionType ===
+            "PADRAO"
+          ? "PADRAO"
+          : existing.evolutionType,
+
+    abaData:
+      data.abaData !==
+      undefined
+        ? normalizeAbaData(
+            data.abaData
+          )
+        : existing.abaData,
+
     specialty:
       data.specialty !==
       undefined
@@ -763,9 +857,18 @@ export function updateEvolution(
     merged.status ===
     "FINALIZADA"
   ) {
-    validateFinalizedEvolution(
-      merged
-    );
+    if (
+      merged.evolutionType ===
+      "ABA"
+    ) {
+      validateFinalizedAbaEvolution(
+        merged
+      );
+    } else {
+      validateFinalizedEvolution(
+        merged
+      );
+    }
 
     if (
       existing.status !==
@@ -1080,6 +1183,194 @@ function validateFinalizedEvolution(
       "Informe o profissional responsável."
     );
   }
+}
+
+/* =========================================
+   VALIDAR FINALIZAÇÃO ABA
+========================================= */
+
+function validateFinalizedAbaEvolution(
+  data:
+    Pick<
+      CreateEvolutionData,
+      | "patientId"
+      | "sessionDate"
+      | "professional"
+      | "abaData"
+    >
+) {
+  validatePatientId(
+    data.patientId
+  );
+
+  if (
+    !data.sessionDate
+  ) {
+    throw new Error(
+      "Informe a data do atendimento."
+    );
+  }
+
+  if (
+    !cleanText(
+      data.professional
+    )
+  ) {
+    throw new Error(
+      "Informe o profissional responsável."
+    );
+  }
+
+  const aba =
+    normalizeAbaData(
+      data.abaData
+    );
+
+  if (
+    !aba.conditionEntry
+  ) {
+    throw new Error(
+      "Informe a condição de entrada."
+    );
+  }
+
+  const filledPrograms =
+    aba.programs.filter(
+      (
+        program
+      ) =>
+        Boolean(
+          program.program
+        )
+    );
+
+  if (
+    filledPrograms.length ===
+    0
+  ) {
+    throw new Error(
+      "Informe pelo menos um programa."
+    );
+  }
+
+  if (
+    filledPrograms.some(
+      (
+        program
+      ) =>
+        !program.response
+    )
+  ) {
+    throw new Error(
+      "Selecione a resposta dos programas preenchidos."
+    );
+  }
+
+  if (
+    !aba.programsExecution
+  ) {
+    throw new Error(
+      "Informe a execução dos programas."
+    );
+  }
+
+  if (
+    !aba.conclusion
+  ) {
+    throw new Error(
+      "Informe a conclusão da evolução."
+    );
+  }
+}
+
+/* =========================================
+   NORMALIZAR EVOLUÇÃO ABA
+========================================= */
+
+function normalizeAbaData(
+  value:
+    Partial<
+      AbaEvolutionData
+    > |
+    undefined
+):
+  AbaEvolutionData {
+  const defaults =
+    createDefaultAbaEvolutionData();
+
+  const sourcePrograms =
+    Array.isArray(
+      value?.programs
+    )
+      ? value!.programs!
+      : [];
+
+  return {
+    conditionEntry:
+      cleanText(
+        value?.conditionEntry
+      ),
+
+    programs:
+      defaults.programs.map(
+        (
+          defaultProgram
+        ) => {
+          const source =
+            sourcePrograms.find(
+              (
+                program
+              ) =>
+                Number(
+                  program.index
+                ) ===
+                defaultProgram.index
+            );
+
+          const response =
+            source?.response ===
+                "APOIO_TOTAL" ||
+              source?.response ===
+                "APOIO_PARCIAL" ||
+              source?.response ===
+                "INDEPENDENCIA"
+              ? source.response
+              : "";
+
+          return {
+            index:
+              defaultProgram.index,
+
+            program:
+              cleanText(
+                source?.program
+              ),
+
+            response,
+          };
+        }
+      ),
+
+    programsExecution:
+      value?.programsExecution ===
+          "TOTALMENTE_REALIZADOS" ||
+        value?.programsExecution ===
+          "PARCIALMENTE_REALIZADOS" ||
+        value?.programsExecution ===
+          "NAO_REALIZADOS"
+        ? value.programsExecution
+        : "",
+
+    additionalObservations:
+      cleanText(
+        value?.additionalObservations
+      ),
+
+    conclusion:
+      cleanText(
+        value?.conclusion
+      ),
+  };
 }
 
 /* =========================================

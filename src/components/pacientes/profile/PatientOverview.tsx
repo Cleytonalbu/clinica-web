@@ -44,6 +44,11 @@ import {
   useUnit,
 } from "@/providers/UnitContext";
 
+import {
+  getPatientResponsibles,
+  type ResponsibleRelationship,
+} from "@/pages/Pacientes/responsiblePatientStorage";
+
 /* =========================================
    PROPS
 ========================================= */
@@ -106,9 +111,76 @@ export function PatientOverview({
     patient.telefone ||
     "-";
 
-  const responsiblePhone =
-    patient.responsavelTelefone ||
-    "-";
+  const linkedResponsibles =
+    useMemo(
+      () => {
+        const storedResponsibles =
+          getPatientResponsibles(
+            patient.id
+          );
+
+        if (
+          storedResponsibles.length >
+          0
+        ) {
+          return storedResponsibles;
+        }
+
+        if (
+          patient.responsavelNome ||
+          patient.responsavelCpf ||
+          patient.responsavelTelefone ||
+          patient.responsavelEmail
+        ) {
+          return [
+            {
+              id: 0,
+              nome:
+                patient.responsavelNome ||
+                "-",
+              cpf:
+                patient.responsavelCpf ||
+                "",
+              telefone:
+                patient.responsavelTelefone ||
+                "",
+              email:
+                patient.responsavelEmail ||
+                "",
+              ativo: true,
+              createdAt: "",
+              updatedAt: "",
+              link: {
+                id: 0,
+                responsibleId: 0,
+                patientId:
+                  patient.id,
+                parentesco:
+                  (patient.responsavelParentesco ||
+                    "Responsável legal") as ResponsibleRelationship,
+                responsavelPrincipal: true,
+                acessoApp: true,
+                acessoFinanceiro: true,
+                acessoDocumentos: true,
+                ativo: true,
+                createdAt: "",
+                updatedAt: "",
+              },
+            },
+          ];
+        }
+
+        return [];
+      },
+      [
+        patient.id,
+        patient.responsavelNome,
+        patient.responsavelCpf,
+        patient.responsavelTelefone,
+        patient.responsavelEmail,
+        patient.responsavelParentesco,
+      ]
+    );
 
   const address =
     buildAddress(
@@ -445,71 +517,155 @@ export function PatientOverview({
           )}
 
           {/* =============================== */}
-          {/* RESPONSÁVEL */}
+          {/* RESPONSÁVEIS VINCULADOS */}
           {/* =============================== */}
 
           <PageCard
-            title="Responsável"
-            description="Responsável legal vinculado."
+            title="Responsáveis vinculados"
+            description="Responsáveis vinculados a este paciente."
           >
-            <div className="space-y-5">
-              <InfoItem
-                icon={
-                  <UserRound
-                    size={18}
-                  />
-                }
-                label="Nome"
-                value={
-                  patient.responsavelNome ||
-                  "-"
-                }
-              />
+            {linkedResponsibles.length >
+            0 ? (
+              <div className="space-y-4">
+                {linkedResponsibles.map(
+                  (responsible) => (
+                    <div
+                      key={`${responsible.id}-${responsible.link.responsibleId}`}
+                      className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-slate-800">
+                              {
+                                responsible.nome ||
+                                "-"
+                              }
+                            </p>
 
-              <InfoItem
-                icon={
-                  <HeartPulse
-                    size={18}
-                  />
-                }
-                label="Parentesco"
-                value={
-                  patient.responsavelParentesco ||
-                  "-"
-                }
-              />
+                            {responsible.link
+                              .responsavelPrincipal && (
+                              <span className="inline-flex rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                                Principal
+                              </span>
+                            )}
+                          </div>
 
-              <InfoItem
-                icon={
-                  <Phone
-                    size={18}
-                  />
-                }
-                label="Contato"
-                value={
-                  responsiblePhone
-                }
-              />
+                          <p className="mt-1 text-sm text-slate-500">
+                            {
+                              responsible.link
+                                .parentesco ||
+                              "Responsável legal"
+                            }
+                          </p>
+                        </div>
+                      </div>
 
-              {canViewAdministrativeData && (
-                <InfoItem
-                  icon={
-                    <UserRound
-                      size={18}
-                    />
-                  }
-                  label="E-mail"
-                  value={
-                    patient.responsavelEmail ||
-                    "-"
-                  }
+                      <div className="mt-4 space-y-4">
+                        <InfoItem
+                          icon={
+                            <Phone
+                              size={18}
+                            />
+                          }
+                          label="Contato"
+                          value={
+                            responsible.telefone ||
+                            "-"
+                          }
+                        />
+
+                        {canViewAdministrativeData && (
+                          <InfoItem
+                            icon={
+                              <UserRound
+                                size={18}
+                              />
+                            }
+                            label="E-mail"
+                            value={
+                              responsible.email ||
+                              "-"
+                            }
+                          />
+                        )}
+                      </div>
+
+                      {canViewAdministrativeData && (
+                        <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-4">
+                          <AccessBadge
+                            label="App"
+                            enabled={
+                              responsible.link
+                                .acessoApp
+                            }
+                          />
+
+                          <AccessBadge
+                            label="Financeiro"
+                            enabled={
+                              responsible.link
+                                .acessoFinanceiro
+                            }
+                          />
+
+                          <AccessBadge
+                            label="Documentos"
+                            enabled={
+                              responsible.link
+                                .acessoDocumentos
+                            }
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )
+                )}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center">
+                <UserRound
+                  size={28}
+                  className="mx-auto text-slate-300"
                 />
-              )}
-            </div>
+
+                <p className="mt-3 font-semibold text-slate-700">
+                  Nenhum responsável vinculado
+                </p>
+
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  Este paciente ainda não possui responsável vinculado.
+                </p>
+              </div>
+            )}
           </PageCard>
         </div>
       </div>
     </div>
+  );
+}
+
+/* =========================================
+   PERMISSÃO DO RESPONSÁVEL
+========================================= */
+
+function AccessBadge({
+  label,
+  enabled,
+}: {
+  label: string;
+  enabled: boolean;
+}) {
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+        enabled
+          ? "bg-emerald-100 text-emerald-700"
+          : "bg-slate-200 text-slate-500"
+      }`}
+    >
+      {label}: {enabled ? "Liberado" : "Bloqueado"}
+    </span>
   );
 }
 

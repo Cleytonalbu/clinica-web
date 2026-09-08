@@ -20,6 +20,10 @@ import PerfilPaciente from "@/pages/Pacientes/PerfilPaciente";
 
 import EditarPaciente from "@/pages/Pacientes/EditarPaciente";
 
+import Responsaveis from "@/pages/Responsaveis";
+
+import ResponsavelForm from "@/pages/Responsaveis/ResponsavelForm";
+
 import NovaEvolucao from "@/pages/Pacientes/NovaEvolucao";
 
 import DetalheEvolucao from "@/pages/Pacientes/DetalheEvolucao";
@@ -267,6 +271,68 @@ export function AppRoutes() {
               action="edit"
             >
               <EditarPaciente />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+      {/* ========================================= */}
+      {/* RESPONSÁVEIS */}
+      {/* GESTOR + RECEPÇÃO */}
+      {/* ========================================= */}
+
+      <Route
+        path="/responsaveis"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Gestor",
+              "Recepção",
+            ]}
+          >
+            <ProtectedRoute
+              module="patients"
+              action="view"
+            >
+              <Responsaveis />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+      <Route
+        path="/responsaveis/novo"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Gestor",
+              "Recepção",
+            ]}
+          >
+            <ProtectedRoute
+              module="patients"
+              action="create"
+            >
+              <ResponsavelForm />
+            </ProtectedRoute>
+          </ProfileRoute>
+        }
+      />
+
+      <Route
+        path="/responsaveis/:id/editar"
+        element={
+          <ProfileRoute
+            allowedProfiles={[
+              "Gestor",
+              "Recepção",
+            ]}
+          >
+            <ProtectedRoute
+              module="patients"
+              action="edit"
+            >
+              <ResponsavelForm />
             </ProtectedRoute>
           </ProfileRoute>
         }

@@ -209,40 +209,59 @@ export function findResponsible(
       data.nome
     );
 
-  return (
-    getResponsibles().find(
-      (responsible) => {
-        if (
-          cpf &&
+  const responsibles =
+    getResponsibles();
+
+  if (cpf) {
+    const byCpf =
+      responsibles.find(
+        (responsible) =>
           normalizeCpf(
             responsible.cpf
           ) === cpf
-        ) {
-          return true;
-        }
+      );
 
-        if (
-          email &&
+    if (byCpf) {
+      return byCpf;
+    }
+  }
+
+  if (email) {
+    const byEmail =
+      responsibles.find(
+        (responsible) =>
           normalizeText(
             responsible.email
           ) === email
-        ) {
-          return true;
-        }
+      );
 
-        if (
-          nome &&
+    if (byEmail) {
+      return byEmail;
+    }
+  }
+
+  /*
+   * Nome só é usado como identificação
+   * quando CPF e e-mail não foram informados.
+   * Isso evita unir duas pessoas diferentes
+   * que tenham o mesmo nome.
+   */
+  if (
+    nome &&
+    !cpf &&
+    !email
+  ) {
+    return (
+      responsibles.find(
+        (responsible) =>
           normalizeText(
             responsible.nome
           ) === nome
-        ) {
-          return true;
-        }
+      ) ?? null
+    );
+  }
 
-        return false;
-      }
-    ) ?? null
-  );
+  return null;
 }
 
 export function saveResponsible(
@@ -800,4 +819,368 @@ export function getResponsibleAppPatientIds(
       (link) =>
         link.patientId
     );
+}
+
+/* =========================================
+   DADOS DO FORMULÁRIO DE RESPONSÁVEL
+========================================= */
+
+export interface PatientResponsibleFormData {
+  responsibleId?: number | null;
+
+  nome: string;
+  cpf: string;
+  parentesco: string;
+  telefone: string;
+  email: string;
+
+  responsavelPrincipal: boolean;
+
+  acessoApp: boolean;
+  acessoFinanceiro: boolean;
+  acessoDocumentos: boolean;
+
+  ativo: boolean;
+}
+
+function normalizeRelationship(
+  value?: string | null
+): ResponsibleRelationship {
+  const allowed: ResponsibleRelationship[] = [
+    "Mãe",
+    "Pai",
+    "Avó",
+    "Avô",
+    "Tia",
+    "Tio",
+    "Irmã",
+    "Irmão",
+    "Responsável legal",
+    "Outro",
+  ];
+
+  if (
+    value &&
+    allowed.includes(
+      value as ResponsibleRelationship
+    )
+  ) {
+    return value as ResponsibleRelationship;
+  }
+
+  return "Responsável legal";
+}
+
+/* =========================================
+   SINCRONIZAR RESPONSÁVEIS DO PACIENTE
+
+   - cria novos responsáveis
+   - atualiza responsáveis existentes
+   - atualiza permissões e parentesco
+   - mantém apenas um principal
+   - desvincula os removidos deste paciente
+   - não exclui o responsável de outros filhos
+========================================= */
+
+export function syncPatientResponsibles(
+  patientId: number,
+  formResponsibles: PatientResponsibleFormData[]
+) {
+  if (
+    !Number.isFinite(patientId) ||
+    patientId <= 0
+  ) {
+    throw new Error(
+      "Paciente inválido para sincronização dos responsáveis."
+    );
+  }
+
+  const validResponsibles =
+    (formResponsibles ?? []).filter(
+      (responsible) =>
+        Boolean(
+          responsible.nome?.trim()
+        )
+    );
+
+  /*
+   * Mantemos exatamente um responsável principal.
+   * Se vierem vários marcados pelo formulário,
+   * o primeiro marcado prevalece.
+   * Se nenhum vier marcado, o primeiro válido
+   * passa a ser o principal.
+   */
+  const primaryIndex =
+    validResponsibles.findIndex(
+      (responsible) =>
+        responsible.responsavelPrincipal
+    );
+
+  const effectivePrimaryIndex =
+    primaryIndex >= 0
+      ? primaryIndex
+      : validResponsibles.length > 0
+        ? 0
+        : -1;
+
+  const normalized =
+    validResponsibles.map(
+      (responsible, index) => ({
+        ...responsible,
+
+        responsavelPrincipal:
+          index === effectivePrimaryIndex,
+      })
+    );
+
+  const previousLinks =
+    getPatientResponsibleLinks(
+      patientId
+    );
+
+  const keptResponsibleIds:
+    number[] = [];
+
+  normalized.forEach(
+    (responsibleData) => {
+      let responsible:
+        StoredResponsible | null =
+        null;
+
+      if (
+        responsibleData.responsibleId
+      ) {
+        const existingById =
+          getResponsibleById(
+            responsibleData.responsibleId
+          );
+
+        if (existingById) {
+          responsible =
+            saveResponsible({
+              id: existingById.id,
+
+              nome:
+                responsibleData.nome,
+
+              cpf:
+                responsibleData.cpf ?? "",
+
+              telefone:
+                responsibleData.telefone ?? "",
+
+              email:
+                responsibleData.email ?? "",
+
+              ativo:
+                responsibleData.ativo ?? true,
+            });
+        }
+      }
+
+      if (!responsible) {
+        const existing =
+          findResponsible({
+            cpf:
+              responsibleData.cpf,
+
+            email:
+              responsibleData.email,
+
+            nome:
+              responsibleData.nome,
+          });
+
+        responsible =
+          saveResponsible({
+            id: existing?.id,
+
+            nome:
+              responsibleData.nome,
+
+            cpf:
+              responsibleData.cpf ?? "",
+
+            telefone:
+              responsibleData.telefone ?? "",
+
+            email:
+              responsibleData.email ?? "",
+
+            ativo:
+              responsibleData.ativo ?? true,
+          });
+      }
+
+      keptResponsibleIds.push(
+        responsible.id
+      );
+
+      linkResponsibleToPatient({
+        responsibleId:
+          responsible.id,
+
+        patientId,
+
+        parentesco:
+          normalizeRelationship(
+            responsibleData.parentesco
+          ),
+
+        responsavelPrincipal:
+          responsibleData.responsavelPrincipal,
+
+        acessoApp:
+          responsibleData.acessoApp ?? true,
+
+        acessoFinanceiro:
+          responsibleData.acessoFinanceiro ?? true,
+
+        acessoDocumentos:
+          responsibleData.acessoDocumentos ?? true,
+
+        ativo:
+          responsibleData.ativo ?? true,
+      });
+    }
+  );
+
+  previousLinks.forEach(
+    (previousLink) => {
+      const stillExists =
+        keptResponsibleIds.includes(
+          previousLink.responsibleId
+        );
+
+      if (!stillExists) {
+        unlinkResponsibleFromPatient(
+          previousLink.responsibleId,
+          patientId
+        );
+      }
+    }
+  );
+
+  const finalLinks =
+    getPatientResponsibleLinks(
+      patientId
+    );
+
+  const finalPrimary =
+    finalLinks.find(
+      (link) =>
+        link.responsavelPrincipal
+    );
+
+  if (
+    !finalPrimary &&
+    finalLinks.length > 0
+  ) {
+    setPrimaryResponsible(
+      finalLinks[0].responsibleId,
+      patientId
+    );
+  }
+
+  return getPatientResponsibles(
+    patientId
+  );
+}
+
+
+/* =========================================
+   MIGRAÇÃO DE PACIENTE ANTIGO
+
+   Converte somente o responsável legado
+   daquele paciente em um vínculo novo.
+
+   - não duplica responsável por CPF/e-mail
+   - não remove vínculos existentes
+   - não altera irmãos já vinculados
+   - pode ser chamada várias vezes com segurança
+========================================= */
+
+export interface LegacyPatientResponsibleData {
+  id: number;
+  responsavelNome?: string | null;
+  responsavelCpf?: string | null;
+  responsavelParentesco?: string | null;
+  responsavelTelefone?: string | null;
+  responsavelEmail?: string | null;
+}
+
+export function ensureLegacyPatientResponsibleLink(
+  patient: LegacyPatientResponsibleData
+) {
+  if (
+    !Number.isFinite(patient.id) ||
+    patient.id <= 0
+  ) {
+    return null;
+  }
+
+  const nome =
+    patient.responsavelNome?.trim() ?? "";
+
+  if (!nome) {
+    return null;
+  }
+
+  /*
+   * Se o paciente já possui qualquer vínculo
+   * ativo no novo modelo, não recriamos o legado.
+   * Isso evita reativar alguém que tenha sido
+   * removido manualmente depois da migração.
+   */
+  const existingPatientLinks =
+    getPatientResponsibleLinks(patient.id);
+
+  if (existingPatientLinks.length > 0) {
+    return getPatientResponsibles(patient.id);
+  }
+
+  const existingResponsible =
+    findResponsible({
+      cpf: patient.responsavelCpf ?? "",
+      email: patient.responsavelEmail ?? "",
+      nome,
+    });
+
+  const responsible =
+    saveResponsible({
+      id: existingResponsible?.id,
+      nome,
+      cpf: patient.responsavelCpf ?? "",
+      telefone:
+        patient.responsavelTelefone ?? "",
+      email: patient.responsavelEmail ?? "",
+      ativo: true,
+    });
+
+  linkResponsibleToPatient({
+    responsibleId: responsible.id,
+    patientId: patient.id,
+    parentesco: normalizeRelationship(
+      patient.responsavelParentesco
+    ),
+    responsavelPrincipal: true,
+    acessoApp: true,
+    acessoFinanceiro: true,
+    acessoDocumentos: true,
+    ativo: true,
+  });
+
+  return getPatientResponsibles(patient.id);
+}
+
+export function ensureLegacyPatientResponsibleLinks(
+  patients: LegacyPatientResponsibleData[]
+) {
+  (patients ?? []).forEach(
+    (patient) => {
+      ensureLegacyPatientResponsibleLink(
+        patient
+      );
+    }
+  );
 }

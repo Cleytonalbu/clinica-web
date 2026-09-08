@@ -36,6 +36,19 @@ import {
 } from "@/auth/permissions";
 
 import {
+  getPatients,
+} from "@/pages/Pacientes/patientStorage";
+
+import {
+  getResponsibles,
+  getResponsiblePatientIds,
+} from "@/pages/Pacientes/responsiblePatientStorage";
+
+import {
+  getProfessionalTableData,
+} from "@/components/profissionais/table/ProfessionalTable";
+
+import {
   WEB_NOTIFICATIONS_CHANGED_EVENT,
   getWebNotificationsForUser,
   markAllWebNotificationsAsReadForUser,
@@ -47,6 +60,14 @@ import {
 /* =========================================
    TIPOS
 ========================================= */
+
+type GlobalSearchResult = {
+  id: string;
+  type: "patient" | "responsible" | "professional";
+  title: string;
+  subtitle: string;
+  route: string;
+};
 
 interface HeaderNotification {
   id:
@@ -305,6 +326,22 @@ export function Header() {
     );
 
   const [
+    searchValue,
+    setSearchValue,
+  ] =
+    useState(
+      ""
+    );
+
+  const [
+    searchOpen,
+    setSearchOpen,
+  ] =
+    useState(
+      false
+    );
+
+  const [
     notifications,
     setNotifications,
   ] =
@@ -331,6 +368,16 @@ export function Header() {
 
   const notificationsRef =
     useRef<HTMLDivElement>(
+      null
+    );
+
+  const searchRef =
+    useRef<HTMLDivElement>(
+      null
+    );
+
+  const searchInputRef =
+    useRef<HTMLInputElement>(
       null
     );
 
@@ -368,6 +415,17 @@ export function Header() {
             false
           );
         }
+
+        if (
+          searchRef.current &&
+          !searchRef.current.contains(
+            target
+          )
+        ) {
+          setSearchOpen(
+            false
+          );
+        }
       }
 
       document.addEventListener(
@@ -381,6 +439,54 @@ export function Header() {
           handleClickOutside
         );
       };
+    },
+    []
+  );
+
+  useEffect(
+    () => {
+      function handleSearchShortcut(
+        event: KeyboardEvent
+      ) {
+        if (
+          (event.ctrlKey || event.metaKey) &&
+          event.key.toLocaleLowerCase(
+            "pt-BR"
+          ) === "k"
+        ) {
+          event.preventDefault();
+
+          setSearchOpen(
+            true
+          );
+
+          window.setTimeout(
+            () =>
+              searchInputRef.current?.focus(),
+            0
+          );
+        }
+
+        if (
+          event.key ===
+          "Escape"
+        ) {
+          setSearchOpen(
+            false
+          );
+        }
+      }
+
+      window.addEventListener(
+        "keydown",
+        handleSearchShortcut
+      );
+
+      return () =>
+        window.removeEventListener(
+          "keydown",
+          handleSearchShortcut
+        );
     },
     []
   );
@@ -516,6 +622,255 @@ export function Header() {
       user,
       "settings"
     );
+
+
+  const canAccessPatients =
+    userCanAccessModule(
+      user,
+      "patients"
+    );
+
+  const canAccessProfessionals =
+    userCanAccessModule(
+      user,
+      "professionals"
+    );
+
+  const canAccessResponsibles =
+    canAccessPatients &&
+    (user?.profile ===
+      "Gestor" ||
+      user?.profile ===
+        "Recepção");
+
+  const globalSearchResults =
+    useMemo<
+      GlobalSearchResult[]
+    >(
+      () => {
+        const query =
+          searchValue
+            .trim()
+            .toLocaleLowerCase(
+              "pt-BR"
+            );
+
+        if (
+          query.length <
+          2
+        ) {
+          return [];
+        }
+
+        const results:
+          GlobalSearchResult[] =
+          [];
+
+        if (
+          canAccessPatients
+        ) {
+          getPatients()
+            .filter(
+              (patient) => {
+                const searchable =
+                  [
+                    patient.nome,
+                    patient.cpf,
+                    patient.telefone,
+                    patient.celular,
+                    patient.email,
+                    patient.responsavelNome,
+                    patient.responsavelCpf,
+                    patient.responsavelTelefone,
+                    patient.responsavelEmail,
+                  ]
+                    .filter(
+                      Boolean
+                    )
+                    .join(
+                      " "
+                    )
+                    .toLocaleLowerCase(
+                      "pt-BR"
+                    );
+
+                return searchable.includes(
+                  query
+                );
+              }
+            )
+            .slice(
+              0,
+              5
+            )
+            .forEach(
+              (patient) => {
+                results.push({
+                  id: `patient-${patient.id}`,
+                  type: "patient",
+                  title:
+                    patient.nome,
+                  subtitle: `Paciente${
+                    patient.cpf
+                      ? ` • CPF ${patient.cpf}`
+                      : ""
+                  }`,
+                  route: `/pacientes/${patient.id}`,
+                });
+              }
+            );
+        }
+
+        if (
+          canAccessResponsibles
+        ) {
+          getResponsibles()
+            .filter(
+              (responsible) => {
+                const patientNames =
+                  getResponsiblePatientIds(
+                    responsible.id
+                  )
+                    .map(
+                      (patientId) =>
+                        getPatients().find(
+                          (patient) =>
+                            patient.id ===
+                            patientId
+                        )?.nome ??
+                        ""
+                    )
+                    .join(
+                      " "
+                    );
+
+                const searchable =
+                  [
+                    responsible.nome,
+                    responsible.cpf,
+                    responsible.telefone,
+                    responsible.email,
+                    patientNames,
+                  ]
+                    .filter(
+                      Boolean
+                    )
+                    .join(
+                      " "
+                    )
+                    .toLocaleLowerCase(
+                      "pt-BR"
+                    );
+
+                return searchable.includes(
+                  query
+                );
+              }
+            )
+            .slice(
+              0,
+              5
+            )
+            .forEach(
+              (responsible) => {
+                const childrenCount =
+                  getResponsiblePatientIds(
+                    responsible.id
+                  ).length;
+
+                results.push({
+                  id: `responsible-${responsible.id}`,
+                  type: "responsible",
+                  title:
+                    responsible.nome,
+                  subtitle: `Responsável • ${childrenCount} criança${
+                    childrenCount ===
+                    1
+                      ? ""
+                      : "s"
+                  } vinculada${
+                    childrenCount ===
+                    1
+                      ? ""
+                      : "s"
+                  }`,
+                  route: `/responsaveis/${responsible.id}/editar`,
+                });
+              }
+            );
+        }
+
+        if (
+          canAccessProfessionals
+        ) {
+          getProfessionalTableData()
+            .filter(
+              (professional) =>
+                [
+                  professional.name,
+                  professional.specialty,
+                  professional.council,
+                  professional.phone,
+                ]
+                  .filter(
+                    Boolean
+                  )
+                  .join(
+                    " "
+                  )
+                  .toLocaleLowerCase(
+                    "pt-BR"
+                  )
+                  .includes(
+                    query
+                  )
+            )
+            .slice(
+              0,
+              5
+            )
+            .forEach(
+              (professional) => {
+                results.push({
+                  id: `professional-${professional.id}`,
+                  type: "professional",
+                  title:
+                    professional.name,
+                  subtitle: `Profissional • ${professional.specialty}`,
+                  route: `/profissionais/${professional.id}`,
+                });
+              }
+            );
+        }
+
+        return results.slice(
+          0,
+          10
+        );
+      },
+      [
+        searchValue,
+        canAccessPatients,
+        canAccessResponsibles,
+        canAccessProfessionals,
+      ]
+    );
+
+  function handleSearchResult(
+    result: GlobalSearchResult
+  ) {
+    setSearchOpen(
+      false
+    );
+
+    setSearchValue(
+      ""
+    );
+
+    navigate(
+      result.route
+    );
+  }
 
   /* =======================================
      LOGOUT
@@ -693,56 +1048,205 @@ export function Header() {
         {/* ================================= */}
 
         <div
-          className="
-            hidden
-            h-11
-            w-[320px]
-            items-center
-            rounded-xl
-            border
-            border-[#dfe4f4]
-            bg-white
-            px-4
-            shadow-[0_3px_12px_rgba(47,63,112,0.04)]
-            xl:flex
-          "
+          ref={
+            searchRef
+          }
+          className="relative hidden xl:block"
         >
-          <Search
-            size={17}
-            className="shrink-0 text-[#596dc0]"
-          />
-
-          <input
-            type="text"
-            placeholder="Buscar paciente, responsável, profissional..."
+          <div
             className="
-              ml-3
-              min-w-0
-              flex-1
-              bg-transparent
-              text-xs
-              font-medium
-              text-slate-700
-              outline-none
-              placeholder:text-[#8792b3]
-            "
-          />
-
-          <span
-            className="
-              ml-2
-              shrink-0
-              rounded-md
-              bg-[#f5f6fb]
-              px-2
-              py-1
-              text-[9px]
-              font-semibold
-              text-[#7580a2]
+              flex
+              h-11
+              w-[320px]
+              items-center
+              rounded-xl
+              border
+              border-[#dfe4f4]
+              bg-white
+              px-4
+              shadow-[0_3px_12px_rgba(47,63,112,0.04)]
             "
           >
-            Ctrl + K
-          </span>
+            <Search
+              size={17}
+              className="shrink-0 text-[#596dc0]"
+            />
+
+            <input
+              ref={
+                searchInputRef
+              }
+              type="text"
+              value={
+                searchValue
+              }
+              onFocus={() =>
+                setSearchOpen(
+                  true
+                )
+              }
+              onChange={(event) => {
+                setSearchValue(
+                  event.target.value
+                );
+
+                setSearchOpen(
+                  true
+                );
+              }}
+              onKeyDown={(event) => {
+                if (
+                  event.key ===
+                    "Enter" &&
+                  globalSearchResults.length >
+                    0
+                ) {
+                  handleSearchResult(
+                    globalSearchResults[0]
+                  );
+                }
+              }}
+              placeholder="Buscar paciente, responsável, profissional..."
+              className="
+                ml-3
+                min-w-0
+                flex-1
+                bg-transparent
+                text-xs
+                font-medium
+                text-slate-700
+                outline-none
+                placeholder:text-[#8792b3]
+              "
+            />
+
+            {searchValue ? (
+              <button
+                type="button"
+                title="Limpar busca"
+                onClick={() => {
+                  setSearchValue(
+                    ""
+                  );
+
+                  searchInputRef.current?.focus();
+                }}
+                className="ml-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[#8d97b5] transition hover:bg-[#f5f6fb] hover:text-[#596dc0]"
+              >
+                <X
+                  size={14}
+                />
+              </button>
+            ) : (
+              <span
+                className="
+                  ml-2
+                  shrink-0
+                  rounded-md
+                  bg-[#f5f6fb]
+                  px-2
+                  py-1
+                  text-[9px]
+                  font-semibold
+                  text-[#7580a2]
+                "
+              >
+                Ctrl + K
+              </span>
+            )}
+          </div>
+
+          {searchOpen && (
+            <div
+              className="absolute left-0 top-[calc(100%+10px)] z-50 w-[390px] overflow-hidden rounded-2xl border border-[#e8ebf4] bg-white shadow-[0_20px_50px_rgba(44,57,105,0.14)]"
+            >
+              {searchValue.trim().length <
+              2 ? (
+                <div className="px-5 py-5">
+                  <p className="text-sm font-bold text-[#10235f]">
+                    Busca geral
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-[#7d89aa]">
+                    Digite pelo menos 2 caracteres para buscar pacientes, responsáveis e profissionais disponíveis para o seu perfil.
+                  </p>
+                </div>
+              ) : globalSearchResults.length ===
+                0 ? (
+                <div className="px-5 py-6 text-center">
+                  <Search
+                    size={22}
+                    className="mx-auto text-[#a1abc7]"
+                  />
+
+                  <p className="mt-3 text-sm font-bold text-[#10235f]">
+                    Nenhum resultado encontrado
+                  </p>
+
+                  <p className="mt-1 text-xs text-[#8792b3]">
+                    Tente buscar por nome, CPF, contato, especialidade ou criança vinculada.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="border-b border-[#eef0f6] px-4 py-3">
+                    <p className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-[#929dbb]">
+                      Resultados
+                    </p>
+                  </div>
+
+                  <div className="max-h-[360px] overflow-y-auto p-2">
+                    {globalSearchResults.map(
+                      (result) => (
+                        <button
+                          key={
+                            result.id
+                          }
+                          type="button"
+                          onClick={() =>
+                            handleSearchResult(
+                              result
+                            )
+                          }
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-[#f8f7ff]"
+                        >
+                          <span
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                              result.type ===
+                              "patient"
+                                ? "bg-[#eef4ff] text-[#4577d8]"
+                                : result.type ===
+                                    "responsible"
+                                  ? "bg-[#f3efff] text-[#6847f5]"
+                                  : "bg-[#eaf9f4] text-[#289a75]"
+                            }`}
+                          >
+                            <UserRound
+                              size={17}
+                            />
+                          </span>
+
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-extrabold text-[#24345f]">
+                              {
+                                result.title
+                              }
+                            </span>
+
+                            <span className="mt-0.5 block truncate text-[11px] font-medium text-[#8b96b4]">
+                              {
+                                result.subtitle
+                              }
+                            </span>
+                          </span>
+                        </button>
+                      )
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
 

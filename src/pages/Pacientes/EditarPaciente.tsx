@@ -32,6 +32,10 @@ import {
   updatePatient,
 } from "./patientStorage";
 
+import {
+  syncPatientResponsibles,
+} from "./responsiblePatientStorage";
+
 /* =========================================
    COMPONENTE
 ========================================= */
@@ -142,6 +146,11 @@ export default function EditarPaciente() {
       updatePatient(
         patient.id,
         data
+      );
+
+      syncPatientResponsibles(
+        patient.id,
+        data.responsaveisVinculados ?? []
       );
 
       setFeedback(
@@ -268,6 +277,9 @@ export default function EditarPaciente() {
         {/* ================================= */}
 
         <PatientForm
+          patientId={
+            patient.id
+          }
           initialValues={
             patient
           }

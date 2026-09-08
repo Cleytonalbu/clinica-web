@@ -5,6 +5,10 @@ import {
   type PermissionModuleKey,
 } from "@/pages/Configuracoes/settingsStorage";
 
+import {
+  getAdministrativeCollaborators,
+} from "@/pages/ColaboradoresAdministrativos/collaboratorStorage";
+
 export type UserProfile =
   | "Gestor"
   | "Recepção"
@@ -27,6 +31,11 @@ export interface AuthUser {
   professionalId?: number;
 
   professionalName?: string;
+
+  /** Referência ao cadastro administrativo quando o usuário é colaborador. */
+  collaboratorId?: string;
+
+  collaboratorName?: string;
 
   avatar?: string;
 }
@@ -215,7 +224,24 @@ export function getStoredUsers(): StoredUser[] {
             user.profile !==
             "Profissional"
           ) {
-            return user;
+            if (!user.collaboratorId) {
+              return user;
+            }
+
+            const collaborator =
+              getAdministrativeCollaborators().find(
+                (item) => item.id === user.collaboratorId
+              );
+
+            if (!collaborator) {
+              return user;
+            }
+
+            return {
+              ...user,
+              name: collaborator.name,
+              collaboratorName: collaborator.name,
+            };
           }
 
           const linkedProfessional =
@@ -428,6 +454,112 @@ export function createProfessionalLogin({
   return user;
 }
 
+export interface CreateCollaboratorLoginData {
+  collaboratorId: string;
+  profile: "Recepção" | "Administrativo";
+  email: string;
+  password: string;
+  active?: boolean;
+}
+
+export function getCollaboratorLoginByCollaboratorId(
+  collaboratorId: string
+) {
+  return getStoredUsers().find(
+    (user) => user.collaboratorId === collaboratorId
+  );
+}
+
+export function createCollaboratorLogin({
+  collaboratorId,
+  profile,
+  email,
+  password,
+  active = true,
+}: CreateCollaboratorLoginData) {
+  const collaborator =
+    getAdministrativeCollaborators().find(
+      (item) => item.id === collaboratorId
+    );
+
+  if (!collaborator) {
+    throw new Error("Colaborador não encontrado.");
+  }
+
+  if (collaborator.status !== "Ativo") {
+    throw new Error("Este colaborador está inativo.");
+  }
+
+  if (
+    collaborator.type !== "Recepção" &&
+    collaborator.type !== "Administrativo"
+  ) {
+    throw new Error(
+      "Somente colaboradores de Recepção ou Administrativo podem receber este tipo de login."
+    );
+  }
+
+  if (collaborator.type !== profile) {
+    throw new Error(
+      `O perfil de acesso deve corresponder ao tipo do colaborador (${collaborator.type}).`
+    );
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    throw new Error("Informe o e-mail do usuário.");
+  }
+
+  if (password.length < 6) {
+    throw new Error("A senha deve possuir pelo menos 6 caracteres.");
+  }
+
+  const users = getStoredUsers();
+
+  if (
+    users.some(
+      (user) => user.collaboratorId === collaboratorId
+    )
+  ) {
+    throw new Error(
+      "Este colaborador já possui um login cadastrado."
+    );
+  }
+
+  if (
+    users.some(
+      (user) =>
+        user.email.trim().toLowerCase() === normalizedEmail
+    )
+  ) {
+    throw new Error(
+      "Já existe um usuário utilizando este e-mail."
+    );
+  }
+
+  const nextId =
+    users.reduce(
+      (highest, user) => Math.max(highest, user.id),
+      0
+    ) + 1;
+
+  const user: StoredUser = {
+    id: nextId,
+    name: collaborator.name,
+    email: normalizedEmail,
+    password,
+    profile,
+    collaboratorId: collaborator.id,
+    collaboratorName: collaborator.name,
+    active,
+  };
+
+  saveStoredUsers([...users, user]);
+
+  return user;
+}
+
 export function setStoredUserActive(
   userId: number,
   active: boolean
@@ -628,6 +760,12 @@ export function authenticateUser(
     professionalName:
       linkedProfessional?.name ??
       user.professionalName,
+
+    collaboratorId:
+      user.collaboratorId,
+
+    collaboratorName:
+      user.collaboratorName,
 
     avatar:
       user.avatar,

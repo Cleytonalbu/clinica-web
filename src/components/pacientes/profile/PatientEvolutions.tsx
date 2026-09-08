@@ -191,6 +191,15 @@ export function PatientEvolutions() {
     );
   }
 
+  function handleContinueDraft(
+    evolutionId:
+      number
+  ) {
+    navigate(
+      `/pacientes/${patientId}/evolucoes/nova?evolutionId=${evolutionId}`
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -303,6 +312,11 @@ export function PatientEvolutions() {
                     evolution.id
                   )
                 }
+                onContinue={() =>
+                  handleContinueDraft(
+                    evolution.id
+                  )
+                }
               />
             )
           )}
@@ -337,11 +351,15 @@ export function PatientEvolutions() {
 function EvolutionCard({
   evolution,
   onView,
+  onContinue,
 }: {
   evolution:
     StoredEvolution;
 
   onView:
+    () => void;
+
+  onContinue:
     () => void;
 }) {
   return (
@@ -421,19 +439,37 @@ function EvolutionCard({
           )}
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          onClick={
-            onView
-          }
-        >
-          <Eye
-            size={16}
-          />
+        {evolution.status ===
+          "RASCUNHO" &&
+        evolution.evolutionType ===
+          "ABA" ? (
+          <Button
+            type="button"
+            onClick={
+              onContinue
+            }
+          >
+            <FileText
+              size={16}
+            />
 
-          Ver evolução
-        </Button>
+            Continuar rascunho
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={
+              onView
+            }
+          >
+            <Eye
+              size={16}
+            />
+
+            Ver evolução
+          </Button>
+        )}
       </div>
     </div>
   );

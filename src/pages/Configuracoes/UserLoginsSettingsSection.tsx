@@ -22,6 +22,7 @@ import {
 } from "@/components/ui";
 
 import {
+  createCollaboratorLogin,
   createProfessionalLogin,
   getStoredUsers,
   resetStoredUserPassword,
@@ -29,341 +30,292 @@ import {
   type StoredUser,
 } from "@/auth/authStorage";
 
+import {
+  getAdministrativeCollaborators,
+} from "@/pages/ColaboradoresAdministrativos/collaboratorStorage";
+
+import {
+  getCollaboratorUnitIds,
+} from "./collaboratorUnitStorage";
+
+import {
+  getProfessionalUnitIds,
+} from "./professionalUnitStorage";
+
+import {
+  getActiveClinicUnits,
+} from "./clinicUnitStorage";
+
+import {
+  setUserUnitAccess,
+} from "./userUnitAccessStorage";
+
 import type {
   ProfessionalSetting,
 } from "./settingsStorage";
 
-interface UserLoginsSettingsSectionProps {
-  professionals:
-    ProfessionalSetting[];
+type LoginSource =
+  | "Profissional"
+  | "Colaborador";
 
-  onFeedback:
-    (
-      message:
-        string
-    ) => void;
+interface UserLoginsSettingsSectionProps {
+  professionals: ProfessionalSetting[];
+  onFeedback: (message: string) => void;
 }
 
 export default function UserLoginsSettingsSection({
   professionals,
   onFeedback,
 }: UserLoginsSettingsSectionProps) {
-  const [
-    users,
-    setUsers,
-  ] =
-    useState<StoredUser[]>(
-      () =>
-        getStoredUsers()
-    );
+  const [users, setUsers] = useState<StoredUser[]>(() => getStoredUsers());
+  const [source, setSource] = useState<LoginSource>("Profissional");
+  const [professionalId, setProfessionalId] = useState("");
+  const [collaboratorId, setCollaboratorId] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetUserId, setResetUserId] = useState<number | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
 
-  const [
-    professionalId,
-    setProfessionalId,
-  ] =
-    useState("");
+  const collaborators = useMemo(
+    () =>
+      getAdministrativeCollaborators()
+        .filter(
+          (item) =>
+            item.status === "Ativo" &&
+            (item.type === "Recepção" || item.type === "Administrativo"),
+        )
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+    [users],
+  );
 
-  const [
-    email,
-    setEmail,
-  ] =
-    useState("");
+  const units = useMemo(() => getActiveClinicUnits(), [users]);
 
-  const [
-    password,
-    setPassword,
-  ] =
-    useState("");
+  const linkedUsers = useMemo(
+    () =>
+      users
+        .filter(
+          (user) =>
+            user.profile === "Profissional" || Boolean(user.collaboratorId),
+        )
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+    [users],
+  );
 
-  const [
-    confirmPassword,
-    setConfirmPassword,
-  ] =
-    useState("");
-
-  const [
-    resetUserId,
-    setResetUserId,
-  ] =
-    useState<
-      number |
-      null
-    >(
-      null
-    );
-
-  const [
-    resetPassword,
-    setResetPassword,
-  ] =
-    useState("");
-
-  const professionalUsers =
-    useMemo(
-      () =>
+  const professionalIdsWithLogin = useMemo(
+    () =>
+      new Set(
         users
-          .filter(
-            (user) =>
-              user.profile ===
-              "Profissional"
-          )
-          .sort(
-            (
-              a,
-              b
-            ) =>
-              a.name.localeCompare(
-                b.name,
-                "pt-BR"
-              )
-          ),
-      [
-        users,
-      ]
-    );
+          .filter((user) => user.profile === "Profissional")
+          .map((user) => user.professionalId)
+          .filter((value): value is number => value !== undefined),
+      ),
+    [users],
+  );
 
-  const professionalIdsWithLogin =
-    useMemo(
-      () =>
-        new Set(
-          professionalUsers
-            .map(
+  const collaboratorIdsWithLogin = useMemo(
+    () =>
+      new Set(
+        users
+          .map((user) => user.collaboratorId)
+          .filter((value): value is string => Boolean(value)),
+      ),
+    [users],
+  );
+
+  const availableProfessionals = useMemo(
+    () =>
+      professionals
+        .filter(
+          (professional) =>
+            professional.active &&
+            !professionalIdsWithLogin.has(professional.id) &&
+            !users.some(
               (user) =>
-                user.professionalId
-            )
-            .filter(
-              (
-                value
-              ): value is number =>
-                value !==
-                undefined
-            )
-        ),
-      [
-        professionalUsers,
-      ]
-    );
+                user.profile === "Profissional" &&
+                user.professionalId === undefined &&
+                user.professionalName === professional.name,
+            ),
+        )
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+    [professionals, professionalIdsWithLogin, users],
+  );
 
-  const availableProfessionals =
-    useMemo(
-      () =>
-        professionals
-          .filter(
-            (
-              professional
-            ) =>
-              professional.active &&
-              !professionalIdsWithLogin.has(
-                professional.id
-              ) &&
-              !professionalUsers.some(
-                (
-                  user
-                ) =>
-                  user.professionalId ===
-                    undefined &&
-                  user.professionalName ===
-                    professional.name
-              )
-          )
-          .sort(
-            (
-              a,
-              b
-            ) =>
-              a.name.localeCompare(
-                b.name,
-                "pt-BR"
-              )
-          ),
-      [
-        professionals,
-        professionalIdsWithLogin,
-        professionalUsers,
-      ]
-    );
+  const availableCollaborators = useMemo(
+    () =>
+      collaborators.filter(
+        (collaborator) => !collaboratorIdsWithLogin.has(collaborator.id),
+      ),
+    [collaborators, collaboratorIdsWithLogin],
+  );
 
-  const selectedProfessional =
-    useMemo(
-      () =>
-        professionals.find(
-          (
-            professional
-          ) =>
-            professional.id ===
-            Number(
-              professionalId
-            )
-        ),
-      [
-        professionals,
-        professionalId,
-      ]
-    );
+  const selectedProfessional = useMemo(
+    () =>
+      professionals.find(
+        (professional) => professional.id === Number(professionalId),
+      ),
+    [professionals, professionalId],
+  );
+
+  const selectedCollaborator = useMemo(
+    () => collaborators.find((item) => item.id === collaboratorId),
+    [collaborators, collaboratorId],
+  );
+
+  const selectedUnitIds = useMemo(() => {
+    if (source === "Profissional" && selectedProfessional) {
+      return getProfessionalUnitIds(selectedProfessional.id);
+    }
+
+    if (source === "Colaborador" && selectedCollaborator) {
+      return getCollaboratorUnitIds(selectedCollaborator.id);
+    }
+
+    return [];
+  }, [source, selectedProfessional, selectedCollaborator]);
+
+  const selectedUnitNames = useMemo(
+    () =>
+      units
+        .filter((unit) => selectedUnitIds.includes(unit.id))
+        .map((unit) => unit.name),
+    [units, selectedUnitIds],
+  );
+
+  const selectedName =
+    source === "Profissional"
+      ? selectedProfessional?.name
+      : selectedCollaborator?.name;
+
+  const selectedSubtitle =
+    source === "Profissional"
+      ? selectedProfessional?.specialty
+      : selectedCollaborator
+        ? `${selectedCollaborator.type} — ${selectedCollaborator.role}`
+        : undefined;
+
+  const selectedProfile =
+    source === "Profissional"
+      ? "Profissional"
+      : selectedCollaborator?.type ?? "Recepção";
 
   function refreshUsers() {
-    setUsers(
-      getStoredUsers()
-    );
+    setUsers(getStoredUsers());
   }
 
   function clearForm() {
-    setProfessionalId(
-      ""
-    );
+    setProfessionalId("");
+    setCollaboratorId("");
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+  }
 
-    setEmail(
-      ""
-    );
-
-    setPassword(
-      ""
-    );
-
-    setConfirmPassword(
-      ""
-    );
+  function handleSourceChange(value: string) {
+    setSource(value as LoginSource);
+    setProfessionalId("");
+    setCollaboratorId("");
   }
 
   function handleCreate() {
-    if (
-      !professionalId
-    ) {
-      onFeedback(
-        "Selecione o profissional que receberá o login."
-      );
-
+    if (source === "Profissional" && !professionalId) {
+      onFeedback("Selecione o profissional que receberá o login.");
       return;
     }
 
-    if (
-      !email.trim()
-    ) {
-      onFeedback(
-        "Informe o e-mail de acesso."
-      );
-
+    if (source === "Colaborador" && !collaboratorId) {
+      onFeedback("Selecione o colaborador que receberá o login.");
       return;
     }
 
-    if (
-      password.length <
-      6
-    ) {
-      onFeedback(
-        "A senha deve possuir pelo menos 6 caracteres."
-      );
-
+    if (!email.trim()) {
+      onFeedback("Informe o e-mail de acesso.");
       return;
     }
 
-    if (
-      password !==
-      confirmPassword
-    ) {
-      onFeedback(
-        "A confirmação da senha não confere."
-      );
+    if (password.length < 6) {
+      onFeedback("A senha deve possuir pelo menos 6 caracteres.");
+      return;
+    }
 
+    if (password !== confirmPassword) {
+      onFeedback("A confirmação da senha não confere.");
+      return;
+    }
+
+    if (selectedUnitIds.length === 0) {
+      onFeedback(
+        source === "Profissional"
+          ? "Defina ao menos uma unidade de atendimento para este profissional antes de criar o login."
+          : "Defina ao menos uma unidade de trabalho para este colaborador antes de criar o login.",
+      );
       return;
     }
 
     try {
-      createProfessionalLogin(
-        {
-          professionalId:
-            Number(
-              professionalId
-            ),
+      const user =
+        source === "Profissional"
+          ? createProfessionalLogin({
+              professionalId: Number(professionalId),
+              email,
+              password,
+              active: true,
+            })
+          : createCollaboratorLogin({
+              collaboratorId,
+              profile: selectedCollaborator!.type as
+                | "Recepção"
+                | "Administrativo",
+              email,
+              password,
+              active: true,
+            });
 
-          email,
-
-          password,
-
-          active:
-            true,
-        }
-      );
+      setUserUnitAccess(user.id, {
+        unitIds: selectedUnitIds,
+        allUnits: false,
+      });
 
       refreshUsers();
-
       clearForm();
 
       onFeedback(
-        "Login do profissional criado com sucesso."
+        source === "Profissional"
+          ? "Login do profissional criado com sucesso."
+          : "Login do colaborador criado com sucesso.",
       );
-    } catch (
-      error
-    ) {
+    } catch (error) {
       onFeedback(
-        error instanceof
-          Error
+        error instanceof Error
           ? error.message
-          : "Não foi possível criar o login."
+          : "Não foi possível criar o login.",
       );
     }
   }
 
-  function handleToggleUser(
-    user:
-      StoredUser
-  ) {
-    setStoredUserActive(
-      user.id,
-      !user.active
-    );
-
+  function handleToggleUser(user: StoredUser) {
+    setStoredUserActive(user.id, !user.active);
     refreshUsers();
-
-    onFeedback(
-      user.active
-        ? "Login desativado."
-        : "Login ativado."
-    );
+    onFeedback(user.active ? "Login desativado." : "Login ativado.");
   }
 
-  function handleResetPassword(
-    user:
-      StoredUser
-  ) {
-    if (
-      resetPassword.length <
-      6
-    ) {
-      onFeedback(
-        "A nova senha deve possuir pelo menos 6 caracteres."
-      );
-
+  function handleResetPassword(user: StoredUser) {
+    if (resetPassword.length < 6) {
+      onFeedback("A nova senha deve possuir pelo menos 6 caracteres.");
       return;
     }
 
     try {
-      resetStoredUserPassword(
-        user.id,
-        resetPassword
-      );
-
-      setResetPassword(
-        ""
-      );
-
-      setResetUserId(
-        null
-      );
-
+      resetStoredUserPassword(user.id, resetPassword);
+      setResetPassword("");
+      setResetUserId(null);
       refreshUsers();
-
+      onFeedback("Senha redefinida com sucesso.");
+    } catch (error) {
       onFeedback(
-        "Senha redefinida com sucesso."
-      );
-    } catch (
-      error
-    ) {
-      onFeedback(
-        error instanceof
-          Error
+        error instanceof Error
           ? error.message
-          : "Não foi possível redefinir a senha."
+          : "Não foi possível redefinir a senha.",
       );
     }
   }
@@ -371,54 +323,78 @@ export default function UserLoginsSettingsSection({
   return (
     <div className="space-y-6">
       <PageCard
-        title="Criar login de profissional"
-        description="Selecione um profissional já cadastrado no sistema e defina as credenciais de acesso."
+        title="Criar login de usuário"
+        description="Vincule o acesso a um profissional ou colaborador já cadastrado no sistema."
       >
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-          <FormField label="Profissional">
+          <FormField label="Tipo de cadastro">
             <Select
-              value={
-                professionalId
-              }
-              onChange={(
-                event
-              ) =>
-                setProfessionalId(
-                  event.target.value
-                )
-              }
+              value={source}
+              onChange={(event) => handleSourceChange(event.target.value)}
             >
-              <option value="">
-                Selecione o profissional
-              </option>
-
-              {availableProfessionals.map(
-                (
-                  professional
-                ) => (
-                  <option
-                    key={
-                      professional.id
-                    }
-                    value={
-                      professional.id
-                    }
-                  >
-                    {professional.name} — {professional.specialty}
-                  </option>
-                )
-              )}
+              <option value="Profissional">Profissional</option>
+              <option value="Colaborador">Colaborador</option>
             </Select>
           </FormField>
 
+          {source === "Profissional" ? (
+            <FormField label="Profissional">
+              <Select
+                value={professionalId}
+                onChange={(event) => setProfessionalId(event.target.value)}
+              >
+                <option value="">Selecione o profissional</option>
+                {availableProfessionals.map((professional) => (
+                  <option key={professional.id} value={professional.id}>
+                    {professional.name} — {professional.specialty}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+          ) : (
+            <FormField label="Colaborador">
+              <Select
+                value={collaboratorId}
+                onChange={(event) => setCollaboratorId(event.target.value)}
+              >
+                <option value="">Selecione o colaborador</option>
+                {availableCollaborators.map((collaborator) => (
+                  <option key={collaborator.id} value={collaborator.id}>
+                    {collaborator.name} — {collaborator.type}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+          )}
+
           <FormField label="Perfil de acesso">
             <div className="flex h-11 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700">
-              <ShieldCheck
-                size={18}
-                className="text-violet-600"
-              />
+              <ShieldCheck size={18} className="text-violet-600" />
+              {selectedProfile}
+            </div>
+          </FormField>
 
-              Profissional
+          <FormField label="Pessoa selecionada">
+            <div className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <UserRound size={18} className="shrink-0 text-slate-400" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-slate-800">
+                  {selectedName ?? "Nenhum cadastro selecionado"}
+                </p>
+                {selectedSubtitle && (
+                  <p className="truncate text-xs text-slate-500">
+                    {selectedSubtitle}
+                  </p>
+                )}
+              </div>
+            </div>
+          </FormField>
+
+          <FormField label="Unidades liberadas">
+            <div className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              {selectedUnitNames.length > 0
+                ? selectedUnitNames.join(" • ")
+                : "As unidades vinculadas ao cadastro aparecerão aqui."}
             </div>
           </FormField>
 
@@ -428,48 +404,13 @@ export default function UserLoginsSettingsSection({
                 size={17}
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
               />
-
               <Input
                 type="email"
-                value={
-                  email
-                }
-                onChange={(
-                  event
-                ) =>
-                  setEmail(
-                    event.target.value
-                  )
-                }
-                placeholder="profissional@entreafetos.com.br"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="usuario@entreafetos.com.br"
                 className="pl-10"
               />
-            </div>
-          </FormField>
-
-          <FormField label="Profissional selecionado">
-            <div className="flex h-11 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3">
-              <UserRound
-                size={18}
-                className="text-slate-400"
-              />
-
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-800">
-                  {
-                    selectedProfessional?.name ??
-                    "Nenhum profissional selecionado"
-                  }
-                </p>
-
-                {selectedProfessional && (
-                  <p className="truncate text-xs text-slate-500">
-                    {
-                      selectedProfessional.specialty
-                    }
-                  </p>
-                )}
-              </div>
             </div>
           </FormField>
 
@@ -479,19 +420,10 @@ export default function UserLoginsSettingsSection({
                 size={17}
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
               />
-
               <Input
                 type="password"
-                value={
-                  password
-                }
-                onChange={(
-                  event
-                ) =>
-                  setPassword(
-                    event.target.value
-                  )
-                }
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
                 placeholder="Mínimo de 6 caracteres"
                 className="pl-10"
               />
@@ -504,19 +436,10 @@ export default function UserLoginsSettingsSection({
                 size={17}
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
               />
-
               <Input
                 type="password"
-                value={
-                  confirmPassword
-                }
-                onChange={(
-                  event
-                ) =>
-                  setConfirmPassword(
-                    event.target.value
-                  )
-                }
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
                 placeholder="Digite novamente a senha"
                 className="pl-10"
               />
@@ -526,231 +449,148 @@ export default function UserLoginsSettingsSection({
 
         <div className="mt-6 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs leading-5 text-slate-500">
-            O login ficará automaticamente vinculado ao cadastro do profissional selecionado.
+            O login será vinculado ao cadastro selecionado e receberá acesso às unidades já definidas para essa pessoa.
           </p>
-
           <Button
             type="button"
-            onClick={
-              handleCreate
-            }
+            onClick={handleCreate}
             disabled={
-              !professionalId
+              source === "Profissional" ? !professionalId : !collaboratorId
             }
           >
-            <KeyRound
-              size={17}
-            />
-
+            <KeyRound size={17} />
             Criar login
           </Button>
         </div>
       </PageCard>
 
       <PageCard
-        title="Logins dos profissionais"
-        description="Acompanhe os profissionais que já possuem acesso ao sistema."
+        title="Logins cadastrados"
+        description="Acompanhe profissionais, recepcionistas e administrativos que já possuem acesso ao sistema."
       >
-        {professionalUsers.length >
-        0 ? (
+        {linkedUsers.length > 0 ? (
           <div className="space-y-3">
-            {professionalUsers.map(
-              (
-                user
-              ) => {
-                const professional =
-                  user.professionalId !==
-                    undefined
-                    ? professionals.find(
-                        (
-                          item
-                        ) =>
-                          item.id ===
-                          user.professionalId
-                      )
-                    : professionals.find(
-                        (
-                          item
-                        ) =>
-                          item.name ===
-                          user.professionalName
-                      );
+            {linkedUsers.map((user) => {
+              const professional =
+                user.professionalId !== undefined
+                  ? professionals.find((item) => item.id === user.professionalId)
+                  : undefined;
+              const collaborator = user.collaboratorId
+                ? collaborators.find((item) => item.id === user.collaboratorId)
+                : undefined;
+              const resetting = resetUserId === user.id;
+              const userUnitIds =
+                user.profile === "Profissional" && user.professionalId !== undefined
+                  ? getProfessionalUnitIds(user.professionalId)
+                  : user.collaboratorId
+                    ? getCollaboratorUnitIds(user.collaboratorId)
+                    : [];
+              const userUnitNames = units
+                .filter((unit) => userUnitIds.includes(unit.id))
+                .map((unit) => unit.name);
 
-                const resetting =
-                  resetUserId ===
-                  user.id;
-
-                return (
-                  <div
-                    key={
-                      user.id
-                    }
-                    className="rounded-2xl border border-slate-200 bg-white p-4"
-                  >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="flex min-w-0 items-start gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-                          <UserRound
-                            size={20}
-                          />
-                        </div>
-
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="truncate font-bold text-slate-900">
-                              {
-                                professional?.name ??
-                                user.name
-                              }
-                            </h3>
-
-                            <span
-                              className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                                user.active
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : "bg-slate-100 text-slate-500"
-                              }`}
-                            >
-                              {
-                                user.active
-                                  ? "Ativo"
-                                  : "Inativo"
-                              }
-                            </span>
-                          </div>
-
-                          <p className="mt-1 text-sm text-slate-500">
-                            {
-                              professional?.specialty ??
-                              "Profissional"
-                            }
-                          </p>
-
-                          <p className="mt-1 text-xs font-medium text-slate-600">
-                            {
-                              user.email
-                            }
-                          </p>
-                        </div>
+              return (
+                <div
+                  key={user.id}
+                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                        <UserRound size={20} />
                       </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            setResetUserId(
-                              resetting
-                                ? null
-                                : user.id
-                            );
-
-                            setResetPassword(
-                              ""
-                            );
-                          }}
-                        >
-                          <KeyRound
-                            size={16}
-                          />
-
-                          Redefinir senha
-                        </Button>
-
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() =>
-                            handleToggleUser(
-                              user
-                            )
-                          }
-                        >
-                          <Power
-                            size={16}
-                          />
-
-                          {
-                            user.active
-                              ? "Desativar"
-                              : "Ativar"
-                          }
-                        </Button>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="truncate font-bold text-slate-900">
+                            {professional?.name ?? collaborator?.name ?? user.name}
+                          </h3>
+                          <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-700">
+                            {user.profile}
+                          </span>
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                              user.active
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-slate-100 text-slate-500"
+                            }`}
+                          >
+                            {user.active ? "Ativo" : "Inativo"}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {professional?.specialty ?? collaborator?.role ?? user.profile}
+                        </p>
+                        <p className="mt-1 text-xs font-medium text-slate-600">
+                          {user.email}
+                        </p>
+                        {userUnitNames.length > 0 && (
+                          <p className="mt-1 text-xs text-slate-500">
+                            Unidades: {userUnitNames.join(" • ")}
+                          </p>
+                        )}
                       </div>
                     </div>
 
-                    {resetting && (
-                      <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-end">
-                        <div className="flex-1">
-                          <FormField label="Nova senha">
-                            <Input
-                              type="password"
-                              value={
-                                resetPassword
-                              }
-                              onChange={(
-                                event
-                              ) =>
-                                setResetPassword(
-                                  event.target.value
-                                )
-                              }
-                              placeholder="Mínimo de 6 caracteres"
-                            />
-                          </FormField>
-                        </div>
-
-                        <Button
-                          type="button"
-                          onClick={() =>
-                            handleResetPassword(
-                              user
-                            )
-                          }
-                        >
-                          <CheckCircle2
-                            size={16}
-                          />
-
-                          Salvar nova senha
-                        </Button>
-                      </div>
-                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setResetUserId(resetting ? null : user.id);
+                          setResetPassword("");
+                        }}
+                      >
+                        <KeyRound size={16} />
+                        Redefinir senha
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleToggleUser(user)}
+                      >
+                        <Power size={16} />
+                        {user.active ? "Desativar" : "Ativar"}
+                      </Button>
+                    </div>
                   </div>
-                );
-              }
-            )}
+
+                  {resetting && (
+                    <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-end">
+                      <div className="flex-1">
+                        <FormField label="Nova senha">
+                          <Input
+                            type="password"
+                            value={resetPassword}
+                            onChange={(event) => setResetPassword(event.target.value)}
+                            placeholder="Mínimo de 6 caracteres"
+                          />
+                        </FormField>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => handleResetPassword(user)}
+                      >
+                        <CheckCircle2 size={16} />
+                        Salvar nova senha
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center">
-            <KeyRound
-              size={28}
-              className="mx-auto text-slate-400"
-            />
-
+            <KeyRound size={28} className="mx-auto text-slate-400" />
             <p className="mt-3 text-sm font-bold text-slate-700">
-              Nenhum login profissional cadastrado
+              Nenhum login vinculado cadastrado
             </p>
-
             <p className="mt-1 text-xs text-slate-500">
-              Selecione um profissional acima para criar o primeiro acesso.
+              Selecione um profissional ou colaborador acima para criar o primeiro acesso.
             </p>
           </div>
         )}
       </PageCard>
-
-      {availableProfessionals.length ===
-        0 &&
-        professionals.some(
-          (
-            professional
-          ) =>
-            professional.active
-        ) && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-          Todos os profissionais ativos já possuem login cadastrado.
-        </div>
-      )}
     </div>
   );
 }

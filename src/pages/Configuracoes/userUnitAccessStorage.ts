@@ -9,8 +9,13 @@ import type {
 } from "@/auth/authStorage";
 
 import {
+  getProfessionalUnitIds,
   getProfessionalUnitIdsByName,
 } from "@/pages/Configuracoes/professionalUnitStorage";
+
+import {
+  getCollaboratorUnitIds,
+} from "@/pages/Configuracoes/collaboratorUnitStorage";
 
 /* =========================================
    USUÁRIO × UNIDADE
@@ -36,6 +41,30 @@ export function getUserUnitAccess(
     StoredUser
 ):
   UserUnitAccess {
+  /*
+   * Usuários vinculados a um cadastro de Profissional
+   * ou Colaborador herdam sempre as unidades do cadastro.
+   *
+   * Dessa forma, qualquer alteração posterior nas unidades
+   * de atendimento/trabalho é refletida automaticamente no login,
+   * sem exigir uma segunda configuração de acesso.
+   */
+  const linkedAccess =
+    createLinkedEntityAccess(
+      user
+    );
+
+  if (
+    linkedAccess
+  ) {
+    return linkedAccess;
+  }
+
+  /*
+   * Usuários antigos ou avulsos, sem vínculo com profissional
+   * ou colaborador, continuam respeitando uma configuração
+   * explícita salva anteriormente.
+   */
   const explicit =
     readAccessList()
       .find(
@@ -234,6 +263,89 @@ export function clearUserUnitAccess(
 }
 
 /* =========================================
+   ACESSO HERDADO DO CADASTRO VINCULADO
+========================================= */
+
+function createLinkedEntityAccess(
+  user:
+    AuthUser |
+    StoredUser
+):
+  UserUnitAccess |
+  null {
+  const now =
+    new Date()
+      .toISOString();
+
+  if (
+    user.profile ===
+      "Profissional" &&
+    user.professionalId !==
+      undefined
+  ) {
+    const unitIds =
+      getProfessionalUnitIds(
+        user.professionalId
+      );
+
+    return {
+      userId:
+        user.id,
+
+      unitIds:
+        unitIds.length >
+        0
+          ? unitIds
+          : [
+              getDefaultClinicUnitId(),
+            ],
+
+      allUnits:
+        false,
+
+      updatedAt:
+        now,
+    };
+  }
+
+  if (
+    (
+      user.profile ===
+        "Recepção" ||
+      user.profile ===
+        "Administrativo"
+    ) &&
+    user.collaboratorId
+  ) {
+    const unitIds =
+      getCollaboratorUnitIds(
+        user.collaboratorId
+      );
+
+    return {
+      userId:
+        user.id,
+
+      unitIds:
+        unitIds.length >
+        0
+          ? unitIds
+          : [
+              getDefaultClinicUnitId(),
+            ],
+
+      allUnits:
+        false,
+
+      updatedAt:
+        now,
+    };
+  }
+
+  return null;
+}
+
+/* =========================================
    REGRA PADRÃO
 ========================================= */
 
@@ -262,22 +374,44 @@ function createDefaultAccess(
 
   if (
     user.profile ===
-      "Gestor" ||
+      "Gestor"
+  ) {
+    return {
+      userId: user.id,
+      unitIds: [],
+      allUnits: true,
+      updatedAt: now,
+    };
+  }
+
+  if (
+    (user.profile === "Recepção" ||
+      user.profile === "Administrativo") &&
+    user.collaboratorId
+  ) {
+    const collaboratorUnitIds =
+      getCollaboratorUnitIds(user.collaboratorId);
+
+    return {
+      userId: user.id,
+      unitIds:
+        collaboratorUnitIds.length > 0
+          ? collaboratorUnitIds
+          : [getDefaultClinicUnitId()],
+      allUnits: false,
+      updatedAt: now,
+    };
+  }
+
+  if (
     user.profile ===
       "Administrativo"
   ) {
     return {
-      userId:
-        user.id,
-
-      unitIds:
-        [],
-
-      allUnits:
-        true,
-
-      updatedAt:
-        now,
+      userId: user.id,
+      unitIds: [],
+      allUnits: true,
+      updatedAt: now,
     };
   }
 
@@ -290,9 +424,9 @@ function createDefaultAccess(
       user.name;
 
     const professionalUnitIds =
-      getProfessionalUnitIdsByName(
-        name
-      );
+      user.professionalId !== undefined
+        ? getProfessionalUnitIds(user.professionalId)
+        : getProfessionalUnitIdsByName(name);
 
     return {
       userId:

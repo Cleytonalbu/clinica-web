@@ -16,6 +16,10 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import {
+  useUnit,
+} from "@/providers/UnitContext";
+
+import {
   Button,
 } from "@/components/ui";
 
@@ -32,6 +36,10 @@ import {
 } from "./patientStorage";
 
 import {
+  setNewPatientUnit,
+} from "./patientUnitStorage";
+
+import {
   findResponsible,
   linkResponsibleToPatient,
   saveResponsible,
@@ -44,6 +52,10 @@ import {
 export default function NovoPaciente() {
   const navigate =
     useNavigate();
+
+  const {
+    activeUnitId,
+  } = useUnit();
 
   const [
     searchParams,
@@ -378,7 +390,24 @@ export default function NovoPaciente() {
         );
 
       /*
-       * 2. Depois criamos os vínculos
+       * 2. Mantemos o vínculo Multi Unidades:
+       *    o novo paciente pertence à unidade
+       *    que está ativa no momento do cadastro.
+       */
+      if (
+        activeUnitId &&
+        Number.isFinite(
+          activeUnitId
+        )
+      ) {
+        setNewPatientUnit(
+          patient.id,
+          activeUnitId
+        );
+      }
+
+      /*
+       * 3. Depois criamos os vínculos
        *    dos responsáveis.
        */
       savePatientResponsibles(
