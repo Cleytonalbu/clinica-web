@@ -25,8 +25,10 @@ import {
   createCollaboratorLogin,
   createProfessionalLogin,
   getStoredUsers,
+  getUserProfiles,
   resetStoredUserPassword,
   setStoredUserActive,
+  setStoredUserAdditionalProfiles,
   type StoredUser,
 } from "@/auth/authStorage";
 
@@ -91,13 +93,10 @@ export default function UserLoginsSettingsSection({
 
   const units = useMemo(() => getActiveClinicUnits(), [users]);
 
-  const linkedUsers = useMemo(
+  const managedUsers = useMemo(
     () =>
       users
-        .filter(
-          (user) =>
-            user.profile === "Profissional" || Boolean(user.collaboratorId),
-        )
+        .slice()
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
     [users],
   );
@@ -320,6 +319,59 @@ export default function UserLoginsSettingsSection({
     }
   }
 
+  function handleToggleAdministrativeProfile(
+    user: StoredUser
+  ) {
+    if (
+      user.profile !==
+      "Gestor"
+    ) {
+      return;
+    }
+
+    const current =
+      user.additionalProfiles ??
+      [];
+
+    const hasAdministrative =
+      current.includes(
+        "Administrativo"
+      );
+
+    const next =
+      hasAdministrative
+        ? current.filter(
+            (profile) =>
+              profile !==
+              "Administrativo"
+          )
+        : [
+            ...current,
+            "Administrativo" as const,
+          ];
+
+    try {
+      setStoredUserAdditionalProfiles(
+        user.id,
+        next
+      );
+
+      refreshUsers();
+
+      onFeedback(
+        hasAdministrative
+          ? "Acesso Administrativo removido deste Gestor."
+          : "Acesso Administrativo liberado para este Gestor."
+      );
+    } catch (error) {
+      onFeedback(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível atualizar os perfis de acesso."
+      );
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageCard
@@ -466,11 +518,11 @@ export default function UserLoginsSettingsSection({
 
       <PageCard
         title="Logins cadastrados"
-        description="Acompanhe profissionais, recepcionistas e administrativos que já possuem acesso ao sistema."
+        description="Acompanhe todos os logins e libere acesso adicional ao módulo Administrativo para Gestores quando necessário."
       >
-        {linkedUsers.length > 0 ? (
+        {managedUsers.length > 0 ? (
           <div className="space-y-3">
-            {linkedUsers.map((user) => {
+            {managedUsers.map((user) => {
               const professional =
                 user.professionalId !== undefined
                   ? professionals.find((item) => item.id === user.professionalId)
@@ -507,6 +559,14 @@ export default function UserLoginsSettingsSection({
                           <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-700">
                             {user.profile}
                           </span>
+                          {(user.additionalProfiles ?? []).map((profile) => (
+                            <span
+                              key={profile}
+                              className="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold text-indigo-700"
+                            >
+                              + {profile}
+                            </span>
+                          ))}
                           <span
                             className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
                               user.active
@@ -523,6 +583,9 @@ export default function UserLoginsSettingsSection({
                         <p className="mt-1 text-xs font-medium text-slate-600">
                           {user.email}
                         </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Perfis liberados: {getUserProfiles(user).join(" • ")}
+                        </p>
                         {userUnitNames.length > 0 && (
                           <p className="mt-1 text-xs text-slate-500">
                             Unidades: {userUnitNames.join(" • ")}
@@ -532,6 +595,23 @@ export default function UserLoginsSettingsSection({
                     </div>
 
                     <div className="flex flex-wrap gap-2">
+                      {user.profile === "Gestor" && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            handleToggleAdministrativeProfile(
+                              user
+                            )
+                          }
+                        >
+                          <ShieldCheck size={16} />
+                          {(user.additionalProfiles ?? []).includes("Administrativo")
+                            ? "Remover Administrativo"
+                            : "Liberar Administrativo"}
+                        </Button>
+                      )}
+
                       <Button
                         type="button"
                         variant="outline"
@@ -583,10 +663,10 @@ export default function UserLoginsSettingsSection({
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center">
             <KeyRound size={28} className="mx-auto text-slate-400" />
             <p className="mt-3 text-sm font-bold text-slate-700">
-              Nenhum login vinculado cadastrado
+              Nenhum login cadastrado
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              Selecione um profissional ou colaborador acima para criar o primeiro acesso.
+              Crie um login de profissional ou colaborador acima para iniciar os acessos.
             </p>
           </div>
         )}

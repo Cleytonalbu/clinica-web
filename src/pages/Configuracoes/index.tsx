@@ -483,6 +483,12 @@ export default function Configuracoes() {
     useState("");
 
   const [
+    specialtyDurationMinutes,
+    setSpecialtyDurationMinutes,
+  ] =
+    useState("50");
+
+  const [
     professionalName,
     setProfessionalName,
   ] =
@@ -654,6 +660,11 @@ export default function Configuracoes() {
         specialtyRepasseValue
       );
 
+    const durationMinutes =
+      Number(
+        specialtyDurationMinutes
+      );
+
     if (!name) {
       showFeedback(
         "Informe o nome da especialidade."
@@ -680,6 +691,18 @@ export default function Configuracoes() {
     ) {
       showFeedback(
         "Informe um valor de repasse válido."
+      );
+
+      return;
+    }
+
+    if (
+      !Number.isFinite(durationMinutes) ||
+      durationMinutes <= 0 ||
+      durationMinutes > 480
+    ) {
+      showFeedback(
+        "Informe uma duração válida entre 1 e 480 minutos."
       );
 
       return;
@@ -716,6 +739,8 @@ export default function Configuracoes() {
       value,
 
       repasseValue,
+
+      durationMinutes,
 
       active:
         true,
@@ -754,6 +779,10 @@ export default function Configuracoes() {
 
     setSpecialtyRepasseValue(
       ""
+    );
+
+    setSpecialtyDurationMinutes(
+      "50"
     );
 
     showFeedback(
@@ -1803,6 +1832,10 @@ export default function Configuracoes() {
                   specialtyRepasseValue
                 }
 
+                specialtyDurationMinutes={
+                  specialtyDurationMinutes
+                }
+
                 onSpecialtyNameChange={
                   setSpecialtyName
                 }
@@ -1813,6 +1846,10 @@ export default function Configuracoes() {
 
                 onSpecialtyRepasseValueChange={
                   setSpecialtyRepasseValue
+                }
+
+                onSpecialtyDurationMinutesChange={
+                  setSpecialtyDurationMinutes
                 }
 
                 onAdd={
@@ -2539,6 +2576,14 @@ function ProceduresSettingsSection({
       ""
     );
 
+  const [
+    procedureValue,
+    setProcedureValue,
+  ] =
+    useState(
+      ""
+    );
+
   void version;
 
   const procedures =
@@ -2610,6 +2655,14 @@ function ProceduresSettingsSection({
 
           specialtyName:
             specialty.name,
+
+          value:
+            Number(
+              procedureValue.replace(
+                ",",
+                "."
+              ) || 0
+            ),
         }
       );
 
@@ -2618,6 +2671,10 @@ function ProceduresSettingsSection({
       );
 
       setSpecialtyId(
+        ""
+      );
+
+      setProcedureValue(
         ""
       );
 
@@ -2653,7 +2710,7 @@ function ProceduresSettingsSection({
                 key={
                   procedure.id
                 }
-                className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-[1fr_260px_130px_auto]"
+                className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-[1fr_260px_170px_130px_auto]"
               >
                 <FormField label="Procedimento">
                   <Input
@@ -2737,6 +2794,40 @@ function ProceduresSettingsSection({
                   </Select>
                 </FormField>
 
+                <FormField label="Valor do procedimento">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={
+                      String(
+                        procedure.value ??
+                        0
+                      )
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      updateProcedure(
+                        procedure.id,
+                        {
+                          value:
+                            Math.max(
+                              0,
+                              Number(
+                                event.target.value
+                              ) || 0
+                            ),
+                        }
+                      )
+                    }
+                    onBlur={
+                      refresh
+                    }
+                    placeholder="0,00"
+                  />
+                </FormField>
+
                 <div>
                   <p className="mb-2 text-sm font-semibold text-slate-700">
                     Status
@@ -2803,7 +2894,7 @@ function ProceduresSettingsSection({
         title="Novo Procedimento"
         description="O procedimento ficará disponível para seleção na Agenda."
       >
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_280px_auto]">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_280px_180px_auto]">
           <FormField label="Nome">
             <Input
               value={
@@ -2858,6 +2949,25 @@ function ProceduresSettingsSection({
             </Select>
           </FormField>
 
+          <FormField label="Valor">
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={
+                procedureValue
+              }
+              onChange={(
+                event
+              ) =>
+                setProcedureValue(
+                  event.target.value
+                )
+              }
+              placeholder="0,00"
+            />
+          </FormField>
+
           <div className="flex items-end">
             <Button
               type="button"
@@ -2885,9 +2995,11 @@ function SpecialtiesSettingsSection({
   specialtyName,
   specialtyValue,
   specialtyRepasseValue,
+  specialtyDurationMinutes,
   onSpecialtyNameChange,
   onSpecialtyValueChange,
   onSpecialtyRepasseValueChange,
+  onSpecialtyDurationMinutesChange,
   onAdd,
   onUpdate,
   onToggle,
@@ -2911,6 +3023,9 @@ function SpecialtiesSettingsSection({
   specialtyRepasseValue:
     string;
 
+  specialtyDurationMinutes:
+    string;
+
   onSpecialtyNameChange:
     (
       value:
@@ -2924,6 +3039,12 @@ function SpecialtiesSettingsSection({
     ) => void;
 
   onSpecialtyRepasseValueChange:
+    (
+      value:
+        string
+    ) => void;
+
+  onSpecialtyDurationMinutesChange:
     (
       value:
         string
@@ -3023,7 +3144,7 @@ function SpecialtiesSettingsSection({
                 }
                 className="rounded-2xl border border-slate-200 bg-white p-5"
               >
-                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_190px_190px_170px_150px_auto]">
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_175px_175px_150px_170px_150px_auto]">
                   <FormField label="Especialidade">
                     <Input
                       value={
@@ -3113,6 +3234,39 @@ function SpecialtiesSettingsSection({
                               1
                           );
                         }
+                      }
+                    />
+                  </FormField>
+
+                  <FormField label="Duração (min)">
+                    <Input
+                      type="number"
+                      min="1"
+                      max="480"
+                      step="1"
+                      value={
+                        specialty.durationMinutes ??
+                        50
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        onUpdate(
+                          specialty.id,
+                          {
+                            durationMinutes:
+                              Math.max(
+                                1,
+                                Math.min(
+                                  480,
+                                  Number(
+                                    event.target.value
+                                  ) ||
+                                    1
+                                )
+                              ),
+                          }
+                        )
                       }
                     />
                   </FormField>
@@ -3278,7 +3432,7 @@ function SpecialtiesSettingsSection({
         title="Nova Especialidade"
         description="Cadastre uma nova área de atendimento."
       >
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_190px_190px_auto]">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_180px_180px_170px_auto]">
           <FormField label="Nome">
             <Input
               value={
@@ -3323,6 +3477,26 @@ function SpecialtiesSettingsSection({
                   event.target.value
                 )
               }
+            />
+          </FormField>
+
+          <FormField label="Duração (min)">
+            <Input
+              type="number"
+              min="1"
+              max="480"
+              step="1"
+              value={
+                specialtyDurationMinutes
+              }
+              onChange={(
+                event
+              ) =>
+                onSpecialtyDurationMinutesChange(
+                  event.target.value
+                )
+              }
+              placeholder="Ex.: 50"
             />
           </FormField>
 

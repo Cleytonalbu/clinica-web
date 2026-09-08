@@ -28,6 +28,11 @@ import {
 } from "@/auth/AuthContext";
 
 import {
+  getUserProfiles,
+  type UserProfile,
+} from "@/auth/authStorage";
+
+import {
   useUnit,
 } from "@/providers/UnitContext";
 
@@ -294,6 +299,7 @@ export function Header() {
   const {
     user,
     logout,
+    switchProfile,
   } =
     useAuth();
 
@@ -612,6 +618,44 @@ export function Header() {
         /\s+/
       )[0] ??
     "Usuário";
+
+  const availableProfiles =
+    user
+      ? getUserProfiles(
+          user
+        )
+      : [];
+
+  const hasMultipleProfiles =
+    availableProfiles.length >
+    1;
+
+  function handleSwitchProfile(
+    profile: UserProfile
+  ) {
+    if (
+      !user ||
+      profile ===
+        user.profile
+    ) {
+      setUserMenuOpen(
+        false
+      );
+      return;
+    }
+
+    switchProfile(
+      profile
+    );
+
+    setUserMenuOpen(
+      false
+    );
+
+    navigate(
+      "/dashboard"
+    );
+  }
 
   /* =======================================
      PERMISSÕES
@@ -2033,6 +2077,55 @@ export function Header() {
                   }
                 </span>
               </div>
+
+              {hasMultipleProfiles && (
+                <div className="border-b border-slate-100 p-3">
+                  <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                    Área de acesso
+                  </p>
+
+                  <div className="space-y-1">
+                    {availableProfiles.map(
+                      (profile) => {
+                        const active =
+                          profile ===
+                          user?.profile;
+
+                        return (
+                          <button
+                            key={profile}
+                            type="button"
+                            onClick={() =>
+                              handleSwitchProfile(
+                                profile
+                              )
+                            }
+                            className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${
+                              active
+                                ? "bg-[#f2efff] text-[#633df0]"
+                                : "text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            <span className="flex items-center gap-2">
+                              <Building2
+                                size={16}
+                              />
+
+                              {profile}
+                            </span>
+
+                            {active && (
+                              <CheckCheck
+                                size={16}
+                              />
+                            )}
+                          </button>
+                        );
+                      }
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="p-2">
                 <button

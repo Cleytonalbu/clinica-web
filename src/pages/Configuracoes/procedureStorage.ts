@@ -4,6 +4,7 @@ export interface ProcedureSetting {
   name: string;
   specialtyId: number;
   specialtyName: string;
+  value: number;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -40,11 +41,23 @@ export function getProcedures():
         raw
       );
 
-    return Array.isArray(
+    if (!Array.isArray(
       parsed
-    )
-      ? parsed
-      : [];
+    )) {
+      return [];
+    }
+
+    return parsed.map(
+      (item) => ({
+        ...item,
+        value:
+          Number.isFinite(
+            Number(item?.value)
+          )
+            ? Number(item.value)
+            : 0,
+      })
+    ) as ProcedureSetting[];
   } catch {
     return [];
   }
@@ -113,11 +126,13 @@ export function createProcedure({
   name,
   specialtyId,
   specialtyName,
+  value,
 }: {
   unitId: number;
   name: string;
   specialtyId: number;
   specialtyName: string;
+  value: number;
 }) {
   const normalizedName =
     name.trim();
@@ -136,6 +151,20 @@ export function createProcedure({
   ) {
     throw new Error(
       "Selecione a especialidade do procedimento."
+    );
+  }
+
+  const normalizedValue =
+    Number(value);
+
+  if (
+    !Number.isFinite(
+      normalizedValue
+    ) ||
+    normalizedValue < 0
+  ) {
+    throw new Error(
+      "Informe um valor válido para o procedimento."
     );
   }
 
@@ -188,6 +217,9 @@ export function createProcedure({
 
     specialtyName,
 
+    value:
+      normalizedValue,
+
     active:
       true,
 
@@ -219,6 +251,7 @@ export function updateProcedure(
         | "name"
         | "specialtyId"
         | "specialtyName"
+        | "value"
         | "active"
       >
     >
@@ -260,6 +293,16 @@ export function updateProcedure(
                   undefined
                   ? data.name.trim()
                   : item.name,
+
+              value:
+                data.value !==
+                  undefined &&
+                Number.isFinite(
+                  Number(data.value)
+                ) &&
+                Number(data.value) >= 0
+                  ? Number(data.value)
+                  : item.value,
 
               updatedAt:
                 new Date()

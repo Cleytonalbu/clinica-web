@@ -792,6 +792,23 @@ export default function NovoAgendamento() {
     );
   }
 
+  function getSpecialtyDurationMinutes(
+    specialtyName: string
+  ) {
+    const specialty =
+      activeSpecialties.find(
+        (item) =>
+          item.name ===
+          specialtyName
+      );
+
+    return Math.max(
+      1,
+      specialty?.durationMinutes ??
+        50
+    );
+  }
+
   /* =======================================
      TROCA DE PROFISSIONAL
   ======================================= */
@@ -835,6 +852,17 @@ export default function NovoAgendamento() {
             ? specialty
             : "",
 
+        endTime:
+          current.startTime &&
+          specialtyAvailable
+            ? addMinutesToTime(
+                current.startTime,
+                getSpecialtyDurationMinutes(
+                  specialty
+                )
+              )
+            : current.endTime,
+
         patientPackageId:
           "",
       })
@@ -873,8 +901,9 @@ export default function NovoAgendamento() {
           startTime
             ? addMinutesToTime(
                 startTime,
-
-                50
+                getSpecialtyDurationMinutes(
+                  current.specialty
+                )
               )
             : "",
       })

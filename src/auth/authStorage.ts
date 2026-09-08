@@ -22,7 +22,14 @@ export interface AuthUser {
 
   email: string;
 
+  /** Perfil atualmente ativo na sessão. No cadastro salvo, continua sendo o perfil principal. */
   profile: UserProfile;
+
+  /** Perfil principal do usuário. Mantido na sessão mesmo quando a área ativa muda. */
+  primaryProfile?: UserProfile;
+
+  /** Perfis adicionais liberados para o mesmo login. */
+  additionalProfiles?: UserProfile[];
 
   /**
    * Referência canônica ao cadastro do profissional.
@@ -158,6 +165,60 @@ const defaultUsers: StoredUser[] = [
   },
 ];
 
+const VALID_USER_PROFILES: UserProfile[] = [
+  "Gestor",
+  "Recepção",
+  "Profissional",
+  "Administrativo",
+];
+
+function normalizeAdditionalProfiles(
+  primaryProfile: UserProfile,
+  profiles: UserProfile[] | undefined
+) {
+  if (!Array.isArray(profiles)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      profiles.filter(
+        (profile): profile is UserProfile =>
+          VALID_USER_PROFILES.includes(profile) &&
+          profile !== primaryProfile
+      )
+    )
+  );
+}
+
+export function getUserProfiles(
+  user: Pick<AuthUser, "profile" | "primaryProfile" | "additionalProfiles">
+): UserProfile[] {
+  const primary =
+    user.primaryProfile ??
+    user.profile;
+
+  return Array.from(
+    new Set([
+      primary,
+      ...normalizeAdditionalProfiles(
+        primary,
+        user.additionalProfiles
+      ),
+    ])
+  );
+}
+
+export function userHasProfile(
+  user: Pick<AuthUser, "profile" | "primaryProfile" | "additionalProfiles"> | null | undefined,
+  profile: UserProfile
+) {
+  return Boolean(
+    user &&
+    getUserProfiles(user).includes(profile)
+  );
+}
+
 function generateToken() {
   return [
     Date.now().toString(36),
@@ -220,12 +281,25 @@ export function getStoredUsers(): StoredUser[] {
     const normalized =
       withDefaults.map(
         (user) => {
+          const additionalProfiles =
+            normalizeAdditionalProfiles(
+              user.profile,
+              user.additionalProfiles
+            );
+
+          const normalizedBase = {
+            ...user,
+            primaryProfile:
+              user.profile,
+            additionalProfiles,
+          };
+
           if (
             user.profile !==
             "Profissional"
           ) {
             if (!user.collaboratorId) {
-              return user;
+              return normalizedBase;
             }
 
             const collaborator =
@@ -234,11 +308,11 @@ export function getStoredUsers(): StoredUser[] {
               );
 
             if (!collaborator) {
-              return user;
+              return normalizedBase;
             }
 
             return {
-              ...user,
+              ...normalizedBase,
               name: collaborator.name,
               collaboratorName: collaborator.name,
             };
@@ -258,11 +332,11 @@ export function getStoredUsers(): StoredUser[] {
           if (
             !linkedProfessional
           ) {
-            return user;
+            return normalizedBase;
           }
 
           return {
-            ...user,
+            ...normalizedBase,
 
             professionalId:
               linkedProfessional.id,
@@ -304,6 +378,100 @@ export function saveStoredUsers(
   );
 }
 
+
+export function setStoredUserAdditionalProfiles(
+  userId: number,
+  additionalProfiles: UserProfile[]
+) {
+  const users =
+    getStoredUsers();
+
+  const target =
+    users.find(
+      (user) =>
+        user.id === userId
+    );
+
+  if (!target) {
+    throw new Error(
+      "Usuário não encontrado."
+    );
+  }
+
+  if (
+    target.profile ===
+      "Profissional" &&
+    additionalProfiles.length >
+      0
+  ) {
+    throw new Error(
+      "O perfil Profissional deve permanecer exclusivo para preservar autoria clínica e permissões do prontuário."
+    );
+  }
+
+  const normalized =
+    normalizeAdditionalProfiles(
+      target.profile,
+      additionalProfiles
+    );
+
+  const next =
+    users.map(
+      (user) =>
+        user.id === userId
+          ? {
+              ...user,
+              primaryProfile:
+                user.profile,
+              additionalProfiles:
+                normalized,
+            }
+          : user
+    );
+
+  saveStoredUsers(next);
+
+  const session =
+    getAuthSession();
+
+  if (
+    session?.user.id ===
+    userId
+  ) {
+    const primaryProfile =
+      target.profile;
+
+    const activeProfile =
+      getUserProfiles({
+        profile:
+          session.user.profile,
+        primaryProfile,
+        additionalProfiles:
+          normalized,
+      }).includes(
+        session.user.profile
+      )
+        ? session.user.profile
+        : primaryProfile;
+
+    saveAuthSession({
+      ...session,
+      user: {
+        ...session.user,
+        profile:
+          activeProfile,
+        primaryProfile,
+        additionalProfiles:
+          normalized,
+      },
+    });
+  }
+
+  return next.find(
+    (user) =>
+      user.id === userId
+  );
+}
 
 export interface CreateProfessionalLoginData {
   professionalId: number;
@@ -753,6 +921,15 @@ export function authenticateUser(
     profile:
       user.profile,
 
+    primaryProfile:
+      user.profile,
+
+    additionalProfiles:
+      normalizeAdditionalProfiles(
+        user.profile,
+        user.additionalProfiles
+      ),
+
     professionalId:
       linkedProfessional?.id ??
       user.professionalId,
@@ -793,6 +970,48 @@ export function authenticateUser(
   };
 }
 
+export function switchAuthSessionProfile(
+  profile: UserProfile
+) {
+  const session =
+    getAuthSession();
+
+  if (!session) {
+    throw new Error(
+      "Sessão não encontrada."
+    );
+  }
+
+  const allowedProfiles =
+    getUserProfiles(
+      session.user
+    );
+
+  if (
+    !allowedProfiles.includes(
+      profile
+    )
+  ) {
+    throw new Error(
+      "Este perfil não está liberado para o usuário."
+    );
+  }
+
+  const nextSession: AuthSession = {
+    ...session,
+    user: {
+      ...session.user,
+      profile,
+    },
+  };
+
+  saveAuthSession(
+    nextSession
+  );
+
+  return nextSession;
+}
+
 export function saveAuthSession(
   session: AuthSession
 ) {
@@ -800,6 +1019,12 @@ export function saveAuthSession(
     SESSION_STORAGE_KEY,
     JSON.stringify(
       session
+    )
+  );
+
+  window.dispatchEvent(
+    new CustomEvent(
+      "entre-afetos-auth-session-changed"
     )
   );
 }
@@ -828,6 +1053,12 @@ export function getAuthSession():
 export function clearAuthSession() {
   localStorage.removeItem(
     SESSION_STORAGE_KEY
+  );
+
+  window.dispatchEvent(
+    new CustomEvent(
+      "entre-afetos-auth-session-changed"
+    )
   );
 }
 

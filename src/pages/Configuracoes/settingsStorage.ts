@@ -3,6 +3,10 @@ export interface SpecialtySetting {
   name: string;
   value: number;
   repasseValue: number;
+
+  /** Duração padrão do atendimento desta especialidade, em minutos. */
+  durationMinutes: number;
+
   active: boolean;
 }
 
@@ -1787,6 +1791,7 @@ const defaultSettings: SystemSettings = {
       name: "Psicologia",
       value: 150,
       repasseValue: 100,
+      durationMinutes: 50,
       active: true,
     },
 
@@ -1795,6 +1800,7 @@ const defaultSettings: SystemSettings = {
       name: "Fonoaudiologia",
       value: 140,
       repasseValue: 90,
+      durationMinutes: 50,
       active: true,
     },
 
@@ -1803,6 +1809,7 @@ const defaultSettings: SystemSettings = {
       name: "Terapia Ocupacional",
       value: 160,
       repasseValue: 110,
+      durationMinutes: 50,
       active: true,
     },
 
@@ -1811,6 +1818,7 @@ const defaultSettings: SystemSettings = {
       name: "Fisioterapia",
       value: 130,
       repasseValue: 90,
+      durationMinutes: 50,
       active: true,
     },
 
@@ -1819,6 +1827,7 @@ const defaultSettings: SystemSettings = {
       name: "Psicopedagogia",
       value: 140,
       repasseValue: 90,
+      durationMinutes: 50,
       active: true,
     },
 
@@ -1827,6 +1836,7 @@ const defaultSettings: SystemSettings = {
       name: "Nutrição",
       value: 150,
       repasseValue: 100,
+      durationMinutes: 50,
       active: true,
     },
   ],
@@ -2170,6 +2180,8 @@ export function getSystemSettings(): SystemSettings {
             ...specialty,
             repasseValue:
               specialty.repasseValue ?? 0,
+            durationMinutes:
+              specialty.durationMinutes ?? 50,
           })
         ),
 
