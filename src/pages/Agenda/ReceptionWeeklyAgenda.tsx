@@ -246,6 +246,98 @@ const PROFESSIONAL_SCHEDULE_DAY_NAMES = [
   "Sábado",
 ] as const;
 
+
+const RECEPTION_CASH_STORAGE_KEY =
+  "entre-afetos-reception-cash-movements";
+
+interface AgendaReceptionCashMovement {
+  id: number;
+  unitId: number;
+  type: "Recebimento" | "Saída";
+  patientId: number;
+  patient: string;
+  description: string;
+  paymentMethod: string;
+  amount: number;
+  date: string;
+  time: string;
+  observation?: string;
+  chargeId?: number;
+  sourceReference?: string;
+  createdAt: string;
+}
+
+function registerAgendaReceiptInReceptionCash(
+  movement: AgendaReceptionCashMovement
+) {
+  try {
+    const raw =
+      localStorage.getItem(
+        RECEPTION_CASH_STORAGE_KEY
+      );
+
+    const current:
+      AgendaReceptionCashMovement[] =
+      raw
+        ? JSON.parse(
+            raw
+          )
+        : [];
+
+    const safeCurrent =
+      Array.isArray(
+        current
+      )
+        ? current
+        : [];
+
+    const exists =
+      safeCurrent.some(
+        (
+          item
+        ) =>
+          (
+            movement.chargeId !==
+              undefined &&
+            item.chargeId ===
+              movement.chargeId
+          ) ||
+          (
+            movement.sourceReference &&
+            item.sourceReference ===
+              movement.sourceReference
+          )
+      );
+
+    if (
+      exists
+    ) {
+      return;
+    }
+
+    localStorage.setItem(
+      RECEPTION_CASH_STORAGE_KEY,
+      JSON.stringify(
+        [
+          movement,
+          ...safeCurrent,
+        ]
+      )
+    );
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "entre-afetos:reception-cash-changed"
+      )
+    );
+  } catch {
+    /*
+     * O pagamento já foi registrado no financeiro central.
+     * Falha no espelho do caixa não deve desfazer o recebimento.
+     */
+  }
+}
+
 function formatDate(
   date:
     Date
@@ -8285,12 +8377,6 @@ function QuickReceptionPaymentModal({
     );
 
   const [
-    installments,
-    setInstallments,
-  ] =
-    useState(1);
-
-  const [
     bankAccountId,
     setBankAccountId,
   ] =
@@ -8396,39 +8482,6 @@ function QuickReceptionPaymentModal({
       0
     );
 
-  const isCreditCard =
-    paymentMethod ===
-    "Cartão de crédito";
-
-  const safeInstallments =
-    isCreditCard
-      ? Math.min(
-          Math.max(
-            Math.trunc(
-              installments
-            ) || 1,
-            1
-          ),
-          12
-        )
-      : 1;
-
-  const installmentAmount =
-    safeInstallments > 0
-      ? finalAmount /
-        safeInstallments
-      : finalAmount;
-
-  const paymentObservation =
-    [
-      isCreditCard
-        ? `Cartão de crédito em ${safeInstallments}x de ${formatCurrency(installmentAmount)}`
-        : "",
-      observation.trim(),
-    ]
-      .filter(Boolean)
-      .join(" | " );
-
   const selectedBankAccount =
     bankAccounts.find(
       (
@@ -8491,7 +8544,7 @@ function QuickReceptionPaymentModal({
             paymentDate,
 
             observation:
-              paymentObservation,
+              observation.trim(),
 
             bankAccountId:
               selectedBankAccount.id,
@@ -8514,6 +8567,61 @@ function QuickReceptionPaymentModal({
         setCharge(
           refreshed
         );
+
+        registerAgendaReceiptInReceptionCash(
+          {
+            id:
+              Date.now(),
+
+            unitId:
+              activeUnitId,
+
+            type:
+              "Recebimento",
+
+            patientId:
+              item.patientId!,
+
+            patient:
+              item.patient,
+
+            description:
+              `Atendimento - ${item.specialty}`,
+
+            paymentMethod,
+
+            amount:
+              finalAmount,
+
+            date:
+              paymentDate,
+
+            time:
+              new Date()
+                .toLocaleTimeString(
+                  "pt-BR",
+                  {
+                    hour:
+                      "2-digit",
+                    minute:
+                      "2-digit",
+                  }
+                ),
+
+            observation:
+              observation.trim(),
+
+            chargeId:
+              charge.id,
+
+            sourceReference:
+              `agenda-charge:${charge.id}`,
+
+            createdAt:
+              new Date()
+                .toISOString(),
+          }
+        );
       } else {
         if (
           finalAmount <=
@@ -8526,7 +8634,8 @@ function QuickReceptionPaymentModal({
           return;
         }
 
-        createPaidFinancialReceipt(
+        const paidReceipt =
+          createPaidFinancialReceipt(
           {
             unitId:
               activeUnitId,
@@ -8564,7 +8673,7 @@ function QuickReceptionPaymentModal({
                 item.billingType
                   ? `Origem: ${item.billingType}${item.convenio ? ` - ${item.convenio}` : ""}`
                   : "",
-                paymentObservation,
+                observation.trim(),
               ]
                 .filter(
                   Boolean
@@ -8597,6 +8706,63 @@ function QuickReceptionPaymentModal({
               `agenda-extra:${getItemFinancialAppointmentId(item) ?? item.key}:${paymentDate}:${Date.now()}`,
           }
         );
+
+        registerAgendaReceiptInReceptionCash(
+          {
+            id:
+              Date.now(),
+
+            unitId:
+              activeUnitId,
+
+            type:
+              "Recebimento",
+
+            patientId:
+              item.patientId!,
+
+            patient:
+              item.patient,
+
+            description:
+              isConvenio
+                ? `Pagamento adicional - Convênio - ${item.specialty}`
+                : isPacote
+                  ? `Pagamento adicional - Pacote - ${item.specialty}`
+                  : `Recebimento avulso - ${item.specialty}`,
+
+            paymentMethod,
+
+            amount:
+              finalAmount,
+
+            date:
+              paymentDate,
+
+            time:
+              new Date()
+                .toLocaleTimeString(
+                  "pt-BR",
+                  {
+                    hour:
+                      "2-digit",
+                    minute:
+                      "2-digit",
+                  }
+                ),
+
+            observation:
+              observation.trim(),
+
+            sourceReference:
+              `agenda-extra:${paidReceipt.id}`,
+
+            createdAt:
+              new Date()
+                .toISOString(),
+          }
+        );
+
       }
 
       onPaid();
@@ -8882,21 +9048,11 @@ function QuickReceptionPaymentModal({
                     }
                     onChange={(
                       event
-                    ) => {
-                      const nextMethod =
-                        event.target.value as PaymentMethod;
-
+                    ) =>
                       setPaymentMethod(
-                        nextMethod
-                      );
-
-                      if (
-                        nextMethod !==
-                        "Cartão de crédito"
-                      ) {
-                        setInstallments(1);
-                      }
-                    }}
+                        event.target.value as PaymentMethod
+                      )
+                    }
                     className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400"
                   >
                     <option value="Pix">
@@ -8920,48 +9076,6 @@ function QuickReceptionPaymentModal({
                     </option>
                   </select>
                 </label>
-
-                {isCreditCard && (
-                  <label>
-                    <span className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
-                      Parcelamento
-                    </span>
-
-                    <select
-                      value={
-                        safeInstallments
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setInstallments(
-                          Math.max(
-                            Number(
-                              event.target.value
-                            ) || 1,
-                            1
-                          )
-                        )
-                      }
-                      className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400"
-                    >
-                      {Array.from(
-                        { length: 12 },
-                        (_, index) =>
-                          index + 1
-                      ).map((count) => (
-                        <option
-                          key={count}
-                          value={count}
-                        >
-                          {count}x — {formatCurrency(
-                            finalAmount / count
-                          )}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
 
                 <label>
                   <span className="mb-1.5 block text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
@@ -9095,14 +9209,6 @@ function QuickReceptionPaymentModal({
                       )
                     }
                   </p>
-
-                  {isCreditCard && (
-                    <p className="mt-1 text-[10px] font-bold text-indigo-600">
-                      {safeInstallments}x de {formatCurrency(
-                        installmentAmount
-                      )}
-                    </p>
-                  )}
                 </div>
               </div>
 

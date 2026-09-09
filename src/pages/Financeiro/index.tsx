@@ -398,14 +398,14 @@ function FinanceiroRecepcao() {
   );
 
   const [
-    movements,
-    setMovements,
+    receptionExpenses,
+    setReceptionExpenses,
   ] =
     useState<
-      ReceptionCashMovement[]
+      FinancialExpense[]
     >(
       () =>
-        getReceptionCashMovements()
+        getFinancialExpenses()
     );
 
   const [
@@ -821,18 +821,206 @@ function FinanceiroRecepcao() {
     ]
   );
 
+  useEffect(
+    () => {
+      const refreshCash =
+        () => {
+          setCharges(
+            getFinancialCharges()
+          );
+
+          setReceptionExpenses(
+            getFinancialExpenses()
+          );
+        };
+
+      window.addEventListener(
+        "entre-afetos:financial-charges-changed",
+        refreshCash
+      );
+
+      window.addEventListener(
+        "entre-afetos:reception-cash-changed",
+        refreshCash
+      );
+
+      return () => {
+        window.removeEventListener(
+          "entre-afetos:financial-charges-changed",
+          refreshCash
+        );
+
+        window.removeEventListener(
+          "entre-afetos:reception-cash-changed",
+          refreshCash
+        );
+      };
+    },
+    []
+  );
+
   const unitMovements =
     useMemo(
-      () =>
-        movements.filter(
-          (
-            movement
-          ) =>
-            movement.unitId ===
-            activeUnitId
-        ),
+      () => {
+        const paidCharges:
+          ReceptionCashMovement[] =
+          charges
+            .filter(
+              (
+                charge
+              ) =>
+                charge.unitId ===
+                  activeUnitId &&
+                charge.status ===
+                  "Pago"
+            )
+            .map(
+              (
+                charge
+              ) => ({
+                id:
+                  1_000_000_000 +
+                  charge.id,
+
+                unitId:
+                  charge.unitId,
+
+                type:
+                  "Recebimento" as const,
+
+                patientId:
+                  charge.patientId,
+
+                patient:
+                  charge.patient,
+
+                description:
+                  charge.description ||
+                  `Atendimento - ${charge.specialty}`,
+
+                paymentMethod:
+                  charge.paymentMethod as ReceptionPaymentMethod,
+
+                amount:
+                  charge.receivedAmount ??
+                  charge.amount,
+
+                date:
+                  charge.paymentDate ??
+                  charge.date,
+
+                time:
+                  charge.paidAt
+                    ? new Date(
+                        charge.paidAt
+                      ).toLocaleTimeString(
+                        "pt-BR",
+                        {
+                          hour:
+                            "2-digit",
+                          minute:
+                            "2-digit",
+                        }
+                      )
+                    : "00:00",
+
+                observation:
+                  charge.paymentObservation,
+
+                chargeId:
+                  charge.id,
+
+                createdAt:
+                  charge.paidAt ??
+                  charge.createdAt,
+              })
+            );
+
+        const paidExpenses:
+          ReceptionCashMovement[] =
+          receptionExpenses
+            .filter(
+              (
+                expense
+              ) =>
+                expense.unitId ===
+                  activeUnitId &&
+                expense.status ===
+                  "Pago"
+            )
+            .map(
+              (
+                expense
+              ) => ({
+                id:
+                  -Math.abs(
+                    Number(
+                      expense.id
+                    )
+                  ),
+
+                unitId:
+                  expense.unitId,
+
+                type:
+                  "Saída" as const,
+
+                patientId:
+                  0,
+
+                patient:
+                  expense.supplier ||
+                  "Caixa",
+
+                description:
+                  expense.description,
+
+                paymentMethod:
+                  (
+                    expense.paymentMethod ||
+                    "Outro"
+                  ) as ReceptionPaymentMethod,
+
+                amount:
+                  expense.paidAmount ??
+                  expense.amount,
+
+                date:
+                  expense.paymentDate ??
+                  expense.dueDate,
+
+                time:
+                  expense.createdAt
+                    ? new Date(
+                        expense.createdAt
+                      ).toLocaleTimeString(
+                        "pt-BR",
+                        {
+                          hour:
+                            "2-digit",
+                          minute:
+                            "2-digit",
+                        }
+                      )
+                    : "00:00",
+
+                observation:
+                  expense.paymentObservation ??
+                  expense.observation,
+
+                createdAt:
+                  expense.createdAt,
+              })
+            );
+
+        return [
+          ...paidCharges,
+          ...paidExpenses,
+        ];
+      },
       [
-        movements,
+        charges,
+        receptionExpenses,
         activeUnitId,
       ]
     );
@@ -1422,6 +1610,10 @@ function FinanceiroRecepcao() {
         createdAt:
           new Date().toISOString(),
       });
+
+      setReceptionExpenses(
+        getFinancialExpenses()
+      );
     }
 
     const movement:
@@ -1455,12 +1647,16 @@ function FinanceiroRecepcao() {
           new Date().toISOString(),
       };
 
-    saveReceptionCashMovement(
-      movement
+    /*
+     * O Caixa da Recepção agora é derivado do financeiro central.
+     * Não criamos mais um segundo lançamento paralelo aqui.
+     */
+    setCharges(
+      getFinancialCharges()
     );
 
-    setMovements(
-      getReceptionCashMovements()
+    setReceptionExpenses(
+      getFinancialExpenses()
     );
 
     if (
@@ -1568,32 +1764,11 @@ function FinanceiroRecepcao() {
     movement:
       ReceptionCashMovement
   ) {
-    if (
-      !window.confirm(
-        `Deseja remover o lançamento "${movement.description}" do caixa da recepção?`
-      )
-    ) {
-      return;
-    }
-
-    if (
+    window.alert(
       movement.type ===
-        "Recebimento" &&
-      movement.chargeId
-    ) {
-      window.alert(
-        "Este recebimento está vinculado à cobrança do paciente e não pode ser excluído pelo caixa. Utilize o histórico financeiro do paciente para ajustes."
-      );
-
-      return;
-    }
-
-    deleteReceptionCashMovement(
-      movement.id
-    );
-
-    setMovements(
-      getReceptionCashMovements()
+        "Recebimento"
+        ? "Este recebimento faz parte do financeiro central. Para corrigir ou estornar, utilize o histórico financeiro do paciente."
+        : "Esta saída faz parte das despesas do financeiro central. Para corrigir ou cancelar, utilize o módulo de despesas."
     );
   }
 
@@ -1610,7 +1785,7 @@ function FinanceiroRecepcao() {
           </h1>
 
           <p className="mt-1 text-sm font-medium text-[#7d89a8]">
-            Registre recebimentos e saídas vinculados aos pacientes.
+            Acompanhe o fluxo de caixa da unidade. Recebimentos de consultas são registrados diretamente pela Agenda.
           </p>
         </div>
 
@@ -1638,7 +1813,7 @@ function FinanceiroRecepcao() {
                       : "border-transparent text-[#75809d]"
                   }`}
                 >
-                  Novo lançamento
+                  Lançamento avulso
                 </button>
 
                 <button
@@ -2093,7 +2268,7 @@ function FinanceiroRecepcao() {
                               selectedPackagePlan
                             )
                           }
-                          className={`reception-input pl-10 ${
+                          className={`reception-input !pl-12 ${
                             selectedPackagePlan
                               ? "bg-[#f7f6ff] font-bold text-[#6744ef]"
                               : ""
