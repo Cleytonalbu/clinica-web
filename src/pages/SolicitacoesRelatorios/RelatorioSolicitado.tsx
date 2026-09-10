@@ -15,6 +15,7 @@ import {
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
 
 import {
@@ -31,6 +32,8 @@ import {
 } from "@/layouts/DashboardLayout";
 
 import reportLetterhead from "@/assets/timbre-relatorios-entre-afetos-2026.jpeg";
+import abaPortfolioCover from "@/assets/portfolio-aba-capa.jpg";
+import abaPortfolioLetterhead from "@/assets/portfolio-aba-timbre.jpeg";
 
 import {
   getPatientById,
@@ -250,6 +253,119 @@ function professionLabel(
   }
 
   return specialty;
+}
+
+
+function PortfolioTitle({
+  children,
+  tone,
+}: {
+  children: ReactNode;
+  tone: "peach" | "green" | "purple";
+}) {
+  const toneClass =
+    tone === "peach"
+      ? "bg-[#ed9d83]"
+      : tone === "green"
+        ? "bg-[#acd85a]"
+        : "bg-[#8749ef]";
+
+  return (
+    <div className="mb-12 text-center">
+      <span
+        className={`inline-block px-5 py-2 text-[30px] font-extrabold uppercase text-white ${toneClass}`}
+      >
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function PortfolioTextField({
+  label,
+  value,
+  onChange,
+  editable,
+  tone,
+  rows = 3,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  editable: boolean;
+  tone: "peach" | "orange" | "purple";
+  rows?: number;
+}) {
+  const borderColor =
+    tone === "peach"
+      ? "#df9a85"
+      : tone === "orange"
+        ? "#e99b21"
+        : "#8547e9";
+
+  const textareaRef =
+    useRef<HTMLTextAreaElement | null>(
+      null
+    );
+
+  useEffect(
+    () => {
+      if (
+        !editable ||
+        !textareaRef.current
+      ) {
+        return;
+      }
+
+      const element =
+        textareaRef.current;
+
+      element.style.height =
+        "auto";
+
+      element.style.height =
+        `${Math.max(
+          element.scrollHeight,
+          42
+        )}px`;
+    },
+    [
+      editable,
+      value,
+    ]
+  );
+
+  return (
+    <div className="mb-5">
+      <p className="mb-2 text-[20px] font-extrabold leading-tight text-[#525252]">
+        {label}
+      </p>
+
+      {editable ? (
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(event) =>
+            onChange(event.target.value)
+          }
+          rows={1}
+          className="portfolio-field-input no-print-adjust"
+          style={{
+            borderColor,
+          }}
+        />
+      ) : (
+        <div
+          className="portfolio-field-value"
+          style={{
+            borderColor,
+          }}
+        >
+          {value || " "}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function RelatorioSolicitado() {
@@ -477,6 +593,126 @@ export default function RelatorioSolicitado() {
     );
 
   const [
+    abaPortfolioPreferredName,
+    setAbaPortfolioPreferredName,
+  ] =
+    useState(
+      existingDocument
+        ?.abaPortfolioPreferredName ??
+        ""
+    );
+
+  const [
+    abaPortfolioAssociatedConditions,
+    setAbaPortfolioAssociatedConditions,
+  ] =
+    useState(
+      existingDocument
+        ?.abaPortfolioAssociatedConditions ??
+        ""
+    );
+
+  const [
+    abaPortfolioMedication,
+    setAbaPortfolioMedication,
+  ] =
+    useState(
+      existingDocument
+        ?.abaPortfolioMedication ??
+        ""
+    );
+
+  const [
+    abaPortfolioBestCommunication,
+    setAbaPortfolioBestCommunication,
+  ] =
+    useState(
+      existingDocument
+        ?.abaPortfolioBestCommunication ??
+        ""
+    );
+
+  const [
+    abaPortfolioFavoriteActivity,
+    setAbaPortfolioFavoriteActivity,
+  ] =
+    useState(
+      existingDocument
+        ?.abaPortfolioFavoriteActivity ??
+        ""
+    );
+
+  const [
+    abaPortfolioMonthlyGoals,
+    setAbaPortfolioMonthlyGoals,
+  ] =
+    useState(
+      existingDocument
+        ?.abaPortfolioMonthlyGoals ??
+        ""
+    );
+
+  const [
+    abaPortfolioActivitiesPerformed,
+    setAbaPortfolioActivitiesPerformed,
+  ] =
+    useState(
+      existingDocument
+        ?.abaPortfolioActivitiesPerformed ??
+        ""
+    );
+
+  const [
+    abaPortfolioNecessaryAdaptations,
+    setAbaPortfolioNecessaryAdaptations,
+  ] =
+    useState(
+      existingDocument
+        ?.abaPortfolioNecessaryAdaptations ??
+        ""
+    );
+
+  const [
+    abaPortfolioFrequentResponses,
+    setAbaPortfolioFrequentResponses,
+  ] =
+    useState(
+      existingDocument
+        ?.abaPortfolioFrequentResponses ??
+        ""
+    );
+
+  const [
+    abaPortfolioBarriers,
+    setAbaPortfolioBarriers,
+  ] =
+    useState(
+      existingDocument
+        ?.abaPortfolioBarriers ??
+        ""
+    );
+
+  const [
+    abaPortfolioSupports,
+    setAbaPortfolioSupports,
+  ] =
+    useState(
+      existingDocument
+        ?.abaPortfolioSupports ??
+        ""
+    );
+
+  const [
+    abaPortfolioHelpfulStrategies,
+    setAbaPortfolioHelpfulStrategies,
+  ] =
+    useState(
+      existingDocument
+        ?.abaPortfolioHelpfulStrategies ??
+        ""
+    );
+
+  const [
     reportDate,
     setReportDate,
   ] =
@@ -568,6 +804,78 @@ export default function RelatorioSolicitado() {
         setMonthlyDischargeForecastConclusion(
           existingDocument
             .monthlyDischargeForecastConclusion ??
+            ""
+        );
+
+        setAbaPortfolioPreferredName(
+          existingDocument
+            .abaPortfolioPreferredName ??
+            ""
+        );
+
+        setAbaPortfolioAssociatedConditions(
+          existingDocument
+            .abaPortfolioAssociatedConditions ??
+            ""
+        );
+
+        setAbaPortfolioMedication(
+          existingDocument
+            .abaPortfolioMedication ??
+            ""
+        );
+
+        setAbaPortfolioBestCommunication(
+          existingDocument
+            .abaPortfolioBestCommunication ??
+            ""
+        );
+
+        setAbaPortfolioFavoriteActivity(
+          existingDocument
+            .abaPortfolioFavoriteActivity ??
+            ""
+        );
+
+        setAbaPortfolioMonthlyGoals(
+          existingDocument
+            .abaPortfolioMonthlyGoals ??
+            ""
+        );
+
+        setAbaPortfolioActivitiesPerformed(
+          existingDocument
+            .abaPortfolioActivitiesPerformed ??
+            ""
+        );
+
+        setAbaPortfolioNecessaryAdaptations(
+          existingDocument
+            .abaPortfolioNecessaryAdaptations ??
+            ""
+        );
+
+        setAbaPortfolioFrequentResponses(
+          existingDocument
+            .abaPortfolioFrequentResponses ??
+            ""
+        );
+
+        setAbaPortfolioBarriers(
+          existingDocument
+            .abaPortfolioBarriers ??
+            ""
+        );
+
+        setAbaPortfolioSupports(
+          existingDocument
+            .abaPortfolioSupports ??
+            ""
+        );
+
+        setAbaPortfolioHelpfulStrategies(
+          existingDocument
+            .abaPortfolioHelpfulStrategies ??
             ""
         );
 
@@ -706,6 +1014,10 @@ export default function RelatorioSolicitado() {
     request.reportType ===
     "Relatório mensal";
 
+  const isAbaSchoolPortfolio =
+    request.reportType ===
+    "Portfólio ABA escolar";
+
   const registration =
     professional?.registration ||
     (
@@ -816,6 +1128,42 @@ export default function RelatorioSolicitado() {
         monthlyDischargeForecastConclusion:
           monthlyDischargeForecastConclusion.trim(),
 
+        abaPortfolioPreferredName:
+          abaPortfolioPreferredName.trim(),
+
+        abaPortfolioAssociatedConditions:
+          abaPortfolioAssociatedConditions.trim(),
+
+        abaPortfolioMedication:
+          abaPortfolioMedication.trim(),
+
+        abaPortfolioBestCommunication:
+          abaPortfolioBestCommunication.trim(),
+
+        abaPortfolioFavoriteActivity:
+          abaPortfolioFavoriteActivity.trim(),
+
+        abaPortfolioMonthlyGoals:
+          abaPortfolioMonthlyGoals.trim(),
+
+        abaPortfolioActivitiesPerformed:
+          abaPortfolioActivitiesPerformed.trim(),
+
+        abaPortfolioNecessaryAdaptations:
+          abaPortfolioNecessaryAdaptations.trim(),
+
+        abaPortfolioFrequentResponses:
+          abaPortfolioFrequentResponses.trim(),
+
+        abaPortfolioBarriers:
+          abaPortfolioBarriers.trim(),
+
+        abaPortfolioSupports:
+          abaPortfolioSupports.trim(),
+
+        abaPortfolioHelpfulStrategies:
+          abaPortfolioHelpfulStrategies.trim(),
+
         reportDate,
 
         city,
@@ -908,6 +1256,29 @@ export default function RelatorioSolicitado() {
 
   function finalizeAndSend() {
     if (
+      isAbaSchoolPortfolio
+    ) {
+      if (
+        !abaPortfolioPreferredName
+          .trim() ||
+        !abaPortfolioMonthlyGoals
+          .trim() ||
+        !abaPortfolioActivitiesPerformed
+          .trim() ||
+        !abaPortfolioBarriers
+          .trim() ||
+        !abaPortfolioSupports
+          .trim() ||
+        !abaPortfolioHelpfulStrategies
+          .trim()
+      ) {
+        window.alert(
+          "Preencha pelo menos: como a criança gosta de ser chamada, metas trabalhadas no mês, atividades realizadas, barreiras, ajudas e estratégias que favorecem."
+        );
+
+        return;
+      }
+    } else if (
       isMonthlyReport
     ) {
       if (
@@ -942,6 +1313,7 @@ export default function RelatorioSolicitado() {
     }
 
     if (
+      !isAbaSchoolPortfolio &&
       !signatureDataUrl
     ) {
       window.alert(
@@ -1043,22 +1415,24 @@ export default function RelatorioSolicitado() {
                   Salvar rascunho
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setShowSignature(
-                      true
-                    )
-                  }
-                  className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm font-bold text-sky-700 hover:bg-sky-100"
-                >
-                  <PenLine
-                    size={17}
-                  />
-                  {signatureDataUrl
-                    ? "Refazer assinatura"
-                    : "Assinar eletronicamente"}
-                </button>
+                {!isAbaSchoolPortfolio && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowSignature(
+                        true
+                      )
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm font-bold text-sky-700 hover:bg-sky-100"
+                  >
+                    <PenLine
+                      size={17}
+                    />
+                    {signatureDataUrl
+                      ? "Refazer assinatura"
+                      : "Assinar eletronicamente"}
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -1115,30 +1489,240 @@ export default function RelatorioSolicitado() {
         <div className="report-print-area space-y-6">
           {/* CAPA */}
 
-          <article className="report-page report-cover report-letterhead-page mx-auto overflow-hidden bg-white shadow-xl">
-            <img
-              src={
-                reportLetterhead
-              }
-              alt=""
-              aria-hidden="true"
-              className="report-letterhead-background"
-            />
+          {isAbaSchoolPortfolio ? (
+            <article className="report-page report-cover mx-auto overflow-hidden bg-white shadow-xl">
+              <img
+                src={
+                  abaPortfolioCover
+                }
+                alt="Portfólio ABA da Criança e do Adolescente na Escola"
+                className="h-full w-full object-fill"
+              />
+            </article>
+          ) : (
+            <article className="report-page report-cover report-letterhead-page mx-auto overflow-hidden bg-white shadow-xl">
+              <img
+                src={
+                  reportLetterhead
+                }
+                alt=""
+                aria-hidden="true"
+                className="report-letterhead-background"
+              />
 
-            <div className="report-cover-title">
-              <p className="report-cover-title-line">
-                {coverTitlePrefix}
-              </p>
+              <div className="report-cover-title">
+                <p className="report-cover-title-line">
+                  {coverTitlePrefix}
+                </p>
 
-              <p className="report-cover-title-main">
-                {coverTitleMain}
-              </p>
-            </div>
-          </article>
+                <p className="report-cover-title-main">
+                  {coverTitleMain}
+                </p>
+              </div>
+            </article>
+          )}
 
           {/* CONTEÚDO */}
 
-          {isMonthlyReport ? (
+          {isAbaSchoolPortfolio ? (
+            <>
+              <article className="report-page aba-portfolio-page mx-auto overflow-hidden bg-white shadow-xl">
+                <img
+                  src={abaPortfolioLetterhead}
+                  alt=""
+                  aria-hidden="true"
+                  className="report-letterhead-background"
+                />
+
+                <div className="aba-portfolio-content aba-portfolio-intro">
+                  <p>
+                    Olá, tudo bem?
+                  </p>
+
+                  <p>
+                    Meu nome é <strong>{patient?.nome ?? request.patientName}</strong><br />
+                    e eu sou uma criança com <strong>{diagnosis || "________________"}</strong>.
+                  </p>
+
+                  <p>
+                    O diagnóstico faz parte de quem eu sou e influencia o meu jeito de aprender, me comunicar e me relacionar.
+                  </p>
+
+                  <p>
+                    Eu não preciso que me consertem, mas que me compreendam.
+                  </p>
+
+                  <p>
+                    Quando todos os envolvidos acreditam em mim, eu aprendo e participo muito melhor!
+                  </p>
+
+                  {editable && (
+                    <div className="no-print mt-8 rounded-xl border border-sky-100 bg-white/90 p-4">
+                      <label className="text-xs font-bold text-slate-600">
+                        Diagnóstico usado nesta página
+                      </label>
+                      <input
+                        value={diagnosis}
+                        onChange={(event) =>
+                          setDiagnosis(event.target.value)
+                        }
+                        placeholder="Informe o diagnóstico"
+                        className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+              </article>
+
+              <article className="report-page aba-portfolio-page mx-auto overflow-hidden bg-white shadow-xl">
+                <img
+                  src={abaPortfolioLetterhead}
+                  alt=""
+                  aria-hidden="true"
+                  className="report-letterhead-background"
+                />
+
+                <div className="aba-portfolio-content">
+                  <PortfolioTitle tone="peach">
+                    SOBRE MIM
+                  </PortfolioTitle>
+
+                  <PortfolioTextField
+                    label="Gosto de ser chamado(a) de:"
+                    value={abaPortfolioPreferredName}
+                    onChange={setAbaPortfolioPreferredName}
+                    editable={editable}
+                    tone="peach"
+                  />
+
+                  <PortfolioTextField
+                    label="Tenho outras condições associadas?"
+                    value={abaPortfolioAssociatedConditions}
+                    onChange={setAbaPortfolioAssociatedConditions}
+                    editable={editable}
+                    tone="peach"
+                  />
+
+                  <PortfolioTextField
+                    label="Usei medicação nos últimos meses?"
+                    value={abaPortfolioMedication}
+                    onChange={setAbaPortfolioMedication}
+                    editable={editable}
+                    tone="peach"
+                  />
+
+                  <PortfolioTextField
+                    label="Qual foi a minha melhor forma de comunicação:"
+                    value={abaPortfolioBestCommunication}
+                    onChange={setAbaPortfolioBestCommunication}
+                    editable={editable}
+                    tone="peach"
+                  />
+
+                  <PortfolioTextField
+                    label="Meu brinquedo/brincadeira favorita é:"
+                    value={abaPortfolioFavoriteActivity}
+                    onChange={setAbaPortfolioFavoriteActivity}
+                    editable={editable}
+                    tone="peach"
+                  />
+                </div>
+              </article>
+
+              <article className="report-page aba-portfolio-page mx-auto overflow-hidden bg-white shadow-xl">
+                <img
+                  src={abaPortfolioLetterhead}
+                  alt=""
+                  aria-hidden="true"
+                  className="report-letterhead-background"
+                />
+
+                <div className="aba-portfolio-content">
+                  <PortfolioTitle tone="green">
+                    ATENDIMENTOS E CUIDADOS
+                  </PortfolioTitle>
+
+                  <PortfolioTextField
+                    label="Metas trabalhadas no mês:"
+                    value={abaPortfolioMonthlyGoals}
+                    onChange={setAbaPortfolioMonthlyGoals}
+                    editable={editable}
+                    tone="orange"
+                    rows={4}
+                  />
+
+                  <PortfolioTextField
+                    label="Atividades realizadas:"
+                    value={abaPortfolioActivitiesPerformed}
+                    onChange={setAbaPortfolioActivitiesPerformed}
+                    editable={editable}
+                    tone="orange"
+                    rows={4}
+                  />
+
+                  <PortfolioTextField
+                    label="Adaptações necessárias:"
+                    value={abaPortfolioNecessaryAdaptations}
+                    onChange={setAbaPortfolioNecessaryAdaptations}
+                    editable={editable}
+                    tone="orange"
+                    rows={4}
+                  />
+
+                  <PortfolioTextField
+                    label="Respostas mais frequentes às demandas:"
+                    value={abaPortfolioFrequentResponses}
+                    onChange={setAbaPortfolioFrequentResponses}
+                    editable={editable}
+                    tone="orange"
+                    rows={4}
+                  />
+                </div>
+              </article>
+
+              <article className="report-page aba-portfolio-page mx-auto overflow-hidden bg-white shadow-xl">
+                <img
+                  src={abaPortfolioLetterhead}
+                  alt=""
+                  aria-hidden="true"
+                  className="report-letterhead-background"
+                />
+
+                <div className="aba-portfolio-content">
+                  <PortfolioTitle tone="purple">
+                    PONTOS FORTES E FRACOS
+                  </PortfolioTitle>
+
+                  <PortfolioTextField
+                    label="Barreiras:"
+                    value={abaPortfolioBarriers}
+                    onChange={setAbaPortfolioBarriers}
+                    editable={editable}
+                    tone="purple"
+                    rows={5}
+                  />
+
+                  <PortfolioTextField
+                    label="Ajudas:"
+                    value={abaPortfolioSupports}
+                    onChange={setAbaPortfolioSupports}
+                    editable={editable}
+                    tone="purple"
+                    rows={5}
+                  />
+
+                  <PortfolioTextField
+                    label="Estratégias que favorecem:"
+                    value={abaPortfolioHelpfulStrategies}
+                    onChange={setAbaPortfolioHelpfulStrategies}
+                    editable={editable}
+                    tone="purple"
+                    rows={5}
+                  />
+                </div>
+              </article>
+            </>
+          ) : isMonthlyReport ? (
             <article className="report-page report-letterhead-page mx-auto overflow-hidden bg-white shadow-xl">
               <img
                 src={
@@ -1900,6 +2484,55 @@ export default function RelatorioSolicitado() {
             outline: 0;
             background: #fffdf7;
             box-sizing: border-box;
+          }
+
+
+          .aba-portfolio-page {
+            isolation: isolate;
+            background: #ffffff;
+          }
+
+          .aba-portfolio-content {
+            position: relative;
+            z-index: 1;
+            padding: 145px 86px 125px 86px;
+          }
+
+          .aba-portfolio-intro {
+            padding-top: 150px;
+            font-size: 28px;
+            line-height: 1.6;
+            font-weight: 600;
+            color: #4d4d4d;
+          }
+
+          .aba-portfolio-intro p {
+            margin-bottom: 18px;
+          }
+
+          .portfolio-field-input,
+          .portfolio-field-value {
+            width: 100%;
+            box-sizing: border-box;
+            border: 3px dotted;
+            background: rgba(255, 255, 255, 0.60);
+            padding: 8px 14px;
+            font-size: 15px;
+            line-height: 1.45;
+            color: #374151;
+            outline: none;
+          }
+
+          .portfolio-field-input {
+            min-height: 42px;
+            height: 42px;
+            resize: none;
+            overflow: hidden;
+          }
+
+          .portfolio-field-value {
+            min-height: 42px;
+            white-space: pre-wrap;
           }
 
           @media print {

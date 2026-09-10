@@ -13,6 +13,7 @@ export type ReportDocumentType =
   | "Relatório de acompanhamento"
   | "Relatório terapêutico"
   | "Relatório mensal"
+  | "Portfólio ABA escolar"
   | "Declaração de acompanhamento"
   | "Relatório psicológico";
 
@@ -40,6 +41,12 @@ export const REPORT_DOCUMENT_TYPES: ReportDocumentTypeDefinition[] = [
     label: "Relatório mensal",
     description:
       "Relatório mensal com descrição dos atendimentos, justificativa de continuidade, prognóstico e previsão de alta/conclusão.",
+  },
+  {
+    value: "Portfólio ABA escolar",
+    label: "Portfólio ABA escolar",
+    description:
+      "Portfólio ABA da criança e do adolescente na escola, com informações pessoais, atendimentos, cuidados, pontos fortes, barreiras, ajudas e estratégias.",
   },
   {
     value: "Declaração de acompanhamento",

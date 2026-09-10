@@ -39,6 +39,23 @@ export interface RequestedReportDocument {
   monthlyPrognosis?: string;
   monthlyDischargeForecastConclusion?: string;
 
+  /**
+   * Campos exclusivos do Portfólio ABA escolar.
+   * Opcionais para preservar todos os documentos já existentes.
+   */
+  abaPortfolioPreferredName?: string;
+  abaPortfolioAssociatedConditions?: string;
+  abaPortfolioMedication?: string;
+  abaPortfolioBestCommunication?: string;
+  abaPortfolioFavoriteActivity?: string;
+  abaPortfolioMonthlyGoals?: string;
+  abaPortfolioActivitiesPerformed?: string;
+  abaPortfolioNecessaryAdaptations?: string;
+  abaPortfolioFrequentResponses?: string;
+  abaPortfolioBarriers?: string;
+  abaPortfolioSupports?: string;
+  abaPortfolioHelpfulStrategies?: string;
+
   reportDate: string;
   city: string;
   state: string;

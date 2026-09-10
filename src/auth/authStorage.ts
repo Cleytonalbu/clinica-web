@@ -294,62 +294,72 @@ export function getStoredUsers(): StoredUser[] {
             additionalProfiles,
           };
 
-          if (
-            user.profile !==
-            "Profissional"
-          ) {
-            if (!user.collaboratorId) {
-              return normalizedBase;
-            }
-
-            const collaborator =
-              getAdministrativeCollaborators().find(
-                (item) => item.id === user.collaboratorId
-              );
-
-            if (!collaborator) {
-              return normalizedBase;
-            }
-
-            return {
-              ...normalizedBase,
-              name: collaborator.name,
-              collaboratorName: collaborator.name,
-            };
-          }
+          const hasProfessionalAccess =
+            user.profile ===
+              "Profissional" ||
+            additionalProfiles.includes(
+              "Profissional"
+            );
 
           const linkedProfessional =
-            user.professionalId !==
-              undefined
-              ? getProfessionalById(
-                  user.professionalId
+            hasProfessionalAccess
+              ? (
+                  user.professionalId !==
+                    undefined
+                    ? getProfessionalById(
+                        user.professionalId
+                      )
+                    : getProfessionalByName(
+                        user.professionalName ??
+                          user.name
+                      )
                 )
-              : getProfessionalByName(
-                  user.professionalName ??
-                    user.name
-                );
+              : undefined;
 
-          if (
-            !linkedProfessional
-          ) {
-            return normalizedBase;
-          }
+          const collaborator =
+            user.collaboratorId
+              ? getAdministrativeCollaborators().find(
+                  (item) =>
+                    item.id ===
+                    user.collaboratorId
+                )
+              : undefined;
 
           return {
             ...normalizedBase,
 
-            professionalId:
-              linkedProfessional.id,
+            ...(collaborator
+              ? {
+                  collaboratorName:
+                    collaborator.name,
+                }
+              : {}),
 
-            /*
-             * O cadastro profissional é a fonte oficial
-             * do nome exibido pelo sistema.
-             */
-            name:
-              linkedProfessional.name,
+            ...(linkedProfessional
+              ? {
+                  professionalId:
+                    linkedProfessional.id,
+                  professionalName:
+                    linkedProfessional.name,
 
-            professionalName:
-              linkedProfessional.name,
+                  /*
+                   * Quando o perfil principal já é Profissional,
+                   * o cadastro profissional continua sendo a fonte
+                   * oficial do nome da sessão.
+                   *
+                   * Em perfis adicionais (ex.: Gestor + Profissional),
+                   * preservamos o nome principal do usuário e guardamos
+                   * o nome clínico separadamente em professionalName.
+                   */
+                  ...(user.profile ===
+                  "Profissional"
+                    ? {
+                        name:
+                          linkedProfessional.name,
+                      }
+                    : {}),
+                }
+              : {}),
           };
         }
       );
@@ -395,17 +405,6 @@ export function setStoredUserAdditionalProfiles(
   if (!target) {
     throw new Error(
       "Usuário não encontrado."
-    );
-  }
-
-  if (
-    target.profile ===
-      "Profissional" &&
-    additionalProfiles.length >
-      0
-  ) {
-    throw new Error(
-      "O perfil Profissional deve permanecer exclusivo para preservar autoria clínica e permissões do prontuário."
     );
   }
 
@@ -470,6 +469,113 @@ export function setStoredUserAdditionalProfiles(
   return next.find(
     (user) =>
       user.id === userId
+  );
+}
+
+export function setStoredUserProfessionalLink(
+  userId: number,
+  professionalId: number | null
+) {
+  const users =
+    getStoredUsers();
+
+  const target =
+    users.find(
+      (user) =>
+        user.id ===
+        userId
+    );
+
+  if (!target) {
+    throw new Error(
+      "Usuário não encontrado."
+    );
+  }
+
+  const professional =
+    professionalId !==
+    null
+      ? getProfessionalById(
+          professionalId
+        )
+      : undefined;
+
+  if (
+    professionalId !==
+      null &&
+    !professional
+  ) {
+    throw new Error(
+      "Profissional não encontrado."
+    );
+  }
+
+  const duplicatedLink =
+    professionalId !==
+      null &&
+    users.some(
+      (user) =>
+        user.id !==
+          userId &&
+        user.professionalId ===
+          professionalId
+    );
+
+  if (
+    duplicatedLink
+  ) {
+    throw new Error(
+      "Este profissional já está vinculado a outro login."
+    );
+  }
+
+  const next =
+    users.map(
+      (user) =>
+        user.id ===
+        userId
+          ? {
+              ...user,
+
+              professionalId:
+                professional?.id,
+
+              professionalName:
+                professional?.name,
+            }
+          : user
+    );
+
+  saveStoredUsers(
+    next
+  );
+
+  const session =
+    getAuthSession();
+
+  if (
+    session?.user.id ===
+    userId
+  ) {
+    saveAuthSession({
+      ...session,
+
+      user: {
+        ...session.user,
+
+        professionalId:
+          professional?.id,
+
+        professionalName:
+          professional?.name,
+      },
+    });
+  }
+
+  return next.find(
+    (user) =>
+      user.id ===
+      userId
   );
 }
 
@@ -891,9 +997,15 @@ export function authenticateUser(
     };
   }
 
+  const allowedUserProfiles =
+    getUserProfiles(
+      user
+    );
+
   const linkedProfessional =
-    user.profile ===
+    allowedUserProfiles.includes(
       "Profissional"
+    )
       ? (
           user.professionalId !==
             undefined
@@ -912,8 +1024,13 @@ export function authenticateUser(
       user.id,
 
     name:
-      linkedProfessional?.name ??
-      user.name,
+      user.profile ===
+        "Profissional"
+        ? (
+            linkedProfessional?.name ??
+            user.name
+          )
+        : user.name,
 
     email:
       user.email,

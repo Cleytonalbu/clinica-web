@@ -29,7 +29,9 @@ import {
   resetStoredUserPassword,
   setStoredUserActive,
   setStoredUserAdditionalProfiles,
+  setStoredUserProfessionalLink,
   type StoredUser,
+  type UserProfile,
 } from "@/auth/authStorage";
 
 import {
@@ -319,13 +321,35 @@ export default function UserLoginsSettingsSection({
     }
   }
 
-  function handleToggleAdministrativeProfile(
-    user: StoredUser
+  const selectableProfiles:
+    UserProfile[] = [
+      "Gestor",
+      "Recepção",
+      "Profissional",
+      "Administrativo",
+    ];
+
+  function handleToggleAdditionalProfile(
+    user: StoredUser,
+    profile: UserProfile
   ) {
     if (
-      user.profile !==
-      "Gestor"
+      profile ===
+      user.profile
     ) {
+      return;
+    }
+
+    if (
+      profile ===
+        "Profissional" &&
+      user.professionalId ===
+        undefined
+    ) {
+      onFeedback(
+        "Vincule primeiro este login a um cadastro profissional para liberar a área Profissional."
+      );
+
       return;
     }
 
@@ -333,21 +357,21 @@ export default function UserLoginsSettingsSection({
       user.additionalProfiles ??
       [];
 
-    const hasAdministrative =
+    const enabled =
       current.includes(
-        "Administrativo"
+        profile
       );
 
     const next =
-      hasAdministrative
+      enabled
         ? current.filter(
-            (profile) =>
-              profile !==
-              "Administrativo"
+            (item) =>
+              item !==
+              profile
           )
         : [
             ...current,
-            "Administrativo" as const,
+            profile,
           ];
 
     try {
@@ -359,15 +383,72 @@ export default function UserLoginsSettingsSection({
       refreshUsers();
 
       onFeedback(
-        hasAdministrative
-          ? "Acesso Administrativo removido deste Gestor."
-          : "Acesso Administrativo liberado para este Gestor."
+        enabled
+          ? `Acesso ${profile} removido deste login.`
+          : `Acesso ${profile} liberado para este login.`
       );
     } catch (error) {
       onFeedback(
         error instanceof Error
           ? error.message
           : "Não foi possível atualizar os perfis de acesso."
+      );
+    }
+  }
+
+  function handleProfessionalLink(
+    user: StoredUser,
+    value: string
+  ) {
+    const professionalId =
+      value
+        ? Number(
+            value
+          )
+        : null;
+
+    try {
+      setStoredUserProfessionalLink(
+        user.id,
+        professionalId
+      );
+
+      if (
+        professionalId ===
+        null &&
+        (
+          user.additionalProfiles ??
+          []
+        ).includes(
+          "Profissional"
+        )
+      ) {
+        setStoredUserAdditionalProfiles(
+          user.id,
+          (
+            user.additionalProfiles ??
+            []
+          ).filter(
+            (profile) =>
+              profile !==
+              "Profissional"
+          )
+        );
+      }
+
+      refreshUsers();
+
+      onFeedback(
+        professionalId ===
+          null
+          ? "Vínculo profissional removido."
+          : "Cadastro profissional vinculado ao login."
+      );
+    } catch (error) {
+      onFeedback(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível atualizar o vínculo profissional."
       );
     }
   }
@@ -518,7 +599,7 @@ export default function UserLoginsSettingsSection({
 
       <PageCard
         title="Logins cadastrados"
-        description="Acompanhe todos os logins e libere acesso adicional ao módulo Administrativo para Gestores quando necessário."
+        description="Gerencie um único login com múltiplas áreas de acesso. O usuário poderá alternar entre Gestor, Profissional, Administrativo e Recepção conforme as liberações abaixo."
       >
         {managedUsers.length > 0 ? (
           <div className="space-y-3">
@@ -595,23 +676,6 @@ export default function UserLoginsSettingsSection({
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      {user.profile === "Gestor" && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() =>
-                            handleToggleAdministrativeProfile(
-                              user
-                            )
-                          }
-                        >
-                          <ShieldCheck size={16} />
-                          {(user.additionalProfiles ?? []).includes("Administrativo")
-                            ? "Remover Administrativo"
-                            : "Liberar Administrativo"}
-                        </Button>
-                      )}
-
                       <Button
                         type="button"
                         variant="outline"
@@ -631,6 +695,171 @@ export default function UserLoginsSettingsSection({
                         <Power size={16} />
                         {user.active ? "Desativar" : "Ativar"}
                       </Button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 border-t border-slate-100 pt-4">
+                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.25fr_1fr]">
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.08em] text-slate-500">
+                          Perfis / áreas disponíveis
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-400">
+                          O perfil principal permanece fixo. Marque as outras áreas que este mesmo login poderá acessar.
+                        </p>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {selectableProfiles.map(
+                            (profile) => {
+                              const primary =
+                                profile ===
+                                user.profile;
+
+                              const enabled =
+                                primary ||
+                                (
+                                  user.additionalProfiles ??
+                                  []
+                                ).includes(
+                                  profile
+                                );
+
+                              const needsProfessionalLink =
+                                profile ===
+                                  "Profissional" &&
+                                !primary &&
+                                user.professionalId ===
+                                  undefined;
+
+                              return (
+                                <button
+                                  key={profile}
+                                  type="button"
+                                  disabled={
+                                    primary
+                                  }
+                                  onClick={() =>
+                                    handleToggleAdditionalProfile(
+                                      user,
+                                      profile
+                                    )
+                                  }
+                                  title={
+                                    primary
+                                      ? "Perfil principal deste login"
+                                      : needsProfessionalLink
+                                        ? "Vincule um cadastro profissional antes de liberar esta área"
+                                        : enabled
+                                          ? "Clique para remover este acesso"
+                                          : "Clique para liberar este acesso"
+                                  }
+                                  className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition ${
+                                    primary
+                                      ? "cursor-default border-violet-200 bg-violet-50 text-violet-700"
+                                      : enabled
+                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                        : "border-slate-200 bg-white text-slate-600 hover:border-violet-200 hover:bg-violet-50"
+                                  }`}
+                                >
+                                  <span
+                                    className={`h-2 w-2 rounded-full ${
+                                      enabled
+                                        ? "bg-emerald-500"
+                                        : "bg-slate-300"
+                                    }`}
+                                  />
+
+                                  {profile}
+
+                                  {primary && (
+                                    <span className="text-[9px] font-semibold uppercase text-violet-500">
+                                      Principal
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            }
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.08em] text-slate-500">
+                          Vínculo para atendimento profissional
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-400">
+                          Necessário quando este login também utiliza a área Profissional.
+                        </p>
+
+                        <Select
+                          value={
+                            user.professionalId !==
+                            undefined
+                              ? String(
+                                  user.professionalId
+                                )
+                              : ""
+                          }
+                          onChange={(event) =>
+                            handleProfessionalLink(
+                              user,
+                              event.target.value
+                            )
+                          }
+                          className="mt-3"
+                          disabled={
+                            user.profile ===
+                            "Profissional"
+                          }
+                        >
+                          <option value="">
+                            Sem vínculo profissional
+                          </option>
+
+                          {professionals
+                            .filter(
+                              (item) =>
+                                item.active &&
+                                (
+                                  item.id ===
+                                    user.professionalId ||
+                                  !users.some(
+                                    (otherUser) =>
+                                      otherUser.id !==
+                                        user.id &&
+                                      otherUser.professionalId ===
+                                        item.id
+                                  )
+                                )
+                            )
+                            .sort(
+                              (a, b) =>
+                                a.name.localeCompare(
+                                  b.name,
+                                  "pt-BR"
+                                )
+                            )
+                            .map(
+                              (item) => (
+                                <option
+                                  key={item.id}
+                                  value={item.id}
+                                >
+                                  {item.name} — {item.specialty}
+                                </option>
+                              )
+                            )}
+                        </Select>
+
+                        {user.profile ===
+                          "Profissional" && (
+                          <p className="mt-2 text-[11px] font-medium text-violet-600">
+                            O vínculo do perfil Profissional principal é definido pelo próprio cadastro profissional.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
 

@@ -44,6 +44,7 @@ import { SessionResultSection } from "@/components/pacientes/profile/evolutions/
 import { EvolutionAttachmentsSection } from "@/components/pacientes/profile/evolutions/EvolutionAttachmentsSection";
 import { ProfessionalSignatureSection } from "@/components/pacientes/profile/evolutions/ProfessionalSignatureSection";
 import { AbaEvolutionForm } from "@/components/pacientes/profile/evolutions/AbaEvolutionForm";
+import { AbaSupervisionForm } from "@/components/pacientes/profile/evolutions/AbaSupervisionForm";
 
 import { createEvolutionDefaultValues } from "@/components/pacientes/profile/evolutions/evolutionForm.defaults";
 
@@ -206,6 +207,14 @@ export default function NovaEvolucao() {
       "RASCUNHO" &&
     draftEvolution.evolutionType ===
       "ABA"
+      ? draftEvolution
+      : undefined;
+
+  const editableAbaSupervisionDraft =
+    draftEvolution?.status ===
+      "RASCUNHO" &&
+    draftEvolution.evolutionType ===
+      "SUPERVISAO_ABA"
       ? draftEvolution
       : undefined;
 
@@ -554,11 +563,14 @@ export default function NovaEvolucao() {
   ] =
     useState<
       "PADRAO" |
-      "ABA"
+      "ABA" |
+      "SUPERVISAO_ABA"
     >(
       editableAbaDraft
         ? "ABA"
-        : "PADRAO"
+        : editableAbaSupervisionDraft
+          ? "SUPERVISAO_ABA"
+          : "PADRAO"
     );
 
   const [
@@ -680,9 +692,44 @@ export default function NovaEvolucao() {
     ]
   );
 
+  useEffect(
+    () => {
+      if (
+        editableAbaDraft ||
+        editableAbaSupervisionDraft
+      ) {
+        return;
+      }
+
+      const appointmentType =
+        linkedAppointment?.type
+          ?.trim()
+          .toLocaleLowerCase(
+            "pt-BR"
+          ) ?? "";
+
+      if (
+        appointmentType ===
+          "supervisão aba" ||
+        appointmentType ===
+          "supervisao aba"
+      ) {
+        setEvolutionType(
+          "SUPERVISAO_ABA"
+        );
+      }
+    },
+    [
+      editableAbaDraft,
+      editableAbaSupervisionDraft,
+      linkedAppointment,
+    ]
+  );
+
   const [savedEvolutionId, setSavedEvolutionId] =
     useState<number | null>(
       editableAbaDraft?.id ??
+        editableAbaSupervisionDraft?.id ??
         null
     );
 
@@ -1590,6 +1637,141 @@ export default function NovaEvolucao() {
 
   if (
     evolutionType ===
+    "SUPERVISAO_ABA"
+  ) {
+    return (
+      <DashboardLayout>
+        <div className="-m-2 min-h-full rounded-[30px] bg-gradient-to-br from-violet-50/80 via-sky-50/50 to-emerald-50/60 p-2 sm:-m-3 sm:p-3">
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-white/80 bg-white/70 px-5 py-4 shadow-sm backdrop-blur">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="mb-3 inline-flex items-center gap-2 rounded-lg px-2 py-1 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-50 hover:text-violet-700"
+              >
+                <ArrowLeft size={17} />
+                Voltar para evoluções
+              </button>
+
+              <h1 className="text-3xl font-extrabold tracking-tight text-[#10235f]">
+                {editableAbaSupervisionDraft
+                  ? "Continuar Supervisão ABA"
+                  : "Nova Evolução"}
+              </h1>
+
+              <p className="mt-2 text-sm text-slate-500">
+                Registre os dados da Ficha de Evolução da Supervisão ABA.
+              </p>
+              <div className="mt-4 w-full max-w-[360px]">
+                <FormField label="Tipo de evolução">
+                  <Select
+                    value={evolutionType}
+                    onChange={(event) =>
+                      setEvolutionType(
+                        event.target.value as
+                          | "PADRAO"
+                          | "ABA"
+                          | "SUPERVISAO_ABA"
+                      )
+                    }
+                  >
+                    <option value="PADRAO">
+                      Evolução Padrão
+                    </option>
+
+                    <option value="ABA">
+                      Evolução Diária - ABA
+                    </option>
+
+                    <option value="SUPERVISAO_ABA">
+                      Supervisão ABA
+                    </option>
+                  </Select>
+                </FormField>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-violet-100 bg-gradient-to-r from-white via-violet-50/70 to-sky-50/70 p-5 shadow-[0_12px_30px_rgba(79,70,229,0.08)]">
+              <div className="flex items-center gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-indigo-200/70">
+                  <UserRound size={27} />
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    {patient.nome}
+                  </h2>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Supervisão ABA
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <AbaSupervisionForm
+              patientId={patientIdNumber}
+              unitId={activeUnitId}
+              professional={
+                editableAbaSupervisionDraft?.professional ||
+                effectiveProfessionalName
+              }
+              specialty={
+                editableAbaSupervisionDraft?.specialty ||
+                professionalSpecialty ||
+                linkedAppointment?.specialty ||
+                "ABA"
+              }
+              sessionDate={
+                editableAbaSupervisionDraft?.sessionDate ||
+                linkedAppointment?.date
+              }
+              startTime={
+                editableAbaSupervisionDraft?.startTime ||
+                linkedAppointment?.time
+              }
+              endTime={
+                editableAbaSupervisionDraft?.endTime ||
+                linkedAppointment?.endTime
+              }
+              appointmentType={
+                editableAbaSupervisionDraft?.appointmentType ||
+                linkedAppointment?.type ||
+                "Supervisão ABA"
+              }
+              appointmentLocation={
+                editableAbaSupervisionDraft?.appointmentLocation ||
+                "Clinica"
+              }
+              evolutionId={
+                editableAbaSupervisionDraft?.id
+              }
+              initialData={
+                editableAbaSupervisionDraft?.abaSupervisionData
+              }
+              initialAttachments={
+                editableAbaSupervisionDraft?.attachments ??
+                []
+              }
+              onSaved={() =>
+                setTimeout(
+                  () => {
+                    navigate(
+                      `/pacientes/${patientId}?tab=evolucoes`
+                    );
+                  },
+                  700
+                )
+              }
+            />
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (
+    evolutionType ===
     "ABA"
   ) {
     return (
@@ -1615,13 +1797,7 @@ export default function NovaEvolucao() {
               <p className="mt-2 text-sm text-slate-500">
                 Selecione o modelo de evolução e registre os dados do atendimento.
               </p>
-            </div>
-
-            <PageCard
-              title="Modelo da Evolução"
-              description="Escolha qual formulário será utilizado neste atendimento."
-            >
-              <div className="max-w-xl">
+              <div className="mt-4 w-full max-w-[360px]">
                 <FormField label="Tipo de evolução">
                   <Select
                     value={evolutionType}
@@ -1630,6 +1806,7 @@ export default function NovaEvolucao() {
                         event.target.value as
                           | "PADRAO"
                           | "ABA"
+                          | "SUPERVISAO_ABA"
                       )
                     }
                   >
@@ -1640,10 +1817,14 @@ export default function NovaEvolucao() {
                     <option value="ABA">
                       Evolução Diária - ABA
                     </option>
+
+                    <option value="SUPERVISAO_ABA">
+                      Supervisão ABA
+                    </option>
                   </Select>
                 </FormField>
               </div>
-            </PageCard>
+            </div>
 
             <div className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-white via-indigo-50/70 to-cyan-50/70 p-5 shadow-[0_12px_30px_rgba(79,70,229,0.08)]">
               <div className="flex items-center gap-4">
@@ -1729,8 +1910,8 @@ export default function NovaEvolucao() {
       <div className="-m-2 min-h-full rounded-[30px] bg-gradient-to-br from-violet-50/80 via-sky-50/50 to-emerald-50/60 p-2 sm:-m-3 sm:p-3">
         <div className="space-y-6">
         <div className="rounded-2xl border border-white/80 bg-white/70 px-5 py-4 shadow-sm backdrop-blur">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px_1fr] lg:items-center">
+            <div className="lg:justify-self-start">
               <button
                 type="button"
                 onClick={handleCancel}
@@ -1749,8 +1930,36 @@ export default function NovaEvolucao() {
               </p>
             </div>
 
+            <div className="w-full lg:w-[360px] lg:justify-self-center">
+              <FormField label="Tipo de evolução">
+                <Select
+                  value={evolutionType}
+                  onChange={(event) =>
+                    setEvolutionType(
+                      event.target.value as
+                        | "PADRAO"
+                        | "ABA"
+                        | "SUPERVISAO_ABA"
+                    )
+                  }
+                >
+                  <option value="PADRAO">
+                    Evolução Padrão
+                  </option>
+
+                  <option value="ABA">
+                    Evolução Diária - ABA
+                  </option>
+
+                  <option value="SUPERVISAO_ABA">
+                    Supervisão ABA
+                  </option>
+                </Select>
+              </FormField>
+            </div>
+
             {isProfissional && (
-              <div className="flex w-full flex-col gap-2 lg:w-auto lg:items-end">
+              <div className="flex w-full flex-col gap-2 lg:w-auto lg:justify-self-end lg:items-end">
                 {currentLaterRequest && (
                   <div
                     className={`min-w-[300px] rounded-2xl border px-4 py-3 shadow-sm ${
@@ -1847,34 +2056,6 @@ export default function NovaEvolucao() {
             {feedback}
           </div>
         )}
-
-        <PageCard
-          title="Modelo da Evolução"
-          description="Escolha qual formulário será utilizado neste atendimento."
-        >
-          <div className="max-w-xl">
-            <FormField label="Tipo de evolução">
-              <Select
-                value={evolutionType}
-                onChange={(event) =>
-                  setEvolutionType(
-                    event.target.value as
-                      | "PADRAO"
-                      | "ABA"
-                  )
-                }
-              >
-                <option value="PADRAO">
-                  Evolução Padrão
-                </option>
-
-                <option value="ABA">
-                  Evolução Diária - ABA
-                </option>
-              </Select>
-            </FormField>
-          </div>
-        </PageCard>
 
         <div className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-white via-indigo-50/70 to-cyan-50/70 p-5 shadow-[0_12px_30px_rgba(79,70,229,0.08)]">
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">

@@ -376,6 +376,20 @@ function EvolutionCard({
             <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-500">
               {evolution.appointmentType || "Atendimento"}
             </span>
+
+            {evolution.evolutionType ===
+              "SUPERVISAO_ABA" && (
+              <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-bold text-violet-700">
+                Supervisão ABA
+              </span>
+            )}
+
+            {evolution.evolutionType ===
+              "ABA" && (
+              <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-[10px] font-bold text-indigo-700">
+                Evolução Diária - ABA
+              </span>
+            )}
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -425,8 +439,18 @@ function EvolutionCard({
                   size={17}
                 />
               }
-              label="Objetivos"
-              value={`${evolution.objectives.length} trabalhado(s)`}
+              label={
+                evolution.evolutionType ===
+                "SUPERVISAO_ABA"
+                  ? "Modelo"
+                  : "Objetivos"
+              }
+              value={
+                evolution.evolutionType ===
+                "SUPERVISAO_ABA"
+                  ? "Supervisão ABA"
+                  : `${evolution.objectives.length} trabalhado(s)`
+              }
             />
           </div>
 
@@ -441,8 +465,12 @@ function EvolutionCard({
 
         {evolution.status ===
           "RASCUNHO" &&
-        evolution.evolutionType ===
-          "ABA" ? (
+        (
+          evolution.evolutionType ===
+            "ABA" ||
+          evolution.evolutionType ===
+            "SUPERVISAO_ABA"
+        ) ? (
           <Button
             type="button"
             onClick={

@@ -22,6 +22,14 @@ import {
   createDefaultAbaEvolutionData,
 } from "@/components/pacientes/profile/evolutions/abaEvolution.types";
 
+import type {
+  AbaSupervisionEvolutionData,
+} from "@/components/pacientes/profile/evolutions/abaSupervision.types";
+
+import {
+  createDefaultAbaSupervisionEvolutionData,
+} from "@/components/pacientes/profile/evolutions/abaSupervision.types";
+
 /* =========================================
    TIPOS
 ========================================= */
@@ -63,13 +71,20 @@ export interface StoredEvolution {
    */
   evolutionType:
     | "PADRAO"
-    | "ABA";
+    | "ABA"
+    | "SUPERVISAO_ABA";
 
   /**
    * Dados estruturados exclusivos da Evolução Diária - ABA.
    * Para a evolução padrão, permanece undefined.
    */
   abaData?: AbaEvolutionData;
+
+  /**
+   * Dados estruturados exclusivos da Ficha de Evolução
+   * da Supervisão ABA.
+   */
+  abaSupervisionData?: AbaSupervisionEvolutionData;
 
   sessionDate: string;
 
@@ -146,11 +161,17 @@ export interface CreateEvolutionData {
 
   evolutionType?:
     | "PADRAO"
-    | "ABA";
+    | "ABA"
+    | "SUPERVISAO_ABA";
 
   abaData?:
     Partial<
       AbaEvolutionData
+    >;
+
+  abaSupervisionData?:
+    Partial<
+      AbaSupervisionEvolutionData
     >;
 
   sessionDate?: string;
@@ -308,13 +329,24 @@ export function getEvolutions():
               evolution.evolutionType ===
               "ABA"
                 ? "ABA"
-                : "PADRAO";
+                : evolution.evolutionType ===
+                    "SUPERVISAO_ABA"
+                  ? "SUPERVISAO_ABA"
+                  : "PADRAO";
 
             const abaData =
               evolutionType ===
               "ABA"
                 ? normalizeAbaData(
                     evolution.abaData
+                  )
+                : undefined;
+
+            const abaSupervisionData =
+              evolutionType ===
+              "SUPERVISAO_ABA"
+                ? normalizeAbaSupervisionData(
+                    evolution.abaSupervisionData
                   )
                 : undefined;
 
@@ -331,6 +363,11 @@ export function getEvolutions():
                 evolutionType ===
                   "ABA" &&
                 !evolution.abaData
+              ) ||
+              (
+                evolutionType ===
+                  "SUPERVISAO_ABA" &&
+                !evolution.abaSupervisionData
               )
             ) {
               changed =
@@ -345,6 +382,7 @@ export function getEvolutions():
               nutrition,
               evolutionType,
               abaData,
+              abaSupervisionData,
             };
           }
         );
@@ -496,6 +534,13 @@ export function createEvolution(
       validateFinalizedAbaEvolution(
         data
       );
+    } else if (
+      data.evolutionType ===
+      "SUPERVISAO_ABA"
+    ) {
+      validateFinalizedAbaSupervisionEvolution(
+        data
+      );
     } else {
       validateFinalizedEvolution(
         data
@@ -538,13 +583,24 @@ export function createEvolution(
       data.evolutionType ===
       "ABA"
         ? "ABA"
-        : "PADRAO",
+        : data.evolutionType ===
+            "SUPERVISAO_ABA"
+          ? "SUPERVISAO_ABA"
+          : "PADRAO",
 
     abaData:
       data.evolutionType ===
       "ABA"
         ? normalizeAbaData(
             data.abaData
+          )
+        : undefined,
+
+    abaSupervisionData:
+      data.evolutionType ===
+      "SUPERVISAO_ABA"
+        ? normalizeAbaSupervisionData(
+            data.abaSupervisionData
           )
         : undefined,
 
@@ -724,9 +780,12 @@ export function updateEvolution(
       "ABA"
         ? "ABA"
         : data.evolutionType ===
-            "PADRAO"
-          ? "PADRAO"
-          : existing.evolutionType,
+            "SUPERVISAO_ABA"
+          ? "SUPERVISAO_ABA"
+          : data.evolutionType ===
+              "PADRAO"
+            ? "PADRAO"
+            : existing.evolutionType,
 
     abaData:
       data.abaData !==
@@ -735,6 +794,14 @@ export function updateEvolution(
             data.abaData
           )
         : existing.abaData,
+
+    abaSupervisionData:
+      data.abaSupervisionData !==
+      undefined
+        ? normalizeAbaSupervisionData(
+            data.abaSupervisionData
+          )
+        : existing.abaSupervisionData,
 
     specialty:
       data.specialty !==
@@ -862,6 +929,13 @@ export function updateEvolution(
       "ABA"
     ) {
       validateFinalizedAbaEvolution(
+        merged
+      );
+    } else if (
+      merged.evolutionType ===
+      "SUPERVISAO_ABA"
+    ) {
+      validateFinalizedAbaSupervisionEvolution(
         merged
       );
     } else {
@@ -1281,6 +1355,197 @@ function validateFinalizedAbaEvolution(
       "Informe a conclusão da evolução."
     );
   }
+}
+
+/* =========================================
+   VALIDAR SUPERVISÃO ABA
+========================================= */
+
+function validateFinalizedAbaSupervisionEvolution(
+  data:
+    Pick<
+      CreateEvolutionData,
+      | "patientId"
+      | "sessionDate"
+      | "startTime"
+      | "professional"
+      | "abaSupervisionData"
+    >
+) {
+  validatePatientId(
+    data.patientId
+  );
+
+  if (!data.sessionDate) {
+    throw new Error(
+      "Informe a data da supervisão."
+    );
+  }
+
+  if (!data.startTime) {
+    throw new Error(
+      "Informe o horário de início."
+    );
+  }
+
+  if (
+    !cleanText(
+      data.professional
+    )
+  ) {
+    throw new Error(
+      "Informe o profissional responsável."
+    );
+  }
+
+  const supervision =
+    normalizeAbaSupervisionData(
+      data.abaSupervisionData
+    );
+
+  if (
+    !supervision.conditionEntry
+  ) {
+    throw new Error(
+      "Informe a condição de entrada do paciente."
+    );
+  }
+
+  if (
+    !supervision.companionAttendance
+  ) {
+    throw new Error(
+      "Informe se o acompanhante compareceu à supervisão."
+    );
+  }
+
+  if (
+    !supervision.allProgramsApplied
+  ) {
+    throw new Error(
+      "Informe se todos os programas foram aplicados na semana."
+    );
+  }
+
+  if (
+    !supervision.programNeedsModification
+  ) {
+    throw new Error(
+      "Informe se algum programa precisa ser modificado."
+    );
+  }
+
+  if (
+    !supervision.programEnded
+  ) {
+    throw new Error(
+      "Informe se algum programa foi encerrado."
+    );
+  }
+
+  if (
+    !supervision.helpLevelEvolution
+  ) {
+    throw new Error(
+      "Informe se houve evolução no nível de ajuda."
+    );
+  }
+
+  if (
+    !supervision.conclusion
+  ) {
+    throw new Error(
+      "Informe a conclusão da supervisão."
+    );
+  }
+}
+
+/* =========================================
+   NORMALIZAR SUPERVISÃO ABA
+========================================= */
+
+function normalizeAbaSupervisionData(
+  value:
+    Partial<
+      AbaSupervisionEvolutionData
+    > |
+    undefined
+):
+  AbaSupervisionEvolutionData {
+  const defaults =
+    createDefaultAbaSupervisionEvolutionData();
+
+  const attendance =
+    value?.companionAttendance ===
+        "SIM" ||
+      value?.companionAttendance ===
+        "NAO" ||
+      value?.companionAttendance ===
+        "JUSTIFICOU_AUSENCIA"
+      ? value.companionAttendance
+      : "";
+
+  const normalizeYesNo = (
+    candidate:
+      unknown
+  ):
+    "" | "SIM" | "NAO" =>
+    candidate === "SIM" ||
+    candidate === "NAO"
+      ? candidate
+      : "";
+
+  return {
+    ...defaults,
+
+    conditionEntry:
+      cleanText(
+        value?.conditionEntry
+      ),
+
+    therapeuticCompanion:
+      cleanText(
+        value?.therapeuticCompanion
+      ),
+
+    companionAttendance:
+      attendance,
+
+    allProgramsApplied:
+      normalizeYesNo(
+        value?.allProgramsApplied
+      ),
+
+    programNeedsModification:
+      normalizeYesNo(
+        value?.programNeedsModification
+      ),
+
+    hardestProgram:
+      cleanText(
+        value?.hardestProgram
+      ),
+
+    programEnded:
+      normalizeYesNo(
+        value?.programEnded
+      ),
+
+    helpLevelEvolution:
+      normalizeYesNo(
+        value?.helpLevelEvolution
+      ),
+
+    additionalObservations:
+      cleanText(
+        value?.additionalObservations
+      ),
+
+    conclusion:
+      cleanText(
+        value?.conclusion
+      ),
+  };
 }
 
 /* =========================================

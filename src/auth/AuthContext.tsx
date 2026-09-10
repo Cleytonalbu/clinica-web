@@ -2,7 +2,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -49,7 +48,9 @@ interface AuthContextValue {
     () => void;
 
   switchProfile:
-    (profile: UserProfile) => void;
+    (
+      profile: UserProfile
+    ) => void;
 }
 
 const AuthContext =
@@ -143,7 +144,10 @@ export function AuthProvider({
 
   const switchProfile =
     useCallback(
-      (profile: UserProfile) => {
+      (
+        profile:
+          UserProfile
+      ) => {
         const nextSession =
           switchAuthSessionProfile(
             profile
@@ -155,39 +159,6 @@ export function AuthProvider({
       },
       []
     );
-
-  useEffect(
-    () => {
-      function handleSessionChanged() {
-        setSession(
-          getAuthSession()
-        );
-      }
-
-      window.addEventListener(
-        "entre-afetos-auth-session-changed",
-        handleSessionChanged
-      );
-
-      window.addEventListener(
-        "storage",
-        handleSessionChanged
-      );
-
-      return () => {
-        window.removeEventListener(
-          "entre-afetos-auth-session-changed",
-          handleSessionChanged
-        );
-
-        window.removeEventListener(
-          "storage",
-          handleSessionChanged
-        );
-      };
-    },
-    []
-  );
 
   const value =
     useMemo<AuthContextValue>(
@@ -208,6 +179,7 @@ export function AuthProvider({
         logout,
 
         refreshSession,
+
         switchProfile,
       }),
       [
