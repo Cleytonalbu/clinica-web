@@ -30,6 +30,10 @@ export interface StoredPatientDocument {
   mimeType:
     string;
 
+  /** Conteúdo temporário do frontend. A API substituirá este campo pelo endereço do arquivo. */
+  fileDataUrl?:
+    string;
+
   size:
     number;
 
@@ -71,6 +75,9 @@ export interface CreatePatientDocumentData {
     DocumentType;
 
   mimeType?:
+    string;
+
+  fileDataUrl?:
     string;
 
   size:
@@ -239,6 +246,9 @@ export function createPatientDocument(
       data.mimeType?.trim() ||
       "",
 
+    fileDataUrl:
+      data.fileDataUrl,
+
     size:
       normalizeSize(
         data.size
@@ -279,7 +289,7 @@ export function createPatientDocument(
    CRIAR A PARTIR DE FILE
 ========================================= */
 
-export function createPatientDocumentFromFile(
+export async function createPatientDocumentFromFile(
   patientId:
     number,
 
@@ -294,6 +304,9 @@ export function createPatientDocumentFromFile(
       string;
   }
 ) {
+  const fileDataUrl =
+    await fileToDataUrl(file);
+
   return createPatientDocument(
     {
       patientId,
@@ -314,6 +327,8 @@ export function createPatientDocumentFromFile(
       mimeType:
         file.type,
 
+      fileDataUrl,
+
       size:
         file.size,
 
@@ -324,6 +339,15 @@ export function createPatientDocumentFromFile(
         "DOCUMENTO",
     }
   );
+}
+
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("Não foi possível ler o arquivo."));
+    reader.readAsDataURL(file);
+  });
 }
 
 /* =========================================

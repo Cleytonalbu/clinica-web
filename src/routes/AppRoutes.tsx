@@ -1362,7 +1362,7 @@ export function AppRoutes() {
           >
             <ProtectedRoute
               module="settings"
-              action="view"
+              action="manage"
             >
               <Configuracoes />
             </ProtectedRoute>

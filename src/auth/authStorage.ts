@@ -67,6 +67,9 @@ const USERS_STORAGE_KEY =
 const SESSION_STORAGE_KEY =
   "entre-afetos-auth-session";
 
+const DRA_ANA_LOGIN_RESTORED_KEY =
+  "entre-afetos-dra-ana-login-restored-v1";
+
 const defaultUsers: StoredUser[] = [
   {
     id: 1,
@@ -254,10 +257,39 @@ export function getStoredUsers(): StoredUser[] {
         ? parsed
         : [];
 
+    const shouldRestoreDraAna =
+      localStorage.getItem(
+        DRA_ANA_LOGIN_RESTORED_KEY
+      ) !== "1";
+
+    const draAnaDefault =
+      defaultUsers.find(
+        (user) =>
+          user.email ===
+          "ana@entreafetos.com.br"
+      );
+
+    const usersWithDraAnaRestored =
+      shouldRestoreDraAna &&
+      draAnaDefault
+        ? [
+            ...baseUsers.filter(
+              (user) =>
+                user.id !== draAnaDefault.id &&
+                user.professionalId !== draAnaDefault.professionalId &&
+                user.email.trim().toLowerCase() !==
+                  draAnaDefault.email
+                    .trim()
+                    .toLowerCase()
+            ),
+            draAnaDefault,
+          ]
+        : baseUsers;
+
     const missingDefaults =
       defaultUsers.filter(
         (defaultUser) =>
-          !baseUsers.some(
+          !usersWithDraAnaRestored.some(
             (user) =>
               user.email
                 .trim()
@@ -269,7 +301,7 @@ export function getStoredUsers(): StoredUser[] {
       );
 
     const withDefaults = [
-      ...baseUsers,
+      ...usersWithDraAnaRestored,
       ...missingDefaults,
     ];
 
@@ -370,6 +402,13 @@ export function getStoredUsers(): StoredUser[] {
         normalized
       )
     );
+
+    if (shouldRestoreDraAna) {
+      localStorage.setItem(
+        DRA_ANA_LOGIN_RESTORED_KEY,
+        "1"
+      );
+    }
 
     return normalized;
   } catch {
@@ -1239,7 +1278,6 @@ export function canCurrentUserPerform(
     | "view"
     | "create"
     | "edit"
-    | "delete"
     | "manage"
 ) {
   const user =

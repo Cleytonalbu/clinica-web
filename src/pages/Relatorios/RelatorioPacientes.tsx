@@ -6,9 +6,10 @@ import {
 import {
   CalendarDays,
   CircleDollarSign,
+  Download,
+  Eye,
   FileText,
   Filter,
-  Printer,
   Search,
   UserRound,
   UserX,
@@ -37,7 +38,6 @@ import {
 
 import {
   getSavedAppointments,
-  type StoredAppointment,
 } from "@/pages/Agenda/appointmentStorage";
 
 import {
@@ -60,6 +60,8 @@ import {
   PatientReportDocument,
   PATIENT_REPORT_DOCUMENT_STYLES,
 } from "@/components/relatorios/PatientReportDocument";
+
+import { ReportPreviewModal } from "@/components/relatorios/ReportPreviewModal";
 
 interface PatientReport {
   patientId: number;
@@ -248,6 +250,8 @@ const REPORT_PRINT_STYLES = `
 `;
 
 export default function RelatorioPacientes() {
+  const [previewOpen, setPreviewOpen] = useState(false);
+
   const {
     activeUnitId,
   } =
@@ -849,20 +853,47 @@ ${PATIENT_REPORT_DOCUMENT_STYLES}`
               Limpar filtros
             </Button>
 
+            <Button type="button" variant="outline" onClick={() => setPreviewOpen(true)}>
+              <Eye size={17} />
+              Visualizar
+            </Button>
+
             <Button
               type="button"
               onClick={
                 handlePrint
               }
             >
-              <Printer
+              <Download
                 size={17}
               />
 
-              Imprimir relatório
+              Baixar PDF
             </Button>
           </div>
         </div>
+
+        <ReportPreviewModal
+          open={previewOpen}
+          title="Relatório de Pacientes"
+          printStyles={`${REPORT_PRINT_STYLES}\n${PATIENT_REPORT_DOCUMENT_STYLES}`}
+          onClose={() => setPreviewOpen(false)}
+          onDownload={handlePrint}
+        >
+          <PatientReportDocument
+            startDate={startDate}
+            endDate={endDate}
+            searchFilter={search || "Todos"}
+            situationFilter={situation}
+            report={filteredPatients}
+            totalPatients={totalPatients}
+            totalAppointments={totalAppointments}
+            totalRealized={totalRealized}
+            totalAbsences={totalAbsences}
+            totalPending={totalPending}
+            averageAppointments={averageAppointments}
+          />
+        </ReportPreviewModal>
 
         <div className="hidden print:block">
           <p className="text-xs text-slate-500">

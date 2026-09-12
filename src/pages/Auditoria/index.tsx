@@ -2726,6 +2726,8 @@ export default function Auditoria() {
                       8
                     )
                   }
+                  onSelect={setSelectedSpecialtyAudit}
+                  selectedSpecialty={selectedSpecialtyAudit}
                 />
               </section>
 

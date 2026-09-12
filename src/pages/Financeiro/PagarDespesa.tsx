@@ -87,7 +87,7 @@ export default function PagarDespesa() {
       )
         ? item
         : undefined;
-    })();
+    })()!;
 
   const bankAccounts =
     useMemo(

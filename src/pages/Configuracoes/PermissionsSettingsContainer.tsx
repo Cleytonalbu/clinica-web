@@ -1,7 +1,4 @@
-import {
-  Plus,
-  Save,
-} from "lucide-react";
+import { Save } from "lucide-react";
 
 import {
   Button,
@@ -11,8 +8,6 @@ import PermissionsSettingsSection from "./PermissionsSettingsSection";
 
 import {
   saveSystemSettings,
-  type ModulePermission,
-  type PermissionModuleKey,
   type PermissionsSettings,
   type SystemSettings,
 } from "./settingsStorage";
@@ -33,26 +28,6 @@ interface Props {
         string
     ) => void;
 }
-
-const emptyPermission: ModulePermission = {
-  view: false,
-  create: false,
-  edit: false,
-  delete: false,
-  manage: false,
-};
-
-const moduleKeys: PermissionModuleKey[] = [
-  "dashboard",
-  "patients",
-  "agenda",
-  "professionals",
-  "financial",
-  "evolutions",
-  "documents",
-  "reports",
-  "settings",
-];
 
 export default function PermissionsSettingsContainer({
   settings,
@@ -75,131 +50,6 @@ export default function PermissionsSettingsContainer({
     );
   }
 
-  function handleAddProfile() {
-    const modules =
-      moduleKeys.reduce(
-        (
-          accumulator,
-          module
-        ) => {
-          accumulator[
-            module
-          ] = {
-            ...emptyPermission,
-          };
-
-          return accumulator;
-        },
-        {} as Record<
-          PermissionModuleKey,
-          ModulePermission
-        >
-      );
-
-    const nextSettings:
-      SystemSettings = {
-      ...settings,
-
-      permissions: {
-        ...settings.permissions,
-
-        profiles: [
-          ...settings.permissions.profiles,
-
-          {
-            id:
-              Date.now(),
-
-            name:
-              `Novo Perfil ${
-                settings.permissions.profiles.length +
-                1
-              }`,
-
-            description:
-              "Perfil personalizado.",
-
-            active:
-              true,
-
-            systemProfile:
-              false,
-
-            modules,
-          },
-        ],
-      },
-    };
-
-    onSettingsChange(
-      nextSettings
-    );
-
-    onFeedback(
-      "Novo perfil criado. Configure as permissões abaixo."
-    );
-  }
-
-  function handleRemoveProfile(
-    id:
-      number
-  ) {
-    const profile =
-      settings.permissions.profiles.find(
-        (
-          item
-        ) =>
-          item.id ===
-          id
-      );
-
-    if (
-      !profile
-    ) {
-      return;
-    }
-
-    if (
-      profile.systemProfile
-    ) {
-      onFeedback(
-        "Perfis padrão do sistema não podem ser excluídos."
-      );
-
-      return;
-    }
-
-    const nextSettings:
-      SystemSettings = {
-      ...settings,
-
-      permissions: {
-        ...settings.permissions,
-
-        profiles:
-          settings.permissions.profiles.filter(
-            (
-              item
-            ) =>
-              item.id !==
-              id
-          ),
-      },
-    };
-
-    onSettingsChange(
-      nextSettings
-    );
-
-    saveSystemSettings(
-      nextSettings
-    );
-
-    onFeedback(
-      "Perfil excluído com sucesso."
-    );
-  }
-
   function handleSave() {
     saveSystemSettings(
       settings
@@ -213,20 +63,6 @@ export default function PermissionsSettingsContainer({
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={
-            handleAddProfile
-          }
-        >
-          <Plus
-            size={17}
-          />
-
-          Novo perfil
-        </Button>
-
         <Button
           type="button"
           onClick={
@@ -248,10 +84,6 @@ export default function PermissionsSettingsContainer({
 
         onChange={
           handleChange
-        }
-
-        onRemoveProfile={
-          handleRemoveProfile
         }
       />
     </div>

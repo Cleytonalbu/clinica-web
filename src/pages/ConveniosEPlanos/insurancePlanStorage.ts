@@ -87,7 +87,7 @@ export function getConveniosPlanos(): ConvenioPlano[] {
                   .map(Number)
                   .filter(
                     (
-                      id
+                      id: unknown
                     ) =>
                       Number.isFinite(
                         id
@@ -125,7 +125,7 @@ export function getConveniosPlanos(): ConvenioPlano[] {
                   .map(Number)
                   .filter(
                     (
-                      id
+                      id: unknown
                     ) =>
                       Number.isFinite(
                         id

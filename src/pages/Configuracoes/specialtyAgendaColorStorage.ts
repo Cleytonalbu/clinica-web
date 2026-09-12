@@ -187,16 +187,6 @@ export function getSpecialtyAgendaColor(
   specialtyId:
     number
 ) {
-  const specialty =
-    getActiveSpecialties()
-      .find(
-        (
-          item
-        ) =>
-          item.id ===
-          specialtyId
-      );
-
   const stored =
     readItems()
       .find(

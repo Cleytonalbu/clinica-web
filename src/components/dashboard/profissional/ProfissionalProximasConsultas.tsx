@@ -206,11 +206,11 @@ export function ProfissionalProximasConsultas() {
             occurrence.patientName,
           specialty:
             occurrence.specialty,
-          status:
+          status: (
             occurrence.exception?.status ===
             "Confirmado"
               ? "Confirmado"
-              : "Agendado",
+              : "Agendado") as ProfessionalNextAppointment["status"],
         })
       ),
     ]

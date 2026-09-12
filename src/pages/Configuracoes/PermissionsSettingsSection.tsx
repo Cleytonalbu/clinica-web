@@ -6,9 +6,6 @@ import {
   LayoutDashboard,
   Settings,
   ShieldCheck,
-  Stethoscope,
-  Trash2,
-  UserRound,
   UsersRound,
 } from "lucide-react";
 
@@ -39,11 +36,6 @@ interface Props {
         PermissionsSettings
     ) => void;
 
-  onRemoveProfile:
-    (
-      id:
-        number
-    ) => void;
 }
 
 const moduleItems: {
@@ -109,29 +101,13 @@ const moduleItems: {
 
   {
     key:
-      "professionals",
-
-    title:
-      "Profissionais",
-
-    description:
-      "Cadastro e gerenciamento dos profissionais.",
-
-    icon:
-      <Stethoscope
-        size={18}
-      />,
-  },
-
-  {
-    key:
       "financial",
 
     title:
       "Financeiro",
 
     description:
-      "Recebimentos, cobranças, carteira e informações financeiras.",
+      "Recebimentos, cobranças e informações financeiras.",
 
     icon:
       <CircleDollarSign
@@ -148,22 +124,6 @@ const moduleItems: {
 
     description:
       "Registros clínicos e evoluções dos pacientes.",
-
-    icon:
-      <FileText
-        size={18}
-      />,
-  },
-
-  {
-    key:
-      "documents",
-
-    title:
-      "Documentos",
-
-    description:
-      "Documentos, anexos e arquivos do paciente.",
 
     icon:
       <FileText
@@ -237,14 +197,6 @@ const permissionLabels: {
 
   {
     key:
-      "delete",
-
-    title:
-      "Excluir",
-  },
-
-  {
-    key:
       "manage",
 
     title:
@@ -252,10 +204,22 @@ const permissionLabels: {
   },
 ];
 
+const supportedActionsByModule: Record<
+  PermissionModuleKey,
+  Array<keyof ModulePermission>
+> = {
+  dashboard: ["view"],
+  patients: ["view", "create", "edit"],
+  agenda: ["view", "create", "edit"],
+  financial: ["view", "create", "edit"],
+  evolutions: ["view", "create", "edit"],
+  reports: ["view"],
+  settings: ["view", "manage"],
+};
+
 export default function PermissionsSettingsSection({
   settings,
   onChange,
-  onRemoveProfile,
 }: Props) {
   function updateProfile(
     id:
@@ -264,6 +228,19 @@ export default function PermissionsSettingsSection({
     data:
       Partial<PermissionProfileSetting>
   ) {
+    const currentProfile =
+      settings.profiles.find(
+        (profile) =>
+          profile.id === id
+      );
+
+    if (
+      currentProfile?.name ===
+      "Gestor"
+    ) {
+      return;
+    }
+
     onChange({
       ...settings,
 
@@ -297,6 +274,21 @@ export default function PermissionsSettingsSection({
     value:
       boolean
   ) {
+    if (
+      profile.name ===
+      "Gestor"
+    ) {
+      return;
+    }
+
+    if (
+      !supportedActionsByModule[
+        module
+      ].includes(permission)
+    ) {
+      return;
+    }
+
     const currentModule =
       profile.modules[
         module
@@ -322,9 +314,6 @@ export default function PermissionsSettingsSection({
           false,
 
         edit:
-          false,
-
-        delete:
           false,
 
         manage:
@@ -361,17 +350,42 @@ export default function PermissionsSettingsSection({
     module:
       PermissionModuleKey
   ) {
+    if (
+      profile.name ===
+      "Gestor"
+    ) {
+      return;
+    }
+
     const permissions =
       profile.modules[
         module
       ];
 
+    const supportedActions =
+      supportedActionsByModule[
+        module
+      ];
+
     const allEnabled =
-      Object.values(
-        permissions
-      ).every(
-        Boolean
+      supportedActions.every(
+        (action) =>
+          permissions[action]
       );
+
+    const nextPermissions: ModulePermission = {
+      view: false,
+      create: false,
+      edit: false,
+      manage: false,
+    };
+
+    supportedActions.forEach(
+      (action) => {
+        nextPermissions[action] =
+          !allEnabled;
+      }
+    );
 
     updateProfile(
       profile.id,
@@ -379,22 +393,8 @@ export default function PermissionsSettingsSection({
         modules: {
           ...profile.modules,
 
-          [module]: {
-            view:
-              !allEnabled,
-
-            create:
-              !allEnabled,
-
-            edit:
-              !allEnabled,
-
-            delete:
-              !allEnabled,
-
-            manage:
-              !allEnabled,
-          },
+          [module]:
+            nextPermissions,
         },
       }
     );
@@ -408,17 +408,9 @@ export default function PermissionsSettingsSection({
         profile.active
     ).length;
 
-  const customProfiles =
-    settings.profiles.filter(
-      (
-        profile
-      ) =>
-        !profile.systemProfile
-    ).length;
-
   return (
     <>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <SummaryCard
           title="Perfis cadastrados"
 
@@ -436,14 +428,6 @@ export default function PermissionsSettingsSection({
         />
 
         <SummaryCard
-          title="Perfis personalizados"
-
-          value={String(
-            customProfiles
-          )}
-        />
-
-        <SummaryCard
           title="Módulos controlados"
 
           value={String(
@@ -451,139 +435,6 @@ export default function PermissionsSettingsSection({
           )}
         />
       </div>
-
-      <PageCard
-        title="Regras Gerais de Acesso"
-        description="Defina restrições globais aplicadas aos perfis do sistema."
-      >
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <BooleanSetting
-            title="Profissional visualiza apenas seus pacientes"
-
-            description="Limita o profissional aos pacientes vinculados aos seus atendimentos."
-
-            checked={
-              settings.restrictProfessionalsToOwnPatients
-            }
-
-            onChange={(
-              value
-            ) =>
-              onChange({
-                ...settings,
-
-                restrictProfessionalsToOwnPatients:
-                  value,
-              })
-            }
-          />
-
-          <BooleanSetting
-            title="Profissional visualiza apenas sua agenda"
-
-            description="Oculta os atendimentos de outros profissionais."
-
-            checked={
-              settings.restrictProfessionalsToOwnAgenda
-            }
-
-            onChange={(
-              value
-            ) =>
-              onChange({
-                ...settings,
-
-                restrictProfessionalsToOwnAgenda:
-                  value,
-              })
-            }
-          />
-
-          <BooleanSetting
-            title="Profissional visualiza apenas suas evoluções"
-
-            description="Impede acesso às evoluções registradas por outros profissionais."
-
-            checked={
-              settings.restrictProfessionalsToOwnEvolutions
-            }
-
-            onChange={(
-              value
-            ) =>
-              onChange({
-                ...settings,
-
-                restrictProfessionalsToOwnEvolutions:
-                  value,
-              })
-            }
-          />
-
-          <BooleanSetting
-            title="Ocultar valores financeiros dos profissionais"
-
-            description="Não exibe valores de consultas, cobranças ou faturamento para o perfil profissional."
-
-            checked={
-              settings.hideFinancialValuesFromProfessionals
-            }
-
-            onChange={(
-              value
-            ) =>
-              onChange({
-                ...settings,
-
-                hideFinancialValuesFromProfessionals:
-                  value,
-              })
-            }
-          />
-
-          <BooleanSetting
-            title="Recepção pode visualizar dados clínicos"
-
-            description="Libera acesso da recepção a informações clínicas do prontuário."
-
-            checked={
-              settings.allowReceptionToViewClinicalData
-            }
-
-            onChange={(
-              value
-            ) =>
-              onChange({
-                ...settings,
-
-                allowReceptionToViewClinicalData:
-                  value,
-              })
-            }
-          />
-
-          <BooleanSetting
-            title="Recepção pode editar cadastro do paciente"
-
-            description="Permite atualizar dados pessoais e informações administrativas do paciente."
-
-            checked={
-              settings.allowReceptionToEditPatientData
-            }
-
-            onChange={(
-              value
-            ) =>
-              onChange({
-                ...settings,
-
-                allowReceptionToEditPatientData:
-                  value,
-              })
-            }
-          />
-        </div>
-      </PageCard>
 
       <div className="space-y-6">
         {settings.profiles.map(
@@ -646,6 +497,9 @@ export default function PermissionsSettingsSection({
                             }
                           )
                         }
+                        disabled={
+                          profile.name === "Gestor"
+                        }
                       />
                     </FormField>
                   </div>
@@ -662,38 +516,26 @@ export default function PermissionsSettingsSection({
                           }
                         )
                       }
+                      disabled={
+                        profile.name === "Gestor"
+                      }
                       className={`rounded-xl px-4 py-2.5 text-sm font-semibold ${
                         profile.active
                           ? "bg-emerald-100 text-emerald-700"
                           : "bg-slate-100 text-slate-500"
-                      }`}
+                      } disabled:cursor-not-allowed disabled:opacity-60`}
                     >
                       {profile.active
                         ? "Ativo"
                         : "Inativo"}
                     </button>
 
-                    {!profile.systemProfile && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onRemoveProfile(
-                            profile.id
-                          )
-                        }
-                        className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-200 text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2
-                          size={18}
-                        />
-                      </button>
-                    )}
                   </div>
                 </div>
 
                 <div className="overflow-x-auto">
                   <div className="min-w-[900px]">
-                    <div className="grid grid-cols-[260px_repeat(5,1fr)_110px] gap-2 border-b border-slate-200 pb-3">
+                    <div className="grid grid-cols-[260px_repeat(4,1fr)_110px] gap-2 border-b border-slate-200 pb-3">
                       <div className="text-xs font-bold uppercase tracking-wide text-slate-400">
                         Módulo
                       </div>
@@ -730,11 +572,15 @@ export default function PermissionsSettingsSection({
                               module.key
                             ];
 
+                          const supportedActions =
+                            supportedActionsByModule[
+                              module.key
+                            ];
+
                           const allEnabled =
-                            Object.values(
-                              permissions
-                            ).every(
-                              Boolean
+                            supportedActions.every(
+                              (action) =>
+                                permissions[action]
                             );
 
                           return (
@@ -742,7 +588,7 @@ export default function PermissionsSettingsSection({
                               key={
                                 module.key
                               }
-                              className="grid grid-cols-[260px_repeat(5,1fr)_110px] items-center gap-2 py-4"
+                              className="grid grid-cols-[260px_repeat(4,1fr)_110px] items-center gap-2 py-4"
                             >
                               <div className="flex items-center gap-3">
                                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
@@ -769,33 +615,48 @@ export default function PermissionsSettingsSection({
                               {permissionLabels.map(
                                 (
                                   permission
-                                ) => (
-                                  <div
-                                    key={
+                                ) => {
+                                  const supported =
+                                    supportedActions.includes(
                                       permission.key
-                                    }
-                                    className="flex justify-center"
-                                  >
-                                    <PermissionCheckbox
-                                      checked={
-                                        permissions[
-                                          permission.key
-                                        ]
-                                      }
+                                    );
 
-                                      onChange={(
-                                        value
-                                      ) =>
-                                        updatePermission(
-                                          profile,
-                                          module.key,
-                                          permission.key,
-                                          value
-                                        )
+                                  return (
+                                    <div
+                                      key={
+                                        permission.key
                                       }
-                                    />
-                                  </div>
-                                )
+                                      className="flex justify-center"
+                                    >
+                                      {supported ? (
+                                        <PermissionCheckbox
+                                          checked={
+                                            permissions[
+                                              permission.key
+                                            ]
+                                          }
+
+                                          disabled={
+                                            profile.name === "Gestor"
+                                          }
+
+                                          onChange={(
+                                            value
+                                          ) =>
+                                            updatePermission(
+                                              profile,
+                                              module.key,
+                                              permission.key,
+                                              value
+                                            )
+                                          }
+                                        />
+                                      ) : (
+                                        <span className="text-slate-300">—</span>
+                                      )}
+                                    </div>
+                                  );
+                                }
                               )}
 
                               <div className="flex justify-center">
@@ -807,11 +668,14 @@ export default function PermissionsSettingsSection({
                                       module.key
                                     )
                                   }
+                                  disabled={
+                                    profile.name === "Gestor"
+                                  }
                                   className={`rounded-lg px-3 py-2 text-xs font-semibold ${
                                     allEnabled
                                       ? "bg-indigo-100 text-indigo-700"
                                       : "bg-slate-100 text-slate-500"
-                                  }`}
+                                  } disabled:cursor-not-allowed disabled:opacity-60`}
                                 >
                                   {allEnabled
                                     ? "Completo"
@@ -828,7 +692,9 @@ export default function PermissionsSettingsSection({
 
                 {profile.systemProfile && (
                   <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
-                    Este é um perfil padrão do sistema. O nome não pode ser alterado, mas suas permissões podem ser personalizadas.
+                    {profile.name === "Gestor"
+                      ? "O perfil Gestor é a conta de segurança do sistema e mantém acesso completo para evitar bloqueio administrativo."
+                      : "Este é um perfil padrão do sistema. O nome não pode ser alterado, mas suas permissões podem ser personalizadas."}
                   </div>
                 )}
               </div>
@@ -850,7 +716,7 @@ export default function PermissionsSettingsSection({
             </p>
 
             <p className="mt-1 text-sm leading-6 text-indigo-700">
-              As permissões configuradas aqui serão utilizadas posteriormente pelo login e pelas rotas protegidas do sistema. Isso permitirá ocultar menus, bloquear telas e impedir ações não autorizadas de acordo com o perfil do usuário.
+              As permissões configuradas aqui são aplicadas imediatamente aos menus e às rotas protegidas do sistema. Os quatro perfis correspondem diretamente às áreas disponíveis no login.
             </p>
           </div>
         </div>
@@ -861,9 +727,13 @@ export default function PermissionsSettingsSection({
 
 function PermissionCheckbox({
   checked,
+  disabled = false,
   onChange,
 }: {
   checked:
+    boolean;
+
+  disabled?:
     boolean;
 
   onChange:
@@ -879,6 +749,9 @@ function PermissionCheckbox({
         checked={
           checked
         }
+        disabled={
+          disabled
+        }
         onChange={(
           event
         ) =>
@@ -886,79 +759,8 @@ function PermissionCheckbox({
             event.target.checked
           )
         }
-        className="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+        className="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
       />
-    </label>
-  );
-}
-
-function BooleanSetting({
-  title,
-  description,
-  checked,
-  onChange,
-}: {
-  title:
-    string;
-
-  description:
-    string;
-
-  checked:
-    boolean;
-
-  onChange:
-    (
-      value:
-        boolean
-    ) => void;
-}) {
-  return (
-    <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-indigo-200">
-      <div>
-        <p className="text-sm font-semibold text-slate-800">
-          {
-            title
-          }
-        </p>
-
-        <p className="mt-1 text-xs leading-5 text-slate-500">
-          {
-            description
-          }
-        </p>
-      </div>
-
-      <span
-        className={`relative mt-1 inline-flex h-6 w-11 shrink-0 rounded-full transition ${
-          checked
-            ? "bg-indigo-600"
-            : "bg-slate-300"
-        }`}
-      >
-        <input
-          type="checkbox"
-          className="sr-only"
-          checked={
-            checked
-          }
-          onChange={(
-            event
-          ) =>
-            onChange(
-              event.target.checked
-            )
-          }
-        />
-
-        <span
-          className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-all ${
-            checked
-              ? "left-6"
-              : "left-1"
-          }`}
-        />
-      </span>
     </label>
   );
 }

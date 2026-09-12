@@ -41,6 +41,8 @@ import {
   saveBlockRequest,
 } from "./blockRequestStorage";
 
+import { useUnit } from "@/providers/UnitContext";
+
 type BlockType =
   ScheduleBlock["type"];
 
@@ -63,6 +65,7 @@ const initialValues: BlockRequestFormData = {
 export default function SolicitarBloqueio() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { activeUnitId } = useUnit();
 
   const professionalName = useMemo(
     () => user?.professionalName ?? user?.name ?? "",
@@ -154,6 +157,7 @@ export default function SolicitarBloqueio() {
     try {
       saveBlockRequest({
         id: Date.now(),
+        unitId: activeUnitId,
         professional: professionalName,
         date: formData.date,
         startTime: formData.startTime,

@@ -63,6 +63,7 @@ import {
 
 import {
   formatCurrency,
+  getConfiguredPaymentMethods,
 } from "./financeRules";
 import {
   openReceiptPrint,
@@ -71,6 +72,11 @@ import {
 import {
   getClinicUnitById,
 } from "@/pages/Configuracoes/clinicUnitStorage";
+
+import {
+  getClinicSettings,
+  getFinancialSettings,
+} from "@/pages/Configuracoes/settingsStorage";
 
 import {
   getActivePackagePlansByUnit,
@@ -118,6 +124,22 @@ type ReceptionPaymentMethod =
   | "Cartão de Crédito"
   | "Transferência"
   | "Outro";
+
+function getReceptionPaymentMethods(): ReceptionPaymentMethod[] {
+  return getConfiguredPaymentMethods().map(
+    (method) => {
+      if (method === "Cartão de débito") {
+        return "Cartão de Débito";
+      }
+
+      if (method === "Cartão de crédito") {
+        return "Cartão de Crédito";
+      }
+
+      return method as ReceptionPaymentMethod;
+    }
+  );
+}
 
 interface ReceptionCashMovement {
   id: number;
@@ -533,7 +555,9 @@ function FinanceiroRecepcao() {
     setPrintReceipt,
   ] =
     useState(
-      true
+      () =>
+        getFinancialSettings()
+          .generateReceiptAutomatically
     );
 
   const selectedPatient =
@@ -764,14 +788,18 @@ function FinanceiroRecepcao() {
         method ===
           "Pix" ||
         method ===
-          "Cartão de Débito" ||
+          "Cartão de débito" ||
         method ===
-          "Cartão de Crédito" ||
+          "Cartão de crédito" ||
         method ===
           "Transferência"
       ) {
         setPaymentMethod(
-          method
+          method === "Cartão de débito"
+            ? "Cartão de Débito"
+            : method === "Cartão de crédito"
+              ? "Cartão de Crédito"
+              : method
         );
       }
     },
@@ -1664,6 +1692,12 @@ function FinanceiroRecepcao() {
       type ===
         "Recebimento"
     ) {
+      const clinicSettings =
+        getClinicSettings();
+
+      const financialSettings =
+        getFinancialSettings();
+
       const receiptSpecialty =
         receiptOrigin ===
           "package"
@@ -1689,31 +1723,49 @@ function FinanceiroRecepcao() {
           ),
 
         clinicName:
-          "Clínica Integrada Entre Afetos",
+          clinicSettings.clinicName,
 
         unitName:
           activeUnit?.name,
 
         clinicAddress:
-          activeUnit?.address,
+          financialSettings.showClinicDataOnReceipt
+            ? clinicSettings.address
+            : undefined,
 
         clinicCityState:
-          [
-            activeUnit?.city,
-            activeUnit?.state,
-          ]
+          financialSettings.showClinicDataOnReceipt
+            ? [
+                clinicSettings.city,
+                clinicSettings.state,
+              ]
             .filter(
               Boolean
             )
             .join(
               " - "
-            ),
+            )
+            : undefined,
 
         clinicPhone:
-          activeUnit?.phone,
+          financialSettings.showClinicDataOnReceipt
+            ? clinicSettings.phone
+            : undefined,
+
+        clinicDocument:
+          financialSettings.showClinicDataOnReceipt
+            ? clinicSettings.cnpj
+            : undefined,
+
+        clinicEmail:
+          financialSettings.showClinicDataOnReceipt
+            ? clinicSettings.email
+            : undefined,
 
         patient:
-          selectedPatient.nome,
+          financialSettings.showPatientOnReceipt
+            ? selectedPatient.nome
+            : "Não informado",
 
         responsible:
           selectedPatient.responsavelNome,
@@ -1722,7 +1774,9 @@ function FinanceiroRecepcao() {
           description.trim(),
 
         specialty:
-          receiptSpecialty,
+          financialSettings.showProfessionalOnReceipt
+            ? receiptSpecialty
+            : undefined,
 
         amount:
           numericAmount,
@@ -2215,29 +2269,13 @@ function FinanceiroRecepcao() {
                         }
                         className="reception-input"
                       >
-                        <option value="Pix">
-                          PIX
-                        </option>
-
-                        <option value="Dinheiro">
-                          Dinheiro
-                        </option>
-
-                        <option value="Cartão de Débito">
-                          Cartão de Débito
-                        </option>
-
-                        <option value="Cartão de Crédito">
-                          Cartão de Crédito
-                        </option>
-
-                        <option value="Transferência">
-                          Transferência
-                        </option>
-
-                        <option value="Outro">
-                          Outro
-                        </option>
+                        {getReceptionPaymentMethods().map(
+                          (method) => (
+                            <option key={method} value={method}>
+                              {method}
+                            </option>
+                          )
+                        )}
                       </select>
                     </ReceptionField>
 

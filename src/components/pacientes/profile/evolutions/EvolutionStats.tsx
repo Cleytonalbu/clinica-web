@@ -109,11 +109,11 @@ export function EvolutionStats() {
           ) =>
             total +
             (
-              Number.isFinite(
-                evolution.attachments
-              )
-                ? evolution.attachments
-                : 0
+              Array.isArray(evolution.attachments)
+                ? evolution.attachments.length
+                : Number.isFinite(evolution.attachments)
+                  ? Number(evolution.attachments)
+                  : 0
             ),
 
           0

@@ -216,11 +216,6 @@ function DocumentRow({
       ? ImageIcon
       : FileText;
 
-  const canPreview =
-    document.fileType === "pdf" ||
-    document.fileType === "image" ||
-    document.fileType === "text";
-
   return (
     <div className="rounded-xl border border-slate-100 bg-white p-3 transition hover:border-violet-100 hover:bg-violet-50/20">
       <div className="flex items-start gap-3">
@@ -241,14 +236,9 @@ function DocumentRow({
       <div className="mt-3 flex items-center gap-1.5">
         <button
           type="button"
-          disabled={!canPreview}
           onClick={onPreview}
-          className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-violet-100 bg-violet-50 px-2 py-1.5 text-[9px] font-bold text-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
-          title={
-            canPreview
-              ? "Visualização rápida"
-              : "Prévia não disponível para este formato"
-          }
+          className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-violet-100 bg-violet-50 px-2 py-1.5 text-[9px] font-bold text-violet-700"
+          title="Visualização rápida"
         >
           <Eye size={12} />
           Visualizar

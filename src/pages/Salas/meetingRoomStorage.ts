@@ -95,7 +95,7 @@ export function getMeetingRoomBookings() {
           typeof item === "object"
       )
       .map(
-        (item) => ({
+        (item): MeetingRoomBooking => ({
           id: Number(item.id),
           unitId: Number(item.unitId),
           roomName: cleanText(item.roomName) || "Sala de Reunião",

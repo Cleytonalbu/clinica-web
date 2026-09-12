@@ -38,6 +38,7 @@ import {
 } from "@/auth/AuthContext";
 
 import {
+  userCan,
   userCanAccessModule,
 } from "@/auth/permissions";
 
@@ -148,7 +149,7 @@ const menuItems: MenuItem[] = [
     label: "Profissionais",
     icon: Stethoscope,
     path: "/profissionais",
-    module: "professionals",
+    gestorOnly: true,
   },
 
   {
@@ -417,6 +418,17 @@ export function Sidebar() {
           return (
             currentProfile ===
             "Gestor"
+          );
+        }
+
+        if (
+          item.module ===
+          "settings"
+        ) {
+          return userCan(
+            user,
+            "settings",
+            "manage"
           );
         }
 

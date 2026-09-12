@@ -2,15 +2,17 @@ import {
   Archive,
   CalendarClock,
   Download,
+  Eye,
   FileText,
   Plus,
   Search,
   X,
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { useUnit } from "@/providers/UnitContext";
 import { Button, Input, Select } from "@/components/ui";
+import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 import {
   getAdministrativeDocumentDisplayStatus,
   getAdministrativeDocuments,
@@ -54,6 +56,9 @@ export default function DocumentosAdministrativos() {
   const [form, setForm] = useState(emptyForm);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
+  const [previewDocument, setPreviewDocument] =
+    useState<AdministrativeDocument | null>(null);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
 
   useEffect(() => {
     setDocuments(
@@ -147,7 +152,7 @@ export default function DocumentosAdministrativos() {
     );
   }
 
-  function openDocument(document: AdministrativeDocument) {
+  function downloadDocument(document: AdministrativeDocument) {
     if (!document.fileDataUrl) return;
     const link = window.document.createElement("a");
     link.href = document.fileDataUrl;
@@ -272,15 +277,27 @@ export default function DocumentosAdministrativos() {
                       </td>
                       <td className="px-5 py-4">
                         {document.fileName ? (
-                          <button
-                            type="button"
-                            onClick={() => openDocument(document)}
-                            className="flex max-w-[180px] items-center gap-2 font-semibold text-[#6d5dfc] hover:underline"
-                            title={document.fileName}
-                          >
-                            <Download size={15} className="shrink-0" />
-                            <span className="truncate">{document.fileName}</span>
-                          </button>
+                          <div className="flex max-w-[220px] flex-col items-start gap-1.5">
+                            <span className="w-full truncate text-xs font-semibold text-slate-600" title={document.fileName}>
+                              {document.fileName}
+                            </span>
+                            <div className="flex gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setPreviewDocument(document)}
+                                className="inline-flex items-center gap-1 rounded-lg bg-violet-50 px-2 py-1 text-[10px] font-bold text-violet-700 hover:bg-violet-100"
+                              >
+                                <Eye size={13} /> Visualizar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => downloadDocument(document)}
+                                className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600 hover:bg-slate-200"
+                              >
+                                <Download size={13} /> Baixar
+                              </button>
+                            </div>
+                          </div>
                         ) : (
                           <span className="text-slate-400">Sem anexo</span>
                         )}
@@ -403,6 +420,15 @@ export default function DocumentosAdministrativos() {
                   />
                 </Field>
                 {fileError && <p className="mt-2 text-xs font-semibold text-red-600">{fileError}</p>}
+                {selectedFile && (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewFile(selectedFile)}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-100"
+                  >
+                    <Eye size={14} /> Visualizar arquivo selecionado
+                  </button>
+                )}
                 <p className="mt-2 text-xs text-slate-400">
                   PDF, Word ou imagem. Nesta versão local, anexos de até 1,5 MB ficam salvos no navegador.
                 </p>
@@ -429,6 +455,29 @@ export default function DocumentosAdministrativos() {
             </form>
           </div>
         </div>
+      )}
+
+      {previewDocument && (
+        <DocumentPreviewModal
+          open
+          title={previewDocument.title}
+          fileName={previewDocument.fileName || previewDocument.title}
+          mimeType={previewDocument.fileType}
+          dataUrl={previewDocument.fileDataUrl}
+          onClose={() => setPreviewDocument(null)}
+          onDownload={() => downloadDocument(previewDocument)}
+        />
+      )}
+
+      {previewFile && (
+        <DocumentPreviewModal
+          open
+          title={previewFile.name}
+          fileName={previewFile.name}
+          mimeType={previewFile.type}
+          file={previewFile}
+          onClose={() => setPreviewFile(null)}
+        />
       )}
     </DashboardLayout>
   );

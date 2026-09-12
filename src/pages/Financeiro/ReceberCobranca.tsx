@@ -39,7 +39,12 @@ import {
 } from "@/pages/ContasBancarias/bankAccountStorage";
 
 import {
+  getFinancialSettings,
+} from "@/pages/Configuracoes/settingsStorage";
+
+import {
   formatCurrency,
+  getConfiguredPaymentMethods,
   type PaymentMethod,
 } from "./financeRules";
 
@@ -80,7 +85,7 @@ export default function ReceberCobranca() {
       )
         ? item
         : undefined;
-    })();
+    })()!;
 
   const bankAccounts =
     useMemo(
@@ -156,8 +161,11 @@ export default function ReceberCobranca() {
     setReceivedAmount,
   ] =
     useState(
-      charge?.amount ??
+      Math.max(
+        (charge?.amount ?? 0) -
+          (charge?.receivedAmount ?? 0),
         0
+      )
     );
 
   const [
@@ -290,6 +298,9 @@ export default function ReceberCobranca() {
   }
 
   function validate() {
+    const financialSettings =
+      getFinancialSettings();
+
     if (
       charge.status ===
       "Pago"
@@ -317,6 +328,61 @@ export default function ReceberCobranca() {
     ) {
       setFeedback(
         "O valor recebido é inválido."
+      );
+
+      return false;
+    }
+
+    const amountAfterAdjustments =
+      Math.max(
+        charge.originalAmount -
+          discount +
+          surcharge -
+          (charge.receivedAmount ?? 0),
+        0
+      );
+
+    if (
+      !financialSettings.allowPartialPayment &&
+      receivedAmount < amountAfterAdjustments
+    ) {
+      setFeedback(
+        "O pagamento parcial está desativado nas configurações financeiras."
+      );
+
+      return false;
+    }
+
+    if (
+      !financialSettings.allowOverpayment &&
+      receivedAmount > amountAfterAdjustments
+    ) {
+      setFeedback(
+        "O pagamento acima do valor está desativado nas configurações financeiras."
+      );
+
+      return false;
+    }
+
+    if (
+      !financialSettings.allowDiscount &&
+      discount > 0
+    ) {
+      setFeedback(
+        "Descontos estão desativados nas configurações financeiras."
+      );
+
+      return false;
+    }
+
+    if (
+      financialSettings.allowDiscount &&
+      charge.originalAmount > 0 &&
+      (discount / charge.originalAmount) * 100 >
+        financialSettings.maximumDiscountPercent
+    ) {
+      setFeedback(
+        `O desconto máximo permitido é ${financialSettings.maximumDiscountPercent}%.`
       );
 
       return false;
@@ -511,25 +577,13 @@ export default function ReceberCobranca() {
                   )
                 }
               >
-                <option value="Pix">
-                  Pix
-                </option>
-
-                <option value="Dinheiro">
-                  Dinheiro
-                </option>
-
-                <option value="Cartão de débito">
-                  Cartão de débito
-                </option>
-
-                <option value="Cartão de crédito">
-                  Cartão de crédito
-                </option>
-
-                <option value="Transferência">
-                  Transferência
-                </option>
+                {getConfiguredPaymentMethods().map(
+                  (method) => (
+                    <option key={method} value={method}>
+                      {method}
+                    </option>
+                  )
+                )}
 
                 <option value="Convênio">
                   Convênio

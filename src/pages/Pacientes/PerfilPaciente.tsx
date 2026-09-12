@@ -334,6 +334,9 @@ export default function PerfilPaciente() {
         {/* ================================= */}
 
         <PatientProfileHeader
+          patientId={
+            patient.id
+          }
           nome={
             patient.nome
           }

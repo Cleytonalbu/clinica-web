@@ -5,6 +5,7 @@ import {
 
 import {
   CheckCircle2,
+  Eye,
   FileText,
   Paperclip,
   Save,
@@ -17,6 +18,8 @@ import {
   Input,
   PageCard,
 } from "@/components/ui";
+
+import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 
 import {
   createEvolution,
@@ -111,6 +114,10 @@ export function AbaEvolutionForm({
   initialAttachments = [],
   onSaved,
 }: AbaEvolutionFormProps) {
+  const [preview, setPreview] = useState<{
+    file?: File;
+    attachment?: StoredEvolutionAttachment;
+  } | null>(null);
   const [
     data,
     setData,
@@ -425,7 +432,7 @@ export function AbaEvolutionForm({
           data.conclusion,
         attachments: [
           ...existingAttachments,
-          ...createStoredAttachments(
+          ...await createStoredAttachments(
             attachments
           ),
         ],
@@ -865,6 +872,13 @@ export function AbaEvolutionForm({
                 <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700">
                   {attachment.name}
                 </span>
+                <button
+                  type="button"
+                  onClick={() => setPreview({ attachment })}
+                  className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-100"
+                >
+                  <Eye size={14} /> Visualizar
+                </button>
               </div>
             ))}
           </div>
@@ -894,6 +908,13 @@ export function AbaEvolutionForm({
                       file.name
                     }
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => setPreview({ file })}
+                    className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-100"
+                  >
+                    <Eye size={14} /> Visualizar
+                  </button>
                 </div>
               )
             )}
@@ -961,6 +982,18 @@ export function AbaEvolutionForm({
           </Button>
         </div>
       </div>
+
+      {preview && (
+        <DocumentPreviewModal
+          open
+          title={preview.file?.name ?? preview.attachment?.name ?? "Anexo"}
+          fileName={preview.file?.name ?? preview.attachment?.name ?? "anexo"}
+          mimeType={preview.file?.type ?? preview.attachment?.type}
+          file={preview.file}
+          dataUrl={preview.attachment?.dataUrl}
+          onClose={() => setPreview(null)}
+        />
+      )}
     </div>
   );
 }

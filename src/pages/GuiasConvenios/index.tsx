@@ -1,11 +1,11 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import {
   Banknote,
   Building2,
   Box,
   CalendarCheck2,
   CheckCircle2,
-  CircleCheckBig,
   CircleDollarSign,
   ClipboardCheck,
   FileWarning,
@@ -68,10 +68,7 @@ import {
 } from "./guideBillingStorage";
 
 
-import {
-  getBankAccounts,
-  type BankAccount,
-} from "@/pages/ContasBancarias/bankAccountStorage";
+import { getBankAccounts } from "@/pages/ContasBancarias/bankAccountStorage";
 
 import {
   createManualBankTransaction,
@@ -168,8 +165,6 @@ function badge(status: GuiaConvenioStatus) {
   switch (status) {
     case "Pago":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
-    case "Parcialmente pago":
-      return "border-teal-200 bg-teal-50 text-teal-700";
     case "Aprovado":
       return "border-blue-200 bg-blue-50 text-blue-700";
     case "Enviado":
@@ -217,6 +212,7 @@ export default function GuiasConvenios() {
   ] = useState<
     | "producao"
     | "lotes"
+    | "glosas"
   >(
     "producao"
   );
@@ -1344,33 +1340,6 @@ export default function GuiasConvenios() {
 
     setForm({ ...emptyForm, competencia });
     setOpen(false);
-  }
-
-  function enviar(item: GuiaConvenio) {
-    updateGuiaConvenio(item.id, {
-      status: "Enviado",
-      dataEnvio: new Date().toISOString().slice(0, 10),
-    });
-  }
-
-  function aprovar(item: GuiaConvenio) {
-    updateGuiaConvenio(item.id, { status: "Aprovado" });
-  }
-
-  function glosar(item: GuiaConvenio) {
-    const motivo = window.prompt("Informe o motivo da glosa:");
-    if (!motivo?.trim()) return;
-    updateGuiaConvenio(item.id, {
-      status: "Glosado",
-      motivoGlosa: motivo.trim(),
-    });
-  }
-
-  function pagar(item: GuiaConvenio) {
-    updateGuiaConvenio(item.id, {
-      status: "Pago",
-      dataPagamento: new Date().toISOString().slice(0, 10),
-    });
   }
 
   function criarLote(

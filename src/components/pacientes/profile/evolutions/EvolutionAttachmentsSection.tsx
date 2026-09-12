@@ -5,6 +5,7 @@ import {
 
 import {
   File,
+  Eye,
   FolderOpen,
   FolderPlus,
   Image,
@@ -19,6 +20,8 @@ import {
   PageCard,
   Select,
 } from "@/components/ui";
+
+import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 
 import {
   createPatientDocumentFolder,
@@ -88,6 +91,9 @@ export function EvolutionAttachmentsSection({
     >(
       null
     );
+
+  const [previewFile, setPreviewFile] =
+    useState<File | null>(null);
 
   const folders =
     useMemo(
@@ -431,6 +437,9 @@ export function EvolutionAttachmentsSection({
                       index
                     )
                   }
+                  onPreview={() =>
+                    setPreviewFile(file)
+                  }
                 />
               )
             )}
@@ -558,6 +567,17 @@ export function EvolutionAttachmentsSection({
           </div>
         </div>
       )}
+
+      {previewFile && (
+        <DocumentPreviewModal
+          open
+          title={previewFile.name}
+          fileName={previewFile.name}
+          mimeType={previewFile.type}
+          file={previewFile}
+          onClose={() => setPreviewFile(null)}
+        />
+      )}
     </>
   );
 }
@@ -575,6 +595,7 @@ interface AttachmentItemProps {
         string
     ) => void;
   onDelete: () => void;
+  onPreview: () => void;
 }
 
 function AttachmentItem({
@@ -583,6 +604,7 @@ function AttachmentItem({
   folders,
   onFolderChange,
   onDelete,
+  onPreview,
 }: AttachmentItemProps) {
   const icon =
     getFileIcon(
@@ -614,18 +636,26 @@ function AttachmentItem({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={
-            onDelete
-          }
-          className="rounded-lg p-2 text-red-500 transition hover:bg-red-50"
-          title="Remover anexo"
-        >
-          <Trash2
-            size={17}
-          />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onPreview}
+            className="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-xs font-bold text-indigo-600 transition hover:bg-indigo-50"
+            title="Visualizar anexo"
+          >
+            <Eye size={16} />
+            Visualizar
+          </button>
+
+          <button
+            type="button"
+            onClick={onDelete}
+            className="rounded-lg p-2 text-red-500 transition hover:bg-red-50"
+            title="Remover anexo"
+          >
+            <Trash2 size={17} />
+          </button>
+        </div>
       </div>
 
       <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3">

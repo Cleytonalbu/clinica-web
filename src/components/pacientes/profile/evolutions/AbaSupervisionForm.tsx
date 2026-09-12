@@ -318,9 +318,9 @@ export function AbaSupervisionForm({
           data.conclusion,
         attachments: [
           ...existingAttachments,
-          ...createStoredAttachments(
+          ...(await createStoredAttachments(
             attachments
-          ).map(
+          )).map(
             (
               attachment,
               index

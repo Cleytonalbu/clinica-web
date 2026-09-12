@@ -1,4 +1,5 @@
 import type { ScheduleBlock } from "./ScheduleBlocksView";
+import { getDefaultClinicUnitId } from "@/pages/Configuracoes/clinicUnitStorage";
 
 export type BlockRequestStatus =
   | "Pendente"
@@ -7,6 +8,7 @@ export type BlockRequestStatus =
 
 export interface BlockRequest {
   id: number;
+  unitId: number;
   professional: string;
   date: string;
   startTime: string;
@@ -29,7 +31,25 @@ export function getBlockRequests(): BlockRequest[] {
       return [];
     }
 
-    return JSON.parse(stored) as BlockRequest[];
+    const parsed = JSON.parse(stored) as Array<
+      BlockRequest | Omit<BlockRequest, "unitId">
+    >;
+    const defaultUnitId = getDefaultClinicUnitId();
+    let changed = false;
+    const normalized = parsed.map((request) => {
+      const savedUnitId = Number((request as Partial<BlockRequest>).unitId);
+      if (Number.isFinite(savedUnitId) && savedUnitId > 0) {
+        return { ...request, unitId: savedUnitId } as BlockRequest;
+      }
+      changed = true;
+      return { ...request, unitId: defaultUnitId } as BlockRequest;
+    });
+
+    if (changed) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    }
+
+    return normalized;
   } catch {
     return [];
   }

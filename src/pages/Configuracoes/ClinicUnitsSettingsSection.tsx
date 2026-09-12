@@ -1,7 +1,4 @@
-import {
-  useMemo,
-  useState,
-} from "react";
+import { useState } from "react";
 
 import {
   Building2,
@@ -68,7 +65,7 @@ export default function ClinicUnitsSettingsSection({
     useUnit();
 
   const [
-    unitsVersion,
+    ,
     setUnitsVersion,
   ] =
     useState(
@@ -95,13 +92,7 @@ export default function ClinicUnitsSettingsSection({
     );
 
   const units =
-    useMemo(
-      () =>
-        getClinicUnits(),
-      [
-        unitsVersion,
-      ]
-    );
+    getClinicUnits();
 
   function refresh() {
     setUnitsVersion(

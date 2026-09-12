@@ -7,9 +7,10 @@ import {
   CalendarDays,
   CheckCircle2,
   CircleDollarSign,
+  Download,
+  Eye,
   FileText,
   Filter,
-  Printer,
   Search,
   Stethoscope,
   UserRound,
@@ -39,7 +40,6 @@ import {
 
 import {
   getSavedAppointments,
-  type StoredAppointment,
 } from "@/pages/Agenda/appointmentStorage";
 
 import {
@@ -58,6 +58,8 @@ import {
   ProfessionalReportDocument,
   PROFESSIONAL_REPORT_DOCUMENT_STYLES,
 } from "@/components/relatorios/ProfessionalReportDocument";
+
+import { ReportPreviewModal } from "@/components/relatorios/ReportPreviewModal";
 
 interface ProfessionalReport {
   professional: string;
@@ -244,6 +246,8 @@ const REPORT_PRINT_STYLES = `
 `;
 
 export default function RelatorioProfissionais() {
+  const [previewOpen, setPreviewOpen] = useState(false);
+
   const {
     activeUnitId,
   } =
@@ -846,20 +850,51 @@ ${PROFESSIONAL_REPORT_DOCUMENT_STYLES}`
               Limpar filtros
             </Button>
 
+            <Button type="button" variant="outline" onClick={() => setPreviewOpen(true)}>
+              <Eye size={17} />
+              Visualizar
+            </Button>
+
             <Button
               type="button"
               onClick={
                 handlePrint
               }
             >
-              <Printer
+              <Download
                 size={17}
               />
 
-              Imprimir relatório
+              Baixar PDF
             </Button>
           </div>
         </div>
+
+        <ReportPreviewModal
+          open={previewOpen}
+          title="Relatório de Profissionais"
+          printStyles={`${REPORT_PRINT_STYLES}\n${PROFESSIONAL_REPORT_DOCUMENT_STYLES}`}
+          onClose={() => setPreviewOpen(false)}
+          onDownload={handlePrint}
+        >
+          <ProfessionalReportDocument
+            startDate={startDate}
+            endDate={endDate}
+            professionalFilter={search || "Todos"}
+            specialtyFilter={specialty}
+            report={filteredReport}
+            totalProfessionals={totalProfessionals}
+            totalAppointments={totalAppointments}
+            totalRealized={totalRealized}
+            totalAbsences={totalAbsences}
+            totalPatients={totalPatients}
+            totalBilled={totalBilled}
+            totalReceived={totalReceived}
+            totalPending={totalPending}
+            totalPayoutPaid={totalPayoutPaid}
+            totalPayoutPending={totalPayoutPending}
+          />
+        </ReportPreviewModal>
 
         <div className="hidden print:block">
           <p className="text-xs text-slate-500">

@@ -4,15 +4,11 @@ import {
   Check,
   ChevronRight,
   CircleDollarSign,
-  Download,
+  Eye,
   FileBarChart2,
-  FileSpreadsheet,
-  FileText,
   FilterX,
   Goal,
-  Printer,
   RefreshCcw,
-  Share2,
   Stethoscope,
   Target,
   UserRound,
@@ -659,11 +655,11 @@ export default function Relatorios() {
                 }
                 className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#5d3df5] to-[#773cf5] px-5 text-xs font-extrabold text-white shadow-[0_8px_20px_rgba(103,66,246,0.18)] transition hover:opacity-95 xl:w-auto"
               >
-                <Download
+                <Eye
                   size={16}
                 />
 
-                Gerar relatório
+                Abrir relatório
               </button>
             </div>
           </div>
@@ -751,69 +747,35 @@ export default function Relatorios() {
               </div>
             </section>
 
-            {/* EXPORTAR */}
+            {/* ACESSO À VISUALIZAÇÃO E DOWNLOAD */}
 
             <section className="rounded-2xl border border-[#e8eaf3] bg-white p-4 shadow-[0_4px_16px_rgba(51,65,120,0.04)]">
               <h2 className="text-base font-extrabold text-[#10235f]">
-                Exportar relatórios
+                Visualizar ou baixar
               </h2>
 
               <p className="mt-1 text-[10px] font-medium text-[#8a95b4]">
-                Escolha o formato desejado.
+                Abra o relatório escolhido para conferir os dados antes de salvar o PDF.
               </p>
-
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                <ExportButton
-                  label="PDF"
-                  icon={
-                    <FileText
-                      size={18}
-                    />
-                  }
-                  tone="red"
-                />
-
-                <ExportButton
-                  label="Excel"
-                  icon={
-                    <FileSpreadsheet
-                      size={18}
-                    />
-                  }
-                  tone="green"
-                />
-
-                <ExportButton
-                  label="Imprimir"
-                  icon={
-                    <Printer
-                      size={18}
-                    />
-                  }
-                  tone="purple"
-                  onClick={() =>
-                    window.print()
-                  }
-                />
-              </div>
 
               <button
                 type="button"
-                className="mt-3 flex w-full items-center gap-3 rounded-xl border border-[#e8eaf3] bg-[#fbfbfe] px-3 py-3 text-left transition hover:bg-[#f8f6ff]"
+                onClick={handleGenerateReport}
+                className="mt-4 flex w-full items-center gap-3 rounded-xl border border-[#ded9ff] bg-[#f8f6ff] px-3 py-3 text-left transition hover:bg-[#f1edff]"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#eeeaff] text-[#6847f5]">
-                  <Share2
+                  <Eye
                     size={16}
                   />
                 </span>
 
                 <span>
                   <strong className="block text-xs text-[#263765]">
-                    Compartilhar
+                    Abrir relatório selecionado
                   </strong>
 
                   <small className="mt-0.5 block text-[9px] text-[#8a95b4]">
-                    Enviar por e-mail ou link
+                    Na próxima tela, visualize e baixe em PDF.
                   </small>
                 </span>
               </button>
@@ -1145,66 +1107,6 @@ function QuickReportButton({
         size={15}
         className="text-[#6847f5]"
       />
-    </button>
-  );
-}
-
-/* =========================================
-   EXPORTAÇÃO
-========================================= */
-
-function ExportButton({
-  label,
-  icon,
-  tone,
-  onClick,
-}: {
-  label:
-    string;
-
-  icon:
-    React.ReactNode;
-
-  tone:
-    "red"
-    | "green"
-    | "purple";
-
-  onClick?:
-    () => void;
-}) {
-  const styles = {
-    red:
-      "bg-[#fff0f3] text-[#df4e67]",
-
-    green:
-      "bg-[#e8f8f1] text-[#269d75]",
-
-    purple:
-      "bg-[#eeeaff] text-[#6847f5]",
-  }[tone];
-
-  return (
-    <button
-      type="button"
-      onClick={
-        onClick
-      }
-      className="rounded-xl border border-[#e8eaf3] bg-white p-3 text-center transition hover:-translate-y-0.5 hover:shadow-sm"
-    >
-      <span
-        className={`mx-auto flex h-9 w-9 items-center justify-center rounded-xl ${styles}`}
-      >
-        {
-          icon
-        }
-      </span>
-
-      <span className="mt-2 block text-[9px] font-extrabold text-[#526080]">
-        {
-          label
-        }
-      </span>
     </button>
   );
 }

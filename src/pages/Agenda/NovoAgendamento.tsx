@@ -59,7 +59,9 @@ import {
 import {
   calculateChargeAmount,
   formatCurrency,
+  getConfiguredPaymentMethods,
   getDefaultPaymentMethod,
+  shouldCreateChargeOnAppointmentCreation,
   type BillingType,
   type PaymentMethod,
 } from "@/pages/Financeiro/financeRules";
@@ -73,7 +75,6 @@ import {
   getActiveProfessionals,
   getActiveRooms,
   getActiveSpecialties,
-  shouldCreateChargeOnAppointmentCreation,
 } from "@/pages/Configuracoes/settingsStorage";
 
 import {
@@ -2280,25 +2281,13 @@ export default function NovoAgendamento() {
                   )
                 }
               >
-                <option value="Pix">
-                  Pix
-                </option>
-
-                <option value="Dinheiro">
-                  Dinheiro
-                </option>
-
-                <option value="Cartão de débito">
-                  Cartão de débito
-                </option>
-
-                <option value="Cartão de crédito">
-                  Cartão de crédito
-                </option>
-
-                <option value="Transferência">
-                  Transferência
-                </option>
+                {getConfiguredPaymentMethods().map(
+                  (method) => (
+                    <option key={method} value={method}>
+                      {method}
+                    </option>
+                  )
+                )}
 
                 <option value="Convênio">
                   Convênio

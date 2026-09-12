@@ -7,9 +7,10 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
+  Download,
+  Eye,
   FileText,
   Filter,
-  Printer,
   UserCheck,
   UserX,
   XCircle,
@@ -44,6 +45,8 @@ import {
   AppointmentReportDocument,
   APPOINTMENT_REPORT_DOCUMENT_STYLES,
 } from "@/components/relatorios/AppointmentReportDocument";
+
+import { ReportPreviewModal } from "@/components/relatorios/ReportPreviewModal";
 
 function getProfessionalOptions(appointments: StoredAppointment[]) {
   return [
@@ -203,6 +206,8 @@ const REPORT_PRINT_STYLES = `
 `;
 
 export default function RelatorioAtendimentos() {
+  const [previewOpen, setPreviewOpen] = useState(false);
+
   const {
     activeUnitId,
   } =
@@ -551,18 +556,51 @@ ${APPOINTMENT_REPORT_DOCUMENT_STYLES}`
 
             <Button
               type="button"
+              variant="outline"
+              onClick={() => setPreviewOpen(true)}
+            >
+              <Eye size={17} />
+              Visualizar
+            </Button>
+
+            <Button
+              type="button"
               onClick={
                 handlePrint
               }
             >
-              <Printer
+              <Download
                 size={17}
               />
 
-              Imprimir relatório
+              Baixar PDF
             </Button>
           </div>
         </div>
+
+        <ReportPreviewModal
+          open={previewOpen}
+          title="Relatório de Atendimentos"
+          printStyles={`${REPORT_PRINT_STYLES}\n${APPOINTMENT_REPORT_DOCUMENT_STYLES}`}
+          onClose={() => setPreviewOpen(false)}
+          onDownload={handlePrint}
+        >
+          <AppointmentReportDocument
+            startDate={startDate}
+            endDate={endDate}
+            professionalFilter={professional}
+            specialtyFilter={specialty}
+            statusFilter={status}
+            appointments={filteredAppointments}
+            total={total}
+            scheduled={scheduled}
+            confirmed={confirmed}
+            realized={realized}
+            absent={absent}
+            cancelled={cancelled}
+            attendanceRate={attendanceRate}
+          />
+        </ReportPreviewModal>
 
         <div className="hidden print:block">
           <p className="text-xs text-slate-500">

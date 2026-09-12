@@ -47,6 +47,9 @@ export interface StoredEvolutionAttachment {
 
   size: number;
 
+  /** Conteúdo temporário do frontend. A API substituirá este campo pela URL do anexo. */
+  dataUrl?: string;
+
   /**
    * Pasta do prontuário onde o anexo deve aparecer.
    * Opcional para preservar anexos antigos, que continuam em "Sem pasta".
@@ -325,7 +328,7 @@ export function getEvolutions():
                 evolution.nutrition
               );
 
-            const evolutionType =
+            const evolutionType: StoredEvolution["evolutionType"] =
               evolution.evolutionType ===
               "ABA"
                 ? "ABA"
@@ -1089,16 +1092,17 @@ export function getEvolutionSummary(
    CONVERTER FILES PARA METADADOS
 ========================================= */
 
-export function createStoredAttachments(
+export async function createStoredAttachments(
   files:
     File[]
 ):
-  StoredEvolutionAttachment[] {
-  return files.map(
-    (
-      file,
-      index
-    ) => ({
+  Promise<StoredEvolutionAttachment[]> {
+  return Promise.all(
+    files.map(
+      async (
+        file,
+        index
+      ) => ({
       id:
         createAttachmentId(
           file,
@@ -1113,8 +1117,20 @@ export function createStoredAttachments(
 
       size:
         file.size,
-    })
+      dataUrl:
+        await fileToDataUrl(file),
+      })
+    )
   );
+}
+
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("Não foi possível ler o anexo."));
+    reader.readAsDataURL(file);
+  });
 }
 
 /* =========================================

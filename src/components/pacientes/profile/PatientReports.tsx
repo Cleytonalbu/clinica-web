@@ -397,36 +397,6 @@ export function PatientReports() {
       ]
     );
 
-  const completedAppointments =
-    accessibleAppointments.filter(
-      (
-        appointment
-      ) =>
-        appointment.status ===
-        "Realizado"
-    ).length;
-
-  const attendanceBase =
-    accessibleAppointments.filter(
-      (
-        appointment
-      ) =>
-        appointment.status ===
-          "Realizado" ||
-        appointment.status ===
-          "Faltou"
-    ).length;
-
-  const attendanceRate =
-    attendanceBase > 0
-      ? Math.round(
-          (
-            completedAppointments /
-            attendanceBase
-          ) * 100
-        )
-      : 0;
-
   const periodRange =
     useMemo(
       () =>
@@ -779,7 +749,7 @@ export function PatientReports() {
             activeReport
           }
           patientName={
-            patient?.name ??
+            patient?.nome ??
             `Paciente #${patientId}`
           }
           patientId={
@@ -818,7 +788,7 @@ export function PatientReports() {
               activeReport
             }
             patientName={
-              patient?.name ??
+              patient?.nome ??
               `Paciente #${patientId}`
             }
             patientId={

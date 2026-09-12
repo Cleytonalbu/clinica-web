@@ -285,7 +285,7 @@ export function RecepcaoPacientesRecentes() {
                 ) &&
                 !!patient.nascimento
             )
-            .map(
+            .flatMap(
               (
                 patient
               ) => {
@@ -299,10 +299,10 @@ export function RecepcaoPacientesRecentes() {
                   daysUntil ===
                   null
                 ) {
-                  return null;
+                  return [];
                 }
 
-                return {
+                return [{
                   id:
                     patient.id,
 
@@ -316,17 +316,8 @@ export function RecepcaoPacientesRecentes() {
                     patient.nascimento,
 
                   daysUntil,
-                };
+                }];
               }
-            )
-            .filter(
-              (
-                person
-              ):
-                person is
-                  BirthdayPerson =>
-                person !==
-                null
             );
 
         const professionalBirthdays =
@@ -340,7 +331,7 @@ export function RecepcaoPacientesRecentes() {
                   activeUnitId
                 )
             )
-            .map(
+            .flatMap(
               (
                 professional
               ) => {
@@ -352,7 +343,7 @@ export function RecepcaoPacientesRecentes() {
                 if (
                   !details?.birthDate
                 ) {
-                  return null;
+                  return [];
                 }
 
                 const daysUntil =
@@ -365,10 +356,10 @@ export function RecepcaoPacientesRecentes() {
                   daysUntil ===
                   null
                 ) {
-                  return null;
+                  return [];
                 }
 
-                return {
+                return [{
                   id:
                     professional.id,
 
@@ -385,17 +376,8 @@ export function RecepcaoPacientesRecentes() {
                     professional.specialty,
 
                   daysUntil,
-                };
+                }];
               }
-            )
-            .filter(
-              (
-                person
-              ):
-                person is
-                  BirthdayPerson =>
-                person !==
-                null
             );
 
         return [

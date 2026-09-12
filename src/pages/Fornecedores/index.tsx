@@ -1,5 +1,5 @@
 import { Building2, Mail, Phone, Plus, Search, UserRound, X } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { useUnit } from "@/providers/UnitContext";
 import { Button, Input, Select } from "@/components/ui";

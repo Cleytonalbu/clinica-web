@@ -377,7 +377,7 @@ export function ResponsibleSection({
     const current =
       getValues(
         "responsaveisVinculados"
-      );
+      ) ?? [];
 
     current.forEach(
       (
@@ -433,7 +433,7 @@ export function ResponsibleSection({
           const remaining =
             getValues(
               "responsaveisVinculados"
-            );
+            ) ?? [];
 
           if (
             remaining.length >

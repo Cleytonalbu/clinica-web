@@ -5,6 +5,7 @@ import {
 
 import {
   Download,
+  Eye,
   FileImage,
   FileText,
   FolderOpen,
@@ -30,6 +31,8 @@ import {
   PageCard,
   Select,
 } from "@/components/ui";
+
+import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
 
 import {
   createPatientDocumentFromFile,
@@ -87,6 +90,12 @@ type DisplayDocument = {
 
   size:
     number;
+
+  mimeType?:
+    string;
+
+  fileDataUrl?:
+    string;
 
   source:
     "DOCUMENTO" |
@@ -204,6 +213,11 @@ export function PatientDocuments() {
     >(
       null
     );
+
+  const [
+    previewDocument,
+    setPreviewDocument,
+  ] = useState<DisplayDocument | null>(null);
 
   /* =======================================
      PERFIL
@@ -345,6 +359,12 @@ export function PatientDocuments() {
 
                 size:
                   attachment.size,
+
+                mimeType:
+                  attachment.type,
+
+                fileDataUrl:
+                  attachment.dataUrl,
 
                 source:
                   "EVOLUCAO" as const,
@@ -948,7 +968,7 @@ export function PatientDocuments() {
      UPLOAD
   ======================================= */
 
-  function handleFiles(
+  async function handleFiles(
     files:
       FileList |
       null
@@ -978,23 +998,9 @@ export function PatientDocuments() {
       );
 
     try {
-      selectedFiles.forEach(
-        (
-          file
-        ) => {
-          const beforeIds =
-            new Set(
-              getDocumentsByPatientId(
-                patientId
-              ).map(
-                (
-                  document
-                ) =>
-                  document.id
-              )
-            );
-
-          createPatientDocumentFromFile(
+      for (const file of selectedFiles) {
+          const createdDocument =
+            await createPatientDocumentFromFile(
             patientId,
             file,
             {
@@ -1009,18 +1015,6 @@ export function PatientDocuments() {
                     : "Usuário"
                 ),
             }
-          );
-
-          const createdDocument =
-            getDocumentsByPatientId(
-              patientId
-            ).find(
-              (
-                document
-              ) =>
-                !beforeIds.has(
-                  document.id
-                )
             );
 
           if (
@@ -1033,8 +1027,7 @@ export function PatientDocuments() {
               uploadFolderId
             );
           }
-        }
-      );
+      }
 
       refreshDocuments();
 
@@ -1066,18 +1059,16 @@ export function PatientDocuments() {
     document:
       DisplayDocument
   ) {
-    /*
-     * O localStorage guarda apenas os
-     * metadados dos arquivos, e não os
-     * bytes do documento.
-     *
-     * O download real será implementado
-     * quando o upload estiver conectado
-     * ao backend/API.
-     */
+    if (document.fileDataUrl) {
+      const link = window.document.createElement("a");
+      link.href = document.fileDataUrl;
+      link.download = document.name;
+      link.click();
+      return;
+    }
 
     showFeedback(
-      `O arquivo "${document.name}" está registrado, mas o download real dependerá da integração com a API.`,
+      `O arquivo antigo "${document.name}" possui somente metadados. Reenvie o conteúdo ou aguarde a integração com a API.`,
       "error"
     );
   }
@@ -1796,6 +1787,21 @@ export function PatientDocuments() {
                           <button
                             type="button"
                             onClick={() =>
+                              setPreviewDocument(
+                                document
+                              )
+                            }
+                            className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-600"
+                            title="Visualizar documento"
+                          >
+                            <Eye
+                              size={17}
+                            />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
                               handleDownload(
                                 document
                               )
@@ -1888,7 +1894,7 @@ export function PatientDocuments() {
               </p>
 
               <p className="mt-1 text-xs text-amber-600">
-                Nesta etapa local são persistidos os dados do arquivo. O conteúdo físico será armazenado quando a API de upload estiver integrada.
+                Nesta etapa local, o conteúdo é salvo no navegador para permitir visualização e download. A API substituirá esse armazenamento posteriormente.
               </p>
             </div>
 
@@ -2064,6 +2070,18 @@ export function PatientDocuments() {
           </div>
         </div>
       )}
+
+      {previewDocument && (
+        <DocumentPreviewModal
+          open
+          title={previewDocument.name}
+          fileName={previewDocument.name}
+          mimeType={previewDocument.mimeType}
+          dataUrl={previewDocument.fileDataUrl}
+          onClose={() => setPreviewDocument(null)}
+          onDownload={() => handleDownload(previewDocument)}
+        />
+      )}
     </div>
   );
 }
@@ -2104,6 +2122,12 @@ function toDisplayDocument(
 
     size:
       document.size,
+
+    mimeType:
+      document.mimeType,
+
+    fileDataUrl:
+      document.fileDataUrl,
 
     source:
       document.source,

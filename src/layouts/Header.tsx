@@ -37,6 +37,7 @@ import {
 } from "@/providers/UnitContext";
 
 import {
+  userCan,
   userCanAccessModule,
 } from "@/auth/permissions";
 
@@ -512,23 +513,38 @@ export function Header() {
       if (
         !notificationProfile
       ) {
-        setDynamicNotifications(
-          []
-        );
+        const timeoutId =
+          window.setTimeout(
+            () =>
+              setDynamicNotifications(
+                []
+              ),
+            0
+          );
 
-        return;
+        return () =>
+          window.clearTimeout(
+            timeoutId
+          );
       }
+
+      const currentNotificationProfile =
+        notificationProfile;
 
       function refreshDynamicNotifications() {
         setDynamicNotifications(
           getWebNotificationsForUser(
-            notificationProfile,
+            currentNotificationProfile,
             notificationName
           )
         );
       }
 
-      refreshDynamicNotifications();
+      const timeoutId =
+        window.setTimeout(
+          refreshDynamicNotifications,
+          0
+        );
 
       window.addEventListener(
         WEB_NOTIFICATIONS_CHANGED_EVENT,
@@ -541,6 +557,10 @@ export function Header() {
       );
 
       return () => {
+        window.clearTimeout(
+          timeoutId
+        );
+
         window.removeEventListener(
           WEB_NOTIFICATIONS_CHANGED_EVENT,
           refreshDynamicNotifications
@@ -662,9 +682,10 @@ export function Header() {
   ======================================= */
 
   const canAccessSettings =
-    userCanAccessModule(
+    userCan(
       user,
-      "settings"
+      "settings",
+      "manage"
     );
 
 
@@ -675,10 +696,8 @@ export function Header() {
     );
 
   const canAccessProfessionals =
-    userCanAccessModule(
-      user,
-      "professionals"
-    );
+    user?.profile ===
+    "Gestor";
 
   const canAccessResponsibles =
     canAccessPatients &&

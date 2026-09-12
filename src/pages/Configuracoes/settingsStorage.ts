@@ -62,6 +62,17 @@ export interface ConvenioSetting {
   specialtyValues: Record<string, number>;
 }
 
+export interface ClinicSettings {
+  clinicName: string;
+  cnpj: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+}
+
 export interface AgendaDaySetting {
   day:
     | "Segunda"
@@ -82,60 +93,10 @@ export interface AgendaSettings {
 
   defaultSessionDuration: number;
   intervalBetweenAppointments: number;
-  minimumRescheduleHours: number;
 
   hasLunchBreak: boolean;
   lunchStartTime: string;
   lunchEndTime: string;
-
-  allowExtraAppointment: boolean;
-  allowOverlap: boolean;
-
-  blockRoomConflict: boolean;
-  blockProfessionalConflict: boolean;
-  blockPatientConflict: boolean;
-
-  showOccupiedTimesInRed: boolean;
-
-  reminder24Hours: boolean;
-  reminder2Hours: boolean;
-
-  requestConfirmation: boolean;
-  autoCancelWithoutConfirmation: boolean;
-
-  allowResponsibleReschedule: boolean;
-}
-
-export interface TherapeuticObjectiveSetting {
-  id: number;
-  name: string;
-  category: string;
-  specialty: string;
-  description: string;
-  active: boolean;
-}
-
-export interface EvolutionModelFields {
-  writtenEvolution: boolean;
-  therapeuticObjectives: boolean;
-  activitiesPerformed: boolean;
-  patientResponse: boolean;
-  observedImpacts: boolean;
-  generalResult: boolean;
-  clinicalObservation: boolean;
-  guidanceToFamily: boolean;
-  referrals: boolean;
-  attachments: boolean;
-  nextSessionPlan: boolean;
-}
-
-export interface EvolutionModelSetting {
-  id: number;
-  name: string;
-  specialty: string;
-  description: string;
-  active: boolean;
-  fields: EvolutionModelFields;
 }
 
 export interface NotificationChannels {
@@ -170,85 +131,55 @@ export interface NotificationSettings {
   enableEmail: boolean;
   enablePush: boolean;
 
-  responsibleCanDisableNotifications: boolean;
-
   sendOnlyDuringBusinessHours: boolean;
   businessHourStart: string;
   businessHourEnd: string;
 }
 
-export interface ResponsibleAppModules {
-  agenda: boolean;
-  financial: boolean;
-  digitalWallet: boolean;
-  documents: boolean;
-  notifications: boolean;
-  observations: boolean;
-  therapeuticSummary: boolean;
-  professionals: boolean;
+export type PaymentMethodKey =
+  | "pix"
+  | "cash"
+  | "creditCard"
+  | "debitCard"
+  | "bankTransfer";
+
+export interface PaymentMethodSetting {
+  id: number;
+  key: PaymentMethodKey;
+  name: string;
+  active: boolean;
+  allowInstallments: boolean;
+  maxInstallments: number;
+  feePercent: number;
 }
 
-export interface ResponsibleAppPermissions {
-  confirmAppointment: boolean;
-  requestReschedule: boolean;
-  requestCancellation: boolean;
-
-  downloadDocuments: boolean;
-  downloadAttachments: boolean;
-
-  viewPaymentHistory: boolean;
-  viewPendingPayments: boolean;
-
-  addWalletCredit: boolean;
-  viewWalletHistory: boolean;
-
-  viewProfessionalName: boolean;
-  viewSpecialtyName: boolean;
-
-  viewClinicalObservations: boolean;
-  viewTherapeuticProgress: boolean;
-}
-
-export interface ResponsibleAppSettings {
-  enabled: boolean;
-
-  appName: string;
-
-  welcomeMessage: string;
-
-  supportPhone: string;
-
-  supportEmail: string;
-
-  showClinicLogo: boolean;
-
-  showPatientPhoto: boolean;
-
-  modules: ResponsibleAppModules;
-
-  permissions: ResponsibleAppPermissions;
-
-  allowBiometricLogin: boolean;
-
-  allowPasswordRecovery: boolean;
-
-  sessionTimeoutMinutes: number;
-
-  showFinancialValuesOnHome: boolean;
-
-  showNextAppointmentOnHome: boolean;
-
-  showUnreadNotificationsOnHome: boolean;
+export interface FinancialSettings {
+  paymentMethods: PaymentMethodSetting[];
+  defaultDueDay: number;
+  generateChargeAutomatically: boolean;
+  chargeOnAppointmentCreation: boolean;
+  chargeAfterAppointment: boolean;
+  allowPartialPayment: boolean;
+  allowOverpayment: boolean;
+  applyLateFee: boolean;
+  lateFeePercent: number;
+  applyInterest: boolean;
+  monthlyInterestPercent: number;
+  allowDiscount: boolean;
+  maximumDiscountPercent: number;
+  generateReceiptAutomatically: boolean;
+  showClinicDataOnReceipt: boolean;
+  showProfessionalOnReceipt: boolean;
+  showPatientOnReceipt: boolean;
+  requirePaymentMethodOnConfirmation: boolean;
 }
 
 export type PermissionModuleKey =
   | "dashboard"
   | "patients"
   | "agenda"
-  | "professionals"
   | "financial"
   | "evolutions"
-  | "documents"
   | "reports"
   | "settings";
 
@@ -256,7 +187,6 @@ export interface ModulePermission {
   view: boolean;
   create: boolean;
   edit: boolean;
-  delete: boolean;
   manage: boolean;
 }
 
@@ -279,319 +209,11 @@ export interface PermissionProfileSetting {
 
 export interface PermissionsSettings {
   profiles: PermissionProfileSetting[];
-
-  restrictProfessionalsToOwnPatients: boolean;
-
-  restrictProfessionalsToOwnAgenda: boolean;
-
-  restrictProfessionalsToOwnEvolutions: boolean;
-
-  hideFinancialValuesFromProfessionals: boolean;
-
-  allowReceptionToViewClinicalData: boolean;
-
-  allowReceptionToEditPatientData: boolean;
-}
-
-export type PaymentMethodKey =
-  | "pix"
-  | "cash"
-  | "creditCard"
-  | "debitCard"
-  | "bankTransfer"
-  | "boleto"
-  | "digitalWallet";
-
-export interface PaymentMethodSetting {
-  id: number;
-
-  key: PaymentMethodKey;
-
-  name: string;
-
-  active: boolean;
-
-  allowInstallments: boolean;
-
-  maxInstallments: number;
-
-  feePercent: number;
-}
-
-export interface FinancialSettings {
-  paymentMethods: PaymentMethodSetting[];
-
-  defaultDueDay: number;
-
-  generateChargeAutomatically: boolean;
-
-  chargeOnAppointmentCreation: boolean;
-
-  chargeAfterAppointment: boolean;
-
-  allowPartialPayment: boolean;
-
-  allowOverpayment: boolean;
-
-  applyLateFee: boolean;
-
-  lateFeePercent: number;
-
-  applyInterest: boolean;
-
-  monthlyInterestPercent: number;
-
-  allowDiscount: boolean;
-
-  maximumDiscountPercent: number;
-
-  generateReceiptAutomatically: boolean;
-
-  showClinicDataOnReceipt: boolean;
-
-  showProfessionalOnReceipt: boolean;
-
-  showPatientOnReceipt: boolean;
-
-  requirePaymentMethodOnConfirmation: boolean;
-
-  digitalWalletEnabled: boolean;
-
-  allowResponsibleWalletDeposit: boolean;
-
-  minimumWalletDeposit: number;
-
-  walletLowBalanceWarning: boolean;
-
-  walletLowBalanceAmount: number;
-
-  useWalletAutomatically: boolean;
-
-  notifyBeforeDueDate: boolean;
-
-  daysBeforeDueDate: number;
-
-  notifyAfterDueDate: boolean;
-
-  daysAfterDueDate: number;
-}
-
-export type ReportTypeKey =
-  | "clinical"
-  | "financial"
-  | "appointments"
-  | "patients"
-  | "professionals"
-  | "attendance"
-  | "evolution"
-  | "wallet";
-
-export interface ReportTypeSetting {
-  id: number;
-
-  key: ReportTypeKey;
-
-  name: string;
-
-  description: string;
-
-  active: boolean;
-
-  allowPdf: boolean;
-
-  allowExcel: boolean;
-
-  allowPrint: boolean;
-
-  includeCharts: boolean;
-}
-
-export type ReportOrientation =
-  | "portrait"
-  | "landscape";
-
-export type ReportPaperSize =
-  | "A4"
-  | "Letter";
-
-export interface ReportsSettings {
-  reportTypes: ReportTypeSetting[];
-
-  showClinicLogo: boolean;
-
-  showClinicName: boolean;
-
-  showClinicDocument: boolean;
-
-  showClinicAddress: boolean;
-
-  showClinicPhone: boolean;
-
-  showClinicEmail: boolean;
-
-  showGenerationDate: boolean;
-
-  showGeneratedBy: boolean;
-
-  showPatientDocument: boolean;
-
-  showProfessionalRegistration: boolean;
-
-  showPageNumbers: boolean;
-
-  includeHeader: boolean;
-
-  includeFooter: boolean;
-
-  headerText: string;
-
-  footerText: string;
-
-  includeProfessionalSignature: boolean;
-
-  includeTechnicalResponsibleSignature: boolean;
-
-  technicalResponsibleName: string;
-
-  technicalResponsibleRegistration: string;
-
-  defaultOrientation: ReportOrientation;
-
-  paperSize: ReportPaperSize;
-
-  defaultIncludeCharts: boolean;
-
-  defaultIncludeInactiveRecords: boolean;
-
-  defaultIncludeFinancialValues: boolean;
-
-  allowSensitiveClinicalData: boolean;
-
-  anonymizePatientData: boolean;
-
-  requireReasonForSensitiveReport: boolean;
-
-  keepGenerationHistory: boolean;
-
-  generationHistoryDays: number;
-
-  allowPdfExport: boolean;
-
-  allowExcelExport: boolean;
-
-  allowPrinting: boolean;
-}
-
-export type SystemLanguage =
-  | "pt-BR"
-  | "en-US"
-  | "es";
-
-export type SystemTheme =
-  | "light"
-  | "dark"
-  | "system";
-
-export type SystemDateFormat =
-  | "DD/MM/YYYY"
-  | "MM/DD/YYYY"
-  | "YYYY-MM-DD";
-
-export type SystemTimeFormat =
-  | "24h"
-  | "12h";
-
-export interface GeneralSettings {
-  language: SystemLanguage;
-
-  theme: SystemTheme;
-
-  dateFormat: SystemDateFormat;
-
-  timeFormat: SystemTimeFormat;
-
-  timezone: string;
-
-  compactSidebar: boolean;
-
-  rememberLastPage: boolean;
-
-  showBreadcrumbs: boolean;
-
-  showQuickActions: boolean;
-
-  showWelcomeMessage: boolean;
-
-  confirmBeforeDelete: boolean;
-
-  confirmBeforeLogout: boolean;
-
-  autosaveForms: boolean;
-
-  autosaveIntervalSeconds: number;
-
-  enableSessionTimeout: boolean;
-
-  sessionTimeoutMinutes: number;
-
-  warnBeforeSessionTimeout: boolean;
-
-  sessionTimeoutWarningMinutes: number;
-
-  forcePasswordChange: boolean;
-
-  passwordExpirationDays: number;
-
-  minimumPasswordLength: number;
-
-  requireUppercasePassword: boolean;
-
-  requireNumberPassword: boolean;
-
-  requireSpecialCharacterPassword: boolean;
-
-  enableTwoFactorAuthentication: boolean;
-
-  logFailedLoginAttempts: boolean;
-
-  maxFailedLoginAttempts: number;
-
-  enableAuditLog: boolean;
-
-  auditLoginEvents: boolean;
-
-  auditDataChanges: boolean;
-
-  auditDeletes: boolean;
-
-  auditExports: boolean;
-
-  auditConfigurationChanges: boolean;
-
-  auditRetentionDays: number;
-
-  enableAutomaticBackup: boolean;
-
-  backupFrequency: "daily" | "weekly" | "monthly";
-
-  backupRetentionDays: number;
-
-  maintenanceMode: boolean;
-
-  maintenanceMessage: string;
-
-  allowAdministratorAccessDuringMaintenance: boolean;
-
-  checkForUpdatesAutomatically: boolean;
-
-  showSystemVersion: boolean;
-
-  enableInternalNotifications: boolean;
-
-  enableSoundNotifications: boolean;
 }
 
 export interface SystemSettings {
+  clinic: ClinicSettings;
+
   specialties: SpecialtySetting[];
 
   rooms: RoomSetting[];
@@ -602,31 +224,23 @@ export interface SystemSettings {
 
   agenda: AgendaSettings;
 
-  objectives: TherapeuticObjectiveSetting[];
-
-  evolutionModels: EvolutionModelSetting[];
-
   notifications: NotificationSettings;
-
-  responsibleApp: ResponsibleAppSettings;
-
-  permissions: PermissionsSettings;
 
   financial: FinancialSettings;
 
-  reports: ReportsSettings;
-
-  general: GeneralSettings;
+  permissions: PermissionsSettings;
 }
 
 const STORAGE_KEY =
   "entre-afetos-system-settings";
 
+const LEGACY_CLINIC_STORAGE_KEY =
+  "entre-afetos-clinic-settings";
+
 const fullPermission: ModulePermission = {
   view: true,
   create: true,
   edit: true,
-  delete: true,
   manage: true,
 };
 
@@ -634,7 +248,6 @@ const viewOnlyPermission: ModulePermission = {
   view: true,
   create: false,
   edit: false,
-  delete: false,
   manage: false,
 };
 
@@ -642,8 +255,18 @@ const noPermission: ModulePermission = {
   view: false,
   create: false,
   edit: false,
-  delete: false,
   manage: false,
+};
+
+const defaultClinicSettings: ClinicSettings = {
+  clinicName: "Clínica Integrada Entre Afetos",
+  cnpj: "35.123.456/0001-00",
+  email: "contato@entreafetos.com.br",
+  phone: "(83) 99999-9999",
+  address: "Rua Exemplo, 123",
+  city: "João Pessoa",
+  state: "PB",
+  zipCode: "58000-000",
 };
 
 const defaultAgendaSettings: AgendaSettings = {
@@ -702,196 +325,19 @@ const defaultAgendaSettings: AgendaSettings = {
 
   intervalBetweenAppointments: 0,
 
-  minimumRescheduleHours: 24,
-
   hasLunchBreak: true,
 
   lunchStartTime: "12:00",
 
   lunchEndTime: "13:00",
-
-  allowExtraAppointment: true,
-
-  allowOverlap: false,
-
-  blockRoomConflict: true,
-
-  blockProfessionalConflict: true,
-
-  blockPatientConflict: true,
-
-  showOccupiedTimesInRed: true,
-
-  reminder24Hours: true,
-
-  reminder2Hours: true,
-
-  requestConfirmation: true,
-
-  autoCancelWithoutConfirmation: false,
-
-  allowResponsibleReschedule: true,
 };
-
-export const defaultEvolutionFields: EvolutionModelFields = {
-  writtenEvolution: true,
-
-  therapeuticObjectives: true,
-
-  activitiesPerformed: true,
-
-  patientResponse: true,
-
-  observedImpacts: true,
-
-  generalResult: true,
-
-  clinicalObservation: true,
-
-  guidanceToFamily: false,
-
-  referrals: true,
-
-  attachments: true,
-
-  nextSessionPlan: false,
-};
-
-const defaultObjectives: TherapeuticObjectiveSetting[] = [
-  {
-    id: 1,
-    name: "Comunicação funcional",
-    category: "Comunicação",
-    specialty: "Fonoaudiologia",
-    description:
-      "Estimular o uso funcional da comunicação em situações do cotidiano.",
-    active: true,
-  },
-
-  {
-    id: 2,
-    name: "Interação social",
-    category: "Habilidades sociais",
-    specialty: "Psicologia",
-    description:
-      "Desenvolver habilidades de interação, troca e participação social.",
-    active: true,
-  },
-
-  {
-    id: 3,
-    name: "Autorregulação emocional",
-    category: "Regulação emocional",
-    specialty: "Psicologia",
-    description:
-      "Ampliar estratégias de identificação e regulação das emoções.",
-    active: true,
-  },
-
-  {
-    id: 4,
-    name: "Autonomia nas atividades",
-    category: "Autonomia",
-    specialty: "Terapia Ocupacional",
-    description:
-      "Promover maior independência nas atividades de vida diária.",
-    active: true,
-  },
-
-  {
-    id: 5,
-    name: "Atenção e concentração",
-    category: "Cognição",
-    specialty: "Psicopedagogia",
-    description:
-      "Desenvolver manutenção da atenção e concentração durante atividades.",
-    active: true,
-  },
-
-  {
-    id: 6,
-    name: "Coordenação motora",
-    category: "Desenvolvimento motor",
-    specialty: "Fisioterapia",
-    description:
-      "Estimular coordenação, equilíbrio e organização dos movimentos.",
-    active: true,
-  },
-];
-
-const defaultEvolutionModels: EvolutionModelSetting[] = [
-  {
-    id: 1,
-
-    name: "Evolução Padrão - Psicologia",
-
-    specialty: "Psicologia",
-
-    description:
-      "Modelo padrão para registro de atendimentos psicológicos.",
-
-    active: true,
-
-    fields: {
-      ...defaultEvolutionFields,
-
-      guidanceToFamily: true,
-
-      nextSessionPlan: true,
-    },
-  },
-
-  {
-    id: 2,
-
-    name: "Evolução Padrão - Fonoaudiologia",
-
-    specialty: "Fonoaudiologia",
-
-    description:
-      "Modelo padrão para registro de atendimentos fonoaudiológicos.",
-
-    active: true,
-
-    fields: {
-      ...defaultEvolutionFields,
-
-      guidanceToFamily: true,
-
-      nextSessionPlan: true,
-    },
-  },
-
-  {
-    id: 3,
-
-    name: "Evolução Padrão - Terapia Ocupacional",
-
-    specialty: "Terapia Ocupacional",
-
-    description:
-      "Modelo padrão para registro de atendimentos de terapia ocupacional.",
-
-    active: true,
-
-    fields: {
-      ...defaultEvolutionFields,
-
-      guidanceToFamily: true,
-
-      nextSessionPlan: true,
-    },
-  },
-];
 
 const defaultNotificationSettings: NotificationSettings = {
-  enableWhatsApp: true,
+  enableWhatsApp: false,
 
-  enableEmail: true,
+  enableEmail: false,
 
   enablePush: true,
-
-  responsibleCanDisableNotifications: true,
 
   sendOnlyDuringBusinessHours: true,
 
@@ -913,7 +359,7 @@ const defaultNotificationSettings: NotificationSettings = {
       active: true,
 
       channels: {
-        whatsapp: true,
+        whatsapp: false,
         email: false,
         push: true,
       },
@@ -937,7 +383,7 @@ const defaultNotificationSettings: NotificationSettings = {
       active: true,
 
       channels: {
-        whatsapp: true,
+        whatsapp: false,
         email: false,
         push: true,
       },
@@ -961,8 +407,8 @@ const defaultNotificationSettings: NotificationSettings = {
       active: true,
 
       channels: {
-        whatsapp: true,
-        email: true,
+        whatsapp: false,
+        email: false,
         push: true,
       },
 
@@ -983,8 +429,8 @@ const defaultNotificationSettings: NotificationSettings = {
       active: true,
 
       channels: {
-        whatsapp: true,
-        email: true,
+        whatsapp: false,
+        email: false,
         push: true,
       },
 
@@ -1005,8 +451,8 @@ const defaultNotificationSettings: NotificationSettings = {
       active: true,
 
       channels: {
-        whatsapp: true,
-        email: true,
+        whatsapp: false,
+        email: false,
         push: true,
       },
 
@@ -1030,7 +476,7 @@ const defaultNotificationSettings: NotificationSettings = {
 
       channels: {
         whatsapp: false,
-        email: true,
+        email: false,
         push: true,
       },
 
@@ -1040,101 +486,34 @@ const defaultNotificationSettings: NotificationSettings = {
   ],
 };
 
-const defaultResponsibleAppSettings: ResponsibleAppSettings = {
-  enabled: true,
-
-  appName: "Entre Afetos",
-
-  welcomeMessage:
-    "Bem-vindo ao aplicativo da Clínica Integrada Entre Afetos.",
-
-  supportPhone:
-    "(83) 99999-9999",
-
-  supportEmail:
-    "contato@entreafetos.com.br",
-
-  showClinicLogo: true,
-
-  showPatientPhoto: true,
-
-  modules: {
-    agenda: true,
-
-    /*
-     * O app dos responsáveis não possui módulo financeiro.
-     * Planos e sessões disponíveis continuam no app, mas sem
-     * expor cobranças, caixa ou carteira da clínica.
-     */
-    financial: false,
-
-    digitalWallet: false,
-
-    documents: true,
-
-    notifications: true,
-
-    observations: true,
-
-    therapeuticSummary: true,
-
-    professionals: true,
-  },
-
-  permissions: {
-    confirmAppointment: true,
-
-    requestReschedule: true,
-
-    requestCancellation: false,
-
-    downloadDocuments: true,
-
-    downloadAttachments: true,
-
-    viewPaymentHistory: false,
-
-    viewPendingPayments: false,
-
-    addWalletCredit: false,
-
-    viewWalletHistory: false,
-
-    viewProfessionalName: true,
-
-    viewSpecialtyName: true,
-
-    viewClinicalObservations: true,
-
-    viewTherapeuticProgress: true,
-  },
-
-  allowBiometricLogin: true,
-
-  allowPasswordRecovery: true,
-
-  sessionTimeoutMinutes: 60,
-
-  showFinancialValuesOnHome: false,
-
-  showNextAppointmentOnHome: true,
-
-  showUnreadNotificationsOnHome: true,
+const defaultFinancialSettings: FinancialSettings = {
+  paymentMethods: [
+    { id: 1, key: "pix", name: "Pix", active: true, allowInstallments: false, maxInstallments: 1, feePercent: 0 },
+    { id: 2, key: "cash", name: "Dinheiro", active: true, allowInstallments: false, maxInstallments: 1, feePercent: 0 },
+    { id: 3, key: "creditCard", name: "Cartão de crédito", active: true, allowInstallments: true, maxInstallments: 12, feePercent: 3.49 },
+    { id: 4, key: "debitCard", name: "Cartão de débito", active: true, allowInstallments: false, maxInstallments: 1, feePercent: 1.99 },
+    { id: 5, key: "bankTransfer", name: "Transferência", active: true, allowInstallments: false, maxInstallments: 1, feePercent: 0 },
+  ],
+  defaultDueDay: 10,
+  generateChargeAutomatically: true,
+  chargeOnAppointmentCreation: true,
+  chargeAfterAppointment: false,
+  allowPartialPayment: true,
+  allowOverpayment: false,
+  applyLateFee: true,
+  lateFeePercent: 2,
+  applyInterest: true,
+  monthlyInterestPercent: 1,
+  allowDiscount: true,
+  maximumDiscountPercent: 20,
+  generateReceiptAutomatically: true,
+  showClinicDataOnReceipt: true,
+  showProfessionalOnReceipt: true,
+  showPatientOnReceipt: true,
+  requirePaymentMethodOnConfirmation: true,
 };
 
 const defaultPermissionsSettings: PermissionsSettings = {
-  restrictProfessionalsToOwnPatients: true,
-
-  restrictProfessionalsToOwnAgenda: true,
-
-  restrictProfessionalsToOwnEvolutions: true,
-
-  hideFinancialValuesFromProfessionals: true,
-
-  allowReceptionToViewClinicalData: false,
-
-  allowReceptionToEditPatientData: true,
-
   profiles: [
     {
       id: 1,
@@ -1161,19 +540,11 @@ const defaultPermissionsSettings: PermissionsSettings = {
           ...fullPermission,
         },
 
-        professionals: {
-          ...fullPermission,
-        },
-
         financial: {
           ...fullPermission,
         },
 
         evolutions: {
-          ...fullPermission,
-        },
-
-        documents: {
           ...fullPermission,
         },
 
@@ -1208,7 +579,6 @@ const defaultPermissionsSettings: PermissionsSettings = {
           view: true,
           create: true,
           edit: true,
-          delete: false,
           manage: false,
         },
 
@@ -1216,32 +586,18 @@ const defaultPermissionsSettings: PermissionsSettings = {
           view: true,
           create: true,
           edit: true,
-          delete: true,
           manage: false,
-        },
-
-        professionals: {
-          ...viewOnlyPermission,
         },
 
         financial: {
           view: true,
           create: true,
           edit: true,
-          delete: false,
           manage: false,
         },
 
         evolutions: {
           ...noPermission,
-        },
-
-        documents: {
-          view: true,
-          create: true,
-          edit: true,
-          delete: false,
-          manage: false,
         },
 
         reports: {
@@ -1279,12 +635,7 @@ const defaultPermissionsSettings: PermissionsSettings = {
           view: true,
           create: false,
           edit: false,
-          delete: false,
           manage: false,
-        },
-
-        professionals: {
-          ...noPermission,
         },
 
         financial: {
@@ -1295,15 +646,6 @@ const defaultPermissionsSettings: PermissionsSettings = {
           view: true,
           create: true,
           edit: true,
-          delete: false,
-          manage: false,
-        },
-
-        documents: {
-          view: true,
-          create: true,
-          edit: false,
-          delete: false,
           manage: false,
         },
 
@@ -1311,7 +653,6 @@ const defaultPermissionsSettings: PermissionsSettings = {
           view: true,
           create: true,
           edit: false,
-          delete: false,
           manage: false,
         },
 
@@ -1346,24 +687,12 @@ const defaultPermissionsSettings: PermissionsSettings = {
           ...noPermission,
         },
 
-        professionals: {
-          ...viewOnlyPermission,
-        },
-
         financial: {
           ...fullPermission,
         },
 
         evolutions: {
           ...noPermission,
-        },
-
-        documents: {
-          view: true,
-          create: true,
-          edit: true,
-          delete: false,
-          manage: false,
         },
 
         reports: {
@@ -1378,413 +707,10 @@ const defaultPermissionsSettings: PermissionsSettings = {
   ],
 };
 
-const defaultFinancialSettings: FinancialSettings = {
-  paymentMethods: [
-    {
-      id: 1,
-      key: "pix",
-      name: "PIX",
-      active: true,
-      allowInstallments: false,
-      maxInstallments: 1,
-      feePercent: 0,
-    },
-
-    {
-      id: 2,
-      key: "cash",
-      name: "Dinheiro",
-      active: true,
-      allowInstallments: false,
-      maxInstallments: 1,
-      feePercent: 0,
-    },
-
-    {
-      id: 3,
-      key: "creditCard",
-      name: "Cartão de crédito",
-      active: true,
-      allowInstallments: true,
-      maxInstallments: 12,
-      feePercent: 3.49,
-    },
-
-    {
-      id: 4,
-      key: "debitCard",
-      name: "Cartão de débito",
-      active: true,
-      allowInstallments: false,
-      maxInstallments: 1,
-      feePercent: 1.99,
-    },
-
-    {
-      id: 5,
-      key: "bankTransfer",
-      name: "Transferência bancária",
-      active: true,
-      allowInstallments: false,
-      maxInstallments: 1,
-      feePercent: 0,
-    },
-
-    {
-      id: 6,
-      key: "boleto",
-      name: "Boleto",
-      active: false,
-      allowInstallments: false,
-      maxInstallments: 1,
-      feePercent: 0,
-    },
-
-    {
-      id: 7,
-      key: "digitalWallet",
-      name: "Carteira digital",
-      active: true,
-      allowInstallments: false,
-      maxInstallments: 1,
-      feePercent: 0,
-    },
-  ],
-
-  defaultDueDay: 10,
-
-  generateChargeAutomatically: true,
-
-  /*
-   * REGRA FINANCEIRA OFICIAL:
-   *
-   * Atendimentos particulares avulsos geram a cobrança
-   * no momento do agendamento. Isso permite receber antes
-   * da consulta e mantém o financeiro da Recepção alinhado
-   * ao fluxo operacional atual.
-   *
-   * Pacotes não geram cobrança avulsa.
-   * Convênios entram na produção quando o atendimento
-   * é realizado.
-   */
-  chargeOnAppointmentCreation: true,
-
-  chargeAfterAppointment: false,
-
-  allowPartialPayment: true,
-
-  allowOverpayment: false,
-
-  applyLateFee: true,
-
-  lateFeePercent: 2,
-
-  applyInterest: true,
-
-  monthlyInterestPercent: 1,
-
-  allowDiscount: true,
-
-  maximumDiscountPercent: 20,
-
-  generateReceiptAutomatically: true,
-
-  showClinicDataOnReceipt: true,
-
-  showProfessionalOnReceipt: true,
-
-  showPatientOnReceipt: true,
-
-  requirePaymentMethodOnConfirmation: true,
-
-  digitalWalletEnabled: true,
-
-  allowResponsibleWalletDeposit: true,
-
-  minimumWalletDeposit: 20,
-
-  walletLowBalanceWarning: true,
-
-  walletLowBalanceAmount: 50,
-
-  useWalletAutomatically: false,
-
-  notifyBeforeDueDate: true,
-
-  daysBeforeDueDate: 3,
-
-  notifyAfterDueDate: true,
-
-  daysAfterDueDate: 1,
-};
-
-const defaultReportsSettings: ReportsSettings = {
-  reportTypes: [
-    {
-      id: 1,
-      key: "clinical",
-      name: "Relatório Clínico",
-      description:
-        "Relatório com informações clínicas e acompanhamento terapêutico.",
-      active: true,
-      allowPdf: true,
-      allowExcel: false,
-      allowPrint: true,
-      includeCharts: false,
-    },
-
-    {
-      id: 2,
-      key: "financial",
-      name: "Relatório Financeiro",
-      description:
-        "Receitas, pagamentos, pendências e movimentações financeiras.",
-      active: true,
-      allowPdf: true,
-      allowExcel: true,
-      allowPrint: true,
-      includeCharts: true,
-    },
-
-    {
-      id: 3,
-      key: "appointments",
-      name: "Relatório de Agenda",
-      description:
-        "Atendimentos agendados, realizados, cancelados e faltas.",
-      active: true,
-      allowPdf: true,
-      allowExcel: true,
-      allowPrint: true,
-      includeCharts: true,
-    },
-
-    {
-      id: 4,
-      key: "patients",
-      name: "Relatório de Pacientes",
-      description:
-        "Informações cadastrais e administrativas dos pacientes.",
-      active: true,
-      allowPdf: true,
-      allowExcel: true,
-      allowPrint: true,
-      includeCharts: false,
-    },
-
-    {
-      id: 5,
-      key: "professionals",
-      name: "Relatório de Profissionais",
-      description:
-        "Atendimentos, produtividade e informações dos profissionais.",
-      active: true,
-      allowPdf: true,
-      allowExcel: true,
-      allowPrint: true,
-      includeCharts: true,
-    },
-
-    {
-      id: 6,
-      key: "attendance",
-      name: "Relatório de Frequência",
-      description:
-        "Presenças, faltas e cancelamentos dos pacientes.",
-      active: true,
-      allowPdf: true,
-      allowExcel: true,
-      allowPrint: true,
-      includeCharts: true,
-    },
-
-    {
-      id: 7,
-      key: "evolution",
-      name: "Relatório de Evoluções",
-      description:
-        "Histórico de evoluções e registros clínicos.",
-      active: true,
-      allowPdf: true,
-      allowExcel: false,
-      allowPrint: true,
-      includeCharts: false,
-    },
-
-    {
-      id: 8,
-      key: "wallet",
-      name: "Relatório da Carteira Digital",
-      description:
-        "Saldo, depósitos, débitos e movimentações das carteiras.",
-      active: true,
-      allowPdf: true,
-      allowExcel: true,
-      allowPrint: true,
-      includeCharts: true,
-    },
-  ],
-
-  showClinicLogo: true,
-
-  showClinicName: true,
-
-  showClinicDocument: true,
-
-  showClinicAddress: true,
-
-  showClinicPhone: true,
-
-  showClinicEmail: true,
-
-  showGenerationDate: true,
-
-  showGeneratedBy: true,
-
-  showPatientDocument: false,
-
-  showProfessionalRegistration: true,
-
-  showPageNumbers: true,
-
-  includeHeader: true,
-
-  includeFooter: true,
-
-  headerText:
-    "Clínica Integrada Entre Afetos",
-
-  footerText:
-    "Documento gerado pelo sistema Entre Afetos.",
-
-  includeProfessionalSignature: true,
-
-  includeTechnicalResponsibleSignature: false,
-
-  technicalResponsibleName: "",
-
-  technicalResponsibleRegistration: "",
-
-  defaultOrientation: "portrait",
-
-  paperSize: "A4",
-
-  defaultIncludeCharts: true,
-
-  defaultIncludeInactiveRecords: false,
-
-  defaultIncludeFinancialValues: true,
-
-  allowSensitiveClinicalData: true,
-
-  anonymizePatientData: false,
-
-  requireReasonForSensitiveReport: true,
-
-  keepGenerationHistory: true,
-
-  generationHistoryDays: 365,
-
-  allowPdfExport: true,
-
-  allowExcelExport: true,
-
-  allowPrinting: true,
-};
-
-const defaultGeneralSettings: GeneralSettings = {
-  language: "pt-BR",
-
-  theme: "light",
-
-  dateFormat: "DD/MM/YYYY",
-
-  timeFormat: "24h",
-
-  timezone: "America/Sao_Paulo",
-
-  compactSidebar: false,
-
-  rememberLastPage: true,
-
-  showBreadcrumbs: true,
-
-  showQuickActions: true,
-
-  showWelcomeMessage: true,
-
-  confirmBeforeDelete: true,
-
-  confirmBeforeLogout: false,
-
-  autosaveForms: true,
-
-  autosaveIntervalSeconds: 30,
-
-  enableSessionTimeout: true,
-
-  sessionTimeoutMinutes: 120,
-
-  warnBeforeSessionTimeout: true,
-
-  sessionTimeoutWarningMinutes: 5,
-
-  forcePasswordChange: false,
-
-  passwordExpirationDays: 90,
-
-  minimumPasswordLength: 8,
-
-  requireUppercasePassword: true,
-
-  requireNumberPassword: true,
-
-  requireSpecialCharacterPassword: false,
-
-  enableTwoFactorAuthentication: false,
-
-  logFailedLoginAttempts: true,
-
-  maxFailedLoginAttempts: 5,
-
-  enableAuditLog: true,
-
-  auditLoginEvents: true,
-
-  auditDataChanges: true,
-
-  auditDeletes: true,
-
-  auditExports: true,
-
-  auditConfigurationChanges: true,
-
-  auditRetentionDays: 365,
-
-  enableAutomaticBackup: true,
-
-  backupFrequency: "daily",
-
-  backupRetentionDays: 30,
-
-  maintenanceMode: false,
-
-  maintenanceMessage:
-    "Sistema temporariamente indisponível para manutenção.",
-
-  allowAdministratorAccessDuringMaintenance:
-    true,
-
-  checkForUpdatesAutomatically: true,
-
-  showSystemVersion: true,
-
-  enableInternalNotifications: true,
-
-  enableSoundNotifications: false,
-};
-
 const defaultSettings: SystemSettings = {
+  clinic:
+    defaultClinicSettings,
+
   specialties: [
     {
       id: 1,
@@ -1954,47 +880,69 @@ const defaultSettings: SystemSettings = {
   agenda:
     defaultAgendaSettings,
 
-  objectives:
-    defaultObjectives,
-
-  evolutionModels:
-    defaultEvolutionModels,
-
   notifications:
     defaultNotificationSettings,
-
-  responsibleApp:
-    defaultResponsibleAppSettings,
-
-  permissions:
-    defaultPermissionsSettings,
 
   financial:
     defaultFinancialSettings,
 
-  reports:
-    defaultReportsSettings,
-
-  general:
-    defaultGeneralSettings,
+  permissions:
+    defaultPermissionsSettings,
 };
 
 export function getSystemSettings(): SystemSettings {
   try {
+    let legacyClinic:
+      Partial<ClinicSettings> = {};
+
+    const legacyClinicRaw =
+      localStorage.getItem(
+        LEGACY_CLINIC_STORAGE_KEY
+      );
+
+    if (legacyClinicRaw) {
+      try {
+        legacyClinic =
+          JSON.parse(
+            legacyClinicRaw
+          ) as Partial<ClinicSettings>;
+      } catch {
+        legacyClinic = {};
+      }
+    }
+
+    localStorage.removeItem(
+      LEGACY_CLINIC_STORAGE_KEY
+    );
+
     const stored =
       localStorage.getItem(
         STORAGE_KEY
       );
 
     if (!stored) {
+      const initialSettings = {
+        ...defaultSettings,
+        clinic: {
+          clinicName: legacyClinic.clinicName ?? defaultClinicSettings.clinicName,
+          cnpj: legacyClinic.cnpj ?? defaultClinicSettings.cnpj,
+          email: legacyClinic.email ?? defaultClinicSettings.email,
+          phone: legacyClinic.phone ?? defaultClinicSettings.phone,
+          address: legacyClinic.address ?? defaultClinicSettings.address,
+          city: legacyClinic.city ?? defaultClinicSettings.city,
+          state: legacyClinic.state ?? defaultClinicSettings.state,
+          zipCode: legacyClinic.zipCode ?? defaultClinicSettings.zipCode,
+        },
+      };
+
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify(
-          defaultSettings
+          initialSettings
         )
       );
 
-      return defaultSettings;
+      return initialSettings;
     }
 
     const parsed =
@@ -2003,177 +951,222 @@ export function getSystemSettings(): SystemSettings {
       ) as Partial<SystemSettings>;
 
     const normalizedAgenda: AgendaSettings = {
-      ...defaultAgendaSettings,
-
-      ...(parsed.agenda ?? {}),
-
       days:
         parsed.agenda?.days ??
         defaultAgendaSettings.days,
+
+      defaultSessionDuration:
+        parsed.agenda?.defaultSessionDuration ??
+        defaultAgendaSettings.defaultSessionDuration,
+
+      intervalBetweenAppointments:
+        parsed.agenda?.intervalBetweenAppointments ??
+        defaultAgendaSettings.intervalBetweenAppointments,
+
+      hasLunchBreak:
+        parsed.agenda?.hasLunchBreak ??
+        defaultAgendaSettings.hasLunchBreak,
+
+      lunchStartTime:
+        parsed.agenda?.lunchStartTime ??
+        defaultAgendaSettings.lunchStartTime,
+      lunchEndTime:
+        parsed.agenda?.lunchEndTime ??
+        defaultAgendaSettings.lunchEndTime,
     };
 
     const normalizedNotifications: NotificationSettings = {
-      ...defaultNotificationSettings,
+      enableWhatsApp: false,
 
-      ...(parsed.notifications ?? {}),
+      enableEmail: false,
+
+      enablePush: true,
+
+      sendOnlyDuringBusinessHours:
+        parsed.notifications?.sendOnlyDuringBusinessHours ??
+        defaultNotificationSettings.sendOnlyDuringBusinessHours,
+
+      businessHourStart:
+        parsed.notifications?.businessHourStart ??
+        defaultNotificationSettings.businessHourStart,
+
+      businessHourEnd:
+        parsed.notifications?.businessHourEnd ??
+        defaultNotificationSettings.businessHourEnd,
 
       rules:
-        parsed.notifications?.rules ??
-        defaultNotificationSettings.rules,
-    };
-
-    const normalizedResponsibleApp: ResponsibleAppSettings = {
-      ...defaultResponsibleAppSettings,
-
-      ...(parsed.responsibleApp ?? {}),
-
-      modules: {
-        ...defaultResponsibleAppSettings.modules,
-
-        ...(parsed.responsibleApp?.modules ??
-          {}),
-
-        /*
-         * MIGRAÇÃO DO APP DOS RESPONSÁVEIS:
-         * financeiro e carteira não fazem parte do app.
-         */
-        financial:
-          false,
-
-        digitalWallet:
-          false,
-      },
-
-      permissions: {
-        ...defaultResponsibleAppSettings.permissions,
-
-        ...(parsed.responsibleApp?.permissions ??
-          {}),
-
-        viewPaymentHistory:
-          false,
-
-        viewPendingPayments:
-          false,
-
-        addWalletCredit:
-          false,
-
-        viewWalletHistory:
-          false,
-      },
-
-      showFinancialValuesOnHome:
-        false,
-    };
-
-    const normalizedPermissions: PermissionsSettings = {
-      ...defaultPermissionsSettings,
-
-      ...(parsed.permissions ?? {}),
-
-      profiles: (() => {
-        const savedProfiles =
-          parsed.permissions?.profiles ??
-          [];
-
-        const missingSystemProfiles =
-          defaultPermissionsSettings.profiles.filter(
-            (defaultProfile) =>
-              defaultProfile.systemProfile &&
-              !savedProfiles.some(
-                (savedProfile) =>
-                  savedProfile.name ===
-                  defaultProfile.name
-              )
-          );
-
-        const mergedProfiles =
-          savedProfiles.length > 0
-            ? [
-                ...savedProfiles,
-                ...missingSystemProfiles,
-              ]
-            : defaultPermissionsSettings.profiles;
-
-        /*
-         * MIGRAÇÃO DE PERFIL — ADMINISTRATIVO
-         *
-         * Configurações passou a fazer parte oficialmente
-         * do perfil Administrativo. Esta normalização garante
-         * que instalações que já possuíam as permissões salvas
-         * no localStorage recebam o novo acesso sem apagar
-         * as demais permissões personalizadas.
-         */
-        return mergedProfiles.map(
-          (
-            profile
-          ) =>
-            profile.name ===
-            "Administrativo"
-              ? {
-                  ...profile,
-
-                  modules: {
-                    ...profile.modules,
-
-                    settings: {
-                      ...fullPermission,
-                    },
-                  },
-                }
-              : profile
-        );
-      })(),
+        (parsed.notifications?.rules ??
+          defaultNotificationSettings.rules).map(
+          (rule) => ({
+            ...rule,
+            channels: {
+              whatsapp: false,
+              email: false,
+              push: true,
+            },
+          })
+        ),
     };
 
     const normalizedFinancial: FinancialSettings = {
-      ...defaultFinancialSettings,
-
-      ...(parsed.financial ?? {}),
-
       paymentMethods:
-        parsed.financial?.paymentMethods ??
-        defaultFinancialSettings.paymentMethods,
+        defaultFinancialSettings.paymentMethods.map(
+          (defaultMethod) => {
+            const savedMethod =
+              parsed.financial?.paymentMethods?.find(
+                (method) =>
+                  String(method.key) === defaultMethod.key
+              );
 
-      /*
-       * MIGRAÇÃO DA REGRA DE COBRANÇA
-       *
-       * Esta regra não fica mais dependente de configurações
-       * antigas salvas no navegador. O comportamento oficial
-       * do sistema é:
-       *
-       * - Particular avulso: cobrança nasce no agendamento;
-       * - Pacote: sem cobrança avulsa;
-       * - Convênio: produção nasce ao realizar atendimento.
-       */
-      generateChargeAutomatically:
-        true,
-
-      chargeOnAppointmentCreation:
-        true,
-
-      chargeAfterAppointment:
-        false,
+            return {
+              ...defaultMethod,
+              ...(savedMethod ?? {}),
+              id: defaultMethod.id,
+              key: defaultMethod.key,
+              name: defaultMethod.name,
+            };
+          }
+        ),
+      defaultDueDay: parsed.financial?.defaultDueDay ?? defaultFinancialSettings.defaultDueDay,
+      generateChargeAutomatically: parsed.financial?.generateChargeAutomatically ?? defaultFinancialSettings.generateChargeAutomatically,
+      chargeOnAppointmentCreation: parsed.financial?.chargeOnAppointmentCreation ?? defaultFinancialSettings.chargeOnAppointmentCreation,
+      chargeAfterAppointment: parsed.financial?.chargeAfterAppointment ?? defaultFinancialSettings.chargeAfterAppointment,
+      allowPartialPayment: parsed.financial?.allowPartialPayment ?? defaultFinancialSettings.allowPartialPayment,
+      allowOverpayment: parsed.financial?.allowOverpayment ?? defaultFinancialSettings.allowOverpayment,
+      applyLateFee: parsed.financial?.applyLateFee ?? defaultFinancialSettings.applyLateFee,
+      lateFeePercent: parsed.financial?.lateFeePercent ?? defaultFinancialSettings.lateFeePercent,
+      applyInterest: parsed.financial?.applyInterest ?? defaultFinancialSettings.applyInterest,
+      monthlyInterestPercent: parsed.financial?.monthlyInterestPercent ?? defaultFinancialSettings.monthlyInterestPercent,
+      allowDiscount: parsed.financial?.allowDiscount ?? defaultFinancialSettings.allowDiscount,
+      maximumDiscountPercent: parsed.financial?.maximumDiscountPercent ?? defaultFinancialSettings.maximumDiscountPercent,
+      generateReceiptAutomatically: parsed.financial?.generateReceiptAutomatically ?? defaultFinancialSettings.generateReceiptAutomatically,
+      showClinicDataOnReceipt: parsed.financial?.showClinicDataOnReceipt ?? defaultFinancialSettings.showClinicDataOnReceipt,
+      showProfessionalOnReceipt: parsed.financial?.showProfessionalOnReceipt ?? defaultFinancialSettings.showProfessionalOnReceipt,
+      showPatientOnReceipt: parsed.financial?.showPatientOnReceipt ?? defaultFinancialSettings.showPatientOnReceipt,
+      requirePaymentMethodOnConfirmation: parsed.financial?.requirePaymentMethodOnConfirmation ?? defaultFinancialSettings.requirePaymentMethodOnConfirmation,
     };
 
-    const normalizedReports: ReportsSettings = {
-      ...defaultReportsSettings,
-
-      ...(parsed.reports ?? {}),
-
-      reportTypes:
-        parsed.reports?.reportTypes ??
-        defaultReportsSettings.reportTypes,
+    const mergedClinic = {
+      ...defaultClinicSettings,
+      ...legacyClinic,
+      ...(parsed.clinic ?? {}),
     };
 
-    const normalizedGeneral: GeneralSettings = {
-      ...defaultGeneralSettings,
+    const savedProfiles =
+      Array.isArray(parsed.permissions?.profiles)
+        ? parsed.permissions.profiles
+        : [];
 
-      ...(parsed.general ?? {}),
+    /*
+     * O login e as rotas trabalham com quatro perfis canônicos.
+     * Versões anteriores permitiam criar perfis personalizados que
+     * nunca podiam ser atribuídos a um usuário. A normalização remove
+     * esses registros sem efeito e completa permissões ausentes de
+     * instalações antigas.
+     */
+    const normalizedPermissions: PermissionsSettings = {
+      profiles:
+        defaultPermissionsSettings.profiles.map(
+          (defaultProfile) => {
+            const savedProfile =
+              savedProfiles.find(
+                (profile) =>
+                  profile.name ===
+                  defaultProfile.name
+              );
+
+            if (
+              defaultProfile.name ===
+              "Gestor"
+            ) {
+              return {
+                ...defaultProfile,
+                modules:
+                  Object.fromEntries(
+                    Object.keys(defaultProfile.modules).map(
+                      (module) => [
+                        module,
+                        { ...fullPermission },
+                      ]
+                    )
+                  ) as PermissionProfileSetting["modules"],
+              };
+            }
+
+            const modules =
+              Object.fromEntries(
+                Object.entries(defaultProfile.modules).map(
+                  ([module, fallback]) => {
+                    const savedPermission =
+                      savedProfile?.modules?.[
+                        module as PermissionModuleKey
+                      ];
+
+                    const merged = {
+                      ...fallback,
+                      ...(savedPermission ?? {}),
+                    };
+
+                    const view =
+                      Boolean(
+                        merged.view ||
+                        merged.create ||
+                        merged.edit ||
+                        merged.manage
+                      );
+
+                    return [
+                      module,
+                      {
+                        view,
+                        create:
+                          view && Boolean(merged.create),
+                        edit:
+                          view && Boolean(merged.edit),
+                        manage:
+                          view && Boolean(merged.manage),
+                      },
+                    ];
+                  }
+                )
+              ) as PermissionProfileSetting["modules"];
+
+            /* Configurações é uma área administrativa e exige gestão. */
+            if (
+              defaultProfile.name ===
+              "Administrativo"
+            ) {
+              modules.settings = {
+                ...fullPermission,
+              };
+            }
+
+            return {
+              ...defaultProfile,
+              description:
+                savedProfile?.description?.trim() ||
+                defaultProfile.description,
+              active:
+                savedProfile?.active ??
+                defaultProfile.active,
+              modules,
+            };
+          }
+        ),
     };
 
     const normalized: SystemSettings = {
+      clinic: {
+        clinicName: mergedClinic.clinicName,
+        cnpj: mergedClinic.cnpj,
+        email: mergedClinic.email,
+        phone: mergedClinic.phone,
+        address: mergedClinic.address,
+        city: mergedClinic.city,
+        state: mergedClinic.state,
+        zipCode: mergedClinic.zipCode,
+      },
+
       specialties:
         (parsed.specialties ?? defaultSettings.specialties).map(
           (specialty) => ({
@@ -2254,31 +1247,14 @@ export function getSystemSettings(): SystemSettings {
       agenda:
         normalizedAgenda,
 
-      objectives:
-        parsed.objectives ??
-        defaultSettings.objectives,
-
-      evolutionModels:
-        parsed.evolutionModels ??
-        defaultSettings.evolutionModels,
-
       notifications:
         normalizedNotifications,
-
-      responsibleApp:
-        normalizedResponsibleApp,
-
-      permissions:
-        normalizedPermissions,
 
       financial:
         normalizedFinancial,
 
-      reports:
-        normalizedReports,
-
-      general:
-        normalizedGeneral,
+      permissions:
+        normalizedPermissions,
     };
 
     localStorage.setItem(
@@ -2345,78 +1321,19 @@ export function getAgendaSettings() {
   return getSystemSettings().agenda;
 }
 
-export function getActiveTherapeuticObjectives() {
-  return getSystemSettings().objectives.filter(
-    (
-      objective
-    ) =>
-      objective.active
+export function getClinicSettings() {
+  return getSystemSettings().clinic;
+}
+
+export function getFinancialSettings() {
+  return getSystemSettings().financial;
+}
+
+export function getActivePaymentMethods() {
+  return getFinancialSettings().paymentMethods.filter(
+    (method) =>
+      method.active
   );
-}
-
-export function getTherapeuticObjectivesBySpecialty(
-  specialty: string
-) {
-  return getSystemSettings().objectives.filter(
-    (
-      objective
-    ) =>
-      objective.active &&
-      objective.specialty ===
-        specialty
-  );
-}
-
-export function getActiveEvolutionModels() {
-  return getSystemSettings().evolutionModels.filter(
-    (
-      model
-    ) =>
-      model.active
-  );
-}
-
-export function getEvolutionModelsBySpecialty(
-  specialty: string
-) {
-  return getSystemSettings().evolutionModels.filter(
-    (
-      model
-    ) =>
-      model.active &&
-      model.specialty ===
-        specialty
-  );
-}
-
-export function getDefaultEvolutionModelBySpecialty(
-  specialty: string
-) {
-  return getSystemSettings().evolutionModels.find(
-    (
-      model
-    ) =>
-      model.active &&
-      model.specialty ===
-        specialty
-  );
-}
-
-export function getNotificationSettings() {
-  return getSystemSettings().notifications;
-}
-
-export function getActiveNotificationRules() {
-  return getSystemSettings().notifications.rules.filter(
-    (
-      rule
-    ) =>
-      rule.active
-  );
-}
-
-export function getResponsibleAppSettings() {
-  return getSystemSettings().responsibleApp;
 }
 
 export function getPermissionsSettings() {
@@ -2461,68 +1378,6 @@ export function canProfileAccessModule(
       module
     ].view
   );
-}
-
-export function getFinancialSettings() {
-  return getSystemSettings().financial;
-}
-
-/**
- * Regra oficial de geração de cobrança para atendimentos.
- * Centraliza a decisão para evitar que módulos diferentes
- * adotem comportamentos contraditórios.
- */
-export function shouldCreateChargeOnAppointmentCreation({
-  billingType,
-  hasPatientPackage,
-}: {
-  billingType:
-    "Particular" |
-    "Convênio";
-
-  hasPatientPackage:
-    boolean;
-}) {
-  if (
-    hasPatientPackage
-  ) {
-    return false;
-  }
-
-  if (
-    billingType ===
-    "Convênio"
-  ) {
-    return false;
-  }
-
-  return true;
-}
-
-export function getActivePaymentMethods() {
-  return getSystemSettings().financial.paymentMethods.filter(
-    (
-      method
-    ) =>
-      method.active
-  );
-}
-
-export function getReportsSettings() {
-  return getSystemSettings().reports;
-}
-
-export function getActiveReportTypes() {
-  return getSystemSettings().reports.reportTypes.filter(
-    (
-      report
-    ) =>
-      report.active
-  );
-}
-
-export function getGeneralSettings() {
-  return getSystemSettings().general;
 }
 
 export function getProfessionalById(

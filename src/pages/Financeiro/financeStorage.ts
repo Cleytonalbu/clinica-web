@@ -62,6 +62,11 @@ export interface FinancialCharge {
 
   bankAccountName?: string;
 
+  /** Origem externa ao agendamento, usada para conciliação e prevenção de duplicidade. */
+  sourceType?: string;
+
+  sourceReference?: string;
+
   createdAt: string;
 }
 
@@ -387,6 +392,17 @@ export function receiveFinancialCharge(
       0
     );
 
+  const totalReceived =
+    Math.max(
+      (charge.receivedAmount ?? 0) +
+        data.receivedAmount,
+      0
+    );
+
+  const fullyPaid =
+    totalReceived >=
+    calculatedAmount;
+
   updateFinancialCharge(
     chargeId,
     {
@@ -403,7 +419,7 @@ export function receiveFinancialCharge(
         calculatedAmount,
 
       receivedAmount:
-        data.receivedAmount,
+        totalReceived,
 
       paymentDate:
         data.paymentDate,
@@ -418,10 +434,14 @@ export function receiveFinancialCharge(
         data.bankAccountName,
 
       status:
-        "Pago",
+        fullyPaid
+          ? "Pago"
+          : "Pendente",
 
       paidAt:
-        new Date().toISOString(),
+        fullyPaid
+          ? new Date().toISOString()
+          : undefined,
     }
   );
 }

@@ -1328,13 +1328,13 @@ export default function NovaEvolucao() {
     return Object.keys(nextErrors).length === 0;
   }
 
-  function createAttachmentsWithFolders(
+  async function createAttachmentsWithFolders(
     files:
       File[]
   ) {
-    return createStoredAttachments(
+    return (await createStoredAttachments(
       files
-    ).map(
+    )).map(
       (
         attachment,
         index
@@ -1416,7 +1416,7 @@ export default function NovaEvolucao() {
         sessionResultObservation:
           draft.sessionResultObservation,
         attachments:
-          createAttachmentsWithFolders(
+          await createAttachmentsWithFolders(
             draft.attachments
           ),
         professional:
@@ -1555,7 +1555,7 @@ export default function NovaEvolucao() {
         sessionResultObservation:
           evolution.sessionResultObservation,
         attachments:
-          createAttachmentsWithFolders(
+          await createAttachmentsWithFolders(
             evolution.attachments
           ),
         professional:
@@ -1795,7 +1795,7 @@ export default function NovaEvolucao() {
               </h1>
 
               <p className="mt-2 text-sm text-slate-500">
-                Selecione o modelo de evolução e registre os dados do atendimento.
+                Selecione o tipo padronizado de evolução e registre os dados do atendimento.
               </p>
               <div className="mt-4 w-full max-w-[360px]">
                 <FormField label="Tipo de evolução">

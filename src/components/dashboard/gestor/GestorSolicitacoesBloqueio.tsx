@@ -81,7 +81,8 @@ export function GestorSolicitacoesBloqueio() {
       requests
         .filter(
           (request) =>
-            request.status === "Pendente"
+            request.status === "Pendente" &&
+            request.unitId === activeUnitId
         )
         .sort(
           (a, b) =>
@@ -89,7 +90,7 @@ export function GestorSolicitacoesBloqueio() {
               a.createdAt
             )
         ),
-    [requests]
+    [activeUnitId, requests]
   );
 
   function refreshRequests() {
@@ -100,6 +101,7 @@ export function GestorSolicitacoesBloqueio() {
     request: BlockRequest
   ) {
     const conflict = checkScheduleConflict({
+      unitId: request.unitId,
       professional: request.professional,
       date: request.date,
       startTime: request.startTime,
@@ -115,6 +117,7 @@ export function GestorSolicitacoesBloqueio() {
 
     saveBlock({
       id: Date.now(),
+      unitId: request.unitId,
       professional: request.professional,
       date: request.date,
       startTime: request.startTime,

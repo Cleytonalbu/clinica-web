@@ -57,7 +57,7 @@ export default function EditarPaciente() {
   const patient =
     getPatientById(
       patientId
-    );
+    )!;
 
   const [
     loading,

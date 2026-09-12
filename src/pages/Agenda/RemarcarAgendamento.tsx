@@ -477,7 +477,7 @@ export default function RemarcarAgendamento() {
       ) =>
         item.id ===
         numericId
-    );
+    )!;
 
   const isSavedAppointment =
     savedAppointments.some(

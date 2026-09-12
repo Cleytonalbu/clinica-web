@@ -322,9 +322,9 @@ export default function DetalheAgendamento() {
     setAppointment,
   ] =
     useState<
-      StoredAppointment | undefined
+      StoredAppointment
     >(
-      initialAppointment
+      initialAppointment!
     );
 
   const [

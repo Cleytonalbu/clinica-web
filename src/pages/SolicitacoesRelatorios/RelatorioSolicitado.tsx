@@ -396,7 +396,7 @@ export default function RelatorioSolicitado() {
       [
         requestId,
       ]
-    );
+    )!;
 
   const requestItem =
     request?.items.find(
@@ -405,7 +405,7 @@ export default function RelatorioSolicitado() {
       ) =>
         item.id ===
         itemId
-    );
+    )!;
 
   const patient =
     request
@@ -941,7 +941,7 @@ export default function RelatorioSolicitado() {
       user?.professionalName ??
         user?.name ??
         "",
-      professional?.specialty,
+      professional?.specialty ?? requestItem.specialtyLabel,
       requestItem
     );
 
@@ -995,20 +995,21 @@ export default function RelatorioSolicitado() {
       .trim();
 
   const coverTitlePrefix =
-    /^declaração/i.test(
-      requestedReportType
-    )
-      ? "Declaração"
-      : "Relatório";
+    request.reportType === "Relatório mensal" ||
+    request.reportType === "Relatório de acompanhamento"
+      ? "Relatório de acompanhamento"
+      : /^declaração/i.test(
+          requestedReportType
+        )
+        ? "Declaração"
+        : "Relatório";
 
   const coverTitleMain =
-    normalizedRequestedReportType ||
-    (
-      coverTitlePrefix ===
-        "Declaração"
-        ? "Acompanhamento"
-        : "Acompanhamento"
-    );
+    request.reportType === "Relatório mensal" ||
+    request.reportType === "Relatório de acompanhamento"
+      ? "da criança"
+      : normalizedRequestedReportType ||
+        "Acompanhamento";
 
   const isMonthlyReport =
     request.reportType ===
@@ -1017,6 +1018,18 @@ export default function RelatorioSolicitado() {
   const isAbaSchoolPortfolio =
     request.reportType ===
     "Portfólio ABA escolar";
+
+  const isTherapeuticReport =
+    request.reportType ===
+    "Relatório terapêutico";
+
+  const isPsychologicalReport =
+    request.reportType ===
+    "Relatório psicológico";
+
+  const isSimpleClinicalReport =
+    isTherapeuticReport ||
+    isPsychologicalReport;
 
   const registration =
     professional?.registration ||
@@ -1298,6 +1311,19 @@ export default function RelatorioSolicitado() {
         return;
       }
     } else if (
+      isSimpleClinicalReport
+    ) {
+      if (
+        !developmentHistory
+          .trim()
+      ) {
+        window.alert(
+          `Preencha o conteúdo do ${requestedReportType.toLocaleLowerCase("pt-BR")} antes de finalizar.`
+        );
+
+        return;
+      }
+    } else if (
       !developmentHistory
         .trim() ||
       !evaluationResults
@@ -1397,7 +1423,7 @@ export default function RelatorioSolicitado() {
               <Printer
                 size={17}
               />
-              Imprimir / Salvar PDF
+              Baixar PDF
             </button>
 
             {editable && (
@@ -1489,37 +1515,39 @@ export default function RelatorioSolicitado() {
         <div className="report-print-area space-y-6">
           {/* CAPA */}
 
-          {isAbaSchoolPortfolio ? (
-            <article className="report-page report-cover mx-auto overflow-hidden bg-white shadow-xl">
-              <img
-                src={
-                  abaPortfolioCover
-                }
-                alt="Portfólio ABA da Criança e do Adolescente na Escola"
-                className="h-full w-full object-fill"
-              />
-            </article>
-          ) : (
-            <article className="report-page report-cover report-letterhead-page mx-auto overflow-hidden bg-white shadow-xl">
-              <img
-                src={
-                  reportLetterhead
-                }
-                alt=""
-                aria-hidden="true"
-                className="report-letterhead-background"
-              />
+          {!isSimpleClinicalReport && (
+            isAbaSchoolPortfolio ? (
+              <article className="report-page report-cover mx-auto overflow-hidden bg-white shadow-xl">
+                <img
+                  src={
+                    abaPortfolioCover
+                  }
+                  alt="Portfólio ABA da Criança e do Adolescente na Escola"
+                  className="h-full w-full object-fill"
+                />
+              </article>
+            ) : (
+              <article className="report-page report-cover report-letterhead-page mx-auto overflow-hidden bg-white shadow-xl">
+                <img
+                  src={
+                    reportLetterhead
+                  }
+                  alt=""
+                  aria-hidden="true"
+                  className="report-letterhead-background"
+                />
 
-              <div className="report-cover-title">
-                <p className="report-cover-title-line">
-                  {coverTitlePrefix}
-                </p>
+                <div className="report-cover-title">
+                  <p className="report-cover-title-line">
+                    {coverTitlePrefix}
+                  </p>
 
-                <p className="report-cover-title-main">
-                  {coverTitleMain}
-                </p>
-              </div>
-            </article>
+                  <p className="report-cover-title-main">
+                    {coverTitleMain}
+                  </p>
+                </div>
+              </article>
+            )
           )}
 
           {/* CONTEÚDO */}
@@ -1722,6 +1750,90 @@ export default function RelatorioSolicitado() {
                 </div>
               </article>
             </>
+          ) : isSimpleClinicalReport ? (
+            <article className="report-page report-letterhead-page mx-auto overflow-hidden bg-white shadow-xl">
+              <img
+                src={reportLetterhead}
+                alt=""
+                aria-hidden="true"
+                className="report-letterhead-background"
+              />
+
+              <div className="simple-clinical-content report-content-on-letterhead">
+                <h2 className="simple-clinical-title">
+                  {requestedReportType}
+                </h2>
+
+                <div className="simple-clinical-identification">
+                  <p>
+                    <strong>CRIANÇA:</strong>{" "}
+                    {patient?.nome ?? request.patientName}
+                  </p>
+                  <p>
+                    <strong>DATA DE NASCIMENTO:</strong>{" "}
+                    {formatDate(patient?.nascimento ?? "") || "-"}
+                    {calculateAge(patient?.nascimento ?? "")
+                      ? ` • ${calculateAge(patient?.nascimento ?? "")}`
+                      : ""}
+                  </p>
+                  <p>
+                    <strong>PROFISSIONAL:</strong>{" "}
+                    {professionalName}
+                    {specialty ? ` • ${specialty}` : ""}
+                  </p>
+                </div>
+
+                {editable ? (
+                  <textarea
+                    value={developmentHistory}
+                    onChange={(event) => setDevelopmentHistory(event.target.value)}
+                    placeholder={`Escreva aqui o conteúdo do ${requestedReportType.toLocaleLowerCase("pt-BR")}...`}
+                    className="simple-clinical-editor no-print-adjust"
+                  />
+                ) : (
+                  <div className="simple-clinical-text">
+                    {developmentHistory || "Não informado."}
+                  </div>
+                )}
+
+                <div className="simple-clinical-footer">
+                  <div className="text-center">
+                    <p className="text-sm font-bold text-slate-900">
+                      {city}/{state}, {formatLongDate(reportDate)}
+                    </p>
+
+                    {editable && (
+                      <input
+                        type="date"
+                        value={reportDate}
+                        onChange={(event) => setReportDate(event.target.value)}
+                        className="no-print mt-2 rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                      />
+                    )}
+                  </div>
+
+                  <div className="simple-clinical-signature">
+                    {signatureDataUrl ? (
+                      <img
+                        src={signatureDataUrl}
+                        alt="Assinatura eletrônica"
+                        className="mx-auto h-[62px] max-w-[250px] object-contain"
+                      />
+                    ) : (
+                      <div className="mx-auto h-[62px] w-[250px]" />
+                    )}
+                    <div className="mx-auto w-[250px] border-t border-slate-900" />
+                    <p className="mt-1 text-sm font-extrabold text-slate-900">
+                      {professionalName}
+                    </p>
+                    <p className="text-xs font-semibold text-slate-700">
+                      {professionLabel(specialty)}
+                      {registration ? ` • ${registration}` : ""}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </article>
           ) : isMonthlyReport ? (
             <article className="report-page report-letterhead-page mx-auto overflow-hidden bg-white shadow-xl">
               <img
@@ -2362,6 +2474,74 @@ export default function RelatorioSolicitado() {
             overflow-wrap: anywhere;
           }
 
+          .simple-clinical-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            min-height: 1123px;
+            flex-direction: column;
+            padding: 112px 86px 118px;
+            box-sizing: border-box;
+          }
+
+          .simple-clinical-title {
+            margin: 0 0 18px;
+            color: #126b9a;
+            font-size: 25px;
+            font-weight: 800;
+            line-height: 1.15;
+            text-align: center;
+            text-transform: uppercase;
+          }
+
+          .simple-clinical-identification {
+            margin-bottom: 18px;
+            border-top: 1px solid #94a3b8;
+            border-bottom: 1px solid #94a3b8;
+            padding: 10px 4px;
+            color: #334155;
+            font-size: 12px;
+            line-height: 1.65;
+          }
+
+          .simple-clinical-editor,
+          .simple-clinical-text {
+            width: 100%;
+            height: 525px;
+            min-height: 525px;
+            box-sizing: border-box;
+            border: 1px solid #94a3b8;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.86);
+            padding: 16px;
+            color: #1f2937;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.65;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+          }
+
+          .simple-clinical-editor {
+            resize: none;
+            outline: none;
+          }
+
+          .simple-clinical-editor:focus {
+            border-color: #2f8dbd;
+            box-shadow: 0 0 0 3px rgba(47, 141, 189, 0.14);
+          }
+
+          .simple-clinical-footer {
+            margin-top: 20px;
+          }
+
+          .simple-clinical-signature {
+            margin-top: 14px;
+            width: 330px;
+            text-align: center;
+          }
+
           .report-content {
             padding: 36px 92px 110px 92px;
           }
@@ -2655,6 +2835,7 @@ function ReportTextField({
   onChange,
   editable,
   placeholder,
+  minHeight,
 }: {
   value:
     string;
@@ -2664,6 +2845,8 @@ function ReportTextField({
   editable:
     boolean;
   placeholder:
+    string;
+  minHeight?:
     string;
 }) {
   const textareaRef =
@@ -2731,12 +2914,13 @@ function ReportTextField({
           1
         }
         className="report-editor"
+        style={{ minHeight }}
       />
     );
   }
 
   return (
-    <div className="report-box">
+    <div className="report-box" style={{ minHeight }}>
       {value ||
         "Não informado."}
     </div>

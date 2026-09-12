@@ -13,16 +13,12 @@ import {
   ClipboardList,
   CircleDollarSign,
   DoorOpen,
-  FileBarChart,
   KeyRound,
   LayoutList,
   Plus,
   Save,
-  Settings,
   ShieldCheck,
-  Smartphone,
   Stethoscope,
-  Target,
   Trash2,
   UserCog,
   UsersRound,
@@ -35,6 +31,8 @@ import {
 import {
   useUnit,
 } from "@/providers/UnitContext";
+
+import { useAuth } from "@/auth/AuthContext";
 
 import {
   Button,
@@ -56,25 +54,19 @@ import {
 
 import AgendaSettingsSection from "./AgendaSettingsSection";
 
-import ObjectivesSettingsContainer from "./ObjectivesSettingsContainer";
-
-import NotificationsSettingsContainer from "./NotificationsSettingsContainer";
-
-import ResponsibleAppSettingsContainer from "./ResponsibleAppSettingsContainer";
+import NotificationsSettingsSection from "./NotificationsSettingsSection";
 
 import PermissionsSettingsContainer from "./PermissionsSettingsContainer";
 
-import FinancialSettingsContainer from "./FinancialSettingsContainer";
-
 import PackagePlansSettingsSection from "./PackagePlansSettingsSection";
-
-import ReportsSettingsContainer from "./ReportsSettingsContainer";
-
-import GeneralSettingsContainer from "./GeneralSettingsContainer";
 
 import ClinicUnitsSettingsSection from "./ClinicUnitsSettingsSection";
 
 import UserLoginsSettingsSection from "./UserLoginsSettingsSection";
+
+import ClinicSettingsSection from "./ClinicSettingsSection";
+
+import FinancialSettingsSection from "./FinancialSettingsSection";
 
 import {
   removeRoomUnitLinks,
@@ -134,138 +126,10 @@ type SettingsSection =
   | "convenios"
   | "rooms"
   | "agenda"
-  | "objectives"
   | "notifications"
-  | "app"
-  | "permissions"
   | "finance"
-  | "packages"
-  | "reports"
-  | "general";
-
-interface ClinicSettings {
-  clinicName: string;
-
-  cnpj: string;
-
-  email: string;
-
-  phone: string;
-
-  address: string;
-
-  city: string;
-
-  state: string;
-
-  zipCode: string;
-
-  timezone: string;
-
-  dateFormat: string;
-
-  consultationReminders: boolean;
-
-  allowResponsibleReschedule: boolean;
-
-  requireAbsenceReason: boolean;
-
-  lockMedicalRecordAfterClose: boolean;
-
-  showFinancialDataToProfessionals: boolean;
-}
-
-const CLINIC_STORAGE_KEY =
-  "entre-afetos-clinic-settings";
-
-const defaultClinicSettings: ClinicSettings = {
-  clinicName:
-    "Clínica Integrada Entre Afetos",
-
-  cnpj:
-    "35.123.456/0001-00",
-
-  email:
-    "contato@entreafetos.com.br",
-
-  phone:
-    "(83) 99999-9999",
-
-  address:
-    "Rua Exemplo, 123",
-
-  city:
-    "Guarabira",
-
-  state:
-    "PB",
-
-  zipCode:
-    "58200-000",
-
-  timezone:
-    "America/Sao_Paulo",
-
-  dateFormat:
-    "DD/MM/AAAA",
-
-  consultationReminders:
-    true,
-
-  allowResponsibleReschedule:
-    true,
-
-  requireAbsenceReason:
-    true,
-
-  lockMedicalRecordAfterClose:
-    false,
-
-  showFinancialDataToProfessionals:
-    false,
-};
-
-function getClinicSettings(): ClinicSettings {
-  try {
-    const stored =
-      localStorage.getItem(
-        CLINIC_STORAGE_KEY
-      );
-
-    if (!stored) {
-      localStorage.setItem(
-        CLINIC_STORAGE_KEY,
-        JSON.stringify(
-          defaultClinicSettings
-        )
-      );
-
-      return defaultClinicSettings;
-    }
-
-    return {
-      ...defaultClinicSettings,
-
-      ...JSON.parse(
-        stored
-      ),
-    };
-  } catch {
-    return defaultClinicSettings;
-  }
-}
-
-function saveClinicSettings(
-  settings:
-    ClinicSettings
-) {
-  localStorage.setItem(
-    CLINIC_STORAGE_KEY,
-    JSON.stringify(
-      settings
-    )
-  );
-}
+  | "permissions"
+  | "packages";
 
 const menuItems: {
   id:
@@ -276,14 +140,14 @@ const menuItems: {
 
   icon:
     ReactNode;
+
+  gestorOnly?:
+    boolean;
 }[] = [
   {
     id: "clinic",
     label: "Dados da Clínica",
-    icon:
-      <Building2
-        size={18}
-      />,
+    icon: <Building2 size={18} />,
   },
 
   {
@@ -325,6 +189,7 @@ const menuItems: {
   {
     id: "user-logins",
     label: "Logins de Usuários",
+    gestorOnly: true,
     icon:
       <KeyRound
         size={18}
@@ -359,15 +224,6 @@ const menuItems: {
   },
 
   {
-    id: "objectives",
-    label: "Objetivos Terapêuticos",
-    icon:
-      <Target
-        size={18}
-      />,
-  },
-
-  {
     id: "notifications",
     label: "Notificações",
     icon:
@@ -377,28 +233,17 @@ const menuItems: {
   },
 
   {
-    id: "app",
-    label: "Aplicativo dos Responsáveis",
-    icon:
-      <Smartphone
-        size={18}
-      />,
+    id: "finance",
+    label: "Financeiro",
+    icon: <CircleDollarSign size={18} />,
   },
 
   {
     id: "permissions",
     label: "Perfis e Permissões",
+    gestorOnly: true,
     icon:
       <ShieldCheck
-        size={18}
-      />,
-  },
-
-  {
-    id: "finance",
-    label: "Financeiro",
-    icon:
-      <CircleDollarSign
         size={18}
       />,
   },
@@ -412,26 +257,12 @@ const menuItems: {
       />,
   },
 
-  {
-    id: "reports",
-    label: "Relatórios",
-    icon:
-      <FileBarChart
-        size={18}
-      />,
-  },
-
-  {
-    id: "general",
-    label: "Configurações Gerais",
-    icon:
-      <Settings
-        size={18}
-      />,
-  },
 ];
 
 export default function Configuracoes() {
+  const { user } =
+    useAuth();
+
   const {
     activeUnit,
     activeUnitId,
@@ -453,15 +284,6 @@ export default function Configuracoes() {
     useState<SystemSettings>(
       () =>
         getSystemSettings()
-    );
-
-  const [
-    clinicSettings,
-    setClinicSettings,
-  ] =
-    useState<ClinicSettings>(
-      () =>
-        getClinicSettings()
     );
 
   const [
@@ -549,10 +371,21 @@ export default function Configuracoes() {
       null
     );
 
+  const availableMenuItems =
+    useMemo(
+      () =>
+        menuItems.filter(
+          (item) =>
+            !item.gestorOnly ||
+            user?.profile === "Gestor"
+        ),
+      [user?.profile]
+    );
+
   const selectedMenu =
     useMemo(
       () =>
-        menuItems.find(
+        availableMenuItems.find(
           (
             item
           ) =>
@@ -561,6 +394,7 @@ export default function Configuracoes() {
         ),
       [
         activeSection,
+        availableMenuItems,
       ]
     );
 
@@ -596,32 +430,7 @@ export default function Configuracoes() {
     );
   }
 
-  function updateClinicField<
-    K extends keyof ClinicSettings
-  >(
-    field:
-      K,
-
-    value:
-      ClinicSettings[K]
-  ) {
-    setClinicSettings(
-      (
-        current
-      ) => ({
-        ...current,
-
-        [field]:
-          value,
-      })
-    );
-  }
-
   function handleSave() {
-    saveClinicSettings(
-      clinicSettings
-    );
-
     saveSystemSettings(
       systemSettings
     );
@@ -642,6 +451,41 @@ export default function Configuracoes() {
         ...current,
 
         agenda,
+      })
+    );
+  }
+
+  function handleClinicChange(
+    clinic:
+      SystemSettings["clinic"]
+  ) {
+    setSystemSettings((current) => ({
+      ...current,
+      clinic,
+    }));
+  }
+
+  function handleFinancialChange(
+    financial:
+      SystemSettings["financial"]
+  ) {
+    setSystemSettings((current) => ({
+      ...current,
+      financial,
+    }));
+  }
+
+  function handleNotificationsChange(
+    notifications:
+      SystemSettings["notifications"]
+  ) {
+    setSystemSettings(
+      (
+        current
+      ) => ({
+        ...current,
+
+        notifications,
       })
     );
   }
@@ -1407,70 +1251,6 @@ export default function Configuracoes() {
     );
   }
 
-  function updateConvenioSpecialtyValue(
-    convenioId:
-      number,
-
-    specialtyName:
-      string,
-
-    value:
-      string
-  ) {
-    setSystemSettings(
-      (
-        current
-      ) => ({
-        ...current,
-
-        convenios:
-          current.convenios.map(
-            (
-              convenio
-            ) => {
-              if (
-                convenio.id !==
-                convenioId
-              ) {
-                return convenio;
-              }
-
-              const nextValues = {
-                ...convenio.specialtyValues,
-              };
-
-              const numericValue =
-                Number(
-                  value
-                );
-
-              if (
-                !value ||
-                numericValue <=
-                  0
-              ) {
-                delete nextValues[
-                  specialtyName
-                ];
-              } else {
-                nextValues[
-                  specialtyName
-                ] =
-                  numericValue;
-              }
-
-              return {
-                ...convenio,
-
-                specialtyValues:
-                  nextValues,
-              };
-            }
-          ),
-      })
-    );
-  }
-
   function removeConvenio(
     id:
       number
@@ -1706,7 +1486,7 @@ export default function Configuracoes() {
             </p>
 
             <div className="space-y-1">
-              {menuItems.map(
+              {availableMenuItems.map(
                 (
                   item
                 ) => {
@@ -1782,17 +1562,8 @@ export default function Configuracoes() {
             {activeSection ===
               "clinic" && (
               <ClinicSettingsSection
-                settings={
-                  clinicSettings
-                }
-
-                systemSettings={
-                  systemSettings
-                }
-
-                onChange={
-                  updateClinicField
-                }
+                settings={systemSettings.clinic}
+                onChange={handleClinicChange}
               />
             )}
 
@@ -1814,10 +1585,6 @@ export default function Configuracoes() {
 
                 activeUnitId={
                   activeUnitId
-                }
-
-                activeUnitName={
-                  activeUnit.name
                 }
 
                 specialtyName={
@@ -1992,10 +1759,6 @@ export default function Configuracoes() {
                   activeUnitId
                 }
 
-                activeUnitName={
-                  activeUnit.name
-                }
-
                 convenioName={
                   convenioName
                 }
@@ -2022,10 +1785,6 @@ export default function Configuracoes() {
 
                 onToggle={
                   toggleConvenio
-                }
-
-                onSpecialtyValueChange={
-                  updateConvenioSpecialtyValue
                 }
 
                 onRemove={
@@ -2089,76 +1848,29 @@ export default function Configuracoes() {
             )}
 
             {activeSection ===
-              "objectives" && (
-              <ObjectivesSettingsContainer
-                settings={
-                  systemSettings
-                }
-
-                onSettingsChange={
-                  setSystemSettings
-                }
-
-                onFeedback={
-                  showFeedback
-                }
-              />
-            )}
-
-            {activeSection ===
               "notifications" && (
-              <NotificationsSettingsContainer
+              <NotificationsSettingsSection
                 settings={
-                  systemSettings
+                  systemSettings.notifications
                 }
 
-                onSettingsChange={
-                  setSystemSettings
-                }
-
-                onFeedback={
-                  showFeedback
-                }
-              />
-            )}
-
-            {activeSection ===
-              "app" && (
-              <ResponsibleAppSettingsContainer
-                settings={
-                  systemSettings
-                }
-
-                onSettingsChange={
-                  setSystemSettings
-                }
-
-                onFeedback={
-                  showFeedback
-                }
-              />
-            )}
-
-            {activeSection ===
-              "permissions" && (
-              <PermissionsSettingsContainer
-                settings={
-                  systemSettings
-                }
-
-                onSettingsChange={
-                  setSystemSettings
-                }
-
-                onFeedback={
-                  showFeedback
+                onChange={
+                  handleNotificationsChange
                 }
               />
             )}
 
             {activeSection ===
               "finance" && (
-              <FinancialSettingsContainer
+              <FinancialSettingsSection
+                settings={systemSettings.financial}
+                onChange={handleFinancialChange}
+              />
+            )}
+
+            {activeSection ===
+              "permissions" && (
+              <PermissionsSettingsContainer
                 settings={
                   systemSettings
                 }
@@ -2182,356 +1894,10 @@ export default function Configuracoes() {
               />
             )}
 
-            {activeSection ===
-              "reports" && (
-              <ReportsSettingsContainer
-                settings={
-                  systemSettings
-                }
-
-                onSettingsChange={
-                  setSystemSettings
-                }
-
-                onFeedback={
-                  showFeedback
-                }
-              />
-            )}
-
-            {activeSection ===
-              "general" && (
-              <GeneralSettingsContainer
-                settings={
-                  systemSettings
-                }
-
-                onSettingsChange={
-                  setSystemSettings
-                }
-
-                onFeedback={
-                  showFeedback
-                }
-              />
-            )}
           </main>
         </div>
       </div>
     </DashboardLayout>
-  );
-}
-
-function ClinicSettingsSection({
-  settings,
-  systemSettings,
-  onChange,
-}: {
-  settings:
-    ClinicSettings;
-
-  systemSettings:
-    SystemSettings;
-
-  onChange: <
-    K extends keyof ClinicSettings
-  >(
-    field:
-      K,
-
-    value:
-      ClinicSettings[K]
-  ) => void;
-}) {
-  return (
-    <>
-      <PageCard
-        title="Dados da Clínica"
-        description="Informações institucionais utilizadas no sistema."
-      >
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.3fr_0.9fr]">
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <FormField label="Nome da clínica">
-              <Input
-                value={
-                  settings.clinicName
-                }
-                onChange={(
-                  event
-                ) =>
-                  onChange(
-                    "clinicName",
-                    event.target.value
-                  )
-                }
-              />
-            </FormField>
-
-            <FormField label="CNPJ">
-              <Input
-                value={
-                  settings.cnpj
-                }
-                onChange={(
-                  event
-                ) =>
-                  onChange(
-                    "cnpj",
-                    event.target.value
-                  )
-                }
-              />
-            </FormField>
-
-            <FormField label="E-mail">
-              <Input
-                type="email"
-                value={
-                  settings.email
-                }
-                onChange={(
-                  event
-                ) =>
-                  onChange(
-                    "email",
-                    event.target.value
-                  )
-                }
-              />
-            </FormField>
-
-            <FormField label="Telefone">
-              <Input
-                value={
-                  settings.phone
-                }
-                onChange={(
-                  event
-                ) =>
-                  onChange(
-                    "phone",
-                    event.target.value
-                  )
-                }
-              />
-            </FormField>
-
-            <FormField label="Endereço">
-              <Input
-                value={
-                  settings.address
-                }
-                onChange={(
-                  event
-                ) =>
-                  onChange(
-                    "address",
-                    event.target.value
-                  )
-                }
-              />
-            </FormField>
-
-            <FormField label="Cidade">
-              <Input
-                value={
-                  settings.city
-                }
-                onChange={(
-                  event
-                ) =>
-                  onChange(
-                    "city",
-                    event.target.value
-                  )
-                }
-              />
-            </FormField>
-
-            <FormField label="Estado">
-              <Select
-                value={
-                  settings.state
-                }
-                onChange={(
-                  event
-                ) =>
-                  onChange(
-                    "state",
-                    event.target.value
-                  )
-                }
-              >
-                <option value="PB">
-                  PB
-                </option>
-
-                <option value="PE">
-                  PE
-                </option>
-
-                <option value="RN">
-                  RN
-                </option>
-
-                <option value="CE">
-                  CE
-                </option>
-
-                <option value="SP">
-                  SP
-                </option>
-
-                <option value="RJ">
-                  RJ
-                </option>
-
-                <option value="MG">
-                  MG
-                </option>
-              </Select>
-            </FormField>
-
-            <FormField label="CEP">
-              <Input
-                value={
-                  settings.zipCode
-                }
-                onChange={(
-                  event
-                ) =>
-                  onChange(
-                    "zipCode",
-                    event.target.value
-                  )
-                }
-              />
-            </FormField>
-          </div>
-
-          <div className="border-t border-slate-100 pt-5 xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0">
-            <h3 className="font-bold text-slate-900">
-              Configurações gerais
-            </h3>
-
-            <div className="mt-5 space-y-4">
-              <SimpleBooleanSetting
-                label="Ativar lembretes de consulta"
-                checked={
-                  settings.consultationReminders
-                }
-                onChange={(
-                  value
-                ) =>
-                  onChange(
-                    "consultationReminders",
-                    value
-                  )
-                }
-              />
-
-              <SimpleBooleanSetting
-                label="Permitir reagendamento pelo responsável"
-                checked={
-                  settings.allowResponsibleReschedule
-                }
-                onChange={(
-                  value
-                ) =>
-                  onChange(
-                    "allowResponsibleReschedule",
-                    value
-                  )
-                }
-              />
-
-              <SimpleBooleanSetting
-                label="Exigir justificativa para faltas"
-                checked={
-                  settings.requireAbsenceReason
-                }
-                onChange={(
-                  value
-                ) =>
-                  onChange(
-                    "requireAbsenceReason",
-                    value
-                  )
-                }
-              />
-
-              <SimpleBooleanSetting
-                label="Bloquear prontuário após encerramento"
-                checked={
-                  settings.lockMedicalRecordAfterClose
-                }
-                onChange={(
-                  value
-                ) =>
-                  onChange(
-                    "lockMedicalRecordAfterClose",
-                    value
-                  )
-                }
-              />
-
-              <SimpleBooleanSetting
-                label="Exibir dados financeiros para profissionais"
-                checked={
-                  settings.showFinancialDataToProfessionals
-                }
-                onChange={(
-                  value
-                ) =>
-                  onChange(
-                    "showFinancialDataToProfessionals",
-                    value
-                  )
-                }
-              />
-            </div>
-          </div>
-        </div>
-      </PageCard>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <SummaryCard
-          title="Especialidades ativas"
-          value={String(
-            systemSettings.specialties.filter(
-              (
-                item
-              ) =>
-                item.active
-            ).length
-          )}
-        />
-
-        <SummaryCard
-          title="Profissionais ativos"
-          value={String(
-            systemSettings.professionals.filter(
-              (
-                item
-              ) =>
-                item.active
-            ).length
-          )}
-        />
-
-        <SummaryCard
-          title="Salas ativas"
-          value={String(
-            systemSettings.rooms.filter(
-              (
-                item
-              ) =>
-                item.active
-            ).length
-          )}
-        />
-      </div>
-    </>
   );
 }
 
@@ -2991,7 +2357,6 @@ function ProceduresSettingsSection({
 function SpecialtiesSettingsSection({
   settings,
   activeUnitId,
-  activeUnitName,
   specialtyName,
   specialtyValue,
   specialtyRepasseValue,
@@ -3010,9 +2375,6 @@ function SpecialtiesSettingsSection({
 
   activeUnitId:
     number;
-
-  activeUnitName:
-    string;
 
   specialtyName:
     string;
@@ -4215,7 +3577,6 @@ function ProfessionalsSettingsSection({
 function ConveniosSettingsSection({
   settings,
   activeUnitId,
-  activeUnitName,
   convenioName,
   convenioDiscount,
   onNameChange,
@@ -4223,7 +3584,6 @@ function ConveniosSettingsSection({
   onAdd,
   onUpdate,
   onToggle,
-  onSpecialtyValueChange,
   onRemove,
 }: {
   settings:
@@ -4231,9 +3591,6 @@ function ConveniosSettingsSection({
 
   activeUnitId:
     number;
-
-  activeUnitName:
-    string;
 
   convenioName:
     string;
@@ -4269,18 +3626,6 @@ function ConveniosSettingsSection({
     (
       id:
         number
-    ) => void;
-
-  onSpecialtyValueChange:
-    (
-      convenioId:
-        number,
-
-      specialtyName:
-        string,
-
-      value:
-        string
     ) => void;
 
   onRemove:
@@ -4728,49 +4073,6 @@ function RoomsSettingsSection({
         </div>
       </PageCard>
     </>
-  );
-}
-
-function SimpleBooleanSetting({
-  label,
-  checked,
-  onChange,
-}: {
-  label:
-    string;
-
-  checked:
-    boolean;
-
-  onChange:
-    (
-      value:
-        boolean
-    ) => void;
-}) {
-  return (
-    <label className="flex cursor-pointer items-center gap-3">
-      <input
-        type="checkbox"
-        checked={
-          checked
-        }
-        onChange={(
-          event
-        ) =>
-          onChange(
-            event.target.checked
-          )
-        }
-        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-      />
-
-      <span className="text-sm font-medium text-slate-700">
-        {
-          label
-        }
-      </span>
-    </label>
   );
 }
 

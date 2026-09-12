@@ -5,6 +5,8 @@ export interface ReceiptPrintData {
   clinicAddress?: string;
   clinicCityState?: string;
   clinicPhone?: string;
+  clinicDocument?: string;
+  clinicEmail?: string;
 
   patient: string;
   responsible?: string;
@@ -528,6 +530,18 @@ export function openReceiptPrint(
                         )}
                       </div>
                     `
+                    : ""
+                }
+
+                ${
+                  data.clinicDocument
+                    ? `<div>CNPJ: ${escapeHtml(data.clinicDocument)}</div>`
+                    : ""
+                }
+
+                ${
+                  data.clinicEmail
+                    ? `<div>${escapeHtml(data.clinicEmail)}</div>`
                     : ""
                 }
               </div>

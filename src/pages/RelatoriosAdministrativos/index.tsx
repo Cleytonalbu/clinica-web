@@ -7,10 +7,11 @@ import {
   Building2,
   CalendarDays,
   CircleDollarSign,
+  Download,
+  Eye,
   FileClock,
   FileText,
   HandCoins,
-  Printer,
   ReceiptText,
   TrendingDown,
   TrendingUp,
@@ -492,14 +493,29 @@ export default function RelatoriosAdministrativos() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="report-admin-print-hide inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-          >
-            <Printer size={17} />
-            Imprimir relatório
-          </button>
+          <div className="report-admin-print-hide flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                document
+                  .querySelector(".report-admin-print-content")
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              <Eye size={17} />
+              Visualizar
+            </button>
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            >
+              <Download size={17} />
+              Baixar PDF
+            </button>
+          </div>
         </div>
 
         <section className="report-admin-print-hide rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -541,7 +557,7 @@ export default function RelatoriosAdministrativos() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="report-admin-print-content grid scroll-mt-6 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
           {metricCards.map((card) => {
             const Icon = card.icon;
 

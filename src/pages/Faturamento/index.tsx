@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -33,6 +34,7 @@ import {
 } from "@/pages/Financeiro/financeRules";
 
 import {
+  FINANCIAL_CHARGES_CHANGED_EVENT,
   getFinancialCharges,
   type FinancialCharge,
 } from "@/pages/Financeiro/financeStorage";
@@ -214,11 +216,18 @@ export default function Faturamento() {
 
   const [
     charges,
+    setCharges,
   ] =
     useState<FinancialCharge[]>(
       () =>
         getFinancialCharges()
     );
+
+  useEffect(() => {
+    const refresh = () => setCharges(getFinancialCharges());
+    window.addEventListener(FINANCIAL_CHARGES_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(FINANCIAL_CHARGES_CHANGED_EVENT, refresh);
+  }, []);
 
   const [
     search,

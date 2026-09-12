@@ -87,6 +87,8 @@ export interface FixedScheduleException {
 
   reason?: string;
 
+  source?: string;
+
   /**
    * Quando a ocorrência foi remarcada, estes campos permitem
    * representar a exceção sem alterar o horário fixo original.

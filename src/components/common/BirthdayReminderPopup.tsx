@@ -236,7 +236,7 @@ export function BirthdayReminderPopup() {
                   today
                 )
             )
-            .map(
+            .flatMap(
               (
                 patient
               ) => ({
@@ -265,7 +265,7 @@ export function BirthdayReminderPopup() {
                   activeUnitId
                 )
             )
-            .map(
+            .flatMap(
               (
                 professional
               ) => {
@@ -281,10 +281,10 @@ export function BirthdayReminderPopup() {
                     today
                   )
                 ) {
-                  return null;
+                  return [];
                 }
 
-                return {
+                return [{
                   id:
                     professional.id,
 
@@ -299,17 +299,8 @@ export function BirthdayReminderPopup() {
 
                   specialty:
                     professional.specialty,
-                };
+                }];
               }
-            )
-            .filter(
-              (
-                person
-              ):
-                person is
-                  BirthdayPerson =>
-                person !==
-                null
             );
 
         return [

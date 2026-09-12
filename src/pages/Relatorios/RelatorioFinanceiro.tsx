@@ -8,9 +8,10 @@ import {
   ArrowUpCircle,
   Banknote,
   CircleDollarSign,
+  Download,
+  Eye,
   FileText,
   Filter,
-  Printer,
   WalletCards,
 } from "lucide-react";
 
@@ -36,12 +37,10 @@ import {
 
 import {
   getFinancialCharges,
-  type FinancialCharge,
 } from "@/pages/Financeiro/financeStorage";
 
 import {
   getFinancialExpenses,
-  type FinancialExpense,
 } from "@/pages/Financeiro/expenseStorage";
 
 import {
@@ -52,6 +51,8 @@ import {
   FinancialReportDocument,
   FINANCIAL_REPORT_DOCUMENT_STYLES,
 } from "@/components/relatorios/FinancialReportDocument";
+
+import { ReportPreviewModal } from "@/components/relatorios/ReportPreviewModal";
 
 import {
   syncProfessionalPayoutsFromAppointments,
@@ -214,6 +215,8 @@ const REPORT_PRINT_STYLES = `
 `;
 
 export default function RelatorioFinanceiro() {
+  const [previewOpen, setPreviewOpen] = useState(false);
+
   const {
     activeUnitId,
   } =
@@ -843,20 +846,49 @@ export default function RelatorioFinanceiro() {
               Limpar filtros
             </Button>
 
+            <Button type="button" variant="outline" onClick={() => setPreviewOpen(true)}>
+              <Eye size={17} />
+              Visualizar
+            </Button>
+
             <Button
               type="button"
               onClick={
                 handlePrint
               }
             >
-              <Printer
+              <Download
                 size={17}
               />
 
-              Imprimir relatório
+              Baixar PDF
             </Button>
           </div>
         </div>
+
+        <ReportPreviewModal
+          open={previewOpen}
+          title="Relatório Financeiro"
+          printStyles={`${REPORT_PRINT_STYLES}\n${FINANCIAL_REPORT_DOCUMENT_STYLES}`}
+          onClose={() => setPreviewOpen(false)}
+          onDownload={handlePrint}
+        >
+          <FinancialReportDocument
+            startDate={startDate}
+            endDate={endDate}
+            movementType={movementType}
+            status={status}
+            billingType={billingType}
+            movements={movements}
+            received={received}
+            receivable={receivable}
+            paidExpenses={paidExpenses}
+            payable={payable}
+            paidPayouts={paidPayouts}
+            pendingPayouts={pendingPayouts}
+            result={result}
+          />
+        </ReportPreviewModal>
 
         <div className="hidden print:block">
           <p className="text-xs text-slate-500">

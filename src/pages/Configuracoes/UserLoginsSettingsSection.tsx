@@ -81,19 +81,16 @@ export default function UserLoginsSettingsSection({
   const [resetUserId, setResetUserId] = useState<number | null>(null);
   const [resetPassword, setResetPassword] = useState("");
 
-  const collaborators = useMemo(
-    () =>
-      getAdministrativeCollaborators()
-        .filter(
-          (item) =>
-            item.status === "Ativo" &&
-            (item.type === "Recepção" || item.type === "Administrativo"),
-        )
-        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
-    [users],
-  );
+  const collaborators =
+    getAdministrativeCollaborators()
+      .filter(
+        (item) =>
+          item.status === "Ativo" &&
+          (item.type === "Recepção" || item.type === "Administrativo"),
+      )
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 
-  const units = useMemo(() => getActiveClinicUnits(), [users]);
+  const units = getActiveClinicUnits();
 
   const managedUsers = useMemo(
     () =>

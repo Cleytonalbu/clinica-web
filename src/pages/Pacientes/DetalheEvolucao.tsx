@@ -3,6 +3,7 @@ import {
   CalendarDays,
   CheckCircle2,
   ClipboardList,
+  Eye,
   FileText,
   MapPin,
   PenLine,
@@ -15,6 +16,8 @@ import {
   useNavigate,
   useParams,
 } from "react-router-dom";
+
+import { useState } from "react";
 
 import {
   DashboardLayout,
@@ -29,12 +32,15 @@ import {
   PageCard,
 } from "@/components/ui";
 
+import { DocumentPreviewModal } from "@/components/documents/DocumentPreviewModal";
+
 import {
   getPatientById,
 } from "@/pages/Pacientes/patientStorage";
 
 import {
   getPatientEvolutionById,
+  type StoredEvolutionAttachment,
 } from "@/pages/Pacientes/evolutionStorage";
 
 import {
@@ -43,6 +49,8 @@ import {
 } from "@/pages/Pacientes/patientAccessRules";
 
 export default function DetalheEvolucao() {
+  const [previewAttachment, setPreviewAttachment] =
+    useState<StoredEvolutionAttachment | null>(null);
   const navigate =
     useNavigate();
 
@@ -521,7 +529,7 @@ export default function DetalheEvolucao() {
                       />
                     </div>
 
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-slate-800">
                         {
                           attachment.name
@@ -536,6 +544,15 @@ export default function DetalheEvolucao() {
                         }
                       </p>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setPreviewAttachment(attachment)}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-indigo-50 px-2 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-100"
+                    >
+                      <Eye size={14} />
+                      Visualizar
+                    </button>
                   </div>
                 )
               )}
@@ -592,6 +609,17 @@ export default function DetalheEvolucao() {
           </div>
         </PageCard>
       </div>
+
+      {previewAttachment && (
+        <DocumentPreviewModal
+          open
+          title={previewAttachment.name}
+          fileName={previewAttachment.name}
+          mimeType={previewAttachment.type}
+          dataUrl={previewAttachment.dataUrl}
+          onClose={() => setPreviewAttachment(null)}
+        />
+      )}
     </DashboardLayout>
   );
 }

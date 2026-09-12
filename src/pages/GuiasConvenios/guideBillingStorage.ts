@@ -138,7 +138,6 @@ export interface GuiaConvenio {
   loteId?: string;
   dataEnvio?: string;
   dataPagamento?: string;
-  motivoGlosa?: string;
   observacoes?: string;
   createdAt: string;
   updatedAt: string;

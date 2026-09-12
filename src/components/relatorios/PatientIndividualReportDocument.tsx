@@ -6,6 +6,7 @@ import type { TherapeuticObjective } from "@/pages/Pacientes/objectiveStorage";
 import type { StoredAppointment } from "@/pages/Agenda/appointmentStorage";
 
 export type PatientIndividualReportType =
+  | "complete"
   | "clinical"
   | "objectives"
   | "attendance";
@@ -40,7 +41,9 @@ export function PatientIndividualReportDocument({
   onPrint,
 }: Props) {
   const title =
-    type === "clinical"
+    type === "complete"
+      ? "Relatório Geral do Paciente"
+      : type === "clinical"
       ? "Relatório de Evolução Clínica"
       : type === "objectives"
         ? "Relatório de Objetivos Terapêuticos"
@@ -83,21 +86,21 @@ export function PatientIndividualReportDocument({
           professionalName={professionalName}
         />
 
-        {type === "clinical" && (
+        {(type === "clinical" || type === "complete") && (
           <Clinical
             evolutions={evolutions}
             objectives={objectives}
           />
         )}
 
-        {type === "objectives" && (
+        {(type === "objectives" || type === "complete") && (
           <Objectives
             objectives={objectives}
             evolutions={evolutions}
           />
         )}
 
-        {type === "attendance" && (
+        {(type === "attendance" || type === "complete") && (
           <Attendance appointments={appointments} />
         )}
 

@@ -93,7 +93,6 @@ import {
   getActiveRooms,
   getActiveSpecialties,
   getAgendaSettings,
-  shouldCreateChargeOnAppointmentCreation,
   type ProfessionalSetting,
 } from "@/pages/Configuracoes/settingsStorage";
 
@@ -134,7 +133,9 @@ import {
 import {
   calculateChargeAmount,
   formatCurrency,
+  getConfiguredPaymentMethods,
   getDefaultPaymentMethod,
+  shouldCreateChargeOnAppointmentCreation,
   type PaymentMethod,
 } from "@/pages/Financeiro/financeRules";
 
@@ -2314,7 +2315,7 @@ export default function ReceptionWeeklyAgenda() {
     setFixedScheduleException(
       {
         fixedScheduleId:
-          item.fixedScheduleId,
+          item.fixedScheduleId!,
 
         unitId:
           activeUnitId,
@@ -5863,7 +5864,7 @@ function FixedScheduleOccurrenceManager({
     setFixedScheduleException(
       {
         fixedScheduleId:
-          item.fixedScheduleId,
+          item.fixedScheduleId!,
 
         unitId:
           activeUnitId,
@@ -9055,25 +9056,13 @@ function QuickReceptionPaymentModal({
                     }
                     className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-blue-400"
                   >
-                    <option value="Pix">
-                      Pix
-                    </option>
-
-                    <option value="Dinheiro">
-                      Dinheiro
-                    </option>
-
-                    <option value="Cartão de débito">
-                      Cartão de débito
-                    </option>
-
-                    <option value="Cartão de crédito">
-                      Cartão de crédito
-                    </option>
-
-                    <option value="Transferência">
-                      Transferência
-                    </option>
+                    {getConfiguredPaymentMethods().map(
+                      (method) => (
+                        <option key={method} value={method}>
+                          {method}
+                        </option>
+                      )
+                    )}
                   </select>
                 </label>
 
